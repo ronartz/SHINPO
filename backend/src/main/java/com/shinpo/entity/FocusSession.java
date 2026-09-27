@@ -2,6 +2,7 @@ package com.shinpo.entity;
 
 import jakarta.persistence.*;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Entity
@@ -24,6 +25,10 @@ public class FocusSession {
     @JoinColumn(name = "mission_id")
     private Mission mission;
 
+        @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id")
+    private SessionPlan plan;
+
     @Column(nullable = false, length = 150)
     private String name;
 
@@ -43,8 +48,23 @@ public class FocusSession {
     @Column(name = "started_at")
     private Instant startedAt;
 
+    @Column(name = "paused_at")
+    private Instant pausedAt;
+
+    @Column(name = "accumulated_paused_seconds", nullable = false)
+    private Long accumulatedPausedSeconds = 0L;
+
     @Column(name = "ended_at")
     private Instant endedAt;
+    
+        @Column(name = "completion_quality")
+    private Integer completionQuality;
+
+    @Column(name = "reflection_note", columnDefinition = "TEXT")
+    private String reflectionNote;
+
+    @Column(name = "accomplishment", columnDefinition = "TEXT")
+    private String accomplishment;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -57,11 +77,39 @@ public class FocusSession {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (accumulatedPausedSeconds == null) {
+            accumulatedPausedSeconds = 0L;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = Instant.now();
+    }
+
+    public long calculateActiveSeconds(Instant currentInstant) {
+        if (startedAt == null) {
+            return 0L;
+        }
+
+        Instant effectiveEnd;
+        if (status == FocusSessionStatus.COMPLETED || status == FocusSessionStatus.CANCELLED || status == FocusSessionStatus.EXPIRED || status == FocusSessionStatus.FAILED) {
+            effectiveEnd = endedAt != null ? endedAt : currentInstant;
+        } else if (status == FocusSessionStatus.PAUSED && pausedAt != null) {
+            effectiveEnd = pausedAt;
+        } else {
+            effectiveEnd = currentInstant;
+        }
+
+        long totalElapsed = Math.max(0L, Duration.between(startedAt, effectiveEnd).toSeconds());
+        long active = totalElapsed - (accumulatedPausedSeconds != null ? accumulatedPausedSeconds : 0L);
+        return Math.max(0L, active);
+    }
+
+    public long calculateRemainingSeconds(Instant currentInstant) {
+        long totalBudgetSeconds = (long) durationMinutes * 60L;
+        long active = calculateActiveSeconds(currentInstant);
+        return Math.max(0L, totalBudgetSeconds - active);
     }
 
     public Long getId() {
@@ -82,6 +130,14 @@ public class FocusSession {
 
     public void setGoal(Goal goal) {
         this.goal = goal;
+    }
+    
+        public SessionPlan getPlan() {
+        return plan;
+    }
+
+    public void setPlan(SessionPlan plan) {
+        this.plan = plan;
     }
 
     public Mission getMission() {
@@ -140,6 +196,22 @@ public class FocusSession {
         this.startedAt = startedAt;
     }
 
+    public Instant getPausedAt() {
+        return pausedAt;
+    }
+
+    public void setPausedAt(Instant pausedAt) {
+        this.pausedAt = pausedAt;
+    }
+
+    public Long getAccumulatedPausedSeconds() {
+        return accumulatedPausedSeconds != null ? accumulatedPausedSeconds : 0L;
+    }
+
+    public void setAccumulatedPausedSeconds(Long accumulatedPausedSeconds) {
+        this.accumulatedPausedSeconds = accumulatedPausedSeconds != null ? accumulatedPausedSeconds : 0L;
+    }
+
     public Instant getEndedAt() {
         return endedAt;
     }
@@ -154,5 +226,28 @@ public class FocusSession {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+        public Integer getCompletionQuality() {
+        return completionQuality;
+    }
+
+    public void setCompletionQuality(Integer completionQuality) {
+        this.completionQuality = completionQuality;
+    }
+
+    public String getReflectionNote() {
+        return reflectionNote;
+    }
+
+    public void setReflectionNote(String reflectionNote) {
+        this.reflectionNote = reflectionNote;
+    }
+
+    public String getAccomplishment() {
+        return accomplishment;
+    }
+
+    public void setAccomplishment(String accomplishment) {
+        this.accomplishment = accomplishment;
     }
 }

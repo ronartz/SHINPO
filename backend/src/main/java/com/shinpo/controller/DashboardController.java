@@ -17,6 +17,11 @@ public class DashboardController {
         this.dashboardService = dashboardService;
     }
 
+    @GetMapping
+    public DashboardResponse getDefaultDashboard() {
+        return dashboardService.getDashboard(1L);
+    }
+
     @GetMapping("/{userId}")
     public DashboardResponse getDashboard(
             @PathVariable Long userId

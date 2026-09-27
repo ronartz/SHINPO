@@ -7,6 +7,7 @@ import com.shinpo.entity.Mission;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -47,6 +48,13 @@ public class MissionService {
         Mission savedMission = missionRepository.save(mission);
 
         return toResponse(savedMission);
+    }
+
+    @Transactional
+    public void deleteMission(Long id) {
+        Mission mission = missionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Mission not found: " + id));
+        missionRepository.delete(mission);
     }
 
     private MissionResponse toResponse(Mission mission) {

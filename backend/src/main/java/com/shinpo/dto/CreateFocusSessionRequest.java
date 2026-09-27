@@ -16,6 +16,8 @@ public class CreateFocusSessionRequest {
 
     private Long missionId;
 
+    private Long planId;
+
     @NotBlank
     @Size(max = 150)
     private String name;
@@ -50,6 +52,14 @@ public class CreateFocusSessionRequest {
 
     public void setMissionId(Long missionId) {
         this.missionId = missionId;
+    }
+
+    public Long getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(Long planId) {
+        this.planId = planId;
     }
 
     public String getName() {

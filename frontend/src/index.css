@@ -1,26 +1,55 @@
-html {
-  min-width: 320px;
-  min-height: 100%;
-  background: #f4f7fb;
+/* ==========================================================================
+   SHINPO (進歩) — GLOBAL BASE RESET & SCROLLBAR
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
 }
 
-html[data-theme='dark'] {
-  background: #050914;
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 ::selection {
-  color: white;
-  background: rgba(52, 124, 255, 0.45);
+  color: #ffffff;
+  background: rgba(239, 68, 68, 0.55);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -29,9 +58,9 @@ body {
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(100, 115, 145, 0.35);
+  background: rgba(148, 163, 184, 0.25);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 115, 145, 0.55);
+  background: rgba(148, 163, 184, 0.5);
 }

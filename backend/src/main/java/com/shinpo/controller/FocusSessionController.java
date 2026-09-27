@@ -1,5 +1,6 @@
 package com.shinpo.controller;
 
+import com.shinpo.dto.CompleteFocusSessionRequest;
 import com.shinpo.dto.CreateFocusSessionRequest;
 import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.service.FocusSessionService;
@@ -84,10 +85,11 @@ public class FocusSessionController {
     @PostMapping("/{sessionId}/complete")
     public ResponseEntity<FocusSessionResponse> completeSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @RequestParam Long userId,
+            @RequestBody(required = false) CompleteFocusSessionRequest request
     ) {
         return ResponseEntity.ok(
-                focusSessionService.completeSession(sessionId, userId)
+                focusSessionService.completeSession(sessionId, userId, request)
         );
     }
 
@@ -99,5 +101,14 @@ public class FocusSessionController {
         return ResponseEntity.ok(
                 focusSessionService.cancelSession(sessionId, userId)
         );
+    }
+
+    @DeleteMapping("/{sessionId}")
+    public ResponseEntity<Void> deleteSession(
+            @PathVariable Long sessionId,
+            @RequestParam(required = false) Long userId
+    ) {
+        focusSessionService.deleteSession(sessionId, userId);
+        return ResponseEntity.noContent().build();
     }
 }

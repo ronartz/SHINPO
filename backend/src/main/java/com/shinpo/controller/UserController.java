@@ -24,4 +24,9 @@ public class UserController {
     ) {
         return userService.createUser(request);
     }
+
+    @GetMapping("/default")
+    public UserResponse getDefaultUser() {
+        return userService.getOrCreateDefaultUser();
+    }
 }

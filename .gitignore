@@ -20,7 +20,10 @@ dist/
 # Logs
 *.log
 
-# OS files
-.DS_Store
-Thumbs.db
+# Rust / Cargo
+**/target/
+
+# Agent skills
+.agents/
+skills-lock.json
 
