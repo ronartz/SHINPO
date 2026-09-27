@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import {
   completeFocusSession,
   createFocusSession,
+  deleteFocusSession,
   getFocusSessions,
   pauseFocusSession,
   resumeFocusSession,
@@ -11,6 +12,19 @@ import {
 } from './api/focusSessions'
 
 import type { FocusSession } from './api/focusSessions'
+import { decomposeGoal, sendAiChat } from './api/ai'
+import type { GoalDecomposition, ProposedMission } from './api/ai'
+import {
+  completeMission,
+  createGoal,
+  createMission,
+  deleteGoal,
+  deleteMission,
+  getGoals,
+  getMissions,
+} from './api/goalsAndMissions'
+import type { Goal, Mission } from './api/goalsAndMissions'
+import { ShinpoLogo } from './components/ShinpoLogo'
 
 import './App.css'
 
@@ -34,16 +48,13 @@ type Dashboard = {
   }[]
 }
 
-type Theme = 'light' | 'dark'
-type TimeFormat = '12h' | '24h'
-
 type IconName =
   | 'dashboard'
   | 'quests'
   | 'schedule'
   | 'goals'
-  | 'analytics'
   | 'focus'
+  | 'analytics'
   | 'apps'
   | 'journal'
   | 'rewards'
@@ -53,6 +64,9 @@ type IconName =
   | 'moon'
   | 'sun'
   | 'chevron'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'menu'
   | 'play'
   | 'pause'
   | 'check'
@@ -61,21 +75,31 @@ type IconName =
   | 'clock'
   | 'xp'
   | 'close'
-
-const USER_ID = 28
+  | 'sparkle'
+  | 'refresh'
+  | 'arrow-up-right'
+  | 'power'
+  | 'trash'
+  | 'search'
 
 const durationPresets = [15, 30, 60, 90]
 
-const navigation: { label: string; icon: IconName }[] = [
-  { label: 'Dashboard', icon: 'dashboard' },
-  { label: 'Quests', icon: 'quests' },
-  { label: 'Schedule', icon: 'schedule' },
-  { label: 'Goals', icon: 'goals' },
-  { label: 'Analytics', icon: 'analytics' },
-  { label: 'Focus Mode', icon: 'focus' },
-  { label: 'App Control', icon: 'apps' },
-  { label: 'Journal', icon: 'journal' },
-  { label: 'Rewards', icon: 'rewards' },
+const pomodoroPlans = [
+  {
+    name: 'Classic Pomodoro',
+    totalMinutes: 55,
+    schedule: '25m Focus • 5m Rest • 25m Focus',
+  },
+  {
+    name: 'Deep Work Sprint',
+    totalMinutes: 60,
+    schedule: '50m Focus • 10m Rest',
+  },
+  {
+    name: 'Extended Flow',
+    totalMinutes: 90,
+    schedule: '45m Focus • 15m Rest • 30m Focus',
+  },
 ]
 
 function Icon({
@@ -91,7 +115,7 @@ function Icon({
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 1.8,
+    strokeWidth: 1.9,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
   }
@@ -100,1705 +124,2263 @@ function Icon({
     case 'dashboard':
       return (
         <svg {...common}>
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="3" width="7" height="9" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="16" width="7" height="5" rx="1.5" />
         </svg>
       )
-
-    case 'quests':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="m8.5 12 2.3 2.3 4.8-5" />
-        </svg>
-      )
-
-    case 'schedule':
-      return (
-        <svg {...common}>
-          <rect x="3.5" y="5" width="17" height="15" rx="2" />
-          <path d="M7.5 3v4M16.5 3v4M3.5 9h17" />
-        </svg>
-      )
-
-    case 'goals':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="8.5" />
-          <circle cx="12" cy="12" r="4.5" />
-          <circle cx="12" cy="12" r="1.5" />
-        </svg>
-      )
-
-    case 'analytics':
-      return (
-        <svg {...common}>
-          <path d="M4 19V9M10 19V5M16 19v-8M22 19H2" />
-        </svg>
-      )
-
     case 'focus':
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 7v5l3.5 2" />
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3" />
+          <line x1="12" y1="2" x2="12" y2="4" />
+          <line x1="12" y1="20" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="4" y2="12" />
+          <line x1="20" y1="12" x2="22" y2="12" />
         </svg>
       )
-
+    case 'goals':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="2" />
+        </svg>
+      )
+    case 'quests':
+      return (
+        <svg {...common}>
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      )
+    case 'schedule':
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      )
+    case 'analytics':
+      return (
+        <svg {...common}>
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      )
     case 'apps':
       return (
         <svg {...common}>
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
         </svg>
       )
-
     case 'journal':
       return (
         <svg {...common}>
-          <path d="M5 4h13a1 1 0 0 1 1 1v14H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-          <path d="M7 8h8M7 12h8M7 16h5" />
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
         </svg>
       )
-
     case 'rewards':
       return (
         <svg {...common}>
-          <path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" />
-          <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 12v5M8 21h8M10 17h4" />
+          <circle cx="12" cy="8" r="6" />
+          <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
         </svg>
       )
-
     case 'settings':
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1A1.7 1.7 0 0 0 8 15a1.7 1.7 0 0 0-1.5-1H6v-2.6h.1A1.7 1.7 0 0 0 7.6 10a1.7 1.7 0 0 0-.3-1.9l-.1-.1L9 6.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.5 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.5 1.4Z" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       )
-
-    case 'search':
-      return (
-        <svg {...common}>
-          <circle cx="10.8" cy="10.8" r="6.8" />
-          <path d="m16 16 5 5" />
-        </svg>
-      )
-
     case 'bell':
       return (
         <svg {...common}>
-          <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       )
-
     case 'moon':
       return (
         <svg {...common}>
-          <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" />
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       )
-
     case 'sun':
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
         </svg>
       )
-
     case 'chevron':
+    case 'chevron-right':
       return (
         <svg {...common}>
-          <path d="m9 18 6-6-6-6" />
+          <polyline points="9 18 15 12 9 6" />
         </svg>
       )
-
+    case 'chevron-left':
+      return (
+        <svg {...common}>
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      )
     case 'play':
       return (
-        <svg {...common} fill="currentColor" stroke="none">
-          <path d="M8 5.5v13L18.5 12 8 5.5Z" />
+        <svg {...common}>
+          <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
       )
-
     case 'pause':
       return (
         <svg {...common}>
-          <path d="M9 6v12M15 6v12" />
+          <rect x="6" y="4" width="4" height="16" rx="1" />
+          <rect x="14" y="4" width="4" height="16" rx="1" />
         </svg>
       )
-
     case 'check':
       return (
         <svg {...common}>
-          <path d="m5 12 4.2 4.2L19 6.5" />
+          <polyline points="20 6 9 17 4 12" />
         </svg>
       )
-
     case 'plus':
       return (
         <svg {...common}>
-          <path d="M12 5v14M5 12h14" />
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       )
-
     case 'target':
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="8.5" />
-          <circle cx="12" cy="12" r="4.5" />
-          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="6" />
+          <circle cx="12" cy="12" r="2" />
         </svg>
       )
-
     case 'clock':
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 7v5l3 2" />
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
         </svg>
       )
-
     case 'xp':
       return (
         <svg {...common}>
-          <path d="m12 3 2.1 5.2L20 10l-5.2 2.1L12 17l-2.1-4.9L5 10l4.9-1.8L12 3Z" />
-          <path d="m19 17 .7 1.8L21.5 19l-1.8.7L19 21l-.7-1.3-1.8-.7 1.8-.2L19 17Z" />
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
         </svg>
       )
-
+    case 'sparkle':
+      return (
+        <svg {...common}>
+          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+        </svg>
+      )
     case 'close':
       return (
         <svg {...common}>
-          <path d="m6 6 12 12M18 6 6 18" />
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       )
-
+    case 'refresh':
+      return (
+        <svg {...common}>
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 21h5v-5" />
+        </svg>
+      )
+    case 'arrow-up-right':
+      return (
+        <svg {...common}>
+          <line x1="7" y1="17" x2="17" y2="7" />
+          <polyline points="7 7 17 7 17 17" />
+        </svg>
+      )
+    case 'power':
+      return (
+        <svg {...common}>
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+          <line x1="12" y1="2" x2="12" y2="12" />
+        </svg>
+      )
+    case 'trash':
+      return (
+        <svg {...common}>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      )
+    case 'search':
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      )
     default:
-      return null
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" />
+        </svg>
+      )
   }
 }
 
-function getGreeting() {
-  const hour = new Date().getHours()
-
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-
-  return 'Good evening'
-}
-
-function formatDate() {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date())
-}
-
-function formatTime(format: TimeFormat) {
-  return new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: format === '12h',
-  }).format(new Date())
-}
-
-function statusLabel(status: FocusSession['status']) {
-  return status.toLowerCase()
-}
-
-function App() {
+export function App() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
-
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [actionId, setActionId] = useState<number | null>(null)
-
-  const [error, setError] = useState<string | null>(null)
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('shinpo.sidebar.collapsed') === 'true'
+  const [selectedDuration, setSelectedDuration] = useState(30)
+  const [isCustomDuration, setIsCustomDuration] = useState(false)
+  const [sessionIntention, setSessionIntention] = useState('')
+  const [activeTab, setActiveTab] = useState('Dashboard')
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return new URLSearchParams(window.location.search).get('theme') === 'light' ? false : true
   })
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [selectedPomodoroPlan, setSelectedPomodoroPlan] = useState<string | null>(null)
 
-  const [theme, setTheme] = useState<Theme>(() => {
-    return localStorage.getItem('shinpo.theme') === 'dark'
-      ? 'dark'
-      : 'light'
-  })
+  // Cursor glow tracker
+  const [mousePos, setMousePos] = useState({ x: -500, y: -500 })
 
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>(() => {
-    return localStorage.getItem('shinpo.time.format') === '24h'
-      ? '24h'
-      : '12h'
-  })
+  // Session Reflection Modal
+  const [completingSessionId, setCompletingSessionId] = useState<number | null>(null)
+  const [completionQuality, setCompletionQuality] = useState(5)
+  const [accomplishment, setAccomplishment] = useState('')
+  const [reflectionNotes, setReflectionNotes] = useState('')
 
-  const [currentTime, setCurrentTime] = useState(() =>
-    formatTime(
-      localStorage.getItem('shinpo.time.format') === '24h'
-        ? '24h'
-        : '12h',
-    ),
+  // AI Assistant Chat State
+  const [chatMessages, setChatMessages] = useState<
+    { role: 'user' | 'assistant'; text: string; missions?: ProposedMission[] }[]
+  >([
+    {
+      role: 'assistant',
+      text: 'SHINPO Strategic AI ready. Direct me with a prompt like "plan my day", "break down my goals", or "guide me".',
+    },
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+
+  // Goals & Missions Deck State
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [missions, setMissions] = useState<Mission[]>([])
+  const [isCreatingGoal, setIsCreatingGoal] = useState(false)
+  const [newGoalTitle, setNewGoalTitle] = useState('')
+  const [newGoalDesc, setNewGoalDesc] = useState('')
+  const [newGoalDate, setNewGoalDate] = useState(
+    new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
   )
+  const [decomposingGoalId, setDecomposingGoalId] = useState<number | null>(null)
+  const [aiDecompResult, setAiDecompResult] = useState<GoalDecomposition | null>(null)
+  const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+  const [flightDeckFilter, setFlightDeckFilter] = useState<'ALL' | 'SPRINT' | 'MILESTONES'>('ALL')
+  const [topSearchQuery, setTopSearchQuery] = useState('')
 
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [activeNavigation, setActiveNavigation] = useState('Dashboard')
+  const getMissionCategory = (m: Mission) => {
+    const goal = goals.find((g) => g.id === m.goalId)
+    if (!goal) return 'TASK'
+    const title = goal.title.toUpperCase()
+    if (title.includes('DISTRIBUTED') || title.includes('ARCH')) return 'ARCH'
+    if (title.includes('NEURAL') || title.includes('SIMD') || title.includes('PERF')) return 'PERF'
+    if (title.includes('TELEMETRY') || title.includes('FLOW') || title.includes('EXECUTION')) return 'FLOW'
+    if (title.includes('DATA') || title.includes('POSTGRES')) return 'DATA'
+    if (title.includes('DEEP') || title.includes('PROTOCOL')) return 'CORE'
+    const words = goal.title.trim().split(/\s+/)
+    return (words[0] || 'TASK').slice(0, 4).toUpperCase()
+  }
 
-  const [name, setName] = useState('')
-  const [intention, setIntention] = useState('')
-  const [durationMinutes, setDurationMinutes] = useState(60)
-  const [customDuration, setCustomDuration] = useState('')
-
-  useEffect(() => {
-    localStorage.setItem(
-      'shinpo.sidebar.collapsed',
-      String(sidebarCollapsed),
-    )
-  }, [sidebarCollapsed])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    localStorage.setItem('shinpo.theme', theme)
-  }, [theme])
-
-  useEffect(() => {
-    localStorage.setItem('shinpo.time.format', timeFormat)
-  }, [timeFormat])
-
-  useEffect(() => {
-    const update = () => {
-      setCurrentTime(formatTime(timeFormat))
-    }
-
-    update()
-
-    const timer = window.setInterval(update, 1000)
-
-    return () => window.clearInterval(timer)
-  }, [timeFormat])
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const [dashboardResponse, sessionsResponse] =
-          await Promise.all([
-            fetch(`/api/dashboard/${USER_ID}`),
-            getFocusSessions(USER_ID),
-          ])
-
-        if (!dashboardResponse.ok) {
-          const body = await dashboardResponse.json().catch(() => null)
-
-          throw new Error(
-            body?.message ??
-            `Dashboard request failed with status ${dashboardResponse.status}.`,
-          )
-        }
-
-        const dashboardData =
-          (await dashboardResponse.json()) as Dashboard
-
-        setDashboard(dashboardData)
-        setSessions(sessionsResponse)
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load SHINPO.',
-        )
-      } finally {
-        setLoading(false)
+  const flightDeckMissions = useMemo(() => {
+    return missions.filter((m) => {
+      if (flightDeckFilter === 'SPRINT' && m.status === 'COMPLETED') return false
+      if (flightDeckFilter === 'MILESTONES' && m.status !== 'COMPLETED') return false
+      if (topSearchQuery.trim()) {
+        const q = topSearchQuery.toLowerCase()
+        const matchesTitle = m.title.toLowerCase().includes(q)
+        const matchesDesc = (m.description || '').toLowerCase().includes(q)
+        return matchesTitle || matchesDesc
       }
-    }
+      return true
+    })
+  }, [missions, flightDeckFilter, topSearchQuery])
 
-    void loadData()
+  const nextActionMission = useMemo(() => {
+    return missions.find((m) => m.status !== 'COMPLETED') || null
+  }, [missions])
+
+  const nextActionGoal = useMemo(() => {
+    if (!nextActionMission) return null
+    return goals.find((g) => g.id === nextActionMission.goalId) || null
+  }, [nextActionMission, goals])
+
+  const todayCompletedSessions = useMemo(() => {
+    return sessions.filter((s) => s.status === 'COMPLETED')
+  }, [sessions])
+
+  const todayCompletedMissions = useMemo(() => {
+    return missions.filter((m) => m.status === 'COMPLETED')
+  }, [missions])
+
+  const todayUpcomingMissions = useMemo(() => {
+    return missions.filter((m) => m.status !== 'COMPLETED')
+  }, [missions])
+
+  const weekDays = useMemo(() => {
+    const now = new Date()
+    const currentDayOfWeek = now.getDay() // 0 is Sun, 1 is Mon...
+    const distanceToMonday = (currentDayOfWeek + 6) % 7
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - distanceToMonday)
+
+    const days = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + i)
+      const isToday = d.toDateString() === now.toDateString()
+      days.push({
+        dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayNum: d.getDate(),
+        dateStr: d.toISOString().split('T')[0],
+        isToday,
+        hasEvents: isToday && (todayCompletedSessions.length > 0),
+      })
+    }
+    return days
+  }, [todayCompletedSessions.length])
+
+  useEffect(() => {
+    const handleMouseMove = (e: globalThis.MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
-  async function handleCreateSession(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault()
-
-    if (!name.trim()) {
-      setError('Give the focus session a name.')
-      return
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
+    if (isDarkMode) {
+      document.body.classList.remove('theme-light')
+      document.body.classList.add('theme-dark')
+    } else {
+      document.body.classList.remove('theme-dark')
+      document.body.classList.add('theme-light')
     }
+  }, [isDarkMode])
 
-    if (!Number.isFinite(durationMinutes) || durationMinutes < 1) {
-      setError('Duration must be at least 1 minute.')
-      return
-    }
-
-    if (durationMinutes > 1440) {
-      setError('Maximum custom duration is 1440 minutes.')
-      return
+  const loadData = async () => {
+    try {
+      const res = await fetch('/api/dashboard')
+      if (res.ok) {
+        const d = await res.json()
+        setDashboard(d)
+      }
+    } catch {
+      // Mock fallback for standalone preview
+      setDashboard({
+        user: { id: 1, username: 'Executive Commander' },
+        progress: { total: 13740 },
+        missions: { total: 24, completed: 18, pending: 6 },
+        goals: [
+          { id: 1, title: 'Master Distributed Microservices', status: 'ACTIVE' },
+          { id: 2, title: 'Build Neural Trading Kernel', status: 'ACTIVE' },
+          { id: 3, title: 'Physical Conditioning Mastery', status: 'ACTIVE' },
+        ],
+      })
     }
 
     try {
-      setCreating(true)
-      setError(null)
+      const s = await getFocusSessions(dashboard?.user.id ?? 1)
+      setSessions(s)
+    } catch {
+      // Keep empty if backend offline
+    }
 
-      const session = await createFocusSession({
-        userId: USER_ID,
-        name: name.trim(),
-        intention: intention.trim() || undefined,
-        durationMinutes,
-      })
-
-      setSessions((current) => [session, ...current])
-
-      setName('')
-      setIntention('')
-      setDurationMinutes(60)
-      setCustomDuration('')
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to create focus session.',
-      )
-    } finally {
-      setCreating(false)
+    try {
+      const [g, m] = await Promise.all([getGoals(), getMissions()])
+      setGoals(g)
+      setMissions(m)
+    } catch {
+      // Keep empty if backend offline
     }
   }
 
-  async function handleSessionAction(
-    session: FocusSession,
-    action: 'start' | 'pause' | 'resume' | 'complete',
-  ) {
+  const handleCreateGoal = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!newGoalTitle.trim()) return
     try {
-      setActionId(session.id)
-      setError(null)
+      const created = await createGoal({
+        userId: dashboard?.user.id ?? 1,
+        title: newGoalTitle.trim(),
+        description: newGoalDesc.trim() || undefined,
+        startDate: new Date().toISOString().split('T')[0],
+        targetDate: newGoalDate || undefined,
+      })
+      setGoals((prev) => [created, ...prev])
+      setIsCreatingGoal(false)
+      setNewGoalTitle('')
+      setNewGoalDesc('')
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
-      let updatedSession: FocusSession
+  const handleDeconstructGoal = async (goalId: number) => {
+    setDecomposingGoalId(goalId)
+    try {
+      const result = await decomposeGoal(goalId, dashboard?.user.id ?? 1)
+      setAiDecompResult(result)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setDecomposingGoalId(null)
+    }
+  }
 
-      switch (action) {
-        case 'start':
-          updatedSession = await startFocusSession(session.id, USER_ID)
-          break
+  const handleCommitAiMissions = async () => {
+    if (!aiDecompResult) return
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const created = await Promise.all(
+        aiDecompResult.proposedMissions.map((pm) =>
+          createMission({
+            goalId: aiDecompResult.goalId,
+            title: pm.title,
+            description: pm.description,
+            scheduledDate: today,
+            estimatedMinutes: pm.estimatedMinutes,
+          }),
+        ),
+      )
+      setMissions((prev) => [...created, ...prev])
+      setAiDecompResult(null)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
-        case 'pause':
-          updatedSession = await pauseFocusSession(session.id, USER_ID)
-          break
+  const handleToggleMissionComplete = async (missionId: number) => {
+    try {
+      await completeMission(missionId)
+      setMissions((prev) =>
+        prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
+      )
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
-        case 'resume':
-          updatedSession = await resumeFocusSession(session.id, USER_ID)
-          break
+  const handleDeleteGoal = async (goalId: number, goalTitle: string) => {
+    if (!window.confirm(`Delete goal "${goalTitle}"?\n\nAll linked tactical missions will also be permanently removed.`)) {
+      return
+    }
+    try {
+      await deleteGoal(goalId)
+      setGoals((prev) => prev.filter((g) => g.id !== goalId))
+      setMissions((prev) => prev.filter((m) => m.goalId !== goalId))
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete goal:', err)
+      alert('Could not delete goal. Please check server logs.')
+    }
+  }
 
-        case 'complete':
-          updatedSession = await completeFocusSession(
-            session.id,
-            USER_ID,
-          )
-          break
+  const handleDeleteMission = async (missionId: number, missionTitle: string) => {
+    if (!window.confirm(`Delete tactical mission "${missionTitle}"?`)) {
+      return
+    }
+    try {
+      await deleteMission(missionId)
+      setMissions((prev) => prev.filter((m) => m.id !== missionId))
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete mission:', err)
+      alert('Could not delete mission. Please check server logs.')
+    }
+  }
+
+  const handleDeleteSession = async (sessionId: number) => {
+    if (!window.confirm(`Delete focus session #${sessionId}?`)) {
+      return
+    }
+    try {
+      await deleteFocusSession(sessionId, dashboard?.user.id ?? 1)
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+    } catch (err) {
+      console.error('Failed to delete focus session:', err)
+      alert('Could not delete focus session.')
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Timer ticker
+  const [timerNow, setTimerNow] = useState(Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setTimerNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const activeSession = useMemo(() => {
+    return sessions.find(
+      (s) => s.status === 'ACTIVE' || s.status === 'PAUSED',
+    )
+  }, [sessions])
+
+  const timerSeconds = useMemo(() => {
+    if (!activeSession) return selectedDuration * 60
+    const totalSec = (activeSession.durationMinutes || 25) * 60
+    if (activeSession.status === 'ACTIVE' && activeSession.startedAt) {
+      const elapsed = Math.floor(
+        (timerNow - new Date(activeSession.startedAt).getTime()) / 1000,
+      )
+      return Math.max(0, totalSec - elapsed)
+    }
+    return totalSec
+  }, [activeSession, timerNow, selectedDuration])
+
+  const formatTimerDigits = (sec: number) => {
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  const handleStartSession = async () => {
+    const userId = dashboard?.user.id ?? 1
+    try {
+      const created = await createFocusSession({
+        userId,
+        name: selectedPomodoroPlan ?? `${selectedDuration}m Focus Sprint`,
+        intention: sessionIntention.trim() || undefined,
+        durationMinutes: selectedDuration,
+      })
+      const started = await startFocusSession(created.id, userId)
+      setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      setSessionIntention('')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleEngageNextAction = async () => {
+    if (!nextActionMission) return
+    const userId = dashboard?.user.id ?? 1
+    const mins = nextActionMission.estimatedMinutes || 25
+    try {
+      const created = await createFocusSession({
+        userId,
+        name: nextActionMission.title,
+        intention: nextActionMission.title,
+        durationMinutes: mins,
+      })
+      const started = await startFocusSession(created.id, userId)
+      setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      setSelectedDuration(mins)
+      setSessionIntention(nextActionMission.title)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handlePause = async (id: number) => {
+    const userId = dashboard?.user.id ?? 1
+    try {
+      const p = await pauseFocusSession(id, userId)
+      setSessions((prev) => prev.map((s) => (s.id === id ? p : s)))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleResume = async (id: number) => {
+    const userId = dashboard?.user.id ?? 1
+    try {
+      const r = await resumeFocusSession(id, userId)
+      setSessions((prev) => prev.map((s) => (s.id === id ? r : s)))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleCompleteSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!completingSessionId) return
+    const userId = dashboard?.user.id ?? 1
+    try {
+      const res = await completeFocusSession(
+        completingSessionId,
+        userId,
+        {
+          quality: completionQuality,
+          accomplishment,
+          reflectionNote: reflectionNotes,
+        },
+      )
+      setSessions((prev) => prev.map((s) => (s.id === completingSessionId ? res : s)))
+      setCompletingSessionId(null)
+      setAccomplishment('')
+      setReflectionNotes('')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleAiSend = async (messageText?: string) => {
+    const prompt = messageText || chatInput
+    if (!prompt.trim()) return
+
+    setChatMessages((prev) => [...prev, { role: 'user', text: prompt }])
+    if (!messageText) setChatInput('')
+    setAiLoading(true)
+
+    try {
+      const userId = dashboard?.user.id ?? 1
+      const res = await sendAiChat(userId, prompt)
+      let missions: ProposedMission[] = []
+      if (Array.isArray(res.structuredCard)) {
+        missions = res.structuredCard
+      } else if (res.structuredCard?.proposedMissions) {
+        missions = res.structuredCard.proposedMissions
+      } else if (res.structuredCard?.planItems) {
+        missions = res.structuredCard.planItems.map((item: any) => ({
+          title: item.missionTitle,
+          description: `${item.goalTitle} • Priority: ${item.priority}`,
+          estimatedMinutes: item.durationMinutes,
+        }))
+      } else if (res.structuredCard?.missionTitle) {
+        missions = [
+          {
+            title: res.structuredCard.missionTitle,
+            description: res.structuredCard.recommendedAction ?? res.structuredCard.rationale ?? '',
+            estimatedMinutes: res.structuredCard.estimatedMinutes ?? 25,
+          },
+        ]
       }
 
-      setSessions((current) =>
-        current.map((currentSession) =>
-          currentSession.id === updatedSession.id
-            ? updatedSession
-            : currentSession,
-        ),
-      )
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Focus session action failed.',
-      )
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: res.reply,
+          missions,
+        },
+      ])
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: 'Tactical guidance: Partition your immediate bottleneck into 15m focus sprints to regain operational flow.',
+          missions: [
+            {
+              title: 'Momentum execution sprint',
+              description: 'Clear the highest priority pending item',
+              estimatedMinutes: 15,
+            },
+          ],
+        },
+      ])
     } finally {
-      setActionId(null)
+      setAiLoading(false)
     }
   }
-
-  const completedSessions = useMemo(
-    () =>
-      sessions.filter(
-        (session) => session.status === 'COMPLETED',
-      ).length,
-    [sessions],
-  )
-
-  const activeSessions = useMemo(
-    () =>
-      sessions.filter(
-        (session) =>
-          session.status === 'ACTIVE' ||
-          session.status === 'PAUSED',
-      ).length,
-    [sessions],
-  )
-
-  const scheduledSessions = useMemo(
-    () =>
-      sessions.filter(
-        (session) => session.status === 'SCHEDULED',
-      ).length,
-    [sessions],
-  )
-
-  const trackedMinutes = useMemo(
-    () =>
-      sessions.reduce(
-        (total, session) =>
-          total + session.durationMinutes,
-        0,
-      ),
-    [sessions],
-  )
-
-  const completedMinutes = useMemo(
-    () =>
-      sessions
-        .filter(
-          (session) => session.status === 'COMPLETED',
-        )
-        .reduce(
-          (total, session) =>
-            total + session.durationMinutes,
-          0,
-        ),
-    [sessions],
-  )
-
-  const completionRate = useMemo(() => {
-    if (trackedMinutes === 0) {
-      return 0
-    }
-
-    return Math.min(
-      100,
-      Math.round(
-        (completedMinutes / trackedMinutes) * 100,
-      ),
-    )
-  }, [trackedMinutes, completedMinutes])
-
-  const latestSession = sessions[0] ?? null
-
-  if (loading) {
-    return (
-      <main className="loading-screen">
-        <div className="loading-logo">
-          <span>SHIN</span>
-          <b>PO</b>
-        </div>
-
-        <div className="loading-line" />
-
-        <span>
-          Initializing your execution system...
-        </span>
-      </main>
-    )
-  }
-
-  if (!dashboard) {
-    return (
-      <main className="fatal-screen">
-        <div className="fatal-card">
-          <div className="brand-small">SHINPO</div>
-
-          <div className="fatal-code">
-            SYSTEM / LOAD FAILURE
-          </div>
-
-          <h1>Unable to load SHINPO.</h1>
-
-          <p>
-            {error ??
-              'The dashboard could not be loaded.'}
-          </p>
-
-          <button
-            type="button"
-            className="primary-button compact"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-        </div>
-      </main>
-    )
-  }
-
-  const username = dashboard.user.username
-  const initials = username.slice(0, 1).toUpperCase()
 
   return (
-    <main
-      className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''
-        }`}
-    >
-      <aside className="sidebar">
+    <div className={`app-shell ${isDarkMode ? '' : 'theme-light'}`}>
+      {/* Ambient cursor glow */}
+      <div
+        className="ambient-cursor-glow"
+        style={{ left: `${mousePos.x}px`, top: `${mousePos.y}px` }}
+      />
+
+      {/* Collapsible Sidebar */}
+      <aside className={`icon-sidebar ${sidebarExpanded ? 'expanded' : ''}`}>
         <div className="sidebar-header">
-          <div className="brand-block">
-            <div className="brand-wordmark">
-              <span>SHIN</span>
-              <b>PO</b>
-            </div>
-
-            <div className="brand-japanese">進歩</div>
-
-            <div className="brand-caption">
-              BUILD A BETTER YOU.
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="sidebar-toggle"
-            aria-label={
-              sidebarCollapsed
-                ? 'Expand sidebar'
-                : 'Collapse sidebar'
-            }
-            onClick={() =>
-              setSidebarCollapsed((value) => !value)
-            }
+          <div
+            className="brand-badge"
+            onClick={() => setSidebarExpanded(!sidebarExpanded)}
+            title={sidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            <Icon name="chevron" size={15} />
+            <ShinpoLogo
+              size={sidebarExpanded ? 28 : 34}
+              variant={sidebarExpanded ? 'full' : 'icon'}
+            />
+          </div>
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarExpanded(!sidebarExpanded)}
+            title={sidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+            data-tooltip={sidebarExpanded ? 'Collapse' : 'Expand'}
+          >
+            <Icon name={sidebarExpanded ? 'chevron-left' : 'chevron-right'} size={15} />
           </button>
         </div>
 
-        <nav
-          className="sidebar-nav"
-          aria-label="Main navigation"
-        >
-          {navigation.map((item) => (
+        <nav className="sidebar-nav-stack">
+          {sidebarExpanded && (
+            <div className="sidebar-section-header">
+              <span>MAIN MENU</span>
+              <Icon name="chevron" size={12} />
+            </div>
+          )}
+          {[
+            { id: 'Dashboard', icon: 'dashboard' as IconName, label: 'Dashboard' },
+            { id: 'Focus Engine', icon: 'focus' as IconName, label: 'Focus Engine' },
+            { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Goals & Missions' },
+            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Schedule', badge: 'New' },
+            { id: 'Analytics', icon: 'analytics' as IconName, label: 'Analytics' },
+          ].map((item) => (
             <button
-              type="button"
-              key={item.label}
-              className={`nav-item ${activeNavigation === item.label
-                ? 'active'
-                : ''
-                }`}
-              title={
-                sidebarCollapsed
-                  ? item.label
-                  : undefined
-              }
-              onClick={() =>
-                setActiveNavigation(item.label)
-              }
+              key={item.id}
+              className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              title={item.label}
+              data-tooltip={item.label}
             >
-              <span className="nav-icon">
-                <Icon name={item.icon} size={17} />
-              </span>
+              <Icon name={item.icon} size={18} />
+              {sidebarExpanded && <span>{item.label}</span>}
+              {sidebarExpanded && item.badge && (
+                <span className="sidebar-nav-badge">{item.badge}</span>
+              )}
+              {sidebarExpanded && activeTab === item.id && (
+                <span className="sidebar-active-arrow">↗</span>
+              )}
+            </button>
+          ))}
 
-              <span className="nav-label">
-                {item.label}
-              </span>
+          {sidebarExpanded && (
+            <div className="sidebar-section-header" style={{ marginTop: 14 }}>
+              <span>SYSTEM & CONTROLS</span>
+              <Icon name="chevron" size={12} />
+            </div>
+          )}
+          {[
+            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'AI Tactical' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              title={item.label}
+              data-tooltip={item.label}
+            >
+              <Icon name={item.icon} size={18} />
+              {sidebarExpanded && <span>{item.label}</span>}
+              {sidebarExpanded && activeTab === item.id && (
+                <span className="sidebar-active-arrow">↗</span>
+              )}
             </button>
           ))}
         </nav>
 
+        {/* FitPulse Pro Card / Rust Protection Shield Card */}
+        {sidebarExpanded && (
+          <div className="sidebar-shield-card">
+            <div className="shield-icon-badge">
+              <Icon name="power" size={16} />
+            </div>
+            <div className="shield-card-title">Rust Focus Shield</div>
+            <div className="shield-card-sub">
+              Kernel Sentinel: PID Scan Active. Protects active focus sprints.
+            </div>
+            <button
+              className={`shield-card-btn ${activeSession ? 'active' : ''}`}
+              onClick={() => setActiveTab('Focus Engine')}
+            >
+              {activeSession ? 'Shield Active · Locked' : 'Shield Armed'}
+            </button>
+          </div>
+        )}
+
         <div className="sidebar-footer">
           <button
-            type="button"
-            className={`nav-item ${settingsOpen ? 'active' : ''
-              }`}
-            title={
-              sidebarCollapsed
-                ? 'Settings'
-                : undefined
-            }
-            onClick={() =>
-              setSettingsOpen((value) => !value)
-            }
+            className="sidebar-btn"
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            data-tooltip={isDarkMode ? 'Light Mode' : 'Dark Mode'}
           >
-            <span className="nav-icon">
-              <Icon name="settings" size={17} />
-            </span>
-
-            <span className="nav-label">
-              Settings
-            </span>
+            <Icon name={isDarkMode ? 'sun' : 'moon'} size={18} />
+            {sidebarExpanded && <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
-
-          <div className="sidebar-motto">
-            <span>Discipline today.</span>
-            <strong>Freedom tomorrow.</strong>
-          </div>
         </div>
       </aside>
 
-      <section className="app-content">
-        <header className="topbar">
-          <div className="search-box">
-            <Icon name="search" size={16} />
+      {/* Main Content Area */}
+      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+        {/* Clean Executive Top Bar — Single Navigation System */}
+        <div className="cockpit-top-bar">
+          <div className="page-header-info">
+            <div className="page-breadcrumb">
+              <span className="breadcrumb-root">SHINPO</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">{activeTab}</span>
+            </div>
+            <h1 className="page-heading">
+              {activeTab === 'Dashboard' && 'Executive Flight Deck'}
+              {activeTab === 'Focus Engine' && 'Autonomous Focus Engine'}
+              {activeTab === 'Goals & Missions' && 'Goals & Strategic Targets'}
+              {activeTab === 'AI Assistant' && 'AI Tactical Command'}
+              {activeTab === 'Schedule' && 'Temporal Execution Schedule'}
+              {activeTab === 'Analytics' && 'Operational Velocity & Telemetry'}
+            </h1>
+          </div>
 
+          {/* Academix / FitPulse Inspired Global Command Search */}
+          <div className="top-search-command">
+            <Icon name="search" size={15} />
             <input
-              type="search"
-              placeholder="Search quests, goals, apps..."
-              aria-label="Search"
+              type="text"
+              className="top-search-input"
+              placeholder="Search missions, targets, protocols... (/ to filter)"
+              value={topSearchQuery}
+              onChange={(e) => setTopSearchQuery(e.target.value)}
             />
+            <kbd className="top-search-kbd">⌘K</kbd>
           </div>
 
-          <div className="topbar-right">
+          <div className="top-bar-actions">
             <button
-              type="button"
-              className="circle-button notification-button"
-              aria-label="Notifications"
+              className="action-btn-circle action-btn-add"
+              onClick={() => setIsCreatingGoal(true)}
+              title="Establish Strategic Objective"
             >
-              <Icon name="bell" size={17} />
-              <span />
+              <Icon name="plus" size={15} />
             </button>
-
-            <div className="date-display">
-              <strong>{formatDate()}</strong>
-              <span>{currentTime}</span>
+            <div className="status-live-pill">
+              <span className="live-dot" />
+              <span className="live-text">SYSTEM ONLINE · LEVEL 1 ENFORCEMENT</span>
             </div>
-
-            <button
-              type="button"
-              className="profile-button"
-              onClick={() =>
-                setSettingsOpen((value) => !value)
-              }
-            >
-              <span className="profile-avatar">
-                {initials}
-              </span>
-
-              <span className="profile-copy">
-                <strong>{username}</strong>
-                <small>Keep Going.</small>
-              </span>
-
-              <Icon name="chevron" size={13} />
+            <button className="action-btn-circle" onClick={loadData} title="Refresh Telemetry">
+              <Icon name="refresh" size={15} />
             </button>
-
-            <button
-              type="button"
-              className="circle-button"
-              aria-label={
-                theme === 'dark'
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode'
-              }
-              title={
-                theme === 'dark'
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode'
-              }
-              onClick={() =>
-                setTheme((value) =>
-                  value === 'dark'
-                    ? 'light'
-                    : 'dark',
-                )
-              }
-            >
-              <Icon
-                name={
-                  theme === 'dark'
-                    ? 'sun'
-                    : 'moon'
-                }
-                size={17}
-              />
+            <button className="action-btn-circle has-badge" title="Notifications">
+              <Icon name="bell" size={15} />
+              <span className="bell-red-dot" />
             </button>
+            <div className="profile-avatar-btn">
+              <div className="avatar-circle">
+                {dashboard?.user.username.charAt(0).toUpperCase() || 'E'}
+              </div>
+              <span className="profile-name">
+                {dashboard?.user.username || 'Commander'}
+              </span>
+            </div>
           </div>
-        </header>
-
-        <div className="page">
-          {error && (
-            <div className="error-banner" role="alert">
-              <span>{error}</span>
-
-              <button
-                type="button"
-                aria-label="Dismiss error"
-                onClick={() => setError(null)}
-              >
-                <Icon name="close" size={15} />
-              </button>
-            </div>
-          )}
-
-          {activeNavigation !== 'Dashboard' ? (
-            <section className="module-placeholder">
-              <div className="module-icon">
-                <Icon
-                  name={
-                    navigation.find(
-                      (item) =>
-                        item.label ===
-                        activeNavigation,
-                    )?.icon ?? 'dashboard'
-                  }
-                  size={28}
-                />
-              </div>
-
-              <div className="eyebrow">
-                SHINPO MODULE
-              </div>
-
-              <h1>{activeNavigation}</h1>
-
-              <p>
-                This module is part of the SHINPO
-                execution system. Its backend slice
-                will be connected when that feature
-                reaches its implementation phase.
-              </p>
-            </section>
-          ) : (
-            <>
-              <section className="hero">
-                <div className="hero-copy">
-                  <div className="eyebrow">
-                    DASHBOARD / EXECUTION SYSTEM
-                  </div>
-
-                  <h1>
-                    {getGreeting()},{' '}
-                    <span>{username}</span>
-                  </h1>
-
-                  <p>
-                    Here's what needs your
-                    attention today.
-                  </p>
-
-                  <div className="system-status">
-                    <span className="status-pulse" />
-                    System ready
-                  </div>
-                </div>
-
-                <div className="hero-orb">
-                  <div className="orb-ring orb-ring-one" />
-                  <div className="orb-ring orb-ring-two" />
-
-                  <div className="orb-core">
-                    <small>PROGRESS</small>
-                    <strong>
-                      {dashboard.progress.total}
-                    </strong>
-                    <span>events</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="stats-grid">
-                <article className="stat-card">
-                  <div className="stat-icon blue">
-                    <Icon
-                      name="quests"
-                      size={18}
-                    />
-                  </div>
-
-                  <div className="stat-content">
-                    <span>MISSIONS</span>
-
-                    <strong>
-                      {dashboard.missions.total}
-                    </strong>
-
-                    <small>
-                      {
-                        dashboard.missions
-                          .completed
-                      }{' '}
-                      completed ·{' '}
-                      {
-                        dashboard.missions
-                          .pending
-                      }{' '}
-                      pending
-                    </small>
-                  </div>
-                </article>
-
-                <article className="stat-card">
-                  <div className="stat-icon purple">
-                    <Icon
-                      name="target"
-                      size={18}
-                    />
-                  </div>
-
-                  <div className="stat-content">
-                    <span>GOALS</span>
-
-                    <strong>
-                      {dashboard.goals.length}
-                    </strong>
-
-                    <small>
-                      Active direction in your
-                      system
-                    </small>
-                  </div>
-                </article>
-
-                <article className="stat-card">
-                  <div className="stat-icon red">
-                    <Icon
-                      name="clock"
-                      size={18}
-                    />
-                  </div>
-
-                  <div className="stat-content">
-                    <span>FOCUS SESSIONS</span>
-
-                    <strong>
-                      {sessions.length}
-                    </strong>
-
-                    <small>
-                      {activeSessions} active ·{' '}
-                      {completedSessions}{' '}
-                      completed
-                    </small>
-                  </div>
-                </article>
-
-                <article className="stat-card progress-stat">
-                  <div className="stat-icon gradient">
-                    <Icon name="xp" size={18} />
-                  </div>
-
-                  <div className="stat-content">
-                    <span>PROGRESS</span>
-
-                    <strong>
-                      {dashboard.progress.total}
-                    </strong>
-
-                    <small>
-                      Recorded progress events
-                    </small>
-                  </div>
-                </article>
-              </section>
-
-              <section className="workspace-grid">
-                <article className="panel create-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <div className="eyebrow">
-                        NEW SESSION
-                      </div>
-
-                      <h2>
-                        Create Focus Session
-                      </h2>
-
-                      <p>
-                        Turn intention into a
-                        bounded execution block.
-                      </p>
-                    </div>
-
-                    <div className="signal">
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                  </div>
-
-                  <form
-                    onSubmit={
-                      handleCreateSession
-                    }
-                  >
-                    <label>
-                      Session name
-
-                      <input
-                        value={name}
-                        onChange={(event) =>
-                          setName(
-                            event.target.value,
-                          )
-                        }
-                        placeholder="e.g. NumPy Deep Work"
-                        maxLength={150}
-                        disabled={creating}
-                      />
-                    </label>
-
-                    <label>
-                      Intention
-
-                      <textarea
-                        value={intention}
-                        onChange={(event) =>
-                          setIntention(
-                            event.target.value,
-                          )
-                        }
-                        placeholder="What do you want to accomplish?"
-                        rows={4}
-                        disabled={creating}
-                      />
-                    </label>
-
-                    <div className="field-label">
-                      Duration
-                    </div>
-
-                    <div className="duration-grid">
-                      {durationPresets.map(
-                        (duration) => (
-                          <button
-                            type="button"
-                            key={duration}
-                            className={
-                              durationMinutes ===
-                                duration &&
-                                customDuration === ''
-                                ? 'duration active'
-                                : 'duration'
-                            }
-                            onClick={() => {
-                              setDurationMinutes(
-                                duration,
-                              )
-                              setCustomDuration(
-                                '',
-                              )
-                            }}
-                            disabled={creating}
-                          >
-                            {duration}m
-                          </button>
-                        ),
-                      )}
-
-                      <button
-                        type="button"
-                        className={
-                          customDuration !== ''
-                            ? 'duration custom-duration-button active'
-                            : 'duration custom-duration-button'
-                        }
-                        onClick={() => {
-                          if (
-                            customDuration ===
-                            ''
-                          ) {
-                            setCustomDuration(
-                              String(
-                                durationMinutes,
-                              ),
-                            )
-                          }
-                        }}
-                        disabled={creating}
-                      >
-                        Custom
-                      </button>
-                    </div>
-
-                    {customDuration !== '' && (
-                      <div className="custom-duration-row">
-                        <div className="custom-duration-input">
-                          <input
-                            type="number"
-                            min="1"
-                            max="1440"
-                            value={
-                              customDuration
-                            }
-                            onChange={(event) => {
-                              const value =
-                                event.target
-                                  .value
-
-                              setCustomDuration(
-                                value,
-                              )
-
-                              const parsed =
-                                Number(value)
-
-                              if (
-                                Number.isFinite(
-                                  parsed,
-                                ) &&
-                                parsed >= 1 &&
-                                parsed <= 1440
-                              ) {
-                                setDurationMinutes(
-                                  parsed,
-                                )
-                              }
-                            }}
-                            disabled={creating}
-                            autoFocus
-                            aria-label="Custom duration in minutes"
-                          />
-
-                          <span>
-                            minutes
-                          </span>
-                        </div>
-
-                        <span className="custom-duration-hint">
-                          Set any duration from 1
-                          to 1440 minutes.
-                        </span>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="primary-button"
-                      disabled={creating}
-                    >
-                      <span>
-                        {creating
-                          ? 'Creating...'
-                          : 'Create Focus Session'}
-                      </span>
-
-                      <Icon
-                        name="chevron"
-                        size={14}
-                      />
-                    </button>
-                  </form>
-                </article>
-
-                <article className="panel sessions-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <div className="eyebrow">
-                        EXECUTION
-                      </div>
-
-                      <h2>
-                        Your Focus Sessions
-                      </h2>
-
-                      <p>
-                        Recent execution state
-                        from SHINPO.
-                      </p>
-                    </div>
-
-                    <span className="panel-count">
-                      {sessions.length} total
-                    </span>
-                  </div>
-
-                  {sessions.length === 0 ? (
-                    <div className="empty-state">
-                      <div className="empty-icon">
-                        <Icon
-                          name="focus"
-                          size={22}
-                        />
-                      </div>
-
-                      <strong>
-                        No focus sessions yet.
-                      </strong>
-
-                      <span>
-                        Create your first bounded
-                        execution block.
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="session-list">
-                        {sessions.map((session) => {
-                          const busy =
-                            actionId ===
-                            session.id
-
-                          return (
-                            <article
-                              className={`session-card status-${statusLabel(
-                                session.status,
-                              )}`}
-                              key={
-                                session.id
-                              }
-                            >
-                              <div className="session-state" />
-
-                              <div className="session-body">
-                                <div className="session-main">
-                                  <div className="session-title">
-                                    <h3>
-                                      {
-                                        session.name
-                                      }
-                                    </h3>
-
-                                    <span className="session-status">
-                                      {statusLabel(
-                                        session.status,
-                                      )}
-                                    </span>
-                                  </div>
-
-                                  <p>
-                                    {session.intention ||
-                                      'No intention provided.'}
-                                  </p>
-
-                                  <small>
-                                    {
-                                      session.durationMinutes
-                                    }{' '}
-                                    minutes
-                                  </small>
-                                </div>
-
-                                <div className="session-actions">
-                                  {session.status ===
-                                    'SCHEDULED' && (
-                                      <button
-                                        type="button"
-                                        className="action primary"
-                                        disabled={
-                                          busy
-                                        }
-                                        onClick={() =>
-                                          void handleSessionAction(
-                                            session,
-                                            'start',
-                                          )
-                                        }
-                                      >
-                                        <Icon
-                                          name="play"
-                                          size={11}
-                                        />
-                                        Start
-                                      </button>
-                                    )}
-
-                                  {session.status ===
-                                    'ACTIVE' && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          className="action"
-                                          disabled={
-                                            busy
-                                          }
-                                          onClick={() =>
-                                            void handleSessionAction(
-                                              session,
-                                              'pause',
-                                            )
-                                          }
-                                        >
-                                          <Icon
-                                            name="pause"
-                                            size={11}
-                                          />
-                                          Pause
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          className="action complete"
-                                          disabled={
-                                            busy
-                                          }
-                                          onClick={() =>
-                                            void handleSessionAction(
-                                              session,
-                                              'complete',
-                                            )
-                                          }
-                                        >
-                                          <Icon
-                                            name="check"
-                                            size={11}
-                                          />
-                                          Complete
-                                        </button>
-                                      </>
-                                    )}
-
-                                  {session.status ===
-                                    'PAUSED' && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          className="action primary"
-                                          disabled={
-                                            busy
-                                          }
-                                          onClick={() =>
-                                            void handleSessionAction(
-                                              session,
-                                              'resume',
-                                            )
-                                          }
-                                        >
-                                          <Icon
-                                            name="play"
-                                            size={11}
-                                          />
-                                          Resume
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          className="action complete"
-                                          disabled={
-                                            busy
-                                          }
-                                          onClick={() =>
-                                            void handleSessionAction(
-                                              session,
-                                              'complete',
-                                            )
-                                          }
-                                        >
-                                          <Icon
-                                            name="check"
-                                            size={11}
-                                          />
-                                          Complete
-                                        </button>
-                                      </>
-                                    )}
-
-                                  {session.status ===
-                                    'COMPLETED' && (
-                                      <span className="completed-mark">
-                                        <Icon
-                                          name="check"
-                                          size={13}
-                                        />
-                                        Done
-                                      </span>
-                                    )}
-                                </div>
-                              </div>
-                            </article>
-                          )
-                        })}
-                      </div>
-
-                      <div className="focus-command">
-                        <div className="focus-command-header">
-                          <div>
-                            <div className="eyebrow">
-                              FOCUS COMMAND CENTER
-                            </div>
-
-                            <h3>
-                              Execution overview
-                            </h3>
-                          </div>
-
-                          <div className="focus-command-state">
-                            <span
-                              className={
-                                activeSessions > 0
-                                  ? 'state-dot live'
-                                  : 'state-dot'
-                              }
-                            />
-
-                            {activeSessions > 0
-                              ? 'Session active'
-                              : 'System ready'}
-                          </div>
-                        </div>
-
-                        <div className="focus-metrics">
-                          <div className="focus-metric">
-                            <span>
-                              TRACKED TIME
-                            </span>
-
-                            <strong>
-                              {trackedMinutes >= 60
-                                ? `${Math.floor(
-                                  trackedMinutes / 60,
-                                )}h ${trackedMinutes % 60
-                                }m`
-                                : `${trackedMinutes}m`}
-                            </strong>
-
-                            <small>
-                              Across all sessions
-                            </small>
-                          </div>
-
-                          <div className="focus-metric">
-                            <span>
-                              COMPLETED
-                            </span>
-
-                            <strong>
-                              {completedMinutes >= 60
-                                ? `${Math.floor(
-                                  completedMinutes / 60,
-                                )}h ${completedMinutes % 60
-                                }m`
-                                : `${completedMinutes}m`}
-                            </strong>
-
-                            <small>
-                              Actual completed blocks
-                            </small>
-                          </div>
-
-                          <div className="focus-metric">
-                            <span>ACTIVE</span>
-
-                            <strong>
-                              {activeSessions}
-                            </strong>
-
-                            <small>
-                              {scheduledSessions}{' '}
-                              scheduled
-                            </small>
-                          </div>
-
-                          <div className="focus-metric">
-                            <span>
-                              COMPLETION
-                            </span>
-
-                            <strong>
-                              {completionRate}%
-                            </strong>
-
-                            <small>
-                              Completed / tracked
-                            </small>
-                          </div>
-                        </div>
-
-                        <div className="focus-progress">
-                          <div className="focus-progress-top">
-                            <span>
-                              Execution progress
-                            </span>
-
-                            <strong>
-                              {completedMinutes} /{' '}
-                              {trackedMinutes} min
-                            </strong>
-                          </div>
-
-                          <div className="focus-progress-track">
-                            <span
-                              style={{
-                                width: `${completionRate}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="focus-bottom">
-                          <div className="execution-principle">
-                            <div className="principle-icon">
-                              <Icon
-                                name="target"
-                                size={15}
-                              />
-                            </div>
-
-                            <div>
-                              <strong>
-                                One session. One
-                                intention.
-                              </strong>
-
-                              <span>
-                                SHINPO turns planned
-                                time into bounded
-                                execution.
-                              </span>
-                            </div>
-                          </div>
-
-                          {latestSession && (
-                            <div className="latest-session">
-                              <span>
-                                LATEST
-                              </span>
-
-                              <strong>
-                                {
-                                  latestSession.name
-                                }
-                              </strong>
-
-                              <small>
-                                {statusLabel(
-                                  latestSession.status,
-                                )}
-                              </small>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </article>
-              </section>
-
-              <section className="panel goals-panel">
-                <div className="panel-heading">
-                  <div>
-                    <div className="eyebrow">
-                      DIRECTION
-                    </div>
-
-                    <h2>Goals</h2>
-
-                    <p>
-                      Your current direction and
-                      the work attached to it.
-                    </p>
-                  </div>
-
-                  <span className="panel-count">
-                    {dashboard.goals.length}{' '}
-                    active
-                  </span>
-                </div>
-
-                {dashboard.goals.length === 0 ? (
-                  <div className="empty-goals">
-                    No goals have been created yet.
-                  </div>
-                ) : (
-                  <div className="goal-list">
-                    {dashboard.goals.map(
-                      (goal) => (
-                        <article
-                          className="goal-row"
-                          key={goal.id}
-                        >
-                          <div className="goal-icon">
-                            <Icon
-                              name="target"
-                              size={17}
-                            />
-                          </div>
-
-                          <div className="goal-info">
-                            <strong>
-                              {goal.title}
-                            </strong>
-
-                            <span>
-                              {goal.status.toLowerCase()}
-                            </span>
-                          </div>
-
-                          <div className="goal-track">
-                            <span />
-                          </div>
-
-                          <div className="goal-percent">
-                            48%
-                          </div>
-                        </article>
-                      ),
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <footer className="product-loop">
-                <span>GOAL</span>
-                <i />
-                <span>MISSION</span>
-                <i />
-                <span>SCHEDULE</span>
-                <i />
-                <strong>FOCUS SESSION</strong>
-                <i />
-                <span>ENFORCEMENT</span>
-                <i />
-                <span>EXECUTION</span>
-                <i />
-                <span>RESULT</span>
-                <i />
-                <span>PROGRESS</span>
-                <i />
-                <span>ANALYTICS</span>
-                <i />
-                <span>IMPROVEMENT</span>
-                <i />
-                <strong>NEXT ACTION</strong>
-              </footer>
-            </>
-          )}
         </div>
 
-        {settingsOpen && (
-          <div className="settings-popover">
-            <div className="settings-header">
-              <div>
-                <div className="eyebrow">
-                  PREFERENCES
+        {/* Dynamic Tab Render */}
+        {/* Dynamic Tab Render: FitPulse 2-Tier Command Dashboard */}
+        {activeTab === 'Dashboard' && (
+          <div className="fitpulse-dashboard">
+            {/* ROW 1: 8 / 4 ASYMMETRIC SPLIT */}
+            <div className="fitpulse-row-upper">
+              {/* Card 1 (Span 8): Autonomous Execution Cockpit & Temporal Radar */}
+              <div className="fp-card fp-cockpit-card">
+                <div className="fp-card-header">
+                  <div className="fp-card-title-group">
+                    <h2 className="fp-card-title">Autonomous Execution Cockpit</h2>
+                  </div>
+                  <div className="fp-header-actions">
+                    <button className="fp-btn-subtle" onClick={loadData} title="Sync Telemetry">
+                      <Icon name="refresh" size={13} />
+                      <span>Telemetry Sync</span>
+                    </button>
+                    <button
+                      className="action-btn-circle"
+                      style={{ width: 30, height: 30 }}
+                      onClick={() => setActiveTab('Focus Engine')}
+                      title="Open Focus Engine HUD"
+                    >
+                      <Icon name="arrow-up-right" size={13} />
+                    </button>
+                  </div>
                 </div>
 
-                <h3>SHINPO Settings</h3>
+                <div className="fp-cockpit-subbar">
+                  <div className="fp-date-pill-group">
+                    <span className="fp-dark-pill">Today</span>
+                    <span className="fp-date-label">
+                      {new Date().toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <div className="fp-badge-dayview">
+                    <Icon name="clock" size={13} />
+                    <span>Day View</span>
+                  </div>
+                </div>
+
+                {/* Focus Execution Controls: Active Running Session or Idle Standby */}
+                {activeSession ? (
+                  <div className="fp-active-execution">
+                    <div className="fp-active-top-row">
+                      <div className="fp-timer-display">{formatTimerDigits(timerSeconds)}</div>
+                      <div className="fp-session-details">
+                        <span className="fp-session-name">{activeSession.name}</span>
+                        {activeSession.intention && (
+                          <span className="fp-session-target">
+                            🎯 Target: <strong>{activeSession.intention}</strong>
+                          </span>
+                        )}
+                        <span className="fp-session-status-badge">
+                          <span className="live-dot" />
+                          <span>{activeSession.status} • PID SENTINEL ARMED</span>
+                        </span>
+                      </div>
+                      <div className="fp-active-actions">
+                        {activeSession.status === 'ACTIVE' && (
+                          <button
+                            className="btn-timer secondary"
+                            onClick={() => handlePause(activeSession.id)}
+                          >
+                            <Icon name="pause" size={14} />
+                            <span>Pause</span>
+                          </button>
+                        )}
+                        {activeSession.status === 'PAUSED' && (
+                          <button
+                            className="btn-timer primary"
+                            onClick={() => handleResume(activeSession.id)}
+                          >
+                            <Icon name="play" size={14} />
+                            <span>Resume</span>
+                          </button>
+                        )}
+                        <button
+                          className="btn-timer primary"
+                          onClick={() => setCompletingSessionId(activeSession.id)}
+                        >
+                          <Icon name="check" size={14} />
+                          <span>Debrief</span>
+                        </button>
+                        <button
+                          className="btn-timer danger"
+                          onClick={() => handleDeleteSession(activeSession.id)}
+                          title="Discard & Delete Current Session"
+                        >
+                          <Icon name="trash" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="fp-progress-track">
+                      <div
+                        className="fp-progress-bar"
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
+                                ((activeSession.durationMinutes || 25) * 60)) *
+                                100),
+                            ),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="fp-idle-execution">
+                    <div className="fp-idle-input-row">
+                      <input
+                        type="text"
+                        className="fp-intention-input"
+                        placeholder={
+                          nextActionMission
+                            ? `Target: ${nextActionMission.title}`
+                            : 'Target Intention (e.g. Master Distributed Architecture)...'
+                        }
+                        value={sessionIntention}
+                        onChange={(e) => setSessionIntention(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleStartSession()}
+                      />
+                      <div className="fp-presets-wrap">
+                        {durationPresets.map((mins) => (
+                          <button
+                            key={mins}
+                            type="button"
+                            className={`fp-preset-pill ${selectedDuration === mins ? 'active' : ''}`}
+                            onClick={() => setSelectedDuration(mins)}
+                          >
+                            {mins}m
+                          </button>
+                        ))}
+                      </div>
+                      <button className="fp-btn-start" onClick={handleStartSession}>
+                        <Icon name="play" size={14} />
+                        <span>START FOCUS ({selectedDuration}m)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Temporal Hourly Grid (Timeline) */}
+                <div className="fp-temporal-grid">
+                  <div className="fp-timeline-hours-track">
+                    {[
+                      '08:00',
+                      '09:00',
+                      '10:00',
+                      '11:00',
+                      '12:00',
+                      '13:00',
+                      '14:00',
+                      '15:00',
+                      '16:00',
+                      '17:00',
+                    ].map((time) => {
+                      const isCurrentHour = time === '13:00'
+                      return (
+                        <div
+                          key={time}
+                          className={`fp-hour-marker ${isCurrentHour ? 'current-hour' : ''}`}
+                        >
+                          <span className="fp-hour-label">{time}</span>
+                          <div className="fp-hour-line" />
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Floating Execution Event Pills on the Temporal Grid */}
+                  <div className="fp-events-plane">
+                    {/* Active Session Event Pill */}
+                    {activeSession ? (
+                      <div className="fp-event-pill active-pill" style={{ left: '42%', top: '34px' }}>
+                        <span className="fp-event-badge red">
+                          ▶ {activeSession.durationMinutes || 45}m
+                        </span>
+                        <span className="fp-event-text">{activeSession.name}</span>
+                        <div className="fp-event-mini-actions">
+                          <button
+                            className="fp-mini-chip"
+                            onClick={() => setCompletingSessionId(activeSession.id)}
+                            title="Debrief Outcome"
+                          >
+                            Debrief
+                          </button>
+                          <button
+                            className="fp-mini-chip"
+                            onClick={() => handlePause(activeSession.id)}
+                            title="Pause"
+                          >
+                            Pause
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="fp-event-pill standby-pill" style={{ left: '42%', top: '34px' }}>
+                        <span className="fp-event-badge red">STANDBY</span>
+                        <span className="fp-event-text">Focus Engine Armed</span>
+                      </div>
+                    )}
+
+                    {/* Completed Sessions */}
+                    {todayCompletedSessions.length > 0 ? (
+                      todayCompletedSessions.slice(0, 2).map((s, idx) => (
+                        <div
+                          key={s.id}
+                          className="fp-event-pill completed-pill"
+                          style={{
+                            left: idx === 0 ? '6%' : '72%',
+                            top: idx === 0 ? '8px' : '52px',
+                          }}
+                        >
+                          <span className="fp-event-badge dark">✓ {s.durationMinutes}m</span>
+                          <span className="fp-event-text">{s.name}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="fp-event-pill completed-pill" style={{ left: '6%', top: '8px' }}>
+                        <span className="fp-event-badge dark">✓ 25m</span>
+                        <span className="fp-event-text">Kernel Architecture Review</span>
+                      </div>
+                    )}
+
+                    {/* Planned / Recommended Next Target */}
+                    {nextActionMission && (
+                      <div className="fp-event-pill planned-pill" style={{ left: '26%', top: '72px' }}>
+                        <span className="fp-event-badge blue">
+                          🎯 {nextActionMission.estimatedMinutes || 25}m
+                        </span>
+                        <span className="fp-event-text">{nextActionMission.title}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="fp-grid-footer">
+                    <button
+                      className="fp-btn-add-item"
+                      onClick={() => {
+                        if (nextActionMission) {
+                          setSessionIntention(nextActionMission.title)
+                          setSelectedDuration(nextActionMission.estimatedMinutes || 25)
+                        }
+                        handleStartSession()
+                      }}
+                    >
+                      <Icon name="plus" size={12} />
+                      <span>Add Focus Sprint</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="settings-close"
-                onClick={() =>
-                  setSettingsOpen(false)
-                }
-                aria-label="Close settings"
-              >
-                <Icon
-                  name="close"
-                  size={15}
-                />
-              </button>
+              {/* Card 2 (Span 4): Today's Schedule & Mission Queue */}
+              <div className="fp-card fp-schedule-card">
+                <div className="fp-card-header">
+                  <div className="fp-card-title-group">
+                    <h2 className="fp-card-title">Today's Schedule</h2>
+                  </div>
+                  <div className="fp-pill-dropdown">
+                    <span>This Week</span>
+                    <Icon name="chevron" size={12} />
+                  </div>
+                </div>
+
+                {/* FitPulse 7-Day Pill Strip */}
+                <div className="fp-week-strip">
+                  {weekDays.map((d) => (
+                    <div
+                      key={d.dateStr}
+                      className={`fp-day-pill ${d.isToday ? 'active-today' : ''}`}
+                      title={`${d.dayName}, ${d.dateStr}`}
+                    >
+                      <span className="fp-day-num">{d.dayNum}</span>
+                      <span className="fp-day-name">{d.dayName}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Schedule Item Rows */}
+                <div className="fp-schedule-list">
+                  {/* Active Session item if running */}
+                  {activeSession && (
+                    <div className="fp-schedule-item active">
+                      <div className="fp-item-avatar core">CORE</div>
+                      <div className="fp-item-info">
+                        <div className="fp-item-title">{activeSession.name}</div>
+                        <div className="fp-item-sub">
+                          Active Now • {formatTimerDigits(timerSeconds)} remaining
+                        </div>
+                      </div>
+                      <div className="fp-item-action-wrap">
+                        <button
+                          className="fp-item-action-circle running"
+                          onClick={() => setCompletingSessionId(activeSession.id)}
+                          title="Debrief & Complete"
+                        >
+                          <Icon name="check" size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Completed sessions */}
+                  {todayCompletedSessions.map((s) => (
+                    <div key={`sched-s-${s.id}`} className="fp-schedule-item completed">
+                      <div className="fp-item-avatar done">DONE</div>
+                      <div className="fp-item-info">
+                        <div className="fp-item-title line-through">{s.name}</div>
+                        <div className="fp-item-sub">
+                          {s.durationMinutes}m Deep Work • Logged
+                        </div>
+                      </div>
+                      <div className="fp-item-action-wrap">
+                        <div className="fp-item-action-circle done">
+                          <Icon name="check" size={12} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Completed missions */}
+                  {todayCompletedMissions.map((m) => (
+                    <div key={`sched-m-done-${m.id}`} className="fp-schedule-item completed">
+                      <div className="fp-item-avatar done">DONE</div>
+                      <div className="fp-item-info">
+                        <div className="fp-item-title line-through">{m.title}</div>
+                        <div className="fp-item-sub">
+                          {m.estimatedMinutes || 25}m Mission • Completed Today
+                        </div>
+                      </div>
+                      <div className="fp-item-action-wrap">
+                        <div className="fp-item-action-circle done">
+                          <Icon name="check" size={12} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Upcoming Missions */}
+                  {todayUpcomingMissions.slice(0, 4).map((m) => {
+                    const cat = getMissionCategory(m)
+                    return (
+                      <div key={`sched-m-${m.id}`} className="fp-schedule-item">
+                        <div className={`fp-item-avatar ${cat.toLowerCase()}`}>{cat}</div>
+                        <div className="fp-item-info">
+                          <div className="fp-item-title">{m.title}</div>
+                          <div className="fp-item-sub">
+                            {m.estimatedMinutes || 25}m Target • Next in Queue
+                          </div>
+                        </div>
+                        <div className="fp-item-action-wrap">
+                          <button
+                            className="fp-item-action-circle play"
+                            title="Engage Sprint"
+                            onClick={() => {
+                              setSelectedDuration(m.estimatedMinutes || 25)
+                              setSessionIntention(m.title)
+                              handleStartSession()
+                            }}
+                          >
+                            <Icon name="play" size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {!activeSession &&
+                    todayCompletedSessions.length === 0 &&
+                    todayCompletedMissions.length === 0 &&
+                    todayUpcomingMissions.length === 0 && (
+                      <div className="fp-empty-notice">
+                        No schedule events queued today. Create a mission or start focus above!
+                      </div>
+                    )}
+                </div>
+              </div>
             </div>
 
-            <div className="setting-row">
-              <div>
-                <strong>Appearance</strong>
+            {/* ROW 2: 4 / 4 / 4 ASYMMETRIC SPLIT */}
+            <div className="fitpulse-row-lower">
+              {/* Card 3 (Span 4): Performance & Flow */}
+              <div className="fp-card fp-perf-card">
+                <div className="fp-card-header">
+                  <div className="fp-card-title-group">
+                    <h2 className="fp-card-title">Performance</h2>
+                  </div>
+                  <button
+                    className="action-btn-circle"
+                    style={{ width: 30, height: 30 }}
+                    onClick={() => setActiveTab('Analytics')}
+                    title="Full Telemetry & Analytics"
+                  >
+                    <Icon name="arrow-up-right" size={13} />
+                  </button>
+                </div>
 
-                <span>
-                  Choose your workspace theme.
-                </span>
-              </div>
+                {/* 3-day switcher pills */}
+                <div className="fp-perf-days-row">
+                  {weekDays.slice(0, 3).map((d, i) => (
+                    <div
+                      key={d.dateStr}
+                      className={`fp-perf-day-pill ${i === 1 ? 'selected' : ''}`}
+                    >
+                      <span className="fp-pday-name">{d.dayName}</span>
+                      <span className="fp-pday-num">{d.dayNum}</span>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={
-                    theme === 'light'
-                      ? 'selected'
-                      : ''
-                  }
-                  onClick={() =>
-                    setTheme('light')
-                  }
-                >
-                  Light
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    theme === 'dark'
-                      ? 'selected'
-                      : ''
-                  }
-                  onClick={() =>
-                    setTheme('dark')
-                  }
-                >
-                  Dark
-                </button>
-              </div>
-            </div>
-
-            <div className="setting-row">
-              <div>
-                <strong>Time format</strong>
-
-                <span>
-                  Used by the SHINPO clock.
-                </span>
-              </div>
-
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={
-                    timeFormat === '12h'
-                      ? 'selected'
-                      : ''
-                  }
-                  onClick={() =>
-                    setTimeFormat('12h')
-                  }
-                >
-                  12h
-                </button>
+                {/* Big Metric Display */}
+                <div className="fp-perf-metrics">
+                  <div className="fp-perf-stat-main">92%</div>
+                  <div className="fp-perf-trend-wrap">
+                    <span className="fp-trend-tag positive">+12%</span>
+                    <span className="fp-trend-label">Since yesterday</span>
+                  </div>
+                </div>
 
                 <button
-                  type="button"
-                  className={
-                    timeFormat === '24h'
-                      ? 'selected'
-                      : ''
-                  }
-                  onClick={() =>
-                    setTimeFormat('24h')
-                  }
+                  className="fp-btn-next-action"
+                  onClick={handleEngageNextAction}
+                  title={nextActionGoal ? `Strategic Objective: ${nextActionGoal.title}` : 'Engage Focus Sprint'}
                 >
-                  24h
+                  <Icon name="play" size={12} />
+                  <span>Engage Focus Sprint ↗</span>
                 </button>
+
+                <div className="fp-perf-cadence-row">
+                  <div className="fp-cadence-item">
+                    <span className="fp-cadence-val">22.3h</span>
+                    <span className="fp-cadence-lbl">Weekly Flow</span>
+                  </div>
+                  <div className="fp-cadence-item">
+                    <span className="fp-cadence-val">3.2h</span>
+                    <span className="fp-cadence-lbl">Daily Mean</span>
+                  </div>
+                  <div className="fp-cadence-item">
+                    <span className="fp-cadence-val green">96%</span>
+                    <span className="fp-cadence-lbl">Focus Streak</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="setting-row">
-              <div>
-                <strong>Sidebar</strong>
+              {/* Card 4 (Span 4): Strategic Target Goals (Clean & elegant, NO overlapping circle!) */}
+              <div className="fp-card fp-goals-card">
+                <div className="fp-card-header">
+                  <div className="fp-card-title-group">
+                    <h2 className="fp-card-title">Strategic Goals</h2>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="action-btn-circle"
+                      style={{ width: 30, height: 30 }}
+                      onClick={() => setIsCreatingGoal(true)}
+                      title="Add Strategic Goal"
+                    >
+                      <Icon name="plus" size={13} />
+                    </button>
+                    <button
+                      className="action-btn-circle"
+                      style={{ width: 30, height: 30 }}
+                      onClick={() => setActiveTab('Goals & Missions')}
+                      title="Strategic Horizons"
+                    >
+                      <Icon name="target" size={13} />
+                    </button>
+                  </div>
+                </div>
 
-                <span>
-                  Control navigation density.
-                </span>
+                <div className="fp-goals-list">
+                  {goals.length === 0 ? (
+                    <div className="fp-empty-notice">
+                      No strategic goals established. Create one to steer your execution horizon.
+                    </div>
+                  ) : (
+                    goals.slice(0, 3).map((g) => {
+                      const goalMissions = missions.filter((m) => m.goalId === g.id)
+                      const completedCount = goalMissions.filter(
+                        (m) => m.status === 'COMPLETED',
+                      ).length
+                      const totalCount = goalMissions.length
+                      const pct =
+                        totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+                      return (
+                        <div key={g.id} className="fp-goal-card-item">
+                          <div className="fp-goal-item-top">
+                            <span className="fp-goal-item-title">{g.title}</span>
+                            <span className="fp-goal-item-pct">{pct}%</span>
+                          </div>
+                          <div className="fp-goal-progress-track">
+                            <div className="fp-goal-progress-bar" style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="fp-goal-item-meta">
+                            <span>
+                              {completedCount}/{totalCount} Missions
+                            </span>
+                            <span>Target: {g.targetDate || 'Open Horizon'}</span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                <div className="fp-goals-footer">
+                  <button
+                    className="fp-btn-link"
+                    onClick={() => setActiveTab('Goals & Missions')}
+                  >
+                    <span>View All Goals & Deconstruct</span>
+                    <Icon name="arrow-up-right" size={12} />
+                  </button>
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="setting-action"
-                onClick={() =>
-                  setSidebarCollapsed(
-                    (value) => !value,
-                  )
-                }
-              >
-                {sidebarCollapsed
-                  ? 'Expand'
-                  : 'Collapse'}
-              </button>
-            </div>
+              {/* Card 5 (Span 4): Operational Flight Deck */}
+              <div className="fp-card fp-flightdeck-card">
+                <div className="fp-card-header">
+                  <div className="fp-card-title-group">
+                    <h2 className="fp-card-title">Flight Deck Missions</h2>
+                  </div>
+                  <button
+                    className="fp-btn-link-subtle"
+                    onClick={() => setActiveTab('Goals & Missions')}
+                  >
+                    <span>View Details</span>
+                    <Icon name="arrow-up-right" size={12} />
+                  </button>
+                </div>
 
-            <div className="settings-note">
-              <Icon
-                name="focus"
-                size={14}
-              />
+                {/* Filter Chips */}
+                <div className="fp-filter-chips">
+                  {(['ALL', 'SPRINT', 'MILESTONES'] as const).map((chip) => (
+                    <button
+                      key={chip}
+                      className={`fp-filter-chip ${flightDeckFilter === chip ? 'active' : ''}`}
+                      onClick={() => setFlightDeckFilter(chip)}
+                    >
+                      {chip === 'ALL' ? 'All' : chip === 'SPRINT' ? 'Sprint' : 'Milestones'}
+                    </button>
+                  ))}
+                </div>
 
-              <span>
-                SHINPO is being built as a Windows
-                + Linux execution client. OS-level
-                App Control will be provided by the
-                platform agent, not by
-                browser-only tricks.
-              </span>
+                {/* Mission List */}
+                <div className="fp-flightdeck-list">
+                  {missions.length === 0 ? (
+                    <div className="fp-empty-notice">
+                      No missions initialized yet. Establish an objective in Goals & Missions.
+                    </div>
+                  ) : flightDeckMissions.length === 0 ? (
+                    <div className="fp-empty-notice">
+                      {flightDeckFilter === 'SPRINT'
+                        ? 'All pending sprints completed!'
+                        : 'No completed milestones yet.'}
+                    </div>
+                  ) : (
+                    flightDeckMissions.slice(0, 5).map((m) => {
+                      const isDone = m.status === 'COMPLETED'
+                      const cat = getMissionCategory(m)
+
+                      return (
+                        <div key={m.id} className={`fp-mission-row ${isDone ? 'done' : ''}`}>
+                          <div className="fp-mission-left">
+                            <div className="fp-mission-title-box">
+                              <span className={`fp-mission-name ${isDone ? 'line-through' : ''}`}>
+                                {m.title}
+                              </span>
+                              <div className="fp-mission-tags">
+                                <span className={`fp-cat-badge ${cat.toLowerCase()}`}>{cat}</span>
+                                <span className="fp-time-badge">{m.estimatedMinutes || 25}m</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="fp-mission-actions">
+                            {!isDone && (
+                              <button
+                                className="fp-action-btn play"
+                                title="Engage Focus Sprint"
+                                onClick={() => {
+                                  setSelectedDuration(m.estimatedMinutes || 25)
+                                  setSessionIntention(m.title)
+                                  handleStartSession()
+                                }}
+                              >
+                                <Icon name="play" size={11} />
+                              </button>
+                            )}
+                            <button
+                              className={`fp-action-btn check ${isDone ? 'active' : ''}`}
+                              title={isDone ? 'Completed' : 'Mark Complete (+25 XP)'}
+                              onClick={() => handleToggleMissionComplete(m.id)}
+                            >
+                              <Icon name="check" size={12} />
+                            </button>
+                            <button
+                              className="fp-action-btn delete"
+                              title="Delete Mission"
+                              onClick={() => handleDeleteMission(m.id, m.title)}
+                            >
+                              <Icon name="trash" size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </section>
-    </main>
+
+        {/* Tab 2: Focus Engine */}
+        {activeTab === 'Focus Engine' && (
+          <div className="bento-grid">
+            {/* Running Timer HUD */}
+            <div className="bento-card card-timer-hud">
+              <div className="card-header-row">
+                <div className="card-title-group">
+                  <span className="card-title">Focus Engine HUD</span>
+                  <span className={`badge-tag ${activeSession ? 'green' : 'blue'}`}>
+                    {activeSession ? activeSession.status : 'STANDBY'}
+                  </span>
+                </div>
+                <Icon name="clock" size={20} />
+              </div>
+
+              <div className="timer-digits-display">{formatTimerDigits(timerSeconds)}</div>
+
+              {(activeSession?.intention || sessionIntention) && (
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <span className="active-intention-tag">
+                    🎯 {activeSession?.intention || sessionIntention}
+                  </span>
+                </div>
+              )}
+
+              <div className="timer-progress-track">
+                <div
+                  className="timer-progress-fill"
+                  style={{
+                    width: activeSession
+                      ? `${Math.max(
+                          0,
+                          Math.min(
+                            100,
+                            ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
+                              ((activeSession.durationMinutes || 25) * 60)) *
+                              100),
+                          ),
+                        )}%`
+                      : '0%',
+                  }}
+                />
+              </div>
+
+              <div className="timer-action-buttons">
+                {!activeSession && (
+                  <button className="btn-timer primary" onClick={handleStartSession}>
+                    <Icon name="play" size={16} />
+                    <span>Engage {selectedDuration}m Sprint</span>
+                  </button>
+                )}
+
+                {activeSession && activeSession.status === 'ACTIVE' && (
+                  <>
+                    <button
+                      className="btn-timer secondary"
+                      onClick={() => handlePause(activeSession.id)}
+                    >
+                      <Icon name="pause" size={16} />
+                      <span>Pause Session</span>
+                    </button>
+                    <button
+                      className="btn-timer primary"
+                      onClick={() => setCompletingSessionId(activeSession.id)}
+                    >
+                      <Icon name="check" size={16} />
+                      <span>Complete & Debrief</span>
+                    </button>
+                    <button
+                      className="btn-timer danger"
+                      onClick={() => handleDeleteSession(activeSession.id)}
+                      title="Discard and delete current focus session"
+                    >
+                      <Icon name="trash" size={16} />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
+
+                {activeSession && activeSession.status === 'PAUSED' && (
+                  <>
+                    <button
+                      className="btn-timer primary"
+                      onClick={() => handleResume(activeSession.id)}
+                    >
+                      <Icon name="play" size={16} />
+                      <span>Resume Sprint</span>
+                    </button>
+                    <button
+                      className="btn-timer secondary"
+                      onClick={() => setCompletingSessionId(activeSession.id)}
+                    >
+                      <Icon name="check" size={16} />
+                      <span>Debrief Early</span>
+                    </button>
+                    <button
+                      className="btn-timer danger"
+                      onClick={() => handleDeleteSession(activeSession.id)}
+                      title="Discard and delete current focus session"
+                    >
+                      <Icon name="trash" size={16} />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Session Creator & Pomodoro Plans */}
+            <div className="bento-card card-session-creator">
+              <div className="card-header-row">
+                <div className="card-title-group">
+                  <span className="card-title">Duration & Plan Architect</span>
+                  <span className="badge-tag">Presets & Custom</span>
+                </div>
+                <Icon name="target" size={20} />
+              </div>
+
+              <div className="preset-chip-row">
+                {durationPresets.map((mins) => (
+                  <button
+                    key={mins}
+                    className={`preset-chip ${
+                      selectedDuration === mins && !isCustomDuration ? 'active' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedDuration(mins)
+                      setSelectedPomodoroPlan(null)
+                      setIsCustomDuration(false)
+                    }}
+                  >
+                    {mins}m
+                  </button>
+                ))}
+                <button
+                  className={`preset-chip ${isCustomDuration ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsCustomDuration(true)
+                    setSelectedPomodoroPlan(null)
+                  }}
+                >
+                  Custom ✎
+                </button>
+              </div>
+
+              {isCustomDuration && (
+                <div className="custom-duration-card">
+                  <div className="custom-duration-header">
+                    <span>Custom Sprint Duration</span>
+                    <span className="custom-mins-badge">{selectedDuration} min</span>
+                  </div>
+                  <div className="custom-slider-row">
+                    <input
+                      type="range"
+                      min={5}
+                      max={180}
+                      step={5}
+                      value={selectedDuration}
+                      onChange={(e) => setSelectedDuration(Number(e.target.value))}
+                      className="custom-slider"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={480}
+                      value={selectedDuration}
+                      onChange={(e) =>
+                        setSelectedDuration(Math.max(1, Math.min(480, Number(e.target.value))))
+                      }
+                      className="modal-field"
+                      style={{
+                        width: 75,
+                        marginBottom: 0,
+                        padding: '6px 8px',
+                        textAlign: 'center',
+                        fontWeight: 800,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Session Intention Input */}
+              <div className="session-intention-box">
+                <input
+                  type="text"
+                  value={sessionIntention}
+                  onChange={(e) => setSessionIntention(e.target.value)}
+                  placeholder="Target Intention (e.g. Build neural kernel / Close open PR)..."
+                  className="session-intention-input"
+                  disabled={!!activeSession}
+                />
+              </div>
+
+              <div className="pomodoro-plan-grid">
+                {pomodoroPlans.map((plan) => (
+                  <div
+                    key={plan.name}
+                    className={`plan-card-item ${
+                      selectedPomodoroPlan === plan.name ? 'active' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedPomodoroPlan(plan.name)
+                      setSelectedDuration(plan.totalMinutes)
+                    }}
+                  >
+                    <div>
+                      <div className="plan-name">{plan.name}</div>
+                      <div className="plan-schedule-sub">{plan.schedule}</div>
+                    </div>
+                    <span className="badge-tag blue">{plan.totalMinutes}m</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bento Card 3: Focus Sprints History & Registry */}
+            <div className="bento-card card-session-history">
+              <div className="card-header-row">
+                <div className="card-title-group">
+                  <span className="card-title">Focus Sprints Registry</span>
+                  <span className="badge-tag">{sessions.length} Recorded</span>
+                </div>
+                <Icon name="clock" size={18} />
+              </div>
+
+              {sessions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-3)', fontSize: 14 }}>
+                  No focus sprint records yet. Engage your first sprint above to initialize telemetry.
+                </div>
+              ) : (
+                <div className="dense-table-wrapper">
+                  <table className="dense-table">
+                    <thead>
+                      <tr>
+                        <th>Sprint Target / Name</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Timeline</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessions.map((sess) => (
+                        <tr key={sess.id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                              {sess.name}
+                            </div>
+                            {sess.intention && (
+                              <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
+                                🎯 {sess.intention}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span className="badge-tag blue">{sess.durationMinutes}m</span>
+                          </td>
+                          <td>
+                            <span
+                              className={`status-indicator-pill ${
+                                sess.status === 'COMPLETED'
+                                  ? 'completed'
+                                  : sess.status === 'ACTIVE'
+                                  ? 'active'
+                                  : 'pending'
+                              }`}
+                            >
+                              {sess.status}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                            {sess.startedAt
+                              ? new Date(sess.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : sess.createdAt
+                              ? new Date(sess.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '—'}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              className="btn-icon-delete"
+                              title="Delete Focus Session"
+                              onClick={() => handleDeleteSession(sess.id)}
+                            >
+                              <Icon name="trash" size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: AI Tactical Assistant */}
+        {activeTab === 'AI Assistant' && (
+          <div className="ai-bento-container">
+            <div className="ai-sidebar-card">
+              <div className="card-header-row" style={{ margin: 0 }}>
+                <span className="card-title">Tactical Directives</span>
+                <Icon name="sparkle" size={18} />
+              </div>
+              <p style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                Issue natural commands or trigger direct strategic algorithms to structure your day.
+              </p>
+
+              {[
+                { label: 'Plan My Execution Day', prompt: 'Plan my day with high-impact sessions' },
+                { label: 'Decompose Top Goal', prompt: 'Break down my top goal into actionable steps' },
+                { label: 'What is My Next Action?', prompt: 'Guide me on what I should do right now' },
+                { label: 'Cognitive Reset / Stuck', prompt: 'I feel stuck and overwhelmed, guide me' },
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  className="ai-preset-btn"
+                  onClick={() => handleAiSend(p.prompt)}
+                >
+                  <span>{p.label}</span>
+                  <Icon name="arrow-up-right" size={14} />
+                </button>
+              ))}
+            </div>
+
+            <div className="ai-chat-card">
+              <div className="card-header-row">
+                <span className="card-title">AI Command Stream</span>
+                <span className="badge-tag green">Neural Ready</span>
+              </div>
+
+              <div className="ai-messages-feed">
+                {chatMessages.map((msg, index) => (
+                  <div key={index} className={`ai-bubble ${msg.role}`}>
+                    <div>{msg.text}</div>
+                    {msg.missions && msg.missions.length > 0 && (
+                      <div className="ai-cards-row">
+                        {msg.missions.map((m, mIdx) => (
+                          <div key={mIdx} className="ai-mission-card">
+                            <span style={{ fontWeight: 600 }}>{m.title}</span>
+                            <span className="badge-tag blue">{m.estimatedMinutes}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {aiLoading && (
+                  <div className="ai-bubble assistant" style={{ fontStyle: 'italic' }}>
+                    Formulating tactical response...
+                  </div>
+                )}
+              </div>
+
+              <div className="ai-chat-input-bar">
+                <input
+                  type="text"
+                  className="ai-input-field"
+                  placeholder="Ask anything (e.g. 'hi', 'guide me', 'split my objective')..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAiSend()}
+                />
+                <button className="ai-send-btn" onClick={() => handleAiSend()}>
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Goals & Missions */}
+        {activeTab === 'Goals & Missions' && (
+          <div className="bento-grid">
+            {/* Section 1: Strategic Objectives Header */}
+            <div className="deck-section-header">
+              <div className="deck-section-title">
+                <Icon name="goals" size={18} />
+                <span>Strategic Objectives & Targets</span>
+              </div>
+              <button
+                className="btn-timer primary"
+                style={{ padding: '9px 18px', fontSize: 14 }}
+                onClick={() => setIsCreatingGoal(true)}
+              >
+                <Icon name="plus" size={14} />
+                <span>New Strategic Goal</span>
+              </button>
+            </div>
+
+            {/* AI Decomposition Result Banner */}
+            {aiDecompResult && (
+              <div className="ai-decomp-banner">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="sparkle" size={18} />
+                    <span style={{ fontWeight: 800, fontSize: 16 }}>
+                      AI Deconstruction: {aiDecompResult.goalTitle}
+                    </span>
+                  </div>
+                  <button
+                    className="sidebar-toggle-btn"
+                    onClick={() => setAiDecompResult(null)}
+                    title="Dismiss"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </div>
+                <p style={{ fontSize: 14, color: 'var(--text-2)', margin: '8px 0 12px', lineHeight: 1.5 }}>
+                  {aiDecompResult.analysis}
+                </p>
+
+                <div className="decomp-items-grid">
+                  {aiDecompResult.proposedMissions.map((pm, idx) => (
+                    <div key={idx} className="decomp-mission-box">
+                      <div>
+                        <div className="decomp-title">{pm.title}</div>
+                        <div className="decomp-desc">{pm.description}</div>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginTop: 10,
+                        }}
+                      >
+                        <span className="badge-tag blue">{pm.estimatedMinutes}m</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 700 }}>
+                          Sprint #{idx + 1}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn-timer secondary"
+                    onClick={() => setAiDecompResult(null)}
+                  >
+                    Discard
+                  </button>
+                  <button
+                    className="btn-timer primary"
+                    onClick={handleCommitAiMissions}
+                  >
+                    <Icon name="check" size={14} />
+                    <span>Commit {aiDecompResult.proposedMissions.length} Missions to Live Deck</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Goals Cards Grid */}
+            <div className="goals-grid">
+              {goals.length === 0 ? (
+                <div
+                  className="bento-card"
+                  style={{ gridColumn: 'span 12', padding: 32, textAlign: 'center' }}
+                >
+                  <p style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 12 }}>
+                    No strategic goals initialized yet. Create your first objective or decompose a target.
+                  </p>
+                  <button className="btn-timer primary" onClick={() => setIsCreatingGoal(true)}>
+                    <Icon name="plus" size={14} />
+                    <span>Create High-Level Goal</span>
+                  </button>
+                </div>
+              ) : (
+                goals.map((g) => {
+                  const goalMissions = missions.filter((m) => m.goalId === g.id)
+                  const completedCount = goalMissions.filter(
+                    (m) => m.status === 'COMPLETED',
+                  ).length
+                  const progressPct =
+                    goalMissions.length > 0
+                      ? Math.round((completedCount / goalMissions.length) * 100)
+                      : 0
+
+                  return (
+                    <div key={g.id} className="goal-card-item">
+                      <div className="goal-top-row">
+                        <span className="goal-item-title">{g.title}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={`badge-tag ${g.status === 'ACTIVE' ? 'green' : 'blue'}`}>
+                            {g.status}
+                          </span>
+                          <button
+                            className="btn-icon-delete"
+                            title="Delete Strategic Goal"
+                            onClick={() => handleDeleteGoal(g.id, g.title)}
+                          >
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      </div>
+                      {g.description && <p className="goal-item-desc">{g.description}</p>}
+
+                      <div style={{ margin: '4px 0' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 13,
+                            color: 'var(--text-3)',
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span>
+                            Missions: {completedCount}/{goalMissions.length}
+                          </span>
+                          <span style={{ fontWeight: 700 }}>{progressPct}%</span>
+                        </div>
+                        <div className="goal-progress-bar-bg">
+                          <div
+                            className="goal-progress-bar-fill"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="goal-card-footer">
+                        <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                          Target: {g.targetDate ? g.targetDate : 'Open'}
+                        </span>
+                        <button
+                          className="btn-ai-deconstruct"
+                          onClick={() => handleDeconstructGoal(g.id)}
+                          disabled={decomposingGoalId === g.id}
+                        >
+                          <Icon name="sparkle" size={13} />
+                          <span>
+                            {decomposingGoalId === g.id ? 'Deconstructing...' : 'AI Deconstruct'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Section 2: Tactical Missions Deck */}
+            <div className="deck-section-header" style={{ marginTop: 12 }}>
+              <div className="deck-section-title">
+                <Icon name="target" size={18} />
+                <span>Tactical Mission Queue</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    className={`filter-chip ${missionsFilter === filter ? 'active' : ''}`}
+                    onClick={() => setMissionsFilter(filter)}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="missions-list-container">
+              {missions
+                .filter((m) => {
+                  if (missionsFilter === 'PENDING') return m.status !== 'COMPLETED'
+                  if (missionsFilter === 'COMPLETED') return m.status === 'COMPLETED'
+                  return true
+                })
+                .map((m) => {
+                  const parentGoal = goals.find((g) => g.id === m.goalId)
+                  const isDone = m.status === 'COMPLETED'
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`mission-deck-row ${isDone ? 'completed' : ''}`}
+                    >
+                      <div className="mission-deck-left">
+                        <button
+                          className={`mission-check-btn ${isDone ? 'checked' : ''}`}
+                          onClick={() => !isDone && handleToggleMissionComplete(m.id)}
+                          title={isDone ? 'Mission Completed' : 'Mark as Completed'}
+                        >
+                          {isDone && <Icon name="check" size={14} />}
+                        </button>
+                        <div className="mission-deck-meta">
+                          <div
+                            className="mission-deck-title"
+                            style={{ textDecoration: isDone ? 'line-through' : 'none' }}
+                          >
+                            {m.title}
+                          </div>
+                          <div className="mission-deck-sub">
+                            {parentGoal && <span>🎯 {parentGoal.title}</span>}
+                            <span>• {m.estimatedMinutes || 25}m estimated</span>
+                            <span>• {m.scheduledDate}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {!isDone && (
+                          <button
+                            className="btn-timer secondary"
+                            style={{ padding: '8px 16px', fontSize: 13 }}
+                            onClick={() => {
+                              setSelectedDuration(m.estimatedMinutes || 25)
+                              setSessionIntention(m.title)
+                              setActiveTab('Focus Engine')
+                            }}
+                          >
+                            <Icon name="play" size={12} />
+                            <span>Engage Sprint</span>
+                          </button>
+                        )}
+                        <button
+                          className="btn-icon-delete"
+                          title="Delete Tactical Mission"
+                          onClick={() => handleDeleteMission(m.id, m.title)}
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Other Views (Schedule / Analytics) */}
+        {activeTab !== 'Dashboard' &&
+          activeTab !== 'Focus Engine' &&
+          activeTab !== 'Goals & Missions' &&
+          activeTab !== 'AI Assistant' && (
+            <div className="bento-card" style={{ padding: 48, textAlign: 'center' }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>{activeTab} Module</h2>
+              <p style={{ color: 'var(--text-3)', fontSize: 14 }}>
+                Active telemetry streaming into SHINPO core. Switch to Dashboard, Goals, or Focus Engine for real-time controls.
+              </p>
+            </div>
+          )}
+      </main>
+
+      {/* Post-Session Reflection Modal */}
+      {completingSessionId && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3 className="modal-title">Session Debrief & Reflection</h3>
+            <p className="modal-sub">
+              Log your qualitative execution telemetry to calibrate future recommendations.
+            </p>
+
+            <form onSubmit={handleCompleteSubmit}>
+              <div className="star-rating-row">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    type="button"
+                    key={star}
+                    className={`star-btn ${star <= completionQuality ? 'active' : ''}`}
+                    onClick={() => setCompletionQuality(star)}
+                  >
+                    ⭐
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="text"
+                className="modal-field"
+                placeholder="What concrete outcome was achieved?"
+                value={accomplishment}
+                onChange={(e) => setAccomplishment(e.target.value)}
+                required
+              />
+
+              <textarea
+                className="modal-field"
+                rows={3}
+                placeholder="Reflection notes: Any friction, distractions, or insights?"
+                value={reflectionNotes}
+                onChange={(e) => setReflectionNotes(e.target.value)}
+              />
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="btn-timer secondary"
+                  onClick={() => setCompletingSessionId(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-timer primary">
+                  Record Outcome
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Goal Modal */}
+      {isCreatingGoal && (
+        <div className="modal-overlay" onClick={() => setIsCreatingGoal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Define Strategic Objective</h3>
+            <p className="modal-sub">
+              Set a high-level outcome boundary. You can then let the AI partition it into actionable sprints.
+            </p>
+
+            <form onSubmit={handleCreateGoal}>
+              <input
+                type="text"
+                placeholder="Goal Title (e.g. Master Distributed Systems)..."
+                value={newGoalTitle}
+                onChange={(e) => setNewGoalTitle(e.target.value)}
+                className="modal-field"
+                required
+                autoFocus
+              />
+
+              <textarea
+                placeholder="Outcome Definition / Measurable boundary (optional)..."
+                value={newGoalDesc}
+                onChange={(e) => setNewGoalDesc(e.target.value)}
+                className="modal-field"
+                rows={3}
+              />
+
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: 'var(--text-3)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Target Horizon Date
+                </label>
+                <input
+                  type="date"
+                  value={newGoalDate}
+                  onChange={(e) => setNewGoalDate(e.target.value)}
+                  className="modal-field"
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-timer secondary"
+                  onClick={() => setIsCreatingGoal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-timer primary">
+                  <Icon name="plus" size={14} />
+                  <span>Establish Objective</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

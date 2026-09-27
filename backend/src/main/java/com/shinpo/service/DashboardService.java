@@ -33,21 +33,11 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(Long userId) {
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        List<Goal> userGoals = goalRepository.findAll()
-                .stream()
-                .filter(goal -> goal.getUser().getId().equals(userId))
-                .toList();
-
-        List<Mission> userMissions = missionRepository.findAll()
-                .stream()
-                .filter(mission ->
-                        mission.getGoal().getUser().getId().equals(userId)
-                )
-                .toList();
+        List<Goal> userGoals = goalRepository.findAllByUser_Id(userId);
+        List<Mission> userMissions = missionRepository.findAllByGoal_User_Id(userId);
 
         long totalMissions = userMissions.size();
 

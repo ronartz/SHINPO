@@ -1,0 +1,17 @@
+{
+  "api_url": "http://localhost:8080/api/focus-sessions?userId=1",
+  "poll_interval_seconds": 2,
+  "blacklist": [
+    "discord",
+    "steam",
+    "spotify",
+    "telegram-desktop",
+    "vlc",
+    "obs",
+    "epicgameslauncher",
+    "riotclientux",
+    "battlenet"
+  ],
+  "auto_kill": true,
+  "notify_desktop": true
+}

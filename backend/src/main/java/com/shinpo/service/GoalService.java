@@ -7,6 +7,7 @@ import com.shinpo.entity.User;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -48,6 +49,13 @@ public class GoalService {
         Goal savedGoal = goalRepository.save(goal);
 
         return toResponse(savedGoal);
+    }
+
+    @Transactional
+    public void deleteGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Goal not found: " + id));
+        goalRepository.delete(goal);
     }
 
     private GoalResponse toResponse(Goal goal) {
