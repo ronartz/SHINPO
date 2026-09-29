@@ -25,6 +25,7 @@ import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
 import com.shinpo.dto.AiDtos.GoalDecompositionResponse;
 import com.shinpo.dto.AiDtos.NextActionResponse;
+import com.shinpo.dto.AuthDtos;
 import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.entity.AiSuggestion;
 import com.shinpo.entity.Goal;
@@ -593,21 +594,20 @@ class ShinpoApplicationTests {
                 "password", "secret12345"
         );
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<AuthDtos.AuthResponse> response = restTemplate.postForEntity(
                 baseUrl() + "/api/auth/register",
                 registerPayload,
-                Map.class
+                AuthDtos.AuthResponse.class
         );
 
         assertEquals(201, response.getStatusCode().value());
-        Map body = response.getBody();
+        AuthDtos.AuthResponse body = response.getBody();
         assertNotNull(body);
-        assertNotNull(body.get("accessToken"));
-        assertNotNull(body.get("refreshToken"));
-        Map userMap = (Map) body.get("user");
-        assertNotNull(userMap);
-        assertEquals("new_cadet", userMap.get("username"));
-        assertEquals("cadet@shinpo.local", userMap.get("email"));
+        assertNotNull(body.accessToken());
+        assertNotNull(body.refreshToken());
+        assertNotNull(body.user());
+        assertEquals("new_cadet", body.user().username());
+        assertEquals("cadet@shinpo.local", body.user().email());
     }
 
     @Test
@@ -617,17 +617,17 @@ class ShinpoApplicationTests {
                 "password", "test-password-123"
         );
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<AuthDtos.AuthResponse> response = restTemplate.postForEntity(
                 baseUrl() + "/api/auth/login",
                 loginPayload,
-                Map.class
+                AuthDtos.AuthResponse.class
         );
 
         assertEquals(200, response.getStatusCode().value());
-        Map body = response.getBody();
+        AuthDtos.AuthResponse body = response.getBody();
         assertNotNull(body);
-        assertNotNull(body.get("accessToken"));
-        assertNotNull(body.get("refreshToken"));
+        assertNotNull(body.accessToken());
+        assertNotNull(body.refreshToken());
     }
 
     @Test
@@ -637,10 +637,10 @@ class ShinpoApplicationTests {
                 "password", "wrong-password"
         );
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<String> response = restTemplate.postForEntity(
                 baseUrl() + "/api/auth/login",
                 badLoginPayload,
-                Map.class
+                String.class
         );
 
         assertEquals(401, response.getStatusCode().value());
@@ -654,24 +654,24 @@ class ShinpoApplicationTests {
                 "refreshToken", refreshToken
         );
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<AuthDtos.AuthResponse> response = restTemplate.postForEntity(
                 baseUrl() + "/api/auth/refresh",
                 refreshPayload,
-                Map.class
+                AuthDtos.AuthResponse.class
         );
 
         assertEquals(200, response.getStatusCode().value());
-        Map body = response.getBody();
+        AuthDtos.AuthResponse body = response.getBody();
         assertNotNull(body);
-        assertNotNull(body.get("accessToken"));
-        String newRefreshToken = (String) body.get("refreshToken");
+        assertNotNull(body.accessToken());
+        String newRefreshToken = body.refreshToken();
         assertNotNull(newRefreshToken);
 
         // Replay of old refresh token must be rejected
-        ResponseEntity<Map> replayResponse = restTemplate.postForEntity(
+        ResponseEntity<String> replayResponse = restTemplate.postForEntity(
                 baseUrl() + "/api/auth/refresh",
                 refreshPayload,
-                Map.class
+                String.class
         );
         assertEquals(401, replayResponse.getStatusCode().value());
     }
