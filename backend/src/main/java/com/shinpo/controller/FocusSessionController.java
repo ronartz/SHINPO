@@ -44,19 +44,19 @@ public class FocusSessionController {
 
     @GetMapping("/by-date")
     public ResponseEntity<List<FocusSessionResponse>> getSessionsByDate(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(focusSessionService.getSessionsByDate(principal.getUserId(), date));
     }
 
     @GetMapping("/agenda")
-    public ResponseEntity<List<FocusSessionResponse>> getSessionsAgenda(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    public ResponseEntity<List<FocusSessionResponse>> getAgenda(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(focusSessionService.getSessionsForAgenda(principal.getUserId(), startDate, endDate));
+        return ResponseEntity.ok(focusSessionService.getAgenda(principal.getUserId(), startDate, endDate));
     }
 
     @GetMapping("/{sessionId}")

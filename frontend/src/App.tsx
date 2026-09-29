@@ -35,6 +35,10 @@ import {
   register,
 } from './api/auth'
 import type { AuthUser } from './api/auth'
+import { fetchDeviceSnapshot, terminateProcess } from './api/device'
+import type { ProcessInfo, ProcessSnapshot } from './api/device'
+import { fetchAnalyticsDashboard } from './api/analytics'
+import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
 
 import './App.css'
@@ -392,7 +396,7 @@ export function App() {
   >([
     {
       role: 'assistant',
-      text: 'SHINPO Strategic AI ready. Direct me with a prompt like "plan my day", "break down my goals", or "guide me".',
+      text: 'Eonpai Strategic Companion ready. Direct me with a prompt like "plan my day", "break down my goals", or "guide me".',
     },
   ])
   const [chatInput, setChatInput] = useState('')
@@ -427,6 +431,29 @@ export function App() {
   const [bookTime, setBookTime] = useState('09:00')
   const [bookDuration, setBookDuration] = useState(25)
   const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
+
+  // Executive Daily Stoic Wisdom (C-028)
+  const stoicQuotes = useMemo(() => [
+    { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Will Durant", category: "Daily Habit" },
+    { text: "Action expresses priorities. What you do speaks louder than what you plan.", author: "Mahatma Gandhi", category: "Deep Focus" },
+    { text: "The secret of getting ahead is getting started.", author: "Mark Twain", category: "Momentum" },
+    { text: "You have power over your mind - not outside events. Realize this, and you will find invincible focus.", author: "Marcus Aurelius", category: "Stoic Fortress" },
+    { text: "He who has a why to live can bear almost any how.", author: "Friedrich Nietzsche", category: "Target Vector" },
+    { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln", category: "Execution Iron" },
+  ], [])
+  const [quoteIndex, setQuoteIndex] = useState(0)
+  const [quoteDismissed, setQuoteDismissed] = useState(false)
+
+  // Device Task Manager Deck State (C-027)
+  const [deviceSnapshot, setDeviceSnapshot] = useState<ProcessSnapshot | null>(null)
+  const [tmLoading, setTmLoading] = useState(false)
+  const [tmSearch, setTmSearch] = useState('')
+  const [tmPolicy, setTmPolicy] = useState('ALL')
+  const [tmToast, setTmToast] = useState<string | null>(null)
+
+  // Operational Velocity & Telemetry State (C-003)
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
   const getMissionCategory = (m: Mission) => {
     const goal = goals.find((g) => g.id === m.goalId)
@@ -612,6 +639,54 @@ export function App() {
       // Keep empty if backend offline
     }
   }
+
+  const loadDeviceProcesses = async (search = tmSearch, policy = tmPolicy) => {
+    setTmLoading(true)
+    try {
+      const snap = await fetchDeviceSnapshot(search, policy)
+      setDeviceSnapshot(snap)
+    } catch (err) {
+      console.error('Failed to load device snapshot', err)
+    } finally {
+      setTmLoading(false)
+    }
+  }
+
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true)
+    try {
+      const data = await fetchAnalyticsDashboard()
+      setAnalyticsData(data)
+    } catch (err) {
+      console.error('Failed to load analytics dashboard', err)
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
+  const handleTerminateProcess = async (proc: ProcessInfo) => {
+    if (!window.confirm(`Are you sure you want to terminate process "${proc.name}" (PID ${proc.pid})?`)) return
+    try {
+      const res = await terminateProcess(proc.pid, true)
+      if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
+        setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
+        loadDeviceProcesses(tmSearch, tmPolicy)
+      } else {
+        setTmToast(`Notice: ${res.message}`)
+      }
+    } catch (err: any) {
+      setTmToast(`Error: ${err?.message || 'Termination failed'}`)
+    }
+    setTimeout(() => setTmToast(null), 4000)
+  }
+
+  useEffect(() => {
+    if (activeTab === 'Task Manager' && currentUser) {
+      loadDeviceProcesses(tmSearch, tmPolicy)
+    } else if (activeTab === 'Analytics' && currentUser) {
+      loadAnalytics()
+    }
+  }, [activeTab, currentUser])
 
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -1169,7 +1244,8 @@ export function App() {
             </div>
           )}
           {[
-            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'AI Tactical' },
+            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'Eonpai AI', badge: 'AI' },
+            { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live' },
           ].map((item) => (
             <button
               key={item.id}
@@ -1180,6 +1256,9 @@ export function App() {
             >
               <Icon name={item.icon} size={18} />
               {sidebarExpanded && <span>{item.label}</span>}
+              {sidebarExpanded && (item as any).badge && (
+                <span className="sidebar-nav-badge">{(item as any).badge}</span>
+              )}
               {sidebarExpanded && activeTab === item.id && (
                 <span className="sidebar-active-arrow">↗</span>
               )}
@@ -1187,21 +1266,32 @@ export function App() {
           ))}
         </nav>
 
-        {/* FitPulse Pro Card / Rust Protection Shield Card */}
+        {/* Eonpai Tactical Companion & Shield Card (Inspired by Task Master) */}
         {sidebarExpanded && (
-          <div className="sidebar-shield-card">
-            <div className="shield-icon-badge">
-              <Icon name="power" size={16} />
+          <div className="sidebar-eonpai-card">
+            <div className="eonpai-card-top">
+              <div className="eonpai-avatar-wrap">
+                <div className="eonpai-avatar">
+                  <Icon name="sparkle" size={16} />
+                </div>
+                <div className={`eonpai-status-dot ${activeSession ? 'active' : ''}`} />
+              </div>
+              <div className="eonpai-identity">
+                <span className="eonpai-name">Eonpai</span>
+                <span className="eonpai-role">{activeSession ? 'Shield Engaged' : 'AI Companion'}</span>
+              </div>
             </div>
-            <div className="shield-card-title">Rust Focus Shield</div>
-            <div className="shield-card-sub">
-              Kernel Sentinel: PID Scan Active. Protects active focus sprints.
+            <div className="eonpai-speech-bubble">
+              {activeSession
+                ? 'Focus sprint armed. Distraction processes locked.'
+                : 'Execution environment clear. Ready to begin sprint.'}
             </div>
             <button
-              className={`shield-card-btn ${activeSession ? 'active' : ''}`}
-              onClick={() => setActiveTab('Focus Engine')}
+              className={`eonpai-quick-action-btn ${activeSession ? 'active' : ''}`}
+              onClick={() => setActiveTab(activeSession ? 'Focus Engine' : 'AI Assistant')}
             >
-              {activeSession ? 'Shield Active · Locked' : 'Shield Armed'}
+              <span>{activeSession ? 'Open Focus HUD' : 'Ask Eonpai'}</span>
+              <Icon name="arrow-up-right" size={13} />
             </button>
           </div>
         )}
@@ -1233,9 +1323,10 @@ export function App() {
               {activeTab === 'Dashboard' && 'Executive Flight Deck'}
               {activeTab === 'Focus Engine' && 'Autonomous Focus Engine'}
               {activeTab === 'Goals & Missions' && 'Goals & Strategic Targets'}
-              {activeTab === 'AI Assistant' && 'AI Tactical Command'}
+              {activeTab === 'AI Assistant' && 'Eonpai Tactical Command'}
               {activeTab === 'Schedule' && 'Temporal Execution Schedule'}
               {activeTab === 'Analytics' && 'Operational Velocity & Telemetry'}
+              {activeTab === 'Task Manager' && 'Device Process Sentinel'}
             </h1>
           </div>
 
@@ -1293,6 +1384,64 @@ export function App() {
         {/* Dynamic Tab Render: FitPulse 2-Tier Command Dashboard */}
         {activeTab === 'Dashboard' && (
           <div className="fitpulse-dashboard">
+            {/* Task Master / Donezo Inspired Hero Salutation Banner */}
+            <div className="taskmaster-hero-banner">
+              <div className="taskmaster-hero-left">
+                <h2 className="taskmaster-hero-title">
+                  Start Your Day • Be <span className="highlight-productive">Productive</span>
+                </h2>
+                <p className="taskmaster-hero-sub">
+                  Plan, execute, and conquer your missions with <strong>EONPAI</strong> execution sentinel.
+                </p>
+              </div>
+              <div className="taskmaster-hero-pills">
+                <div className="taskmaster-status-pill emerald">
+                  <span className="taskmaster-pill-dot emerald" />
+                  <span>EONPAI ONLINE</span>
+                </div>
+                <div className="taskmaster-status-pill orange">
+                  <span className="taskmaster-pill-dot orange" />
+                  <span>SHIELD READY</span>
+                </div>
+              </div>
+            </div>
+
+            {/* C-028 Executive Daily Wisdom / Stoic Quote Card */}
+            {!quoteDismissed && (
+              <div className="daily-quote-card">
+                <div className="daily-quote-bg-decoration">“</div>
+                <div className="daily-quote-content">
+                  <div className="daily-quote-badge-row">
+                    <span className="daily-quote-pill">{stoicQuotes[quoteIndex].category}</span>
+                    <span className="daily-quote-date">EXECUTIVE MANDATE • TODAY</span>
+                  </div>
+                  <div className="daily-quote-text">
+                    "{stoicQuotes[quoteIndex].text}"
+                  </div>
+                  <div className="daily-quote-author">
+                    — {stoicQuotes[quoteIndex].author}
+                  </div>
+                </div>
+                <div className="daily-quote-actions">
+                  <button
+                    className="daily-quote-btn btn-spring"
+                    onClick={() => setQuoteIndex((prev) => (prev + 1) % stoicQuotes.length)}
+                    title="Next Principle"
+                  >
+                    <Icon name="refresh" size={13} />
+                    <span>Next Principle</span>
+                  </button>
+                  <button
+                    className="daily-quote-btn btn-spring"
+                    onClick={() => setQuoteDismissed(true)}
+                    title="Dismiss"
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ROW 1: 8 / 4 ASYMMETRIC SPLIT */}
             <div className="fitpulse-row-upper">
               {/* Card 1 (Span 8): Autonomous Execution Cockpit & Temporal Radar */}
@@ -2240,8 +2389,8 @@ export function App() {
 
             <div className="ai-chat-card">
               <div className="card-header-row">
-                <span className="card-title">AI Command Stream</span>
-                <span className="badge-tag green">Neural Ready</span>
+                <span className="card-title">Eonpai Tactical Stream</span>
+                <span className="badge-tag green">EONPAI ONLINE</span>
               </div>
 
               <div className="ai-messages-feed">
@@ -2262,7 +2411,7 @@ export function App() {
                 ))}
                 {aiLoading && (
                   <div className="ai-bubble assistant" style={{ fontStyle: 'italic' }}>
-                    Formulating tactical response...
+                    Eonpai formulating tactical response...
                   </div>
                 )}
               </div>
@@ -2271,7 +2420,7 @@ export function App() {
                 <input
                   type="text"
                   className="ai-input-field"
-                  placeholder="Ask anything (e.g. 'hi', 'guide me', 'split my objective')..."
+                  placeholder="Ask Eonpai anything (e.g. 'plan my sprints', 'guide me', 'split my objective')..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAiSend()}
@@ -2446,7 +2595,7 @@ export function App() {
                         >
                           <Icon name="sparkle" size={13} />
                           <span>
-                            {decomposingGoalId === g.id ? 'Deconstructing...' : 'AI Deconstruct'}
+                            {decomposingGoalId === g.id ? 'Deconstructing...' : 'Eonpai Deconstruct'}
                           </span>
                         </button>
                       </div>
@@ -2767,12 +2916,477 @@ export function App() {
           </div>
         )}
 
-        {/* Tab 4: Other Views (Analytics, etc.) */}
+        {/* ==========================================================================
+            C-027 DEVICE TASK MANAGER VIEW
+            ========================================================================== */}
+        {activeTab === 'Task Manager' && (
+          <div className="task-manager-view">
+            {/* Top Telemetry Grid */}
+            <div className="tm-telemetry-grid">
+              {/* CPU Metric Card */}
+              <div className="tm-metric-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">CPU LOAD</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="focus" size={16} />
+                  </div>
+                </div>
+                <div>
+                  <div className="tm-metric-val">
+                    {deviceSnapshot ? `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%` : '0%'}
+                  </div>
+                  <div className="tm-metric-sub">
+                    {deviceSnapshot?.systemInfo.availableProcessors ?? 4} Hardware Threads Active
+                  </div>
+                  <div className="tm-bar-track">
+                    <div
+                      className="tm-bar-fill terracotta"
+                      style={{
+                        width: `${Math.min(100, Math.max(5, deviceSnapshot?.systemInfo.systemCpuLoad ?? 0))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Memory Metric Card */}
+              <div className="tm-metric-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">MEMORY USAGE</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="apps" size={16} />
+                  </div>
+                </div>
+                <div>
+                  <div className="tm-metric-val">
+                    {deviceSnapshot
+                      ? `${(
+                          (deviceSnapshot.systemInfo.totalMemoryBytes -
+                            deviceSnapshot.systemInfo.freeMemoryBytes) /
+                          (1024 * 1024 * 1024)
+                        ).toFixed(1)} GB`
+                      : '0 GB'}
+                  </div>
+                  <div className="tm-metric-sub">
+                    {deviceSnapshot
+                      ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 * 1024 * 1024)).toFixed(1)} GB Physical RAM`
+                      : 'Allocating'}
+                  </div>
+                  <div className="tm-bar-track">
+                    <div
+                      className="tm-bar-fill emerald"
+                      style={{
+                        width: deviceSnapshot
+                          ? `${Math.round(
+                              ((deviceSnapshot.systemInfo.totalMemoryBytes -
+                                deviceSnapshot.systemInfo.freeMemoryBytes) /
+                                deviceSnapshot.systemInfo.totalMemoryBytes) *
+                                100,
+                            )}%`
+                          : '30%',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Process Count Metric Card */}
+              <div className="tm-metric-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">ACTIVE PROCESSES</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="schedule" size={16} />
+                  </div>
+                </div>
+                <div>
+                  <div className="tm-metric-val">
+                    {deviceSnapshot ? deviceSnapshot.systemInfo.processCount : '...'}
+                  </div>
+                  <div className="tm-metric-sub">
+                    {deviceSnapshot?.processes.length ?? 0} Inspected in Viewport
+                  </div>
+                  <div className="tm-bar-track">
+                    <div className="tm-bar-fill emerald" style={{ width: '100%' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sentinel Active Status Card */}
+              <div className="tm-metric-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">SHINPO SENTINEL</span>
+                  <div className="sentinel-radar-container">
+                    <div className="sentinel-radar-core" />
+                    <div className="sentinel-radar-ring" />
+                  </div>
+                </div>
+                <div>
+                  <div className="tm-metric-val" style={{ fontSize: 18, color: 'var(--accent-emerald)' }}>
+                    ACTIVE DEFENSE
+                  </div>
+                  <div className="tm-metric-sub">
+                    {deviceSnapshot?.systemInfo.osName ?? 'Linux'} • {deviceSnapshot?.systemInfo.osArch ?? 'x86_64'}
+                  </div>
+                  <div className="tm-bar-track">
+                    <div className="tm-bar-fill emerald" style={{ width: '100%' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notification Toast if present */}
+            {tmToast && (
+              <div
+                style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--accent-terracotta)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 18px',
+                  color: 'var(--text-1)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  boxShadow: 'var(--shadow-card)',
+                }}
+              >
+                <Icon name="sparkle" size={16} />
+                <span>{tmToast}</span>
+              </div>
+            )}
+
+            {/* Controls Bar */}
+            <div className="tm-controls-card">
+              <div className="tm-search-box">
+                <Icon name="search" size={15} />
+                <input
+                  type="text"
+                  className="tm-search-input"
+                  placeholder="Filter processes by name, PID, or executable path..."
+                  value={tmSearch}
+                  onChange={(e) => {
+                    setTmSearch(e.target.value)
+                    loadDeviceProcesses(e.target.value, tmPolicy)
+                  }}
+                />
+              </div>
+
+              <div className="tm-policy-filters">
+                {(['ALL', 'ALLOWED', 'BLOCKED', 'PROTECTED'] as const).map((pol) => (
+                  <button
+                    key={pol}
+                    type="button"
+                    className={`tm-filter-chip ${tmPolicy === pol ? 'active' : ''}`}
+                    onClick={() => {
+                      setTmPolicy(pol)
+                      loadDeviceProcesses(tmSearch, pol)
+                    }}
+                  >
+                    {pol}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="tm-refresh-btn btn-spring"
+                onClick={() => loadDeviceProcesses(tmSearch, tmPolicy)}
+                disabled={tmLoading}
+              >
+                <Icon name="refresh" size={14} />
+                <span>{tmLoading ? 'Scanning...' : 'Refresh Telemetry'}</span>
+              </button>
+            </div>
+
+            {/* Process Table Card */}
+            <div className="tm-table-card">
+              <div className="tm-table-header">
+                <div>
+                  <h3 className="tm-table-title">Live Process Table</h3>
+                  <span className="tm-table-count">
+                    Showing {deviceSnapshot?.processes.length ?? 0} processes on {deviceSnapshot?.systemInfo.deviceName || 'Local Device'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tm-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 80 }}>PID</th>
+                      <th>Process / Application</th>
+                      <th style={{ width: 110 }}>CPU (%)</th>
+                      <th style={{ width: 130 }}>Memory</th>
+                      <th style={{ width: 140 }}>Policy Status</th>
+                      <th style={{ width: 130, textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deviceSnapshot && deviceSnapshot.processes.length > 0 ? (
+                      deviceSnapshot.processes.map((proc: ProcessInfo, idx: number) => (
+                        <tr key={proc.pid} className="proc-row-stagger" style={{ animationDelay: `${Math.min(idx * 0.02, 0.4)}s` }}>
+                          <td>
+                            <span className="tm-pid-badge">{proc.pid}</span>
+                          </td>
+                          <td>
+                            <div className="tm-proc-name">
+                              <span>{proc.name}</span>
+                            </div>
+                            {proc.executablePath && (
+                              <div className="tm-proc-path" title={proc.executablePath}>
+                                {proc.executablePath}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                              {proc.cpuPercent > 0 ? `${proc.cpuPercent.toFixed(1)}%` : '< 0.1%'}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                              {proc.memoryBytes > 0
+                                ? proc.memoryBytes > 1024 * 1024 * 1024
+                                  ? `${(proc.memoryBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+                                  : `${Math.round(proc.memoryBytes / (1024 * 1024))} MB`
+                                : '--'}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`tm-policy-badge ${
+                                proc.shinpoPolicyState === 'ALLOWED'
+                                  ? 'allowed'
+                                  : proc.shinpoPolicyState === 'BLOCKED'
+                                  ? 'blocked'
+                                  : 'protected'
+                              }`}
+                            >
+                              {proc.shinpoPolicyState === 'ALLOWED' && '✓ Allowed'}
+                              {proc.shinpoPolicyState === 'BLOCKED' && '✕ Blocked'}
+                              {proc.shinpoPolicyState === 'PROTECTED' && '🔒 Protected'}
+                              {proc.shinpoPolicyState === 'UNKNOWN' && '• Monitored'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {proc.canControl && proc.shinpoPolicyState !== 'PROTECTED' ? (
+                              <button
+                                type="button"
+                                className="tm-btn-terminate btn-spring"
+                                onClick={() => handleTerminateProcess(proc)}
+                              >
+                                Terminate
+                              </button>
+                            ) : (
+                              <span className="tm-protected-label">
+                                🔒 Protected
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: 'var(--text-3)' }}>
+                          {tmLoading ? 'Enumerating device processes...' : 'No matching processes found.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================================================
+            C-003 ANALYTICS TAB VIEW
+            ========================================================================== */}
+        {activeTab === 'Analytics' && (
+          <div className="analytics-view">
+            {/* Top Metrics Row */}
+            <div className="analytics-metrics-grid">
+              {/* Metric 1: Focus Minutes & Hours */}
+              <div className="analytics-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">FOCUS TIME</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="clock" size={16} />
+                  </div>
+                </div>
+                <div className="tm-metric-val">
+                  {analyticsData ? `${analyticsData.summary.totalFocusMinutes}m` : '0m'}
+                </div>
+                <div className="tm-metric-sub">
+                  {analyticsData
+                    ? `${(analyticsData.summary.totalFocusMinutes / 60).toFixed(1)} Hours Total Execution`
+                    : 'Awaiting sessions'}
+                </div>
+              </div>
+
+              {/* Metric 2: Sessions Completed */}
+              <div className="analytics-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">COMPLETION RATE</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="check" size={16} />
+                  </div>
+                </div>
+                <div className="tm-metric-val" style={{ color: 'var(--accent-emerald)' }}>
+                  {analyticsData ? `${analyticsData.summary.completionRate}%` : '100%'}
+                </div>
+                <div className="tm-metric-sub">
+                  {analyticsData
+                    ? `${analyticsData.summary.sessionsCompleted} completed of ${
+                        analyticsData.summary.sessionsCompleted + analyticsData.summary.sessionsStarted
+                      } sessions`
+                    : '100% target conversion'}
+                </div>
+              </div>
+
+              {/* Metric 3: Strategic Missions */}
+              <div className="analytics-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">TARGET MISSIONS</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="target" size={16} />
+                  </div>
+                </div>
+                <div className="tm-metric-val">
+                  {analyticsData
+                    ? `${analyticsData.summary.missionsCompleted} / ${analyticsData.summary.missionsTotal}`
+                    : '0 / 0'}
+                </div>
+                <div className="tm-metric-sub">
+                  Strategic targets achieved
+                </div>
+              </div>
+
+              {/* Metric 4: Average Quality & Streak */}
+              <div className="analytics-card">
+                <div className="tm-metric-top">
+                  <span className="tm-metric-label">MOMENTUM & QUALITY</span>
+                  <div className="tm-metric-icon">
+                    <Icon name="sparkle" size={16} />
+                  </div>
+                </div>
+                <div className="tm-metric-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>{analyticsData ? analyticsData.summary.avgQuality.toFixed(1) : '5.0'}</span>
+                  <span style={{ fontSize: 18, color: 'var(--accent-amber)' }}>⭐</span>
+                </div>
+                <div className="tm-metric-sub">
+                  🔥 {analyticsData?.summary.currentStreak ?? 3}-Day Execution Streak
+                </div>
+              </div>
+            </div>
+
+            {/* 7-Day Velocity Interactive Bar Chart */}
+            <div className="analytics-velocity-card">
+              <div className="analytics-card-header">
+                <div>
+                  <h3 className="tm-table-title">7-Day Focus Velocity</h3>
+                  <span className="tm-table-count">Daily deep-work minutes completed</span>
+                </div>
+                <button
+                  type="button"
+                  className="tm-refresh-btn btn-spring"
+                  onClick={loadAnalytics}
+                  disabled={analyticsLoading}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>{analyticsLoading ? 'Calculating...' : 'Sync Velocity'}</span>
+                </button>
+              </div>
+
+              <div className="analytics-chart-container">
+                {analyticsData && analyticsData.weeklyVelocity.length > 0 ? (
+                  (() => {
+                    const maxMins = Math.max(...analyticsData.weeklyVelocity.map((v: DailyFocusVelocity) => v.focusMinutes), 60)
+                    return analyticsData.weeklyVelocity.map((day: DailyFocusVelocity) => {
+                      const pct = Math.max(day.focusMinutes > 0 ? 8 : 2, Math.round((day.focusMinutes / maxMins) * 100))
+                      return (
+                        <div key={day.date} className="analytics-bar-col">
+                          <div className="analytics-bar-tooltip">
+                            {day.focusMinutes}m • {day.completedCount} sessions
+                          </div>
+                          <div
+                            className="analytics-bar bar-animated"
+                            style={{
+                              height: `${pct}%`,
+                              background:
+                                day.focusMinutes > 0
+                                  ? 'linear-gradient(180deg, #FF9060 0%, #FF7A45 100%)'
+                                  : 'var(--surface-hover)',
+                            }}
+                          />
+                          <span className="analytics-day-label">{day.dayName}</span>
+                        </div>
+                      )
+                    })
+                  })()
+                ) : (
+                  <div style={{ width: '100%', textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
+                    Loading velocity metrics...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Debrief Reflections Stream */}
+            <div className="analytics-velocity-card">
+              <div className="analytics-card-header">
+                <div>
+                  <h3 className="tm-table-title">Recent Session Debriefs</h3>
+                  <span className="tm-table-count">Qualitative reflections & execution telemetry</span>
+                </div>
+              </div>
+
+              <div className="analytics-debrief-list">
+                {analyticsData && analyticsData.recentDebriefs.length > 0 ? (
+                  analyticsData.recentDebriefs.map((deb: RecentDebrief) => (
+                    <div key={deb.sessionId} className="analytics-debrief-card">
+                      <div className="analytics-debrief-top">
+                        <div className="analytics-debrief-title">{deb.sessionName}</div>
+                        <div className="analytics-debrief-stars">
+                          {Array.from({ length: deb.quality }).map((_, i) => (
+                            <span key={i}>⭐</span>
+                          ))}
+                          <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 6 }}>
+                            ({deb.durationMinutes}m)
+                          </span>
+                        </div>
+                      </div>
+                      {deb.accomplishment && (
+                        <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>
+                          🎯 Output: {deb.accomplishment}
+                        </div>
+                      )}
+                      {deb.reflectionNote && (
+                        <div className="analytics-debrief-note">
+                          "{deb.reflectionNote}"
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>
+                    No debriefs recorded yet. Complete a focus session to review qualitative telemetry here.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Other Views Fallback */}
         {activeTab !== 'Dashboard' &&
           activeTab !== 'Focus Engine' &&
           activeTab !== 'Goals & Missions' &&
           activeTab !== 'AI Assistant' &&
-          activeTab !== 'Schedule' && (
+          activeTab !== 'Schedule' &&
+          activeTab !== 'Task Manager' &&
+          activeTab !== 'Analytics' && (
             <div className="bento-card" style={{ padding: 48, textAlign: 'center' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>{activeTab} Module</h2>
               <p style={{ color: 'var(--text-3)', fontSize: 14 }}>
