@@ -1,0 +1,39 @@
+{
+  "model_profile": "balanced",
+  "commit_docs": true,
+  "parallelization": true,
+  "search_gitignored": false,
+  "brave_search": false,
+  "firecrawl": false,
+  "exa_search": false,
+  "resolve_model_ids": false,
+  "context_window": 200000,
+  "phase_naming": "sequential",
+  "project_code": "SHINPO",
+  "phase_id_convention": "sequential",
+  "mode": "interactive",
+  "git": {
+    "branching_strategy": "feature",
+    "create_tag": true,
+    "base_branch": "main",
+    "phase_branch_template": "gsd/phase-{phase}-{slug}",
+    "milestone_branch_template": "gsd/{milestone}-{slug}"
+  },
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "nyquist_validation": true,
+    "ai_integration_phase": true,
+    "agent_hint_routing": true,
+    "human_verify_mode": "end-of-phase",
+    "auto_advance": false,
+    "smart_zone_tokens": 100000,
+    "ui_phase": true,
+    "ui_safety_gate": true,
+    "code_review": true,
+    "code_review_depth": "standard",
+    "security_enforcement": true,
+    "security_asvs_level": 1
+  }
+}
