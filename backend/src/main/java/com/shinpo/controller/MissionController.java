@@ -2,9 +2,11 @@ package com.shinpo.controller;
 
 import com.shinpo.dto.CreateMissionRequest;
 import com.shinpo.dto.MissionResponse;
+import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.MissionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,21 +29,25 @@ public class MissionController {
     }
 
     @GetMapping
-    public List<MissionResponse> getAllMissions() {
-        return missionService.getAllMissions();
+    public List<MissionResponse> getAllMissions(@AuthenticationPrincipal UserPrincipal principal) {
+        return missionService.getMissionsForUser(principal.getUserId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MissionResponse createMission(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateMissionRequest request
     ) {
-        return missionService.createMission(request);
+        return missionService.createMission(principal.getUserId(), request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteMission(@PathVariable Long id) {
-        missionService.deleteMission(id);
+    public void deleteMission(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        missionService.deleteMission(id, principal.getUserId());
     }
 }

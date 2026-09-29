@@ -55,6 +55,8 @@ export type CreateFocusSessionRequest = {
   scheduledAt?: string
 }
 
+import { authHeaders } from './auth'
+
 const API_BASE = '/api/focus-sessions'
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -82,9 +84,7 @@ export async function createFocusSession(
 ): Promise<FocusSession> {
   const response = await fetch(API_BASE, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: authHeaders(),
     body: JSON.stringify(request),
   })
 
@@ -92,30 +92,35 @@ export async function createFocusSession(
 }
 
 export async function getFocusSessions(
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession[]> {
-  const response = await fetch(`${API_BASE}?userId=${userId}`)
+  const response = await fetch(API_BASE, {
+    headers: authHeaders(),
+  })
 
   return parseResponse<FocusSession[]>(response)
 }
 
 export async function getFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(`${API_BASE}/${id}?userId=${userId}`)
+  const response = await fetch(`${API_BASE}/${id}`, {
+    headers: authHeaders(),
+  })
 
   return parseResponse<FocusSession>(response)
 }
 
 export async function startFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession> {
   const response = await fetch(
-    `${API_BASE}/${id}/start?userId=${userId}`,
+    `${API_BASE}/${id}/start`,
     {
       method: 'POST',
+      headers: authHeaders(),
     },
   )
 
@@ -124,12 +129,13 @@ export async function startFocusSession(
 
 export async function pauseFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession> {
   const response = await fetch(
-    `${API_BASE}/${id}/pause?userId=${userId}`,
+    `${API_BASE}/${id}/pause`,
     {
       method: 'POST',
+      headers: authHeaders(),
     },
   )
 
@@ -138,12 +144,13 @@ export async function pauseFocusSession(
 
 export async function resumeFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession> {
   const response = await fetch(
-    `${API_BASE}/${id}/resume?userId=${userId}`,
+    `${API_BASE}/${id}/resume`,
     {
       method: 'POST',
+      headers: authHeaders(),
     },
   )
 
@@ -152,14 +159,14 @@ export async function resumeFocusSession(
 
 export async function completeFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
   payload?: CompleteFocusSessionPayload,
 ): Promise<FocusSession> {
   const response = await fetch(
-    `${API_BASE}/${id}/complete?userId=${userId}`,
+    `${API_BASE}/${id}/complete`,
     {
       method: 'POST',
-      headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+      headers: authHeaders(),
       body: payload ? JSON.stringify(payload) : undefined,
     },
   )
@@ -169,12 +176,13 @@ export async function completeFocusSession(
 
 export async function cancelFocusSession(
   id: number,
-  userId: number,
+  _userId?: number,
 ): Promise<FocusSession> {
   const response = await fetch(
-    `${API_BASE}/${id}/cancel?userId=${userId}`,
+    `${API_BASE}/${id}/cancel`,
     {
       method: 'POST',
+      headers: authHeaders(),
     },
   )
 
@@ -183,11 +191,11 @@ export async function cancelFocusSession(
 
 export async function deleteFocusSession(
   id: number,
-  userId?: number,
+  _userId?: number,
 ): Promise<void> {
-  const url = userId != null ? `${API_BASE}/${id}?userId=${userId}` : `${API_BASE}/${id}`
-  const response = await fetch(url, {
+  const response = await fetch(`${API_BASE}/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   })
   if (!response.ok) {
     let msg = `Failed to delete session ${id}: ${response.status}`

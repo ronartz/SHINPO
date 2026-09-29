@@ -1,8 +1,10 @@
 package com.shinpo.controller;
 
 import com.shinpo.dto.AiDtos.*;
+import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.AiService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,33 +18,40 @@ public class AiController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<AiChatResponse> chat(@RequestBody AiChatRequest request) {
+    public ResponseEntity<AiChatResponse> chat(
+            @RequestBody AiChatRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         return ResponseEntity.ok(aiService.processChat(request));
     }
 
     @PostMapping("/decompose-goal/{goalId}")
     public ResponseEntity<GoalDecompositionResponse> decomposeGoal(
             @PathVariable Long goalId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(aiService.decomposeGoal(goalId, userId));
+        return ResponseEntity.ok(aiService.decomposeGoal(goalId, principal.getUserId()));
     }
 
     @GetMapping("/next-action")
-    public ResponseEntity<NextActionResponse> getNextAction(@RequestParam Long userId) {
-        return ResponseEntity.ok(aiService.getNextAction(userId));
+    public ResponseEntity<NextActionResponse> getNextAction(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(aiService.getNextAction(principal.getUserId()));
     }
 
     @GetMapping("/daily-plan")
-    public ResponseEntity<DailyPlanResponse> getDailyPlan(@RequestParam Long userId) {
-        return ResponseEntity.ok(aiService.getDailyPlan(userId));
+    public ResponseEntity<DailyPlanResponse> getDailyPlan(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(aiService.getDailyPlan(principal.getUserId()));
     }
 
     @GetMapping("/recovery/{sessionId}")
     public ResponseEntity<RecoveryResponse> getSessionRecovery(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(aiService.getSessionRecovery(sessionId, userId));
+        return ResponseEntity.ok(aiService.getSessionRecovery(sessionId, principal.getUserId()));
     }
 }

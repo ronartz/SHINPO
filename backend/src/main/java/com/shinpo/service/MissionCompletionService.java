@@ -10,12 +10,15 @@ import com.shinpo.entity.User;
 import com.shinpo.repository.MissionCompletionRepository;
 import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.ProgressEventRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 
 @Service
+@Transactional
 public class MissionCompletionService {
 
     private static final int MISSION_COMPLETION_PROGRESS = 10;
@@ -34,20 +37,24 @@ public class MissionCompletionService {
         this.progressEventRepository = progressEventRepository;
     }
 
-    @Transactional
     public MissionCompletionResponse completeMission(
             Long missionId,
+            Long userId,
             CompleteMissionRequest request
     ) {
         Mission mission = missionRepository.findById(missionId)
-                .orElseThrow(() -> new IllegalArgumentException("Mission not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + missionId));
+
+        Goal goal = mission.getGoal();
+        User user = goal.getUser();
+
+        if (!user.getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + missionId);
+        }
 
         if ("COMPLETED".equals(mission.getStatus())) {
             throw new IllegalStateException("Mission is already completed");
         }
-
-        Goal goal = mission.getGoal();
-        User user = goal.getUser();
 
         Instant now = Instant.now();
 
@@ -60,8 +67,7 @@ public class MissionCompletionService {
                 MISSION_COMPLETION_PROGRESS
         );
 
-        MissionCompletion savedCompletion =
-                completionRepository.save(completion);
+        MissionCompletion savedCompletion = completionRepository.save(completion);
 
         mission.markCompleted();
         missionRepository.save(mission);

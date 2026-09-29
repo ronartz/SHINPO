@@ -8,7 +8,6 @@ import java.time.LocalDate;
 
 public record CreateGoalRequest(
 
-        @NotNull
         Long userId,
 
         @NotBlank

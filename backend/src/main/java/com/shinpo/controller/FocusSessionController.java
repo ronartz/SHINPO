@@ -3,10 +3,12 @@ package com.shinpo.controller;
 import com.shinpo.dto.CompleteFocusSessionRequest;
 import com.shinpo.dto.CreateFocusSessionRequest;
 import com.shinpo.dto.FocusSessionResponse;
+import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.FocusSessionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,92 +25,76 @@ public class FocusSessionController {
 
     @PostMapping
     public ResponseEntity<FocusSessionResponse> createSession(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateFocusSessionRequest request
     ) {
-        FocusSessionResponse response =
-                focusSessionService.createSession(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        request.setUserId(principal.getUserId());
+        FocusSessionResponse response = focusSessionService.createSession(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     public ResponseEntity<List<FocusSessionResponse>> getSessions(
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.getSessionsForUser(userId)
-        );
+        return ResponseEntity.ok(focusSessionService.getSessionsForUser(principal.getUserId()));
     }
 
     @GetMapping("/{sessionId}")
     public ResponseEntity<FocusSessionResponse> getSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.getSession(sessionId, userId)
-        );
+        return ResponseEntity.ok(focusSessionService.getSession(sessionId, principal.getUserId()));
     }
 
     @PostMapping("/{sessionId}/start")
     public ResponseEntity<FocusSessionResponse> startSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.startSession(sessionId, userId)
-        );
+        return ResponseEntity.ok(focusSessionService.startSession(sessionId, principal.getUserId()));
     }
 
     @PostMapping("/{sessionId}/pause")
     public ResponseEntity<FocusSessionResponse> pauseSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.pauseSession(sessionId, userId)
-        );
+        return ResponseEntity.ok(focusSessionService.pauseSession(sessionId, principal.getUserId()));
     }
 
     @PostMapping("/{sessionId}/resume")
     public ResponseEntity<FocusSessionResponse> resumeSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.resumeSession(sessionId, userId)
-        );
+        return ResponseEntity.ok(focusSessionService.resumeSession(sessionId, principal.getUserId()));
     }
 
     @PostMapping("/{sessionId}/complete")
     public ResponseEntity<FocusSessionResponse> completeSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody(required = false) CompleteFocusSessionRequest request
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.completeSession(sessionId, userId, request)
-        );
+        return ResponseEntity.ok(focusSessionService.completeSession(sessionId, principal.getUserId(), request));
     }
 
     @PostMapping("/{sessionId}/cancel")
     public ResponseEntity<FocusSessionResponse> cancelSession(
             @PathVariable Long sessionId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(
-                focusSessionService.cancelSession(sessionId, userId)
-        );
+        return ResponseEntity.ok(focusSessionService.cancelSession(sessionId, principal.getUserId()));
     }
 
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<Void> deleteSession(
             @PathVariable Long sessionId,
-            @RequestParam(required = false) Long userId
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        focusSessionService.deleteSession(sessionId, userId);
+        focusSessionService.deleteSession(sessionId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
 }

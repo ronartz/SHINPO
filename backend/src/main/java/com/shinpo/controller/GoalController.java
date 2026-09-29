@@ -2,9 +2,11 @@ package com.shinpo.controller;
 
 import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.GoalResponse;
+import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.GoalService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,21 +29,25 @@ public class GoalController {
     }
 
     @GetMapping
-    public List<GoalResponse> getAllGoals() {
-        return goalService.getAllGoals();
+    public List<GoalResponse> getAllGoals(@AuthenticationPrincipal UserPrincipal principal) {
+        return goalService.getGoalsForUser(principal.getUserId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GoalResponse createGoal(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateGoalRequest request
     ) {
-        return goalService.createGoal(request);
+        return goalService.createGoal(principal.getUserId(), request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteGoal(@PathVariable Long id) {
-        goalService.deleteGoal(id);
+    public void deleteGoal(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        goalService.deleteGoal(id, principal.getUserId());
     }
 }

@@ -277,8 +277,8 @@ public class FocusSessionService {
         FocusSession session = focusSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
-        if (userId != null && !session.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Unauthorized session access");
+        if (userId == null || !session.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Session not found: " + sessionId);
         }
 
         focusSessionRepository.delete(session);

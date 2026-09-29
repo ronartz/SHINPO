@@ -9,7 +9,6 @@ import java.time.Instant;
 
 public class CreateFocusSessionRequest {
 
-    @NotNull
     private Long userId;
 
     private Long goalId;

@@ -37,9 +37,13 @@ import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
+import com.shinpo.repository.RefreshTokenRepository;
 import com.shinpo.repository.SessionIntervalRepository;
 import com.shinpo.repository.SessionPlanRepository;
 import com.shinpo.repository.UserRepository;
+import com.shinpo.security.JwtTokenService;
+import com.shinpo.security.UserPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -54,6 +58,9 @@ class ShinpoApplicationTests {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private GoalRepository goalRepository;
@@ -73,9 +80,16 @@ class ShinpoApplicationTests {
     @Autowired
     private AiSuggestionRepository aiSuggestionRepository;
 
+    @Autowired
+    private JwtTokenService jwtTokenService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     private User testUser;
     private Goal testGoal;
     private Mission testMission;
+    private String authToken;
 
     @BeforeEach
     void setUp() {
@@ -85,16 +99,25 @@ class ShinpoApplicationTests {
         sessionPlanRepository.deleteAll();
         missionRepository.deleteAll();
         goalRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
 
         testUser = userRepository.save(
                 new User(
                         "focus_test_user",
                         "focus-test@example.com",
-                        "test-password-hash",
+                        passwordEncoder.encode("test-password-123"),
                         Instant.now()
                 )
         );
+
+        authToken = jwtTokenService.generateAccessToken(UserPrincipal.create(testUser));
+        restTemplate.getRestTemplate().setInterceptors(List.of((request, body, execution) -> {
+            if (request.getHeaders().getFirst(org.springframework.http.HttpHeaders.AUTHORIZATION) == null) {
+                request.getHeaders().setBearerAuth(authToken);
+            }
+            return execution.execute(request, body);
+        }));
 
         testGoal = goalRepository.save(
                 new Goal(
@@ -387,11 +410,17 @@ class ShinpoApplicationTests {
                 )
         );
 
-        ResponseEntity<String> response =
-                restTemplate.getForEntity(
-                        sessionUrl(sessionId, otherUser.getId()),
-                        String.class
-                );
+        String otherToken = jwtTokenService.generateAccessToken(UserPrincipal.create(otherUser));
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(otherToken);
+        org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                sessionUrl(sessionId, otherUser.getId()),
+                org.springframework.http.HttpMethod.GET,
+                entity,
+                String.class
+        );
 
         assertEquals(404, response.getStatusCode().value());
     }
@@ -458,9 +487,15 @@ class ShinpoApplicationTests {
                 )
         );
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                baseUrl() + "/api/ai/decompose-goal/" + testGoal.getId() + "?userId=" + otherUser.getId(),
-                null,
+        String otherToken = jwtTokenService.generateAccessToken(UserPrincipal.create(otherUser));
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(otherToken);
+        org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl() + "/api/ai/decompose-goal/" + testGoal.getId(),
+                org.springframework.http.HttpMethod.POST,
+                entity,
                 String.class
         );
 
@@ -537,6 +572,124 @@ class ShinpoApplicationTests {
         restTemplate.delete(baseUrl() + "/api/focus-sessions/" + sessionId + "?userId=" + testUser.getId());
 
         assertFalse(focusSessionRepository.existsById(sessionId));
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedRequestsToProtectedEndpoints() {
+        org.springframework.web.client.RestTemplate rawClient = new org.springframework.web.client.RestTemplate();
+        try {
+            rawClient.getForEntity(baseUrl() + "/api/goals", String.class);
+            org.junit.jupiter.api.Assertions.fail("Expected 401 Unauthorized");
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized ex) {
+            assertEquals(401, ex.getStatusCode().value());
+        }
+    }
+
+    @Test
+    void shouldRegisterUserAndReturnJwtTokens() {
+        Map<String, Object> registerPayload = Map.of(
+                "username", "new_cadet",
+                "email", "cadet@shinpo.local",
+                "password", "secret12345"
+        );
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                baseUrl() + "/api/auth/register",
+                registerPayload,
+                Map.class
+        );
+
+        assertEquals(201, response.getStatusCode().value());
+        Map body = response.getBody();
+        assertNotNull(body);
+        assertNotNull(body.get("accessToken"));
+        assertNotNull(body.get("refreshToken"));
+        Map userMap = (Map) body.get("user");
+        assertNotNull(userMap);
+        assertEquals("new_cadet", userMap.get("username"));
+        assertEquals("cadet@shinpo.local", userMap.get("email"));
+    }
+
+    @Test
+    void shouldLoginWithValidCredentialsAndReturnJwtTokens() {
+        Map<String, Object> loginPayload = Map.of(
+                "usernameOrEmail", "focus_test_user",
+                "password", "test-password-123"
+        );
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                baseUrl() + "/api/auth/login",
+                loginPayload,
+                Map.class
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        Map body = response.getBody();
+        assertNotNull(body);
+        assertNotNull(body.get("accessToken"));
+        assertNotNull(body.get("refreshToken"));
+    }
+
+    @Test
+    void shouldRejectInvalidLoginCredentials() {
+        Map<String, Object> badLoginPayload = Map.of(
+                "usernameOrEmail", "focus_test_user",
+                "password", "wrong-password"
+        );
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                baseUrl() + "/api/auth/login",
+                badLoginPayload,
+                Map.class
+        );
+
+        assertEquals(401, response.getStatusCode().value());
+    }
+
+    @Test
+    void shouldRotateRefreshToken() {
+        String refreshToken = jwtTokenService.generateRefreshToken(testUser);
+
+        Map<String, Object> refreshPayload = Map.of(
+                "refreshToken", refreshToken
+        );
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                baseUrl() + "/api/auth/refresh",
+                refreshPayload,
+                Map.class
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        Map body = response.getBody();
+        assertNotNull(body);
+        assertNotNull(body.get("accessToken"));
+        String newRefreshToken = (String) body.get("refreshToken");
+        assertNotNull(newRefreshToken);
+
+        // Replay of old refresh token must be rejected
+        ResponseEntity<Map> replayResponse = restTemplate.postForEntity(
+                baseUrl() + "/api/auth/refresh",
+                refreshPayload,
+                Map.class
+        );
+        assertEquals(401, replayResponse.getStatusCode().value());
+    }
+
+    @Test
+    void shouldPreventCrossUserDataAccessOrIdor() {
+        User otherUser = userRepository.save(
+                new User("other_user", "other@example.com", passwordEncoder.encode("secret"), Instant.now())
+        );
+        Goal otherGoal = goalRepository.save(
+                new Goal("Other Goal", "Private", LocalDate.now(), null, otherUser)
+        );
+
+        // testUser is authenticated. Attempting to delete otherUser's goal should fail
+        restTemplate.delete(baseUrl() + "/api/goals/" + otherGoal.getId());
+
+        // otherGoal must still exist in DB!
+        assertTrue(goalRepository.existsById(otherGoal.getId()));
     }
 
     private Long createFocusSessionId() {
