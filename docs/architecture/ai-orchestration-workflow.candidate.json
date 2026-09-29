@@ -1,0 +1,184 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "SHINPO AI (EONPAI) Orchestration & Reasoning Flow",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/architecture/ai-orchestration-workflow.html",
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "715e47390e731b69cc7690cad96317a593d41d73"
+    }
+  },
+  "lanes": [
+    { "id": "ui", "label": "User Interface" },
+    { "id": "gateway", "label": "AI Gateway & Orchestrator" },
+    { "id": "llm", "label": "Ollama LLM Provider" },
+    { "id": "storage", "label": "Audit & Persistence", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Intake & Context", "fromCol": 0, "toCol": 1 },
+    { "id": "inference", "label": "Inference & Routing", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "response", "label": "Validation & Response", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "context_loop", "label": "Context Assembly", "lane": "gateway", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "llm_work", "label": "Ollama Inference", "lane": "llm", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "audit_group", "label": "Audit Logging", "lane": "storage", "fromCol": 3, "toCol": 4, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "user_prompt",
+    "ai_controller",
+    "tool_registry",
+    "gateway_router",
+    "ollama_provider",
+    "json_validator",
+    "response_view"
+  ],
+  "nodes": [
+    {
+      "id": "user_prompt",
+      "lane": "ui",
+      "col": 0,
+      "type": "external",
+      "label": "User Prompt",
+      "sublabel": "Goal / Chat / Plan",
+      "width": 132,
+      "sources": [
+        { "path": "frontend/src/api/ai.ts", "line": 20, "end_line": 50, "label": "AI API Client" }
+      ]
+    },
+    {
+      "id": "ai_controller",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "AiController",
+      "sublabel": "REST Endpoints",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/controller/AiController.java", "line": 20, "end_line": 60, "label": "AiController" }
+      ]
+    },
+    {
+      "id": "tool_registry",
+      "lane": "gateway",
+      "col": 1,
+      "type": "database",
+      "label": "AiToolRegistry",
+      "sublabel": "Read-only Context",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/tool/AiToolRegistry.java", "line": 25, "end_line": 60, "label": "Tool Registry" }
+      ]
+    },
+    {
+      "id": "gateway_router",
+      "lane": "gateway",
+      "col": 2,
+      "type": "backend",
+      "label": "AiGateway",
+      "sublabel": "Provider Router",
+      "tag": "state aware",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/orchestrator/AiGateway.java", "line": 58, "end_line": 98, "label": "Gateway Routing" }
+      ]
+    },
+    {
+      "id": "ollama_provider",
+      "lane": "llm",
+      "col": 3,
+      "type": "cloud",
+      "label": "OllamaProvider",
+      "sublabel": "HTTP :11434",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/provider/OllamaProvider.java", "line": 40, "end_line": 80, "label": "Ollama Provider" }
+      ]
+    },
+    {
+      "id": "fallback_engine",
+      "lane": "gateway",
+      "col": 3,
+      "type": "security",
+      "label": "Rule Fallback",
+      "sublabel": "Deterministic engine",
+      "tag": "zero hallucination",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/orchestrator/AiGateway.java", "line": 270, "end_line": 312, "label": "Deterministic Fallback" }
+      ]
+    },
+    {
+      "id": "json_validator",
+      "lane": "gateway",
+      "col": 4,
+      "type": "backend",
+      "label": "Jackson Parser",
+      "sublabel": "Schema Validation",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/orchestrator/AiGateway.java", "line": 80, "end_line": 95, "label": "JSON Validation" }
+      ]
+    },
+    {
+      "id": "audit_logger",
+      "lane": "storage",
+      "col": 4,
+      "type": "database",
+      "label": "Audit Logger",
+      "sublabel": "ai_suggestions",
+      "width": 132,
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V8__create_auth_tables.sql", "line": 18, "end_line": 24, "label": "Audit Schema" }
+      ]
+    },
+    {
+      "id": "response_view",
+      "lane": "ui",
+      "col": 5,
+      "type": "frontend",
+      "label": "EONPAI Card",
+      "sublabel": "Guidance View",
+      "width": 132,
+      "sources": [
+        { "path": "frontend/src/App.tsx", "line": 40, "end_line": 80, "label": "EONPAI UI Component" }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "w1", "from": "user_prompt", "to": "ai_controller", "variant": "default" },
+    { "id": "w2", "from": "ai_controller", "to": "tool_registry", "label": "fetch context", "variant": "default" },
+    { "id": "w3", "from": "tool_registry", "to": "gateway_router", "label": "state context", "variant": "emphasis" },
+    { "id": "w4", "from": "gateway_router", "to": "ollama_provider", "label": "Ollama online", "variant": "emphasis" },
+    { "id": "w5", "from": "gateway_router", "to": "fallback_engine", "label": "offline fallback", "variant": "security", "role": "branch" },
+    { "id": "w6", "from": "ollama_provider", "to": "json_validator", "label": "raw JSON", "variant": "default" },
+    { "id": "w7", "from": "fallback_engine", "to": "json_validator", "label": "deterministic DTO", "variant": "default" },
+    { "id": "w8", "from": "json_validator", "to": "audit_logger", "label": "save suggestion", "variant": "dashed" },
+    { "id": "w9", "from": "json_validator", "to": "response_view", "label": "tactical guidance", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Context-Grounded Inference",
+      "items": [
+        "AiToolRegistry provides read-only access to user goals, missions, and schedules",
+        "Strict JSON schema formatting prevents markdown noise and parse errors",
+        "Ollama LLM provider executes inference on local workstation (qwen model)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Resilient Fallback & Audit",
+      "items": [
+        "If Ollama is offline or times out, deterministic rule engine generates actionable blocks",
+        "All AI suggestions and fallbacks are audited in the ai_suggestions table",
+        "Frontend receives identical structured response contract regardless of execution path"
+      ]
+    }
+  ]
+}

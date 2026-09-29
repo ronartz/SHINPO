@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "fa5b27cd-3f5a-469f-b194-eeb8518b47d1",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/eonx/Projects/SHINPO/docs/architecture/system-architecture.candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/docs/architecture/system-architecture.html",
+  "specification": {
+    "sha256": "aa11c4794289e1bba8ea9ae3eeecd2028e711afbd791f6bad1d7e9653f1d057e",
+    "bytes": 6784
+  },
+  "artifact": {
+    "sha256": "ed852cda7f7f843d018aee376cc1b802dbda2c2639da74e23e16955ef7329e34",
+    "bytes": 764341
+  }
+}

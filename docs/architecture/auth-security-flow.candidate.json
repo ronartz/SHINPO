@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "SHINPO Authentication & Security Lifecycle",
+    "output": "docs/architecture/auth-security-flow.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 680],
+    "column_fit": "spread",
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "715e47390e731b69cc7690cad96317a593d41d73"
+    }
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User Client",
+      "sublabel": "Desktop / Browser",
+      "sources": [
+        { "path": "frontend/src/App.tsx", "line": 20, "end_line": 50, "label": "Client Shell" }
+      ]
+    },
+    {
+      "id": "spa",
+      "type": "frontend",
+      "label": "React SPA",
+      "sublabel": "Auth Client",
+      "sources": [
+        { "path": "frontend/src/api/auth.ts", "line": 15, "end_line": 65, "label": "Token Storage" }
+      ]
+    },
+    {
+      "id": "filter",
+      "type": "security",
+      "label": "JwtFilter",
+      "sublabel": "Security Boundary",
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/security/JwtAuthenticationFilter.java", "line": 34, "end_line": 60, "label": "Filter Execution" }
+      ]
+    },
+    {
+      "id": "ctrl",
+      "type": "backend",
+      "label": "Auth / API Ctrl",
+      "sublabel": "REST Controller",
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/controller/AuthController.java", "line": 25, "end_line": 65, "label": "Auth Endpoints" }
+      ]
+    },
+    {
+      "id": "jwt_svc",
+      "type": "security",
+      "label": "JwtTokenService",
+      "sublabel": "HMAC256 + BCrypt",
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/security/JwtTokenService.java", "line": 30, "end_line": 80, "label": "Token Operations" }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "Credential Store",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V8__create_auth_tables.sql", "line": 1, "end_line": 20, "label": "Refresh Tokens Table" }
+      ]
+    }
+  ],
+  "segments": [
+    { "from": 140, "to": 300, "label": "Authentication & Token Issuance" },
+    { "from": 315, "to": 445, "label": "Authenticated Request & Filter Interception" },
+    { "from": 460, "to": 565, "label": "Refresh Token Rotation & Revocation" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "user", "to": "spa", "y": 160, "label": "Enter credentials", "variant": "default" },
+    { "id": "m2", "from": "spa", "to": "ctrl", "y": 190, "label": "POST /api/auth/login", "variant": "emphasis" },
+    { "id": "m3", "from": "ctrl", "to": "jwt_svc", "y": 220, "label": "passwordEncoder.matches(raw, hash)", "variant": "security" },
+    { "id": "m4", "from": "ctrl", "to": "db", "y": 250, "label": "SELECT user + INSERT refresh_tokens", "variant": "emphasis" },
+    { "id": "m5", "from": "ctrl", "to": "spa", "y": 280, "label": "200 OK {accessToken, refreshToken}", "variant": "return" },
+    { "id": "m6", "from": "spa", "to": "filter", "y": 330, "label": "GET /api/focus-sessions [Bearer token]", "variant": "emphasis" },
+    { "id": "m7", "from": "filter", "to": "jwt_svc", "y": 360, "label": "verifyToken() & extractUserId()", "variant": "security" },
+    { "id": "m8", "from": "filter", "to": "ctrl", "y": 390, "label": "setAuthentication(UserPrincipal)", "variant": "default" },
+    { "id": "m9", "from": "ctrl", "to": "spa", "y": 425, "label": "200 OK [FocusSessionResponse]", "variant": "return" },
+    { "id": "m10", "from": "spa", "to": "ctrl", "y": 475, "label": "POST /api/auth/refresh {refreshToken}", "variant": "emphasis" },
+    { "id": "m11", "from": "ctrl", "to": "db", "y": 505, "label": "SELECT token_hash & rotate", "variant": "security" },
+    { "id": "m12", "from": "ctrl", "to": "spa", "y": 540, "label": "200 OK {newAccessToken, newRefreshToken}", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "spa", "from": 185, "to": 285, "type": "frontend" },
+    { "participant": "ctrl", "from": 190, "to": 282, "type": "backend" },
+    { "participant": "jwt_svc", "from": 215, "to": 230, "type": "security" },
+    { "participant": "filter", "from": 325, "to": 395, "type": "security" },
+    { "participant": "ctrl", "from": 390, "to": 430, "type": "backend" },
+    { "participant": "spa", "from": 325, "to": 435, "type": "frontend" },
+    { "participant": "ctrl", "from": 475, "to": 545, "type": "backend" },
+    { "participant": "spa", "from": 470, "to": 550, "type": "frontend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Token Issuance & Verification",
+      "items": [
+        "Passwords verified via BCrypt with constant-time matching",
+        "Short-lived stateless JWT access tokens signed with HMAC-256",
+        "JwtAuthenticationFilter executes once per request on protected routes"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Refresh Token Security",
+      "items": [
+        "Refresh tokens stored in database hashed via SHA-256 (token_hash)",
+        "Single-use token rotation: refreshing revokes the old token and issues a new hash",
+        "User isolation strictly enforced by binding tokens to unique user_id"
+      ]
+    }
+  ]
+}

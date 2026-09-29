@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "a7b7f169-621a-4174-80cb-5c13a48be819",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/home/eonx/Projects/SHINPO/docs/architecture/ai-orchestration-workflow.candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/docs/architecture/ai-orchestration-workflow.html",
+  "specification": {
+    "sha256": "4704bc932cb9a755a57deb545e41eeec4f8a7ca68322f301ffbc2f3a62fa2131",
+    "bytes": 6716
+  },
+  "artifact": {
+    "sha256": "6dfcc2bfe54c8fcc58742c741394f152ffbd7d32fc25a73656a68bc0c1025c54",
+    "bytes": 766594
+  }
+}

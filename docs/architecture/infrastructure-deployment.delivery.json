@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "1f046dc8-7dbe-494a-bf94-5194f8b0c7ef",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/eonx/Projects/SHINPO/docs/architecture/infrastructure-deployment.candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/docs/architecture/infrastructure-deployment.html",
+  "specification": {
+    "sha256": "f3691ed4d2e1be5a93b970dacac3e10d4dc064b700eaa61f551fd15298959a53",
+    "bytes": 5030
+  },
+  "artifact": {
+    "sha256": "4537a062fc517c07cd265210e9fcf4ddf8aafae4f52c03b9a0399a09203820f5",
+    "bytes": 761687
+  }
+}
