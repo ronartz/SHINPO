@@ -41,6 +41,8 @@ export type MissionCompletionResponse = {
   totalUserXp: number
 }
 
+import { authHeaders } from './auth'
+
 const API_BASE = '/api'
 
 async function parseResponse<T>(res: Response): Promise<T> {
@@ -56,28 +58,32 @@ async function parseResponse<T>(res: Response): Promise<T> {
 }
 
 export async function getGoals(): Promise<Goal[]> {
-  const res = await fetch(`${API_BASE}/goals`)
+  const res = await fetch(`${API_BASE}/goals`, {
+    headers: authHeaders(),
+  })
   return parseResponse<Goal[]>(res)
 }
 
 export async function createGoal(payload: CreateGoalPayload): Promise<Goal> {
   const res = await fetch(`${API_BASE}/goals`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(payload),
   })
   return parseResponse<Goal>(res)
 }
 
 export async function getMissions(): Promise<Mission[]> {
-  const res = await fetch(`${API_BASE}/missions`)
+  const res = await fetch(`${API_BASE}/missions`, {
+    headers: authHeaders(),
+  })
   return parseResponse<Mission[]>(res)
 }
 
 export async function createMission(payload: CreateMissionPayload): Promise<Mission> {
   const res = await fetch(`${API_BASE}/missions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(payload),
   })
   return parseResponse<Mission>(res)
@@ -89,7 +95,7 @@ export async function completeMission(
 ): Promise<MissionCompletionResponse> {
   const res = await fetch(`${API_BASE}/missions/${missionId}/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify({ actualMinutes }),
   })
   return parseResponse<MissionCompletionResponse>(res)
@@ -98,6 +104,7 @@ export async function completeMission(
 export async function deleteGoal(goalId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/goals/${goalId}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   })
   if (!res.ok) {
     let msg = `Failed to delete goal: ${res.status}`
@@ -112,6 +119,7 @@ export async function deleteGoal(goalId: number): Promise<void> {
 export async function deleteMission(missionId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/missions/${missionId}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   })
   if (!res.ok) {
     let msg = `Failed to delete mission: ${res.status}`

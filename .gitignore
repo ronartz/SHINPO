@@ -23,6 +23,10 @@ dist/
 # Rust / Cargo
 **/target/
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Agent skills
 .agents/
 skills-lock.json

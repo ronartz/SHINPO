@@ -56,6 +56,8 @@ export type AiChatResponse = {
   structuredCard: any
 }
 
+import { authHeaders } from './auth'
+
 const API_BASE = '/api/ai'
 
 async function parseResponse<T>(res: Response): Promise<T> {
@@ -79,7 +81,7 @@ export async function sendAiChat(
 ): Promise<AiChatResponse> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify({
       userId,
       message,
@@ -93,28 +95,35 @@ export async function sendAiChat(
 
 export async function decomposeGoal(
   goalId: number,
-  userId: number,
+  _userId?: number,
 ): Promise<GoalDecomposition> {
-  const res = await fetch(`${API_BASE}/decompose-goal/${goalId}?userId=${userId}`, {
+  const res = await fetch(`${API_BASE}/decompose-goal/${goalId}`, {
     method: 'POST',
+    headers: authHeaders(),
   })
   return parseResponse<GoalDecomposition>(res)
 }
 
-export async function getNextAction(userId: number): Promise<NextAction> {
-  const res = await fetch(`${API_BASE}/next-action?userId=${userId}`)
+export async function getNextAction(_userId?: number): Promise<NextAction> {
+  const res = await fetch(`${API_BASE}/next-action`, {
+    headers: authHeaders(),
+  })
   return parseResponse<NextAction>(res)
 }
 
-export async function getDailyPlan(userId: number): Promise<DailyPlan> {
-  const res = await fetch(`${API_BASE}/daily-plan?userId=${userId}`)
+export async function getDailyPlan(_userId?: number): Promise<DailyPlan> {
+  const res = await fetch(`${API_BASE}/daily-plan`, {
+    headers: authHeaders(),
+  })
   return parseResponse<DailyPlan>(res)
 }
 
 export async function getSessionRecovery(
   sessionId: number,
-  userId: number,
+  _userId?: number,
 ): Promise<SessionRecovery> {
-  const res = await fetch(`${API_BASE}/recovery/${sessionId}?userId=${userId}`)
+  const res = await fetch(`${API_BASE}/recovery/${sessionId}`, {
+    headers: authHeaders(),
+  })
   return parseResponse<SessionRecovery>(res)
 }

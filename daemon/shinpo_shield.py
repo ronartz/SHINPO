@@ -44,12 +44,16 @@ def send_os_notification(title, message):
     except Exception:
         pass
 
-def fetch_active_session(api_url):
+def fetch_active_session(api_url, auth_token=None):
     """Fetches sessions from Spring Boot and returns the first ACTIVE session or None."""
+    token = auth_token or os.environ.get("SHINPO_AUTH_TOKEN")
+    headers = {"User-Agent": "SHINPO-Shield-Daemon/1.0", "Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
         req = urllib.request.Request(
             api_url,
-            headers={"User-Agent": "SHINPO-Shield-Daemon/1.0", "Accept": "application/json"},
+            headers=headers,
         )
         with urllib.request.urlopen(req, timeout=3) as resp:
             if resp.status == 200:

@@ -19,6 +19,9 @@ struct ShieldConfig {
     #[serde(default = "default_blacklist")]
     blacklist: Vec<String>,
 
+    #[serde(default)]
+    auth_token: Option<String>,
+
     #[serde(default = "default_true")]
     auto_kill: bool,
 
@@ -27,7 +30,7 @@ struct ShieldConfig {
 }
 
 fn default_api_url() -> String {
-    "http://localhost:8080/api/focus-sessions?userId=1".to_string()
+    "http://localhost:8080/api/focus-sessions".to_string()
 }
 fn default_poll_seconds() -> u64 {
     2
@@ -53,6 +56,7 @@ impl Default for ShieldConfig {
     fn default() -> Self {
         Self {
             api_url: default_api_url(),
+            auth_token: None,
             poll_interval_seconds: default_poll_seconds(),
             blacklist: default_blacklist(),
             auto_kill: true,
@@ -102,15 +106,19 @@ fn load_config() -> ShieldConfig {
     ShieldConfig::default()
 }
 
-fn fetch_active_session(api_url: &str) -> Option<FocusSession> {
-    match ureq::get(api_url).timeout(Duration::from_secs(3)).call() {
+fn fetch_active_session(api_url: &str, auth_token: Option<&str>) -> Option<FocusSession> {
+    let mut req = ureq::get(api_url).timeout(Duration::from_secs(3));
+    if let Some(token) = auth_token {
+        req = req.set("Authorization", &format!("Bearer {}", token));
+    }
+    match req.call() {
         Ok(response) => {
             if let Ok(sessions) = response.into_json::<Vec<FocusSession>>() {
                 return sessions.into_iter().find(|s| s.status == "ACTIVE");
             }
         }
         Err(_) => {
-            // Spring Boot backend offline or busy
+            // Spring Boot backend offline, busy, or unauthenticated
         }
     }
     None
@@ -126,7 +134,11 @@ fn main() {
     println!("  Mode: {}", if dry_run { "DRY-RUN (audit only)" } else { "ACTIVE ENFORCEMENT (SIGKILL)" });
 
     let config = load_config();
+    let token_from_env = env::var("SHINPO_AUTH_TOKEN").ok();
+    let effective_token = config.auth_token.as_deref().or(token_from_env.as_deref());
+
     println!("  Monitoring API: {}", config.api_url);
+    println!("  Auth Token: {}", if effective_token.is_some() { "CONFIGURED" } else { "NONE (ANONYMOUS)" });
     println!("  Blacklist: {}", config.blacklist.join(", "));
     println!("=================================================================\n");
 
@@ -134,7 +146,7 @@ fn main() {
     let mut in_lockdown = false;
 
     loop {
-        if let Some(session) = fetch_active_session(&config.api_url) {
+        if let Some(session) = fetch_active_session(&config.api_url, effective_token) {
             let session_name = if session.name.is_empty() {
                 "Focus Sprint".to_string()
             } else {

@@ -24,6 +24,16 @@ import {
   getMissions,
 } from './api/goalsAndMissions'
 import type { Goal, Mission } from './api/goalsAndMissions'
+import {
+  authHeaders,
+  clearAuthSession,
+  fetchCurrentUser,
+  getStoredUser,
+  login,
+  logout,
+  register,
+} from './api/auth'
+import type { AuthUser } from './api/auth'
 import { ShinpoLogo } from './components/ShinpoLogo'
 
 import './App.css'
@@ -344,12 +354,22 @@ function Icon({
 }
 
 export function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser())
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN')
+  const [authIdentifier, setAuthIdentifier] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(false)
+
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
   const [selectedDuration, setSelectedDuration] = useState(30)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
-  const [activeTab, setActiveTab] = useState('Dashboard')
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get('tab') || 'Dashboard'
+  })
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return new URLSearchParams(window.location.search).get('theme') === 'light' ? false : true
   })
@@ -482,29 +502,32 @@ export function App() {
     }
   }, [isDarkMode])
 
+  useEffect(() => {
+    fetchCurrentUser().then((user) => {
+      if (user) {
+        setCurrentUser(user)
+        loadData()
+      }
+    })
+  }, [])
+
   const loadData = async () => {
     try {
-      const res = await fetch('/api/dashboard')
+      const res = await fetch('/api/dashboard', { headers: authHeaders() })
       if (res.ok) {
         const d = await res.json()
         setDashboard(d)
+      } else if (res.status === 401) {
+        clearAuthSession()
+        setCurrentUser(null)
+        return
       }
     } catch {
-      // Mock fallback for standalone preview
-      setDashboard({
-        user: { id: 1, username: 'Executive Commander' },
-        progress: { total: 13740 },
-        missions: { total: 24, completed: 18, pending: 6 },
-        goals: [
-          { id: 1, title: 'Master Distributed Microservices', status: 'ACTIVE' },
-          { id: 2, title: 'Build Neural Trading Kernel', status: 'ACTIVE' },
-          { id: 3, title: 'Physical Conditioning Mastery', status: 'ACTIVE' },
-        ],
-      })
+      // Keep offline
     }
 
     try {
-      const s = await getFocusSessions(dashboard?.user.id ?? 1)
+      const s = await getFocusSessions()
       setSessions(s)
     } catch {
       // Keep empty if backend offline
@@ -517,6 +540,44 @@ export function App() {
     } catch {
       // Keep empty if backend offline
     }
+  }
+
+  const handleAuthSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setAuthError(null)
+    setAuthLoading(true)
+    try {
+      if (authMode === 'LOGIN') {
+        const res = await login(authIdentifier.trim(), authPassword)
+        setCurrentUser(res.user)
+      } else {
+        const res = await register(authIdentifier.trim(), authEmail.trim(), authPassword)
+        setCurrentUser(res.user)
+      }
+      setAuthIdentifier('')
+      setAuthEmail('')
+      setAuthPassword('')
+      await loadData()
+    } catch (err: any) {
+      setAuthError(err.message || 'Authentication failed')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    setCurrentUser(null)
+    setDashboard(null)
+    setSessions([])
+    setGoals([])
+    setMissions([])
+  }
+
+  const handleQuickDemoFill = () => {
+    setAuthMode('LOGIN')
+    setAuthIdentifier('EONX')
+    setAuthPassword('shinpo_dev')
   }
 
   const handleCreateGoal = async (e: FormEvent) => {
@@ -804,6 +865,103 @@ export function App() {
     }
   }
 
+  if (!currentUser) {
+    return (
+      <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
+        <div className="auth-card">
+          <div className="auth-brand-row">
+            <ShinpoLogo size={36} variant="full" />
+            <div className="auth-system-badge">
+              <span>SYSTEM: ARISE • KERNEL ACCESS</span>
+            </div>
+          </div>
+
+          <div className="auth-nav-tabs">
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'LOGIN' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('LOGIN')
+                setAuthError(null)
+              }}
+            >
+              AUTHENTICATE
+            </button>
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'REGISTER' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('REGISTER')
+                setAuthError(null)
+              }}
+            >
+              INITIALIZE CADET
+            </button>
+          </div>
+
+          <form className="auth-form" onSubmit={handleAuthSubmit}>
+            {authError && <div className="auth-error-banner">{authError}</div>}
+
+            <div className="auth-field-group">
+              <label className="auth-label">
+                {authMode === 'LOGIN' ? 'Username or Email' : 'Username'}
+              </label>
+              <input
+                className="auth-input"
+                type="text"
+                placeholder={authMode === 'LOGIN' ? 'eonx / user@shinpo.local' : 'e.g. Commander'}
+                value={authIdentifier}
+                onChange={(e) => setAuthIdentifier(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+
+            {authMode === 'REGISTER' && (
+              <div className="auth-field-group">
+                <label className="auth-label">Email Address</label>
+                <input
+                  className="auth-input"
+                  type="email"
+                  placeholder="cadet@shinpo.local"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <div className="auth-field-group">
+              <label className="auth-label">Access Password</label>
+              <input
+                className="auth-input"
+                type="password"
+                placeholder="••••••••••••"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button type="submit" className="auth-submit-btn" disabled={authLoading}>
+              {authLoading ? 'VERIFYING CREDENTIALS...' : authMode === 'LOGIN' ? 'ENGAGE SYSTEM' : 'INITIALIZE PROFILE'}
+            </button>
+
+            {authMode === 'LOGIN' && (
+              <button
+                type="button"
+                className="auth-quick-fill-btn"
+                onClick={handleQuickDemoFill}
+              >
+                ⚡ Quick Fill (EONX / Dev Seed)
+              </button>
+            )}
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`app-shell ${isDarkMode ? '' : 'theme-light'}`}>
       {/* Ambient cursor glow */}
@@ -977,14 +1135,21 @@ export function App() {
               <Icon name="bell" size={15} />
               <span className="bell-red-dot" />
             </button>
-            <div className="profile-avatar-btn">
+            <div className="profile-avatar-btn" title={`Signed in as ${currentUser.username} (${currentUser.email})`}>
               <div className="avatar-circle">
-                {dashboard?.user.username.charAt(0).toUpperCase() || 'E'}
+                {currentUser.username.charAt(0).toUpperCase()}
               </div>
               <span className="profile-name">
-                {dashboard?.user.username || 'Commander'}
+                {currentUser.username}
               </span>
             </div>
+            <button
+              className="action-btn-circle"
+              onClick={handleLogout}
+              title="Terminate Session (Sign Out)"
+            >
+              <Icon name="power" size={14} />
+            </button>
           </div>
         </div>
 
