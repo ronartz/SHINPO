@@ -179,7 +179,7 @@ public class AiService {
     public AiChatResponse processChat(AiChatRequest request) {
         if (request == null || request.message() == null || request.message().isBlank()) {
             return new AiChatResponse(
-                    "SHINPO Tactical Engine online. How would you like to direct your focus today?",
+                    "EONPAI Tactical Engine online. How would you like to direct your focus today?",
                     "ASSISTANT",
                     null);
         }
@@ -192,7 +192,7 @@ public class AiService {
         if (lower.matches("^(hi|hello|hey|greetings|howdy|yo|sup)(\\s.*|[!.?])?$")) {
             DailyPlanResponse plan = getDailyPlan(userId);
             return new AiChatResponse(
-                    "Welcome back to SHINPO Cockpit. Systems nominal. Here is your tactical execution schedule for today:",
+                    "Welcome back. I am EONPAI, your personal execution companion. Systems nominal. Here is your tactical schedule for today:",
                     "TACTICAL_ASSISTANT",
                     plan);
         }

@@ -710,6 +710,59 @@ class ShinpoApplicationTests {
         assertNotNull(agendaResponse.getBody());
     }
 
+    @Test
+    void shouldFetchDeviceSystemInfoAndProcesses() {
+        ResponseEntity<com.shinpo.dto.TaskManagerDtos.DeviceSystemInfo> sysInfoResp = restTemplate.getForEntity(
+                baseUrl() + "/api/device/system-info",
+                com.shinpo.dto.TaskManagerDtos.DeviceSystemInfo.class
+        );
+        assertEquals(200, sysInfoResp.getStatusCode().value());
+        assertNotNull(sysInfoResp.getBody());
+        assertTrue(sysInfoResp.getBody().totalMemoryBytes() > 0);
+
+        ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessInfo[]> procResp = restTemplate.getForEntity(
+                baseUrl() + "/api/device/processes",
+                com.shinpo.dto.TaskManagerDtos.ProcessInfo[].class
+        );
+        assertEquals(200, procResp.getStatusCode().value());
+        assertNotNull(procResp.getBody());
+        assertTrue(procResp.getBody().length > 0);
+
+        ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessSnapshot> snapResp = restTemplate.getForEntity(
+                baseUrl() + "/api/device/snapshot",
+                com.shinpo.dto.TaskManagerDtos.ProcessSnapshot.class
+        );
+        assertEquals(200, snapResp.getStatusCode().value());
+        assertNotNull(snapResp.getBody());
+        assertTrue(snapResp.getBody().processes().size() > 0);
+    }
+
+    @Test
+    void shouldPreventTerminatingProtectedSystemProcess() {
+        // PID 1 is systemd / init or protected
+        ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessControlResult> result = restTemplate.postForEntity(
+                baseUrl() + "/api/device/processes/1/terminate",
+                null,
+                com.shinpo.dto.TaskManagerDtos.ProcessControlResult.class
+        );
+        assertEquals(200, result.getStatusCode().value());
+        assertNotNull(result.getBody());
+        assertEquals("REJECTED", result.getBody().status());
+        assertTrue(result.getBody().message().contains("Cannot terminate core system process 1"));
+    }
+
+    @Test
+    void shouldFetchAnalyticsDashboard() {
+        ResponseEntity<com.shinpo.dto.AnalyticsDtos.AnalyticsDashboardResponse> response = restTemplate.getForEntity(
+                baseUrl() + "/api/analytics/dashboard",
+                com.shinpo.dto.AnalyticsDtos.AnalyticsDashboardResponse.class
+        );
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertNotNull(response.getBody().summary());
+        assertEquals(7, response.getBody().weeklyVelocity().size());
+    }
+
     private Long createFocusSessionId() {
         ResponseEntity<FocusSessionResponse> response = createFocusSession();
         assertEquals(201, response.getStatusCode().value());
