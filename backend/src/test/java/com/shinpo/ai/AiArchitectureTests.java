@@ -9,14 +9,12 @@ import com.shinpo.ai.provider.OllamaProvider;
 import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.entity.AiSuggestion;
-import com.shinpo.entity.Goal;
 import com.shinpo.entity.User;
 import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;

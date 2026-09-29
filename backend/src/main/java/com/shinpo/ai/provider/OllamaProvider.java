@@ -92,7 +92,7 @@ public class OllamaProvider implements AIProvider {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode responseNode = root.get("response");
-                String content = responseNode != null ? responseNode.asText() : response.getBody();
+                String content = responseNode != null ? responseNode.asString() : response.getBody();
                 return AiProviderResponse.success(content, latencyMs, "ollama", model);
             } else {
                 String error = "Ollama returned status " + response.getStatusCode();

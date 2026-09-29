@@ -1,58 +1,36 @@
 package com.shinpo.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
-import com.shinpo.dto.AiDtos.DailyPlanItem;
 import com.shinpo.dto.AiDtos.DailyPlanResponse;
 import com.shinpo.dto.AiDtos.GoalDecompositionResponse;
 import com.shinpo.dto.AiDtos.NextActionResponse;
-import com.shinpo.dto.AiDtos.ProposedMission;
-import com.shinpo.dto.AiDtos.RecoveryOption;
 import com.shinpo.dto.AiDtos.RecoveryResponse;
-import com.shinpo.entity.AiSuggestion;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.Goal;
-import com.shinpo.entity.Mission;
-import com.shinpo.entity.User;
-import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
-import com.shinpo.repository.MissionRepository;
-import com.shinpo.ai.orchestrator.AiGateway;
-import com.shinpo.repository.UserRepository;
 
 @Service
 @Transactional
 public class AiService {
 
-    private final UserRepository userRepository;
     private final GoalRepository goalRepository;
-    private final MissionRepository missionRepository;
     private final FocusSessionRepository focusSessionRepository;
-    private final AiSuggestionRepository aiSuggestionRepository;
     private final AiGateway aiGateway;
 
     public AiService(
-            UserRepository userRepository,
             GoalRepository goalRepository,
-            MissionRepository missionRepository,
             FocusSessionRepository focusSessionRepository,
-            AiSuggestionRepository aiSuggestionRepository,
             AiGateway aiGateway) {
-        this.userRepository = userRepository;
         this.goalRepository = goalRepository;
-        this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
-        this.aiSuggestionRepository = aiSuggestionRepository;
         this.aiGateway = aiGateway;
     }
 
