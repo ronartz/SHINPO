@@ -222,7 +222,9 @@ export async function deleteFocusSession(
     try {
       const body = await response.json()
       if (body.message) msg = body.message
-    } catch {}
+    } catch {
+      // ignore parse error, fallback to status
+    }
     throw new Error(msg)
   }
 }

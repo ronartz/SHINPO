@@ -34,9 +34,18 @@ public class JwtTokenService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtTokenService(
-            @Value("${shinpo.jwt.secret:shinpo_arise_master_key_secure_development_secret_2026_xyz}") String secret,
+            @Value("${shinpo.jwt.secret}") String secret,
             RefreshTokenRepository refreshTokenRepository
     ) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "shinpo.jwt.secret must be configured via the SHINPO_JWT_SECRET environment variable. " +
+                    "A hardcoded or default secret is not permitted in any environment.");
+        }
+        if (secret.length() < 32) {
+            throw new IllegalStateException(
+                    "shinpo.jwt.secret must be at least 32 characters long to ensure HMAC-SHA256 security.");
+        }
         this.algorithm = Algorithm.HMAC256(secret);
         this.verifier = JWT.require(algorithm).withIssuer(ISSUER).build();
         this.refreshTokenRepository = refreshTokenRepository;

@@ -13,7 +13,7 @@ public class AiProperties {
 
     public static class OllamaProperties {
         private String baseUrl = "http://localhost:11434";
-        private String model = "qwen3:8b";
+        private String model = "qwen3:4b";
         private int timeoutSeconds = 30;
 
         public String getBaseUrl() {
