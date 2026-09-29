@@ -8,7 +8,6 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.shinpo.entity.RefreshToken;
 import com.shinpo.entity.User;
 import com.shinpo.repository.RefreshTokenRepository;
-import com.shinpo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,18 +31,15 @@ public class JwtTokenService {
     private final Algorithm algorithm;
     private final JWTVerifier verifier;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtTokenService(
             @Value("${shinpo.jwt.secret:shinpo_arise_master_key_secure_development_secret_2026_xyz}") String secret,
-            RefreshTokenRepository refreshTokenRepository,
-            UserRepository userRepository
+            RefreshTokenRepository refreshTokenRepository
     ) {
         this.algorithm = Algorithm.HMAC256(secret);
         this.verifier = JWT.require(algorithm).withIssuer(ISSUER).build();
         this.refreshTokenRepository = refreshTokenRepository;
-        this.userRepository = userRepository;
     }
 
     public String generateAccessToken(UserPrincipal principal) {
