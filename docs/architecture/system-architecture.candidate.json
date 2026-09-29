@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SHINPO System Architecture",
+    "output": "docs/architecture/system-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "715e47390e731b69cc7690cad96317a593d41d73"
+    }
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "User Workstation",
+      "sublabel": "Linux / Desktop Browser",
+      "pos": [40, 200],
+      "size": [140, 60],
+      "sources": [
+        { "path": "frontend/src/App.tsx", "line": 1, "end_line": 40, "label": "Client UI Shell" }
+      ]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Frontend SPA",
+      "sublabel": "React 19 + Vite :5173",
+      "pos": [280, 200],
+      "size": [140, 60],
+      "sources": [
+        { "path": "frontend/src/api/auth.ts", "line": 80, "end_line": 120, "label": "Auth Client" },
+        { "path": "frontend/vite.config.ts", "line": 7, "end_line": 14, "label": "API Proxy" }
+      ]
+    },
+    {
+      "id": "sec_filter",
+      "type": "security",
+      "label": "Security Gateway",
+      "sublabel": "JWT Filter + BCrypt",
+      "pos": [530, 200],
+      "size": [150, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/config/SecurityConfig.java", "line": 65, "end_line": 80, "label": "SecurityFilterChain" },
+        { "path": "backend/src/main/java/com/shinpo/security/JwtAuthenticationFilter.java", "line": 34, "end_line": 58, "label": "JWT Filter" }
+      ]
+    },
+    {
+      "id": "api_server",
+      "type": "backend",
+      "label": "Spring Boot API",
+      "sublabel": "Spring Boot 4.1.1 :8080",
+      "pos": [780, 200],
+      "size": [150, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/controller/FocusSessionController.java", "line": 25, "end_line": 70, "label": "Focus Sessions API" },
+        { "path": "backend/src/main/java/com/shinpo/service/FocusSessionService.java", "line": 54, "end_line": 95, "label": "Execution Service" }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "Flyway Migrations :5432",
+      "pos": [780, 50],
+      "size": [150, 60],
+      "sources": [
+        { "path": "backend/src/main/resources/application.properties", "line": 3, "end_line": 9, "label": "Database Config" },
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 1, "end_line": 35, "label": "Core Schemas" }
+      ]
+    },
+    {
+      "id": "ai_gateway",
+      "type": "backend",
+      "label": "AI Orchestrator",
+      "sublabel": "EONPAI Gateway & Fallback",
+      "pos": [780, 360],
+      "size": [150, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/orchestrator/AiGateway.java", "line": 58, "end_line": 98, "label": "AI Gateway" },
+        { "path": "backend/src/main/java/com/shinpo/ai/tool/AiToolRegistry.java", "line": 25, "end_line": 55, "label": "Read-Only Tools" }
+      ]
+    },
+    {
+      "id": "ollama",
+      "type": "cloud",
+      "label": "Ollama LLM",
+      "sublabel": "Local Container :11434",
+      "pos": [1050, 360],
+      "size": [140, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/provider/OllamaProvider.java", "line": 40, "end_line": 80, "label": "Ollama Provider" },
+        { "path": "backend/src/main/java/com/shinpo/ai/config/AiProperties.java", "line": 10, "end_line": 35, "label": "AI Properties" }
+      ]
+    },
+    {
+      "id": "shield",
+      "type": "security",
+      "label": "Shield Daemon",
+      "sublabel": "Rust & Python Enforcers",
+      "pos": [530, 360],
+      "size": [150, 60],
+      "sources": [
+        { "path": "crates/shinpo-shield/src/main.rs", "line": 40, "end_line": 90, "label": "Rust Shield Daemon" },
+        { "path": "daemon/shinpo_shield.py", "line": 25, "end_line": 65, "label": "Python Daemon" }
+      ]
+    },
+    {
+      "id": "os_process",
+      "type": "external",
+      "label": "OS Processes",
+      "sublabel": "Linux /proc & Desktop",
+      "pos": [230, 360],
+      "size": [150, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/service/TaskManagerService.java", "line": 28, "end_line": 60, "label": "ProcessHandle Service" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Spring Security Perimeter",
+      "wraps": ["sec_filter", "api_server", "ai_gateway"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-to-fe",
+      "from": "client",
+      "to": "frontend",
+      "label": "HTTP :5173"
+    },
+    {
+      "id": "fe-to-sec",
+      "from": "frontend",
+      "to": "sec_filter",
+      "label": "Bearer /api"
+    },
+    {
+      "id": "sec-to-api",
+      "from": "sec_filter",
+      "to": "api_server",
+      "label": "Principal",
+      "variant": "security"
+    },
+    {
+      "id": "api-to-db",
+      "from": "api_server",
+      "to": "postgres",
+      "label": "SQL / JPA",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "api-to-ai",
+      "from": "api_server",
+      "to": "ai_gateway",
+      "label": "Orchestrates",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "ai-to-ollama",
+      "from": "ai_gateway",
+      "to": "ollama",
+      "label": "HTTP /generate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "shield-to-api",
+      "from": "shield",
+      "to": "api_server",
+      "label": "Polls Active Session",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "shield-to-os",
+      "from": "shield",
+      "to": "os_process",
+      "label": "SIGKILL Distractions",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Client & Edge",
+      "items": [
+        "React 19 SPA running on Vite dev server (port 5173)",
+        "Fetch client with Bearer token injection and refresh token rotation"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Core Execution Engine",
+      "items": [
+        "Spring Boot 4.1.1 on Java 25 running on port 8080",
+        "Stateless JWT authentication filter + BCrypt password hashing",
+        "PostgreSQL 17 persistence with Flyway migrations V1 through V8"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "AI & OS-Level Enforcement",
+      "items": [
+        "EONPAI AI Gateway with read-only state tools and Ollama LLM integration",
+        "Deterministic rule-based fallback engine for resilient offline planning",
+        "Rust and Python Shield daemons enforcing focus by terminating distraction processes"
+      ]
+    }
+  ]
+}

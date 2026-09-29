@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "SHINPO Core Execution & Progress Data Flow",
+    "output": "docs/architecture/execution-data-flow.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 520],
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "715e47390e731b69cc7690cad96317a593d41d73"
+    }
+  },
+  "stages": [
+    { "label": "Strategic Intake" },
+    { "label": "Decomposition" },
+    { "label": "Execution & Shield" },
+    { "label": "Debrief & Progress" },
+    { "label": "Tactical Analytics" }
+  ],
+  "nodes": [
+    {
+      "id": "goal_input",
+      "type": "frontend",
+      "label": "Goal Intake",
+      "sublabel": "React SPA Form",
+      "stage": 0,
+      "row": 0,
+      "tag": "target",
+      "sources": [
+        { "path": "frontend/src/api/goalsAndMissions.ts", "line": 15, "end_line": 40, "label": "Goal Intake API" }
+      ]
+    },
+    {
+      "id": "user_record",
+      "type": "database",
+      "label": "User Record",
+      "sublabel": "users table",
+      "stage": 0,
+      "row": 2,
+      "tag": "identity",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 1, "end_line": 8, "label": "Users Table" }
+      ]
+    },
+    {
+      "id": "goal_store",
+      "type": "database",
+      "label": "Goals Store",
+      "sublabel": "goals table",
+      "stage": 1,
+      "row": 0,
+      "tag": "strategic",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 9, "end_line": 24, "label": "Goals Table" }
+      ]
+    },
+    {
+      "id": "mission_store",
+      "type": "database",
+      "label": "Missions Store",
+      "sublabel": "missions table",
+      "stage": 1,
+      "row": 2,
+      "tag": "tactical",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 25, "end_line": 40, "label": "Missions Table" }
+      ]
+    },
+    {
+      "id": "session_store",
+      "type": "database",
+      "label": "Focus Sessions",
+      "sublabel": "focus_sessions",
+      "stage": 2,
+      "row": 0,
+      "tag": "active timer",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V2__create_focus_sessions.sql", "line": 1, "end_line": 20, "label": "Focus Sessions Table" }
+      ]
+    },
+    {
+      "id": "shield_enforcer",
+      "type": "security",
+      "label": "Shield Daemon",
+      "sublabel": "Rust Process Enforcer",
+      "stage": 2,
+      "row": 2,
+      "tag": "process kill",
+      "sources": [
+        { "path": "crates/shinpo-shield/src/main.rs", "line": 40, "end_line": 85, "label": "Shield Enforcement" }
+      ]
+    },
+    {
+      "id": "completion_store",
+      "type": "database",
+      "label": "Completions",
+      "sublabel": "mission_completions",
+      "stage": 3,
+      "row": 0,
+      "tag": "duration",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 41, "end_line": 55, "label": "Completions Table" }
+      ]
+    },
+    {
+      "id": "progress_ledger",
+      "type": "database",
+      "label": "Progress Events",
+      "sublabel": "progress_events",
+      "stage": 3,
+      "row": 2,
+      "tag": "immutable",
+      "sources": [
+        { "path": "backend/src/main/resources/db/migration/V1__create_core_tables.sql", "line": 56, "end_line": 73, "label": "Progress Table" }
+      ]
+    },
+    {
+      "id": "analytics_engine",
+      "type": "backend",
+      "label": "Analytics Engine",
+      "sublabel": "Streaks & Velocity",
+      "stage": 4,
+      "row": 0,
+      "tag": "derived",
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/service/AnalyticsService.java", "line": 20, "end_line": 45, "label": "Analytics Service" }
+      ]
+    },
+    {
+      "id": "bento_view",
+      "type": "frontend",
+      "label": "Task Master",
+      "sublabel": "Bento Dashboard",
+      "stage": 4,
+      "row": 2,
+      "tag": "feedback",
+      "sources": [
+        { "path": "frontend/src/App.tsx", "line": 20, "end_line": 60, "label": "Task Master Dashboard" }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "f1",
+      "from": "goal_input",
+      "to": "goal_store",
+      "label": "persist goal",
+      "classification": "strategic target",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f2",
+      "from": "user_record",
+      "to": "mission_store",
+      "label": "user scope",
+      "classification": "foreign key",
+      "variant": "security"
+    },
+    {
+      "id": "f3",
+      "from": "goal_store",
+      "to": "mission_store",
+      "label": "decompose into missions",
+      "classification": "tactical sprint",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 25
+    },
+    {
+      "id": "f4",
+      "from": "mission_store",
+      "to": "session_store",
+      "label": "bind to focus session",
+      "classification": "execution unit",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f5",
+      "from": "session_store",
+      "to": "shield_enforcer",
+      "label": "active session trigger",
+      "classification": "enforcement",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 25
+    },
+    {
+      "id": "f6",
+      "from": "session_store",
+      "to": "completion_store",
+      "label": "record completion",
+      "classification": "actual duration",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f7",
+      "from": "completion_store",
+      "to": "progress_ledger",
+      "label": "earn progress points",
+      "classification": "immutable event",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 25
+    },
+    {
+      "id": "f8",
+      "from": "progress_ledger",
+      "to": "analytics_engine",
+      "label": "aggregate events",
+      "classification": "metrics roll-up",
+      "variant": "dashed"
+    },
+    {
+      "id": "f9",
+      "from": "analytics_engine",
+      "to": "bento_view",
+      "label": "velocity & streak data",
+      "classification": "visual metrics",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 25
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Intent to Execution Pipeline",
+      "items": [
+        "Strategic goals decompose into tactical, time-boxed missions",
+        "Focus sessions bind directly to mission and goal IDs for unbroken traceability",
+        "Shield daemon polls active session state to enforce OS distraction blocking"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Immutable Progress Ledger",
+      "items": [
+        "Mission completions log actual duration and debrief notes",
+        "Progress events are recorded immutably in progress_events table",
+        "Analytics engine computes daily focus velocity, completion ratios, and streaks"
+      ]
+    }
+  ]
+}

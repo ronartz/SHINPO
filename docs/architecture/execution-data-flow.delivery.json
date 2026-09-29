@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "773c5254-e306-4dc1-87b9-28a485ed362d",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/home/eonx/Projects/SHINPO/docs/architecture/execution-data-flow.candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/docs/architecture/execution-data-flow.html",
+  "specification": {
+    "sha256": "9b59d12ead40f31a89975c26b4d29c579b40c3d469f7e3d5773f0ec471c2866d",
+    "bytes": 7133
+  },
+  "artifact": {
+    "sha256": "3ab589ffcc033996661c55073a6cf37f2723a2601a7ac74fc8fea431860e9e67",
+    "bytes": 765106
+  }
+}

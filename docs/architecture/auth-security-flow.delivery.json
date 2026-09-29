@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "9a8587d0-fb62-4680-8017-24707562068d",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/home/eonx/Projects/SHINPO/docs/architecture/auth-security-flow.candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/docs/architecture/auth-security-flow.html",
+  "specification": {
+    "sha256": "6a182ff48c644986f466004606ff0e423c24d1cfb8bc6f3cd8d1fa3ac5648642",
+    "bytes": 5303
+  },
+  "artifact": {
+    "sha256": "7b2cc7bf7dad0f3e972eae0d3f6a947e028255d4d4ef5ec21356a1f891731f5c",
+    "bytes": 760802
+  }
+}

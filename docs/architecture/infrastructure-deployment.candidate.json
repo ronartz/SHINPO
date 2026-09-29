@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SHINPO Deployment & Infrastructure Topology",
+    "output": "docs/architecture/infrastructure-deployment.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "715e47390e731b69cc7690cad96317a593d41d73"
+    }
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Web Browser",
+      "sublabel": "Chrome / Firefox :5173",
+      "pos": [40, 220],
+      "size": [140, 60],
+      "sources": [
+        { "path": "frontend/src/App.tsx", "line": 1, "end_line": 40, "label": "Client UI Shell" }
+      ]
+    },
+    {
+      "id": "vite_dev",
+      "type": "frontend",
+      "label": "Vite Dev Server",
+      "sublabel": "Node.js v24 :5173",
+      "pos": [280, 220],
+      "size": [150, 60],
+      "sources": [
+        { "path": "frontend/vite.config.ts", "line": 4, "end_line": 15, "label": "Vite Config" }
+      ]
+    },
+    {
+      "id": "spring_app",
+      "type": "backend",
+      "label": "Spring Boot App",
+      "sublabel": "Java 25 Process :8080",
+      "pos": [540, 220],
+      "size": [160, 60],
+      "sources": [
+        { "path": "backend/src/main/resources/application.properties", "line": 1, "end_line": 9, "label": "Application Config" }
+      ]
+    },
+    {
+      "id": "shield_proc",
+      "type": "security",
+      "label": "Rust Shield Daemon",
+      "sublabel": "Native sysinfo Process",
+      "pos": [540, 390],
+      "size": [160, 60],
+      "sources": [
+        { "path": "crates/shinpo-shield/src/main.rs", "line": 40, "end_line": 85, "label": "Shield Daemon" }
+      ]
+    },
+    {
+      "id": "notifier",
+      "type": "external",
+      "label": "Desktop Notifier",
+      "sublabel": "notify-send / D-Bus",
+      "pos": [260, 390],
+      "size": [150, 60],
+      "sources": [
+        { "path": "crates/shinpo-shield/src/main.rs", "line": 80, "end_line": 85, "label": "Desktop Notification" }
+      ]
+    },
+    {
+      "id": "postgres_ct",
+      "type": "database",
+      "label": "shinpo-postgres",
+      "sublabel": "Docker postgres:17 :5432",
+      "pos": [820, 100],
+      "size": [160, 60],
+      "sources": [
+        { "path": "compose.yaml", "line": 2, "end_line": 12, "label": "PostgreSQL Service" }
+      ]
+    },
+    {
+      "id": "ollama_ct",
+      "type": "cloud",
+      "label": "shinpo-ollama",
+      "sublabel": "Docker ollama :11434",
+      "pos": [820, 260],
+      "size": [160, 60],
+      "sources": [
+        { "path": "backend/src/main/java/com/shinpo/ai/config/AiProperties.java", "line": 12, "end_line": 25, "label": "Ollama Service Config" }
+      ]
+    },
+    {
+      "id": "pg_volume",
+      "type": "database",
+      "label": "Named Volume",
+      "sublabel": "shinpo-postgres-data",
+      "pos": [1070, 100],
+      "size": [150, 60],
+      "sources": [
+        { "path": "compose.yaml", "line": 14, "end_line": 15, "label": "Volume Definition" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Docker Containers & Volumes",
+      "wraps": ["postgres_ct", "ollama_ct", "pg_volume"]
+    },
+    {
+      "kind": "region",
+      "label": "Linux Host Workstation",
+      "wraps": ["vite_dev", "spring_app", "shield_proc", "notifier"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": "browser",
+      "to": "vite_dev",
+      "label": "HTTP / WS"
+    },
+    {
+      "id": "c2",
+      "from": "vite_dev",
+      "to": "spring_app",
+      "label": "Proxy /api"
+    },
+    {
+      "id": "c3",
+      "from": "spring_app",
+      "to": "postgres_ct",
+      "label": "JDBC :5432",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c4",
+      "from": "spring_app",
+      "to": "ollama_ct",
+      "label": "HTTP :11434",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c5",
+      "from": "postgres_ct",
+      "to": "pg_volume",
+      "label": "Volume",
+      "variant": "dashed"
+    },
+    {
+      "id": "c6",
+      "from": "shield_proc",
+      "to": "spring_app",
+      "label": "Polls /api",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "c7",
+      "from": "shield_proc",
+      "to": "notifier",
+      "label": "notify-send",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Local Host Process Model",
+      "items": [
+        "Spring Boot runs as a local Java 25 process on port 8080",
+        "Vite dev server hosts React 19 UI on port 5173 with proxying",
+        "Rust shield daemon runs in background monitoring sessions and terminating distractions"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Containerized Data & AI Services",
+      "items": [
+        "PostgreSQL 17 orchestrated via compose.yaml with persistent named volume",
+        "Ollama container hosts lightweight local LLMs on port 11434",
+        "All container ports bind to localhost with isolated bridge network"
+      ]
+    }
+  ]
+}
