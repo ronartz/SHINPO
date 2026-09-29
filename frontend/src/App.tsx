@@ -414,7 +414,6 @@ export function App() {
   const [decomposingGoalId, setDecomposingGoalId] = useState<number | null>(null)
   const [aiDecompResult, setAiDecompResult] = useState<GoalDecomposition | null>(null)
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
-  const [flightDeckFilter, setFlightDeckFilter] = useState<'ALL' | 'SPRINT' | 'MILESTONES'>('ALL')
   const [topSearchQuery, setTopSearchQuery] = useState('')
 
   // Schedule Deck State (C-002)
@@ -455,76 +454,9 @@ export function App() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
-  const getMissionCategory = (m: Mission) => {
-    const goal = goals.find((g) => g.id === m.goalId)
-    if (!goal) return 'TASK'
-    const title = goal.title.toUpperCase()
-    if (title.includes('DISTRIBUTED') || title.includes('ARCH')) return 'ARCH'
-    if (title.includes('NEURAL') || title.includes('SIMD') || title.includes('PERF')) return 'PERF'
-    if (title.includes('TELEMETRY') || title.includes('FLOW') || title.includes('EXECUTION')) return 'FLOW'
-    if (title.includes('DATA') || title.includes('POSTGRES')) return 'DATA'
-    if (title.includes('DEEP') || title.includes('PROTOCOL')) return 'CORE'
-    const words = goal.title.trim().split(/\s+/)
-    return (words[0] || 'TASK').slice(0, 4).toUpperCase()
-  }
-
-  const flightDeckMissions = useMemo(() => {
-    return missions.filter((m) => {
-      if (flightDeckFilter === 'SPRINT' && m.status === 'COMPLETED') return false
-      if (flightDeckFilter === 'MILESTONES' && m.status !== 'COMPLETED') return false
-      if (topSearchQuery.trim()) {
-        const q = topSearchQuery.toLowerCase()
-        const matchesTitle = m.title.toLowerCase().includes(q)
-        const matchesDesc = (m.description || '').toLowerCase().includes(q)
-        return matchesTitle || matchesDesc
-      }
-      return true
-    })
-  }, [missions, flightDeckFilter, topSearchQuery])
-
   const nextActionMission = useMemo(() => {
     return missions.find((m) => m.status !== 'COMPLETED') || null
   }, [missions])
-
-  const nextActionGoal = useMemo(() => {
-    if (!nextActionMission) return null
-    return goals.find((g) => g.id === nextActionMission.goalId) || null
-  }, [nextActionMission, goals])
-
-  const todayCompletedSessions = useMemo(() => {
-    return sessions.filter((s) => s.status === 'COMPLETED')
-  }, [sessions])
-
-  const todayCompletedMissions = useMemo(() => {
-    return missions.filter((m) => m.status === 'COMPLETED')
-  }, [missions])
-
-  const todayUpcomingMissions = useMemo(() => {
-    return missions.filter((m) => m.status !== 'COMPLETED')
-  }, [missions])
-
-  const weekDays = useMemo(() => {
-    const now = new Date()
-    const currentDayOfWeek = now.getDay() // 0 is Sun, 1 is Mon...
-    const distanceToMonday = (currentDayOfWeek + 6) % 7
-    const monday = new Date(now)
-    monday.setDate(now.getDate() - distanceToMonday)
-
-    const days = []
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday)
-      d.setDate(monday.getDate() + i)
-      const isToday = d.toDateString() === now.toDateString()
-      days.push({
-        dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
-        dayNum: d.getDate(),
-        dateStr: d.toISOString().split('T')[0],
-        isToday,
-        hasEvents: isToday && (todayCompletedSessions.length > 0),
-      })
-    }
-    return days
-  }, [todayCompletedSessions.length])
 
   const scheduleWeekDays = useMemo(() => {
     const base = new Date()
@@ -1205,19 +1137,29 @@ export function App() {
           </button>
         </div>
 
+        {/* Task Master Hero Greeting */}
+        {sidebarExpanded && (
+          <div className="sidebar-hero-greeting">
+            <div className="sidebar-hero-line">Start Your</div>
+            <div className="sidebar-hero-line">Day Be</div>
+            <div className="sidebar-hero-line highlight">Productive</div>
+          </div>
+        )}
+
         <nav className="sidebar-nav-stack">
           {sidebarExpanded && (
             <div className="sidebar-section-header">
-              <span>MAIN MENU</span>
-              <Icon name="chevron" size={12} />
+              <span>Menu</span>
             </div>
           )}
           {[
             { id: 'Dashboard', icon: 'dashboard' as IconName, label: 'Dashboard' },
-            { id: 'Focus Engine', icon: 'focus' as IconName, label: 'Focus Engine' },
-            { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Goals & Missions' },
-            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Schedule', badge: 'New' },
+            { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Messages', badge: '+6' },
+            { id: 'Focus Engine', icon: 'focus' as IconName, label: 'My Task' },
+            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Calendar', badge: '+2' },
             { id: 'Analytics', icon: 'analytics' as IconName, label: 'Analytics' },
+            { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live' },
+            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'Eonpai AI', badge: 'AI' },
           ].map((item) => (
             <button
               key={item.id}
@@ -1236,62 +1178,74 @@ export function App() {
               )}
             </button>
           ))}
-
-          {sidebarExpanded && (
-            <div className="sidebar-section-header" style={{ marginTop: 14 }}>
-              <span>SYSTEM & CONTROLS</span>
-              <Icon name="chevron" size={12} />
-            </div>
-          )}
-          {[
-            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'Eonpai AI', badge: 'AI' },
-            { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
-              title={item.label}
-              data-tooltip={item.label}
-            >
-              <Icon name={item.icon} size={18} />
-              {sidebarExpanded && <span>{item.label}</span>}
-              {sidebarExpanded && (item as any).badge && (
-                <span className="sidebar-nav-badge">{(item as any).badge}</span>
-              )}
-              {sidebarExpanded && activeTab === item.id && (
-                <span className="sidebar-active-arrow">↗</span>
-              )}
-            </button>
-          ))}
         </nav>
 
-        {/* Eonpai Tactical Companion & Shield Card (Inspired by Task Master) */}
-        {sidebarExpanded && (
-          <div className="sidebar-eonpai-card">
-            <div className="eonpai-card-top">
-              <div className="eonpai-avatar-wrap">
-                <div className="eonpai-avatar">
-                  <Icon name="sparkle" size={16} />
-                </div>
-                <div className={`eonpai-status-dot ${activeSession ? 'active' : ''}`} />
-              </div>
-              <div className="eonpai-identity">
-                <span className="eonpai-name">Eonpai</span>
-                <span className="eonpai-role">{activeSession ? 'Shield Engaged' : 'AI Companion'}</span>
+        {/* Shifted Motivational Stoic Quote in the Blank Space of Sidebar */}
+        {sidebarExpanded && !quoteDismissed && (
+          <div className="sidebar-quote-card">
+            <div className="sidebar-quote-top">
+              <span className="sidebar-quote-tag">{stoicQuotes[quoteIndex].category}</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  className="sidebar-quote-refresh-btn"
+                  onClick={() => setQuoteIndex((prev) => (prev + 1) % stoicQuotes.length)}
+                  title="Next Daily Principle"
+                >
+                  <Icon name="refresh" size={11} />
+                </button>
+                <button
+                  className="sidebar-quote-refresh-btn"
+                  onClick={() => setQuoteDismissed(true)}
+                  title="Dismiss Principle"
+                >
+                  <Icon name="close" size={11} />
+                </button>
               </div>
             </div>
-            <div className="eonpai-speech-bubble">
-              {activeSession
-                ? 'Focus sprint armed. Distraction processes locked.'
-                : 'Execution environment clear. Ready to begin sprint.'}
+            <div className="sidebar-quote-text">
+              "{stoicQuotes[quoteIndex].text}"
+            </div>
+            <div className="sidebar-quote-author">
+              — {stoicQuotes[quoteIndex].author}
+            </div>
+          </div>
+        )}
+
+        {/* Team Avatar Cluster Row from Reference */}
+        {sidebarExpanded && (
+          <div className="sidebar-avatars-row">
+            <div className="cluster-avatar av-1">👨‍💻</div>
+            <div className="cluster-avatar av-2">👩‍💼</div>
+            <div className="cluster-avatar av-3">🧑‍🎨</div>
+            <div className="cluster-avatar av-4">👨‍🚀</div>
+            <div className="cluster-badge">10+</div>
+          </div>
+        )}
+
+        {/* Eonpai Tactical Companion Card (Task Master Style with Chat Bubbles) */}
+        {sidebarExpanded && (
+          <div className="sidebar-eonpai-companion">
+            <div className="eonpai-comp-header">
+              <span className="eonpai-comp-name">Eonpai</span>
+              <div className={`eonpai-status-dot ${activeSession ? 'active' : ''}`} />
+            </div>
+            <div className="eonpai-speech-bubble bubble-short">
+              <span className="bubble-text">Morning</span>
+              <span className="bubble-time">12.49</span>
+            </div>
+            <div className="eonpai-speech-bubble bubble-wide">
+              <span className="bubble-text">
+                {activeSession
+                  ? 'Focus sprint armed. Distraction processes locked.'
+                  : 'Today We Will Focus On The Execution Architecture.'}
+              </span>
+              <span className="bubble-time">12.50</span>
             </div>
             <button
-              className={`eonpai-quick-action-btn ${activeSession ? 'active' : ''}`}
+              className={`eonpai-comp-action-btn ${activeSession ? 'active' : ''}`}
               onClick={() => setActiveTab(activeSession ? 'Focus Engine' : 'AI Assistant')}
             >
-              <span>{activeSession ? 'Open Focus HUD' : 'Ask Eonpai'}</span>
-              <Icon name="arrow-up-right" size={13} />
+              <span>{activeSession ? 'Shield Engaged' : 'Ok Eonpai'}</span>
             </button>
           </div>
         )}
@@ -1312,63 +1266,50 @@ export function App() {
       {/* Main Content Area */}
       <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
         {/* Clean Executive Top Bar — Single Navigation System */}
+        {/* Task Master Executive Top Bar */}
         <div className="cockpit-top-bar">
           <div className="page-header-info">
-            <div className="page-breadcrumb">
-              <span className="breadcrumb-root">SHINPO</span>
-              <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-current">{activeTab}</span>
-            </div>
-            <h1 className="page-heading">
-              {activeTab === 'Dashboard' && 'Executive Flight Deck'}
-              {activeTab === 'Focus Engine' && 'Autonomous Focus Engine'}
-              {activeTab === 'Goals & Missions' && 'Goals & Strategic Targets'}
-              {activeTab === 'AI Assistant' && 'Eonpai Tactical Command'}
-              {activeTab === 'Schedule' && 'Temporal Execution Schedule'}
-              {activeTab === 'Analytics' && 'Operational Velocity & Telemetry'}
-              {activeTab === 'Task Manager' && 'Device Process Sentinel'}
-            </h1>
+            <h1 className="top-brand-title">Task Master</h1>
           </div>
 
-          {/* Academix / FitPulse Inspired Global Command Search */}
+          {/* Task Master Pill Search Input */}
           <div className="top-search-command">
-            <Icon name="search" size={15} />
+            <Icon name="search" size={16} />
             <input
               type="text"
               className="top-search-input"
-              placeholder="Search missions, targets, protocols... (/ to filter)"
+              placeholder="Start Searching Here..."
               value={topSearchQuery}
               onChange={(e) => setTopSearchQuery(e.target.value)}
             />
-            <kbd className="top-search-kbd">⌘K</kbd>
+            <button className="top-search-filter-btn" title="Filter Telemetry">
+              <Icon name="sparkle" size={14} />
+            </button>
           </div>
 
           <div className="top-bar-actions">
-            <button
-              className="action-btn-circle action-btn-add"
-              onClick={() => setIsCreatingGoal(true)}
-              title="Establish Strategic Objective"
-            >
-              <Icon name="plus" size={15} />
-            </button>
-            <div className="status-live-pill">
-              <span className="live-dot" />
-              <span className="live-text">SYSTEM ONLINE · LEVEL 1 ENFORCEMENT</span>
-            </div>
-            <button className="action-btn-circle" onClick={loadData} title="Refresh Telemetry">
-              <Icon name="refresh" size={15} />
-            </button>
             <button className="action-btn-circle has-badge" title="Notifications">
-              <Icon name="bell" size={15} />
+              <Icon name="bell" size={16} />
               <span className="bell-red-dot" />
             </button>
-            <div className="profile-avatar-btn" title={`Signed in as ${currentUser.username} (${currentUser.email})`}>
-              <div className="avatar-circle">
+            <button
+              className="action-btn-circle"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <Icon name={isDarkMode ? 'sun' : 'moon'} size={16} />
+            </button>
+            <button className="action-btn-circle" onClick={loadData} title="Telemetry Sync">
+              <Icon name="settings" size={16} />
+            </button>
+            <div className="profile-badge-card" title={`Signed in as ${currentUser.username} (${currentUser.email})`}>
+              <div className="profile-avatar-circle">
                 {currentUser.username.charAt(0).toUpperCase()}
               </div>
-              <span className="profile-name">
-                {currentUser.username}
-              </span>
+              <div className="profile-text-wrap">
+                <span className="profile-username">Kim So Men</span>
+                <span className="profile-role">Ui Ux Designer</span>
+              </div>
             </div>
             <button
               className="action-btn-circle"
@@ -1381,680 +1322,429 @@ export function App() {
         </div>
 
         {/* Dynamic Tab Render */}
-        {/* Dynamic Tab Render: FitPulse 2-Tier Command Dashboard */}
+        {/* Dynamic Tab Render: Task Master 2x2 Bento Quadrant Dashboard */}
         {activeTab === 'Dashboard' && (
-          <div className="fitpulse-dashboard">
-            {/* Task Master / Donezo Inspired Hero Salutation Banner */}
-            <div className="taskmaster-hero-banner">
-              <div className="taskmaster-hero-left">
-                <h2 className="taskmaster-hero-title">
-                  Start Your Day • Be <span className="highlight-productive">Productive</span>
-                </h2>
-                <p className="taskmaster-hero-sub">
-                  Plan, execute, and conquer your missions with <strong>EONPAI</strong> execution sentinel.
-                </p>
-              </div>
-              <div className="taskmaster-hero-pills">
-                <div className="taskmaster-status-pill emerald">
-                  <span className="taskmaster-pill-dot emerald" />
-                  <span>EONPAI ONLINE</span>
+          <div className="taskmaster-bento-dashboard">
+            {/* Active Focus Sprint Sentinel Banner (if active session exists) */}
+            {activeSession && (
+              <div className="taskmaster-active-session-banner">
+                <div className="session-banner-left">
+                  <span className="live-dot" />
+                  <span className="session-banner-title">
+                    ACTIVE SPRINT: <strong>{activeSession.name}</strong>
+                  </span>
+                  {activeSession.intention && (
+                    <span className="session-banner-target">🎯 {activeSession.intention}</span>
+                  )}
                 </div>
-                <div className="taskmaster-status-pill orange">
-                  <span className="taskmaster-pill-dot orange" />
-                  <span>SHIELD READY</span>
-                </div>
-              </div>
-            </div>
-
-            {/* C-028 Executive Daily Wisdom / Stoic Quote Card */}
-            {!quoteDismissed && (
-              <div className="daily-quote-card">
-                <div className="daily-quote-bg-decoration">“</div>
-                <div className="daily-quote-content">
-                  <div className="daily-quote-badge-row">
-                    <span className="daily-quote-pill">{stoicQuotes[quoteIndex].category}</span>
-                    <span className="daily-quote-date">EXECUTIVE MANDATE • TODAY</span>
-                  </div>
-                  <div className="daily-quote-text">
-                    "{stoicQuotes[quoteIndex].text}"
-                  </div>
-                  <div className="daily-quote-author">
-                    — {stoicQuotes[quoteIndex].author}
+                <div className="session-banner-center">
+                  <div className="session-banner-digits">{formatTimerDigits(timerSeconds)}</div>
+                  <div className="session-banner-track">
+                    <div
+                      className="session-banner-bar"
+                      style={{
+                        width: `${Math.max(
+                          0,
+                          Math.min(
+                            100,
+                            ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
+                              ((activeSession.durationMinutes || 25) * 60)) *
+                              100),
+                          ),
+                        )}%`,
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="daily-quote-actions">
+                <div className="session-banner-actions">
+                  {activeSession.status === 'ACTIVE' && (
+                    <button
+                      className="session-banner-btn secondary"
+                      onClick={() => handlePause(activeSession.id)}
+                    >
+                      <Icon name="pause" size={13} />
+                      <span>Pause</span>
+                    </button>
+                  )}
+                  {activeSession.status === 'PAUSED' && (
+                    <button
+                      className="session-banner-btn primary"
+                      onClick={() => handleResume(activeSession.id)}
+                    >
+                      <Icon name="play" size={13} />
+                      <span>Resume</span>
+                    </button>
+                  )}
                   <button
-                    className="daily-quote-btn btn-spring"
-                    onClick={() => setQuoteIndex((prev) => (prev + 1) % stoicQuotes.length)}
-                    title="Next Principle"
+                    className="session-banner-btn primary"
+                    onClick={() => setCompletingSessionId(activeSession.id)}
                   >
-                    <Icon name="refresh" size={13} />
-                    <span>Next Principle</span>
-                  </button>
-                  <button
-                    className="daily-quote-btn btn-spring"
-                    onClick={() => setQuoteDismissed(true)}
-                    title="Dismiss"
-                  >
-                    <Icon name="close" size={13} />
+                    <Icon name="check" size={13} />
+                    <span>Debrief</span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ROW 1: 8 / 4 ASYMMETRIC SPLIT */}
-            <div className="fitpulse-row-upper">
-              {/* Card 1 (Span 8): Autonomous Execution Cockpit & Temporal Radar */}
-              <div className="fp-card fp-cockpit-card">
-                <div className="fp-card-header">
-                  <div className="fp-card-title-group">
-                    <h2 className="fp-card-title">Autonomous Execution Cockpit</h2>
-                  </div>
-                  <div className="fp-header-actions">
-                    <button className="fp-btn-subtle" onClick={loadData} title="Sync Telemetry">
-                      <Icon name="refresh" size={13} />
-                      <span>Telemetry Sync</span>
-                    </button>
-                    <button
-                      className="action-btn-circle"
-                      style={{ width: 30, height: 30 }}
-                      onClick={() => setActiveTab('Focus Engine')}
-                      title="Open Focus Engine HUD"
-                    >
-                      <Icon name="arrow-up-right" size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="fp-cockpit-subbar">
-                  <div className="fp-date-pill-group">
-                    <span className="fp-dark-pill">Today</span>
-                    <span className="fp-date-label">
-                      {new Date().toLocaleDateString('en-US', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                  <div className="fp-badge-dayview">
-                    <Icon name="clock" size={13} />
-                    <span>Day View</span>
-                  </div>
-                </div>
-
-                {/* Focus Execution Controls: Active Running Session or Idle Standby */}
-                {activeSession ? (
-                  <div className="fp-active-execution">
-                    <div className="fp-active-top-row">
-                      <div className="fp-timer-display">{formatTimerDigits(timerSeconds)}</div>
-                      <div className="fp-session-details">
-                        <span className="fp-session-name">{activeSession.name}</span>
-                        {activeSession.intention && (
-                          <span className="fp-session-target">
-                            🎯 Target: <strong>{activeSession.intention}</strong>
-                          </span>
-                        )}
-                        <span className="fp-session-status-badge">
-                          <span className="live-dot" />
-                          <span>{activeSession.status} • PID SENTINEL ARMED</span>
-                        </span>
-                      </div>
-                      <div className="fp-active-actions">
-                        {activeSession.status === 'ACTIVE' && (
-                          <button
-                            className="btn-timer secondary"
-                            onClick={() => handlePause(activeSession.id)}
-                          >
-                            <Icon name="pause" size={14} />
-                            <span>Pause</span>
-                          </button>
-                        )}
-                        {activeSession.status === 'PAUSED' && (
-                          <button
-                            className="btn-timer primary"
-                            onClick={() => handleResume(activeSession.id)}
-                          >
-                            <Icon name="play" size={14} />
-                            <span>Resume</span>
-                          </button>
-                        )}
-                        <button
-                          className="btn-timer primary"
-                          onClick={() => setCompletingSessionId(activeSession.id)}
-                        >
-                          <Icon name="check" size={14} />
-                          <span>Debrief</span>
-                        </button>
-                        <button
-                          className="btn-timer danger"
-                          onClick={() => handleDeleteSession(activeSession.id)}
-                          title="Discard & Delete Current Session"
-                        >
-                          <Icon name="trash" size={13} />
-                        </button>
-                      </div>
+            {/* 2x2 BENTO GRID */}
+            <div className="bento-2x2-grid">
+              {/* QUADRANT 1 (TOP-LEFT): TODAY TASKS */}
+              <div className="bento-card bento-today-tasks">
+                <div className="bento-card-header">
+                  <div className="bento-header-left">
+                    <div className="bento-icon-circle">
+                      <Icon name="schedule" size={16} />
                     </div>
-                    <div className="fp-progress-track">
-                      <div
-                        className="fp-progress-bar"
-                        style={{
-                          width: `${Math.max(
-                            0,
-                            Math.min(
-                              100,
-                              ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
-                                ((activeSession.durationMinutes || 25) * 60)) *
-                                100),
-                            ),
-                          )}%`,
+                    <h2 className="bento-card-title">Today tasks</h2>
+                  </div>
+                  <button
+                    className="bento-pill-btn"
+                    onClick={() => setActiveTab('Goals & Missions')}
+                  >
+                    <span>See All</span>
+                    <Icon name="chevron-right" size={13} />
+                  </button>
+                </div>
+
+                <div className="bento-subcards-row">
+                  {/* Task Subcard 1 */}
+                  <div
+                    className="bento-task-subcard"
+                    onClick={() => setActiveTab('Goals & Missions')}
+                  >
+                    <div className="bento-task-top">
+                      <h3 className="bento-task-title">
+                        {missions[0]?.title || 'Delivery App Kit'}
+                      </h3>
+                      <button
+                        className="bento-dots-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveTab('Goals & Missions')
                         }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="fp-idle-execution">
-                    <div className="fp-idle-input-row">
-                      <input
-                        type="text"
-                        className="fp-intention-input"
-                        placeholder={
-                          nextActionMission
-                            ? `Target: ${nextActionMission.title}`
-                            : 'Target Intention (e.g. Master Distributed Architecture)...'
-                        }
-                        value={sessionIntention}
-                        onChange={(e) => setSessionIntention(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleStartSession()}
-                      />
-                      <div className="fp-presets-wrap">
-                        {durationPresets.map((mins) => (
-                          <button
-                            key={mins}
-                            type="button"
-                            className={`fp-preset-pill ${selectedDuration === mins ? 'active' : ''}`}
-                            onClick={() => setSelectedDuration(mins)}
-                          >
-                            {mins}m
-                          </button>
-                        ))}
-                      </div>
-                      <button className="fp-btn-start" onClick={handleStartSession}>
-                        <Icon name="play" size={14} />
-                        <span>START FOCUS ({selectedDuration}m)</span>
+                      >
+                        ···
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {/* Temporal Hourly Grid (Timeline) */}
-                <div className="fp-temporal-grid">
-                  <div className="fp-timeline-hours-track">
-                    {[
-                      '08:00',
-                      '09:00',
-                      '10:00',
-                      '11:00',
-                      '12:00',
-                      '13:00',
-                      '14:00',
-                      '15:00',
-                      '16:00',
-                      '17:00',
-                    ].map((time) => {
-                      const isCurrentHour = time === '13:00'
-                      return (
-                        <div
-                          key={time}
-                          className={`fp-hour-marker ${isCurrentHour ? 'current-hour' : ''}`}
-                        >
-                          <span className="fp-hour-label">{time}</span>
-                          <div className="fp-hour-line" />
+                    <p className="bento-task-desc">
+                      {missions[0]?.description ||
+                        'We Got A Project To Make A Delivery UI Kit Called Food Now'}
+                    </p>
+                    <div className="bento-task-footer">
+                      <div className="bento-task-avatars">
+                        <span className="task-av av-1">👨‍💻</span>
+                        <span className="task-av av-2">👩‍💼</span>
+                        <span className="task-av av-3">🧑‍🎨</span>
+                        <span className="task-av av-4">👨‍🚀</span>
+                        <span className="task-av-plus">+1</span>
+                      </div>
+                      <div className="bento-task-progress-box">
+                        <div className="bento-task-progress-track">
+                          <div
+                            className="bento-task-progress-fill red-fill"
+                            style={{ width: '65%' }}
+                          />
                         </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Floating Execution Event Pills on the Temporal Grid */}
-                  <div className="fp-events-plane">
-                    {/* Active Session Event Pill */}
-                    {activeSession ? (
-                      <div className="fp-event-pill active-pill" style={{ left: '42%', top: '34px' }}>
-                        <span className="fp-event-badge red">
-                          ▶ {activeSession.durationMinutes || 45}m
-                        </span>
-                        <span className="fp-event-text">{activeSession.name}</span>
-                        <div className="fp-event-mini-actions">
-                          <button
-                            className="fp-mini-chip"
-                            onClick={() => setCompletingSessionId(activeSession.id)}
-                            title="Debrief Outcome"
-                          >
-                            Debrief
-                          </button>
-                          <button
-                            className="fp-mini-chip"
-                            onClick={() => handlePause(activeSession.id)}
-                            title="Pause"
-                          >
-                            Pause
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="fp-event-pill standby-pill" style={{ left: '42%', top: '34px' }}>
-                        <span className="fp-event-badge red">STANDBY</span>
-                        <span className="fp-event-text">Focus Engine Armed</span>
-                      </div>
-                    )}
-
-                    {/* Completed Sessions */}
-                    {todayCompletedSessions.length > 0 ? (
-                      todayCompletedSessions.slice(0, 2).map((s, idx) => (
-                        <div
-                          key={s.id}
-                          className="fp-event-pill completed-pill"
-                          style={{
-                            left: idx === 0 ? '6%' : '72%',
-                            top: idx === 0 ? '8px' : '52px',
-                          }}
-                        >
-                          <span className="fp-event-badge dark">✓ {s.durationMinutes}m</span>
-                          <span className="fp-event-text">{s.name}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="fp-event-pill completed-pill" style={{ left: '6%', top: '8px' }}>
-                        <span className="fp-event-badge dark">✓ 25m</span>
-                        <span className="fp-event-text">Kernel Architecture Review</span>
-                      </div>
-                    )}
-
-                    {/* Planned / Recommended Next Target */}
-                    {nextActionMission && (
-                      <div className="fp-event-pill planned-pill" style={{ left: '26%', top: '72px' }}>
-                        <span className="fp-event-badge blue">
-                          🎯 {nextActionMission.estimatedMinutes || 25}m
-                        </span>
-                        <span className="fp-event-text">{nextActionMission.title}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="fp-grid-footer">
-                    <button
-                      className="fp-btn-add-item"
-                      onClick={() => {
-                        if (nextActionMission) {
-                          setSessionIntention(nextActionMission.title)
-                          setSelectedDuration(nextActionMission.estimatedMinutes || 25)
-                        }
-                        handleStartSession()
-                      }}
-                    >
-                      <Icon name="plus" size={12} />
-                      <span>Add Focus Sprint</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2 (Span 4): Today's Schedule & Mission Queue */}
-              <div className="fp-card fp-schedule-card">
-                <div className="fp-card-header">
-                  <div className="fp-card-title-group">
-                    <h2 className="fp-card-title">Today's Schedule</h2>
-                  </div>
-                  <div className="fp-pill-dropdown">
-                    <span>This Week</span>
-                    <Icon name="chevron" size={12} />
-                  </div>
-                </div>
-
-                {/* FitPulse 7-Day Pill Strip */}
-                <div className="fp-week-strip">
-                  {weekDays.map((d) => (
-                    <div
-                      key={d.dateStr}
-                      className={`fp-day-pill ${d.isToday ? 'active-today' : ''}`}
-                      title={`${d.dayName}, ${d.dateStr}`}
-                    >
-                      <span className="fp-day-num">{d.dayNum}</span>
-                      <span className="fp-day-name">{d.dayName}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Schedule Item Rows */}
-                <div className="fp-schedule-list">
-                  {/* Active Session item if running */}
-                  {activeSession && (
-                    <div className="fp-schedule-item active">
-                      <div className="fp-item-avatar core">CORE</div>
-                      <div className="fp-item-info">
-                        <div className="fp-item-title">{activeSession.name}</div>
-                        <div className="fp-item-sub">
-                          Active Now • {formatTimerDigits(timerSeconds)} remaining
-                        </div>
-                      </div>
-                      <div className="fp-item-action-wrap">
-                        <button
-                          className="fp-item-action-circle running"
-                          onClick={() => setCompletingSessionId(activeSession.id)}
-                          title="Debrief & Complete"
-                        >
-                          <Icon name="check" size={12} />
-                        </button>
+                        <span className="bento-task-pct">65%</span>
                       </div>
                     </div>
-                  )}
-
-                  {/* Completed sessions */}
-                  {todayCompletedSessions.map((s) => (
-                    <div key={`sched-s-${s.id}`} className="fp-schedule-item completed">
-                      <div className="fp-item-avatar done">DONE</div>
-                      <div className="fp-item-info">
-                        <div className="fp-item-title line-through">{s.name}</div>
-                        <div className="fp-item-sub">
-                          {s.durationMinutes}m Deep Work • Logged
-                        </div>
-                      </div>
-                      <div className="fp-item-action-wrap">
-                        <div className="fp-item-action-circle done">
-                          <Icon name="check" size={12} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Completed missions */}
-                  {todayCompletedMissions.map((m) => (
-                    <div key={`sched-m-done-${m.id}`} className="fp-schedule-item completed">
-                      <div className="fp-item-avatar done">DONE</div>
-                      <div className="fp-item-info">
-                        <div className="fp-item-title line-through">{m.title}</div>
-                        <div className="fp-item-sub">
-                          {m.estimatedMinutes || 25}m Mission • Completed Today
-                        </div>
-                      </div>
-                      <div className="fp-item-action-wrap">
-                        <div className="fp-item-action-circle done">
-                          <Icon name="check" size={12} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Upcoming Missions */}
-                  {todayUpcomingMissions.slice(0, 4).map((m) => {
-                    const cat = getMissionCategory(m)
-                    return (
-                      <div key={`sched-m-${m.id}`} className="fp-schedule-item">
-                        <div className={`fp-item-avatar ${cat.toLowerCase()}`}>{cat}</div>
-                        <div className="fp-item-info">
-                          <div className="fp-item-title">{m.title}</div>
-                          <div className="fp-item-sub">
-                            {m.estimatedMinutes || 25}m Target • Next in Queue
-                          </div>
-                        </div>
-                        <div className="fp-item-action-wrap">
-                          <button
-                            className="fp-item-action-circle play"
-                            title="Engage Sprint"
-                            onClick={() => {
-                              setSelectedDuration(m.estimatedMinutes || 25)
-                              setSessionIntention(m.title)
-                              handleStartSession()
-                            }}
-                          >
-                            <Icon name="play" size={11} />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                  {!activeSession &&
-                    todayCompletedSessions.length === 0 &&
-                    todayCompletedMissions.length === 0 &&
-                    todayUpcomingMissions.length === 0 && (
-                      <div className="fp-empty-notice">
-                        No schedule events queued today. Create a mission or start focus above!
-                      </div>
-                    )}
-                </div>
-              </div>
-            </div>
-
-            {/* ROW 2: 4 / 4 / 4 ASYMMETRIC SPLIT */}
-            <div className="fitpulse-row-lower">
-              {/* Card 3 (Span 4): Performance & Flow */}
-              <div className="fp-card fp-perf-card">
-                <div className="fp-card-header">
-                  <div className="fp-card-title-group">
-                    <h2 className="fp-card-title">Performance</h2>
                   </div>
-                  <button
-                    className="action-btn-circle"
-                    style={{ width: 30, height: 30 }}
-                    onClick={() => setActiveTab('Analytics')}
-                    title="Full Telemetry & Analytics"
-                  >
-                    <Icon name="arrow-up-right" size={13} />
-                  </button>
-                </div>
 
-                {/* 3-day switcher pills */}
-                <div className="fp-perf-days-row">
-                  {weekDays.slice(0, 3).map((d, i) => (
-                    <div
-                      key={d.dateStr}
-                      className={`fp-perf-day-pill ${i === 1 ? 'selected' : ''}`}
-                    >
-                      <span className="fp-pday-name">{d.dayName}</span>
-                      <span className="fp-pday-num">{d.dayNum}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Big Metric Display */}
-                <div className="fp-perf-metrics">
-                  <div className="fp-perf-stat-main">92%</div>
-                  <div className="fp-perf-trend-wrap">
-                    <span className="fp-trend-tag positive">+12%</span>
-                    <span className="fp-trend-label">Since yesterday</span>
-                  </div>
-                </div>
-
-                <button
-                  className="fp-btn-next-action"
-                  onClick={handleEngageNextAction}
-                  title={nextActionGoal ? `Strategic Objective: ${nextActionGoal.title}` : 'Engage Focus Sprint'}
-                >
-                  <Icon name="play" size={12} />
-                  <span>Engage Focus Sprint ↗</span>
-                </button>
-
-                <div className="fp-perf-cadence-row">
-                  <div className="fp-cadence-item">
-                    <span className="fp-cadence-val">22.3h</span>
-                    <span className="fp-cadence-lbl">Weekly Flow</span>
-                  </div>
-                  <div className="fp-cadence-item">
-                    <span className="fp-cadence-val">3.2h</span>
-                    <span className="fp-cadence-lbl">Daily Mean</span>
-                  </div>
-                  <div className="fp-cadence-item">
-                    <span className="fp-cadence-val green">96%</span>
-                    <span className="fp-cadence-lbl">Focus Streak</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 4 (Span 4): Strategic Target Goals (Clean & elegant, NO overlapping circle!) */}
-              <div className="fp-card fp-goals-card">
-                <div className="fp-card-header">
-                  <div className="fp-card-title-group">
-                    <h2 className="fp-card-title">Strategic Goals</h2>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      className="action-btn-circle"
-                      style={{ width: 30, height: 30 }}
-                      onClick={() => setIsCreatingGoal(true)}
-                      title="Add Strategic Goal"
-                    >
-                      <Icon name="plus" size={13} />
-                    </button>
-                    <button
-                      className="action-btn-circle"
-                      style={{ width: 30, height: 30 }}
-                      onClick={() => setActiveTab('Goals & Missions')}
-                      title="Strategic Horizons"
-                    >
-                      <Icon name="target" size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="fp-goals-list">
-                  {goals.length === 0 ? (
-                    <div className="fp-empty-notice">
-                      No strategic goals established. Create one to steer your execution horizon.
-                    </div>
-                  ) : (
-                    goals.slice(0, 3).map((g) => {
-                      const goalMissions = missions.filter((m) => m.goalId === g.id)
-                      const completedCount = goalMissions.filter(
-                        (m) => m.status === 'COMPLETED',
-                      ).length
-                      const totalCount = goalMissions.length
-                      const pct =
-                        totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-
-                      return (
-                        <div key={g.id} className="fp-goal-card-item">
-                          <div className="fp-goal-item-top">
-                            <span className="fp-goal-item-title">{g.title}</span>
-                            <span className="fp-goal-item-pct">{pct}%</span>
-                          </div>
-                          <div className="fp-goal-progress-track">
-                            <div className="fp-goal-progress-bar" style={{ width: `${pct}%` }} />
-                          </div>
-                          <div className="fp-goal-item-meta">
-                            <span>
-                              {completedCount}/{totalCount} Missions
-                            </span>
-                            <span>Target: {g.targetDate || 'Open Horizon'}</span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                <div className="fp-goals-footer">
-                  <button
-                    className="fp-btn-link"
+                  {/* Task Subcard 2 */}
+                  <div
+                    className="bento-task-subcard"
                     onClick={() => setActiveTab('Goals & Missions')}
                   >
-                    <span>View All Goals & Deconstruct</span>
-                    <Icon name="arrow-up-right" size={12} />
+                    <div className="bento-task-top">
+                      <h3 className="bento-task-title">
+                        {missions[1]?.title || 'Dribble Short Kit'}
+                      </h3>
+                      <button
+                        className="bento-dots-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveTab('Goals & Missions')
+                        }}
+                      >
+                        ···
+                      </button>
+                    </div>
+                    <p className="bento-task-desc">
+                      {missions[1]?.description ||
+                        'Make A Dribble Short With Project Management Theme...'}
+                    </p>
+                    <div className="bento-task-footer">
+                      <div className="bento-task-avatars">
+                        <span className="task-av av-2">👩‍🎨</span>
+                        <span className="task-av av-1">👨‍🚀</span>
+                        <span className="task-av av-3">👩‍🔬</span>
+                        <span className="task-av av-4">🧑‍💻</span>
+                        <span className="task-av-plus">+2</span>
+                      </div>
+                      <div className="bento-task-progress-box">
+                        <div className="bento-task-progress-track">
+                          <div
+                            className="bento-task-progress-fill green-fill"
+                            style={{ width: '80%' }}
+                          />
+                        </div>
+                        <span className="bento-task-pct">80%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom banner inside Quadrant 1 */}
+                <div className="bento-bottom-pill-bar">
+                  <span className="bento-bottom-pill-text">
+                    You Have {missions.length || 5} Tasks Today . Keep It Up
+                  </span>
+                  <button
+                    className="bento-bottom-pill-action"
+                    onClick={handleEngageNextAction}
+                    title="Engage Focus on Today's Tasks"
+                  >
+                    <Icon name="check" size={13} />
                   </button>
                 </div>
               </div>
 
-              {/* Card 5 (Span 4): Operational Flight Deck */}
-              <div className="fp-card fp-flightdeck-card">
-                <div className="fp-card-header">
-                  <div className="fp-card-title-group">
-                    <h2 className="fp-card-title">Flight Deck Missions</h2>
+              {/* QUADRANT 2 (TOP-RIGHT): CALENDAR */}
+              <div className="bento-card bento-calendar-card">
+                <div className="bento-card-header">
+                  <div className="bento-header-left">
+                    <div className="bento-icon-circle">
+                      <Icon name="schedule" size={16} />
+                    </div>
+                    <h2 className="bento-card-title">Calendar</h2>
                   </div>
                   <button
-                    className="fp-btn-link-subtle"
-                    onClick={() => setActiveTab('Goals & Missions')}
+                    className="bento-pill-btn dropdown"
+                    onClick={() => setActiveTab('Schedule')}
                   >
-                    <span>View Details</span>
-                    <Icon name="arrow-up-right" size={12} />
+                    <Icon name="schedule" size={13} />
+                    <span>February</span>
+                    <Icon name="chevron" size={11} />
                   </button>
                 </div>
 
-                {/* Filter Chips */}
-                <div className="fp-filter-chips">
-                  {(['ALL', 'SPRINT', 'MILESTONES'] as const).map((chip) => (
-                    <button
-                      key={chip}
-                      className={`fp-filter-chip ${flightDeckFilter === chip ? 'active' : ''}`}
-                      onClick={() => setFlightDeckFilter(chip)}
-                    >
-                      {chip === 'ALL' ? 'All' : chip === 'SPRINT' ? 'Sprint' : 'Milestones'}
+                <div className="bento-calendar-inset">
+                  <div className="bento-cal-nav-row">
+                    <button className="bento-cal-nav-arrow" title="Previous Month">
+                      <Icon name="chevron-left" size={13} />
                     </button>
-                  ))}
+                    <span className="bento-cal-month-title">October 2026</span>
+                    <button className="bento-cal-nav-arrow" title="Next Month">
+                      <Icon name="chevron-right" size={13} />
+                    </button>
+                  </div>
+
+                  <div className="bento-cal-weekdays">
+                    <span>Mo</span>
+                    <span>Tu</span>
+                    <span>We</span>
+                    <span>Th</span>
+                    <span>Fr</span>
+                    <span>Sa</span>
+                    <span>Su</span>
+                  </div>
+
+                  <div className="bento-cal-grid">
+                    {/* Row 1 with Connected Sprint Capsule for Days 2 to 6 */}
+                    <div className="bento-cal-day">1</div>
+                    <div className="bento-cal-day in-streak streak-start">2</div>
+                    <div className="bento-cal-day in-streak">3</div>
+                    <div className="bento-cal-day in-streak">4</div>
+                    <div className="bento-cal-day in-streak">5</div>
+                    <div className="bento-cal-day in-streak streak-end">6</div>
+                    <div className="bento-cal-day">7</div>
+
+                    {/* Row 2 */}
+                    <div className="bento-cal-day">8</div>
+                    <div className="bento-cal-day">9</div>
+                    <div className="bento-cal-day">10</div>
+                    <div className="bento-cal-day">11</div>
+                    <div className="bento-cal-day">12</div>
+                    <div className="bento-cal-day">13</div>
+                    <div className="bento-cal-day">14</div>
+
+                    {/* Row 3 */}
+                    <div className="bento-cal-day">15</div>
+                    <div className="bento-cal-day">16</div>
+                    <div className="bento-cal-day">17</div>
+                    <div className="bento-cal-day">18</div>
+                    <div className="bento-cal-day">19</div>
+                    <div className="bento-cal-day">20</div>
+                    <div className="bento-cal-day">21</div>
+
+                    {/* Row 4 */}
+                    <div className="bento-cal-day">22</div>
+                    <div className="bento-cal-day">23</div>
+                    <div className="bento-cal-day">24</div>
+                    <div className="bento-cal-day">25</div>
+                    <div className="bento-cal-day">26</div>
+                    <div className="bento-cal-day">27</div>
+                    <div className="bento-cal-day">28</div>
+
+                    {/* Row 5 */}
+                    <div className="bento-cal-day muted">29</div>
+                    <div className="bento-cal-day muted">30</div>
+                    <div className="bento-cal-day muted">1</div>
+                    <div className="bento-cal-day muted">2</div>
+                    <div className="bento-cal-day muted">3</div>
+                    <div className="bento-cal-day muted">4</div>
+                    <div className="bento-cal-day muted">5</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* QUADRANT 3 (BOTTOM-LEFT): TASKS VELOCITY PILLARS */}
+              <div className="bento-card bento-tasks-pillars-card">
+                <div className="bento-card-header">
+                  <div className="bento-header-left">
+                    <div className="bento-icon-circle">
+                      <Icon name="check" size={16} />
+                    </div>
+                    <h2 className="bento-card-title">Tasks</h2>
+                  </div>
+                  <button className="bento-dots-btn" onClick={() => setActiveTab('Analytics')}>
+                    ···
+                  </button>
                 </div>
 
-                {/* Mission List */}
-                <div className="fp-flightdeck-list">
-                  {missions.length === 0 ? (
-                    <div className="fp-empty-notice">
-                      No missions initialized yet. Establish an objective in Goals & Missions.
+                <div className="bento-pillars-wrap">
+                  {/* Pillar 1: Day 12 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '170px' }}>
+                      <div className="bento-pillar-badge badge-orange top-12">+8%</div>
+                      <div className="bento-pillar-badge badge-blue bottom-12">+2%</div>
                     </div>
-                  ) : flightDeckMissions.length === 0 ? (
-                    <div className="fp-empty-notice">
-                      {flightDeckFilter === 'SPRINT'
-                        ? 'All pending sprints completed!'
-                        : 'No completed milestones yet.'}
-                    </div>
-                  ) : (
-                    flightDeckMissions.slice(0, 5).map((m) => {
-                      const isDone = m.status === 'COMPLETED'
-                      const cat = getMissionCategory(m)
+                    <span className="bento-pillar-label">12</span>
+                  </div>
 
-                      return (
-                        <div key={m.id} className={`fp-mission-row ${isDone ? 'done' : ''}`}>
-                          <div className="fp-mission-left">
-                            <div className="fp-mission-title-box">
-                              <span className={`fp-mission-name ${isDone ? 'line-through' : ''}`}>
-                                {m.title}
-                              </span>
-                              <div className="fp-mission-tags">
-                                <span className={`fp-cat-badge ${cat.toLowerCase()}`}>{cat}</span>
-                                <span className="fp-time-badge">{m.estimatedMinutes || 25}m</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="fp-mission-actions">
-                            {!isDone && (
-                              <button
-                                className="fp-action-btn play"
-                                title="Engage Focus Sprint"
-                                onClick={() => {
-                                  setSelectedDuration(m.estimatedMinutes || 25)
-                                  setSessionIntention(m.title)
-                                  handleStartSession()
-                                }}
-                              >
-                                <Icon name="play" size={11} />
-                              </button>
-                            )}
-                            <button
-                              className={`fp-action-btn check ${isDone ? 'active' : ''}`}
-                              title={isDone ? 'Completed' : 'Mark Complete (+25 XP)'}
-                              onClick={() => handleToggleMissionComplete(m.id)}
-                            >
-                              <Icon name="check" size={12} />
-                            </button>
-                            <button
-                              className="fp-action-btn delete"
-                              title="Delete Mission"
-                              onClick={() => handleDeleteMission(m.id, m.title)}
-                            >
-                              <Icon name="trash" size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
+                  {/* Pillar 2: Day 13 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '150px' }}>
+                      <div className="bento-pillar-badge badge-green mid-13">+8%</div>
+                    </div>
+                    <span className="bento-pillar-label">13</span>
+                  </div>
+
+                  {/* Pillar 3: Day 14 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '185px' }}>
+                      <div className="bento-pillar-badge badge-blue top-14">+65%</div>
+                    </div>
+                    <span className="bento-pillar-label">14</span>
+                  </div>
+
+                  {/* Pillar 4: Day 15 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '160px' }}>
+                      <div className="bento-pillar-badge badge-orange mid-15">+12%</div>
+                    </div>
+                    <span className="bento-pillar-label">15</span>
+                  </div>
+
+                  {/* Pillar 5: Day 16 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '175px' }}>
+                      <div className="bento-pillar-badge badge-green mid-16">+5%</div>
+                    </div>
+                    <span className="bento-pillar-label">16</span>
+                  </div>
+
+                  {/* Pillar 6: Day 17 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '165px' }}>
+                      <div className="bento-pillar-badge badge-orange low-17">+10%</div>
+                    </div>
+                    <span className="bento-pillar-label">17</span>
+                  </div>
+
+                  {/* Pillar 7: Day 18 */}
+                  <div className="bento-pillar-col">
+                    <div className="bento-pillar-track" style={{ height: '145px' }}>
+                      <div className="bento-pillar-badge badge-green mid-18">+6%</div>
+                    </div>
+                    <span className="bento-pillar-label">18</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* QUADRANT 4 (BOTTOM-RIGHT): TIMELINE */}
+              <div className="bento-card bento-timeline-card">
+                <div className="bento-card-header">
+                  <div className="bento-header-left">
+                    <div className="bento-icon-circle">
+                      <Icon name="clock" size={16} />
+                    </div>
+                    <h2 className="bento-card-title">Timeline</h2>
+                  </div>
+                  <button className="bento-dots-btn" onClick={() => setActiveTab('Schedule')}>
+                    ···
+                  </button>
+                </div>
+
+                <div className="bento-timeline-lanes-wrap">
+                  {/* Vertical Time Indicator Needle (pointing at 15.5) */}
+                  <div className="bento-timeline-needle">
+                    <div className="needle-head">
+                      <div className="needle-inner-dot" />
+                    </div>
+                    <div className="needle-line" />
+                  </div>
+
+                  {/* Lane 1: Interview (Orange / Soft Red Gradient) */}
+                  <div className="bento-timeline-lane">
+                    <div
+                      className="bento-tl-capsule capsule-interview"
+                      style={{ left: '0%', width: '38%' }}
+                    >
+                      <span className="capsule-text">Interview</span>
+                    </div>
+                  </div>
+
+                  {/* Lane 2: Wireframe (Green Gradient) */}
+                  <div className="bento-timeline-lane">
+                    <div
+                      className="bento-tl-capsule capsule-wireframe"
+                      style={{ left: '16%', width: '58%' }}
+                    >
+                      <span className="capsule-text">Wireframe</span>
+                    </div>
+                  </div>
+
+                  {/* Lane 3: Ideas (Blue Gradient) */}
+                  <div className="bento-timeline-lane">
+                    <div
+                      className="bento-tl-capsule capsule-ideas"
+                      style={{ left: '32%', width: '22%' }}
+                    >
+                      <span className="capsule-text">Ideas</span>
+                    </div>
+                  </div>
+
+                  {/* Lane 4: Evaluate (Dark Slate Translucent) */}
+                  <div className="bento-timeline-lane">
+                    <div
+                      className="bento-tl-capsule capsule-evaluate"
+                      style={{ left: '0%', width: '68%' }}
+                    >
+                      <span className="capsule-text">Evaluate</span>
+                    </div>
+                  </div>
+
+                  {/* Timeline X-Axis Hour Labels */}
+                  <div className="bento-timeline-x-axis">
+                    <span>12</span>
+                    <span>13</span>
+                    <span>14</span>
+                    <span>15</span>
+                    <span>16</span>
+                    <span>17</span>
+                    <span>18</span>
+                  </div>
                 </div>
               </div>
             </div>
