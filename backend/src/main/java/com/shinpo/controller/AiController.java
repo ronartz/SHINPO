@@ -22,7 +22,15 @@ public class AiController {
             @RequestBody AiChatRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(aiService.processChat(request));
+        Long userId = principal != null ? principal.getUserId() : (request != null ? request.userId() : null);
+        AiChatRequest boundRequest = new AiChatRequest(
+                userId,
+                request != null ? request.message() : "",
+                request != null ? request.contextualGoalId() : null,
+                request != null ? request.contextualMissionId() : null,
+                request != null ? request.contextualSessionId() : null
+        );
+        return ResponseEntity.ok(aiService.processChat(boundRequest));
     }
 
     @PostMapping("/decompose-goal/{goalId}")

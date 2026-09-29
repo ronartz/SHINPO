@@ -37,30 +37,35 @@ html[data-theme='dark'],
   --text-2: #94A3B8;
   --text-3: #64748B;
 
-  /* Vibrant Colorful Accents (Task Master & Donezo) */
+  /* Vibrant Colorful Accents (Task Master & Donezo - Soft Gradient Red Signature) */
+  --accent-soft-red: #FF4D4D;
+  --accent-soft-red-subtle: rgba(255, 77, 77, 0.12);
+  --accent-soft-red-border: rgba(255, 77, 77, 0.35);
+  --accent-red-gradient: linear-gradient(135deg, #FF4D4D 0%, #DC2626 100%);
   --accent-lime: #22C55E;
   --accent-lime-gradient: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
-  --accent-orange: #FF6B00;
-  --accent-orange-gradient: linear-gradient(135deg, #FF6B00 0%, #FA541C 100%);
+  --accent-orange: #FF7A1A;
+  --accent-orange-gradient: linear-gradient(135deg, #FF7A1A 0%, #E65100 100%);
   --accent-blue: #3B82F6;
   --accent-blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   --accent-cyan: #00D2FF;
   --accent-amber: #F59E0B;
-  --accent-red: #EF4444;
+  --accent-red: #FF4D4D;
 
-  /* Aliased Core Tokens */
-  --brand-red: #FF6B00;
-  --brand-red-deep: #FA541C;
-  --accent-coral: #FF6B00;
-  --hero-terracotta: #FF6B00;
-  --hero-terracotta-dark: #FA541C;
+  /* Aliased Core Tokens - Soft Gradient Red Constitution */
+  --brand-red: #FF4D4D;
+  --brand-red-deep: #DC2626;
+  --accent-coral: #FF5252;
+  --hero-terracotta: #FF4D4D;
+  --hero-terracotta-dark: #DC2626;
   --accent-green: #22C55E;
-  --accent-purple: #22C55E;
+  --accent-purple: #22C55E; /* ZERO PURPLE - aliased to clean emerald */
   --accent-purple-deep: #16A34A;
-  --accent-gradient: linear-gradient(135deg, #FF6B00 0%, #FA541C 100%);
+  --accent-gradient: linear-gradient(135deg, #FF4D4D 0%, #DC2626 100%);
+  --shinpo-gradient: linear-gradient(135deg, #3B82F6 0%, #FF4D4D 100%);
   --blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
 
-  --sidebar-w: 250px;
+  --sidebar-w: 275px;
   --sidebar-w-collapsed: 72px;
   --radius-lg: 22px;
   --radius-md: 16px;
@@ -117,6 +122,10 @@ html[data-theme='light'],
   --text-3: #9CA3AF;
 
   /* Vibrant Colorful Accents */
+  --accent-soft-red: #E11D48;
+  --accent-soft-red-subtle: rgba(225, 29, 72, 0.08);
+  --accent-soft-red-border: rgba(225, 29, 72, 0.25);
+  --accent-red-gradient: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%);
   --accent-lime: #16A34A;
   --accent-lime-gradient: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
   --accent-orange: #EA580C;
@@ -125,18 +134,19 @@ html[data-theme='light'],
   --accent-blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
   --accent-cyan: #0284C7;
   --accent-amber: #D97706;
-  --accent-red: #DC2626;
+  --accent-red: #E11D48;
 
   /* Aliased Core Tokens */
-  --brand-red: #EA580C;
-  --brand-red-deep: #C2410C;
-  --accent-coral: #EA580C;
-  --hero-terracotta: #EA580C;
-  --hero-terracotta-dark: #C2410C;
+  --brand-red: #E11D48;
+  --brand-red-deep: #BE123C;
+  --accent-coral: #F43F5E;
+  --hero-terracotta: #E11D48;
+  --hero-terracotta-dark: #BE123C;
   --accent-green: #16A34A;
-  --accent-purple: #16A34A;
+  --accent-purple: #16A34A; /* ZERO PURPLE */
   --accent-purple-deep: #15803D;
-  --accent-gradient: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
+  --accent-gradient: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%);
+  --shinpo-gradient: linear-gradient(135deg, #2563EB 0%, #E11D48 100%);
   --blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
 
   --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -177,7 +187,11 @@ html[data-theme='light'],
   min-height: 100vh;
   position: relative;
   z-index: 2;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 90% 8%, rgba(255, 77, 77, 0.055) 0%, transparent 42%),
+    radial-gradient(circle at 8% 88%, rgba(59, 130, 246, 0.035) 0%, transparent 40%);
+  background-attachment: fixed;
   color: var(--text);
   transition: background 0.25s ease, color 0.25s ease;
 }
@@ -199,6 +213,9 @@ html[data-theme='light'],
   z-index: 100;
   transition: width 0.26s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
   overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 .icon-sidebar.expanded {
@@ -348,13 +365,12 @@ html[data-theme='light'],
   user-select: none;
 }
 
-/* Sidebar navigation stack */
 .sidebar-nav-stack {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .sidebar-btn {
@@ -386,36 +402,36 @@ html[data-theme='light'],
   color: var(--text);
 }
 
-/* Task Master Sleek Emerald/Dark Pill for active navigation */
+/* Soft Gradient Red Signature Pill for active navigation */
 .sidebar-btn.active {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0.08) 100%) !important;
-  color: var(--accent-lime) !important;
-  border-color: rgba(34, 197, 94, 0.35) !important;
-  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.18);
+  background: linear-gradient(135deg, rgba(255, 77, 77, 0.16) 0%, rgba(220, 38, 38, 0.08) 100%) !important;
+  color: var(--brand-red) !important;
+  border-color: rgba(255, 77, 77, 0.38) !important;
+  box-shadow: 0 4px 18px rgba(255, 77, 77, 0.22);
 }
 
 .sidebar-btn.active svg {
-  stroke: var(--accent-lime) !important;
+  stroke: var(--brand-red) !important;
 }
 
 .theme-light .sidebar-btn.active,
 html[data-theme='light'] .sidebar-btn.active {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0.06) 100%) !important;
-  color: #15803D !important;
-  border-color: rgba(22, 163, 74, 0.3) !important;
-  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.12);
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0%, rgba(225, 29, 72, 0.06) 100%) !important;
+  color: #E11D48 !important;
+  border-color: rgba(225, 29, 72, 0.32) !important;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.12);
 }
 
 .theme-light .sidebar-btn.active svg,
 html[data-theme='light'] .sidebar-btn.active svg {
-  stroke: #15803D !important;
+  stroke: #E11D48 !important;
 }
 
 .sidebar-active-arrow {
   margin-left: auto;
   font-size: 13px;
   font-weight: 800;
-  color: var(--accent-lime);
+  color: var(--brand-red);
 }
 
 .sidebar-nav-badge {
@@ -925,121 +941,1021 @@ html[data-theme='dark'] .sidebar-shield-card {
 /* ==========================================================================
    TASK MASTER HERO SALUTATION BANNER (Glassmorphic + Opaque Accent)
    ========================================================================== */
-.taskmaster-hero-banner {
+/* ==========================================================================
+   TASK MASTER SIDEBAR COMPONENTS (Hero Greeting, Shifted Quote, Avatars, Companion)
+   ========================================================================== */
+
+/* 1. Hero Greeting */
+.sidebar-hero-greeting {
+  padding: 6px 4px 14px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--glass-surface);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: 22px;
-  padding: 22px 28px;
-  box-shadow: var(--shadow-glass);
-  position: relative;
-  overflow: hidden;
-  gap: 16px;
+  flex-direction: column;
+  gap: 2px;
+  user-select: none;
+  flex-shrink: 0;
 }
 
-.taskmaster-hero-banner::after {
+.sidebar-hero-line {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  color: #F8FAFC;
+}
+
+.sidebar-hero-line.highlight {
+  background: linear-gradient(135deg, #FF5252 0%, #DC2626 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #FF5252;
+}
+
+/* 2. Shifted Motivational Stoic Quote in Sidebar Blank Space */
+.sidebar-quote-card {
+  background: rgba(22, 27, 36, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin: 12px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-quote-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.4), transparent);
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #FF5252, #DC2626);
 }
 
-.taskmaster-hero-left {
+.sidebar-quote-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-quote-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #FF5252;
+  background: rgba(255, 82, 82, 0.12);
+  padding: 3px 8px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 82, 82, 0.25);
+}
+
+.sidebar-quote-refresh-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-quote-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #F8FAFC;
+}
+
+.sidebar-quote-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #E2E8F0;
+  font-style: italic;
+}
+
+.sidebar-quote-author {
+  font-size: 11px;
+  color: #94A3B8;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* 3. Team Avatar Cluster Row from Reference */
+.sidebar-avatars-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.cluster-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #10141D;
+  background: #1C2330;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-right: -8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  transition: transform 0.2s;
+}
+
+.cluster-avatar:hover {
+  transform: translateY(-2px) scale(1.08);
+  z-index: 5;
+}
+
+.cluster-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  background: #1E2738;
+  color: #F1F5F9;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 4. Eonpai Tactical Companion Card */
+.sidebar-eonpai-companion {
+  background: rgba(22, 27, 36, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  margin-top: 10px;
+  flex-shrink: 0;
 }
 
-.taskmaster-hero-title {
-  font-size: 26px;
+.eonpai-comp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eonpai-comp-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #F8FAFC;
+  letter-spacing: -0.2px;
+}
+
+.eonpai-speech-bubble {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.eonpai-speech-bubble.bubble-short {
+  max-width: 65%;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.eonpai-speech-bubble.bubble-wide {
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.35;
+}
+
+.bubble-time {
+  font-size: 10px;
+  color: #64748B;
+  font-weight: 500;
+  align-self: flex-end;
+}
+
+.eonpai-comp-action-btn {
+  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 100px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.3);
+  text-align: center;
+}
+
+.eonpai-comp-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(34, 197, 94, 0.4);
+}
+
+.eonpai-comp-action-btn.active {
+  background: linear-gradient(135deg, #FF5252 0%, #DC2626 100%);
+  box-shadow: 0 6px 18px rgba(255, 82, 82, 0.35);
+}
+
+/* ==========================================================================
+   TOP BAR (Task Master Style)
+   ========================================================================== */
+.top-brand-title {
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  color: var(--text);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.highlight-productive {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 14px;
-  background: rgba(34, 197, 94, 0.16);
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  border-radius: 9999px;
-  color: #22C55E;
-  font-weight: 900;
-  text-shadow: 0 0 16px rgba(34, 197, 94, 0.4);
-}
-
-.theme-light .highlight-productive,
-html[data-theme='light'] .highlight-productive {
-  background: rgba(22, 163, 74, 0.12);
-  border-color: rgba(22, 163, 74, 0.3);
-  color: #15803D;
-  text-shadow: none;
-}
-
-.taskmaster-hero-sub {
-  font-size: 13.5px;
-  color: var(--text-2);
+  color: #F8FAFC;
   margin: 0;
 }
 
-.taskmaster-hero-pills {
+.top-search-filter-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #94A3B8;
+  border-radius: 8px;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.top-search-filter-btn:hover {
+  color: #FF5252;
+  background: rgba(255, 82, 82, 0.15);
+}
+
+.profile-badge-card {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  padding: 4px 14px 4px 4px;
+  background: rgba(22, 27, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.taskmaster-status-pill {
-  display: inline-flex;
+.profile-badge-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(30, 37, 49, 0.9);
+}
+
+.profile-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF5252 0%, #DC2626 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.profile-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-username {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #F8FAFC;
+  line-height: 1.2;
+}
+
+.profile-role {
+  font-size: 10.5px;
+  color: #94A3B8;
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   TASK MASTER 2x2 BENTO DASHBOARD
+   ========================================================================== */
+.taskmaster-bento-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Active Session Sentinel Banner */
+.taskmaster-active-session-banner {
+  background: rgba(22, 27, 36, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 82, 82, 0.35);
+  border-radius: 20px;
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(255, 82, 82, 0.12);
+}
+
+.session-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-banner-title {
+  font-size: 14px;
+  color: #F8FAFC;
+}
+
+.session-banner-target {
+  font-size: 12px;
+  color: #94A3B8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.session-banner-center {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.session-banner-digits {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: #FF5252;
+}
+
+.session-banner-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.session-banner-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FF5252, #DC2626);
+  border-radius: 100px;
+  transition: width 0.3s ease;
+}
+
+.session-banner-actions {
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 9999px;
-  font-size: 11.5px;
+}
+
+.session-banner-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 100px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.4px;
-  background: var(--opaque-card);
-  border: var(--opaque-border);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.taskmaster-status-pill.emerald {
-  color: var(--accent-lime);
-  border-color: rgba(34, 197, 94, 0.35);
+.session-banner-btn.primary {
+  background: linear-gradient(135deg, #FF5252 0%, #DC2626 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.3);
 }
 
-.taskmaster-status-pill.orange {
-  color: var(--accent-orange);
-  border-color: rgba(255, 107, 0, 0.35);
+.session-banner-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #F8FAFC;
 }
 
-.taskmaster-pill-dot {
-  width: 8px;
-  height: 8px;
+/* 2x2 Bento Grid */
+.bento-2x2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .bento-2x2-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bento-card {
+  background: rgba(18, 23, 31, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 26px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  min-height: 380px;
+}
+
+.bento-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.bento-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bento-icon-circle {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F8FAFC;
 }
 
-.taskmaster-pill-dot.emerald {
+.bento-card-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #F8FAFC;
+  margin: 0;
+}
+
+.bento-pill-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 100px;
+  padding: 6px 14px;
+  color: #E2E8F0;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.bento-dots-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #94A3B8;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.bento-dots-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #F8FAFC;
+}
+
+/* Quadrant 1: Today tasks */
+.bento-subcards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.bento-task-subcard {
+  background: rgba(26, 32, 43, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+}
+
+.bento-task-subcard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.bento-task-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bento-task-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #F8FAFC;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.bento-task-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #94A3B8;
+  margin: 0;
+  min-height: 34px;
+}
+
+.bento-task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bento-task-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.task-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #1A202B;
+  background: #242E3E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-right: -6px;
+}
+
+.task-av-plus {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #1A202B;
+  background: #2A3649;
+  color: #F1F5F9;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+.bento-task-progress-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 100px;
+}
+
+.bento-task-progress-track {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.bento-task-progress-fill.red-fill {
+  background: linear-gradient(90deg, #FF7A1A, #FF5252);
+  height: 100%;
+  border-radius: 100px;
+}
+
+.bento-task-progress-fill.green-fill {
+  background: linear-gradient(90deg, #22C55E, #16A34A);
+  height: 100%;
+  border-radius: 100px;
+}
+
+.bento-task-pct {
+  font-size: 11px;
+  font-weight: 800;
+  color: #94A3B8;
+}
+
+.bento-bottom-pill-bar {
+  background: rgba(26, 32, 43, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.bento-bottom-pill-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #E2E8F0;
+  letter-spacing: -0.2px;
+}
+
+.bento-bottom-pill-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0F172A;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.bento-bottom-pill-action:hover {
+  transform: scale(1.1);
+  background: #FF5252;
+  color: #ffffff;
+}
+
+/* Quadrant 2: Calendar Inset */
+.bento-calendar-inset {
+  background: rgba(24, 30, 41, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bento-cal-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bento-cal-nav-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2563EB;
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.bento-cal-nav-arrow:hover {
+  opacity: 0.85;
+}
+
+.bento-cal-month-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #F8FAFC;
+}
+
+.bento-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+.bento-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  gap: 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #F1F5F9;
+}
+
+.bento-cal-day {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.bento-cal-day.muted {
+  color: #475569;
+}
+
+/* Connected Sprint Capsule for Days 2 to 6 (from image) */
+.bento-cal-day.in-streak {
+  background: rgba(34, 197, 94, 0.25);
+  color: #22C55E;
+  font-weight: 700;
+}
+
+.bento-cal-day.streak-start {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
   background: #22C55E;
-  box-shadow: 0 0 8px #22C55E;
+  color: #ffffff;
 }
 
-.taskmaster-pill-dot.orange {
-  background: #FF6B00;
-  box-shadow: 0 0 8px #FF6B00;
+.bento-cal-day.streak-end {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+  background: #22C55E;
+  color: #ffffff;
+}
+
+/* Quadrant 3: Tasks Velocity Pillars */
+.bento-pillars-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 230px;
+  padding: 10px 10px 0;
+}
+
+.bento-pillar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.bento-pillar-track {
+  width: 40px;
+  background: rgba(28, 35, 47, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 100px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-pillar-track:hover {
+  transform: scaleY(1.03);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.bento-pillar-badge {
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 6px;
+  position: absolute;
+  z-index: 2;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.bento-pillar-badge.badge-orange {
+  background: linear-gradient(135deg, #FF7A1A, #E65100);
+  color: #ffffff;
+}
+
+.bento-pillar-badge.badge-blue {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  color: #ffffff;
+}
+
+.bento-pillar-badge.badge-green {
+  background: linear-gradient(135deg, #22C55E, #16A34A);
+  color: #ffffff;
+}
+
+/* Badge vertical positions on the pillars matching image */
+.top-12 { top: 16px; }
+.bottom-12 { bottom: 16px; }
+.mid-13 { bottom: 28px; }
+.top-14 { top: 22px; }
+.mid-15 { bottom: 42px; }
+.mid-16 { top: 38px; }
+.low-17 { bottom: 22px; }
+.mid-18 { bottom: 32px; }
+
+.bento-pillar-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94A3B8;
+}
+
+/* Quadrant 4: Timeline */
+.bento-timeline-lanes-wrap {
+  position: relative;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.bento-timeline-lane {
+  height: 40px;
+  position: relative;
+  width: 100%;
+}
+
+.bento-tl-capsule {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  padding-left: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.capsule-interview {
+  background: linear-gradient(90deg, #FF7A1A, #FF5252);
+  color: #ffffff;
+}
+
+.capsule-wireframe {
+  background: linear-gradient(90deg, #22C55E, #16A34A);
+  color: #ffffff;
+}
+
+.capsule-ideas {
+  background: linear-gradient(90deg, #3B82F6, #2563EB);
+  color: #ffffff;
+}
+
+.capsule-evaluate {
+  background: rgba(28, 35, 47, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #E2E8F0;
+}
+
+/* Vertical Time Indicator Needle */
+.bento-timeline-needle {
+  position: absolute;
+  top: 0;
+  bottom: 30px;
+  left: 56%;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.needle-head {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FF5252;
+  box-shadow: 0 0 14px #FF5252;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.needle-inner-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.needle-line {
+  width: 2px;
+  flex: 1;
+  background: #FF5252;
+  opacity: 0.85;
+}
+
+.bento-timeline-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 10px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #94A3B8;
+}
+
+/* Light Mode Adaptations for Task Master Elements */
+.theme-light .top-brand-title,
+html[data-theme='light'] .top-brand-title {
+  color: #0F172A;
+}
+
+.theme-light .sidebar-hero-line:not(.highlight),
+html[data-theme='light'] .sidebar-hero-line:not(.highlight) {
+  color: #0F172A;
+}
+
+.theme-light .bento-card,
+html[data-theme='light'] .bento-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.theme-light .bento-card-title,
+html[data-theme='light'] .bento-card-title {
+  color: #0F172A;
+}
+
+.theme-light .bento-icon-circle,
+html[data-theme='light'] .bento-icon-circle {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #0F172A;
+}
+
+.theme-light .bento-pill-btn,
+html[data-theme='light'] .bento-pill-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1E293B;
+}
+
+.theme-light .bento-pill-btn:hover,
+html[data-theme='light'] .bento-pill-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0F172A;
+}
+
+.theme-light .bento-dots-btn,
+html[data-theme='light'] .bento-dots-btn {
+  background: rgba(0, 0, 0, 0.05);
+  color: #64748B;
+}
+
+.theme-light .bento-pillar-label,
+html[data-theme='light'] .bento-pillar-label,
+.theme-light .bento-timeline-x-axis,
+html[data-theme='light'] .bento-timeline-x-axis {
+  color: #64748B;
+}
+
+.theme-light .profile-badge-card,
+html[data-theme='light'] .profile-badge-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .profile-username,
+html[data-theme='light'] .profile-username {
+  color: #0F172A;
 }
 
 /* Translucent Glassmorphic Card Base */
@@ -5086,17 +6002,17 @@ html[data-theme='light'] .category-badge.core,
 .analytics-view,
 .schedule-view-container,
 .fitpulse-dashboard {
-  animation: tabSwitchEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: tabSwitchEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes tabSwitchEnter {
   0% {
-    opacity: 0.85;
-    transform: translateY(8px) scale(0.99);
+    opacity: 0.88;
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
