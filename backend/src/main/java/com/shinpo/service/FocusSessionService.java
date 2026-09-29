@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -142,6 +144,36 @@ public class FocusSessionService {
         return sessions.stream()
                 .map(FocusSessionResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public List<FocusSessionResponse> getSessionsByDate(Long userId, LocalDate date) {
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User not found: " + userId);
+        }
+        Instant start = date.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
+        Instant now = Instant.now();
+        for (FocusSession session : sessions) {
+            checkAndApplyExpiration(session, now);
+        }
+        return sessions.stream().map(FocusSessionResponse::from).toList();
+    }
+
+    @Transactional
+    public List<FocusSessionResponse> getSessionsForAgenda(Long userId, LocalDate startDate, LocalDate endDate) {
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User not found: " + userId);
+        }
+        Instant start = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
+        Instant now = Instant.now();
+        for (FocusSession session : sessions) {
+            checkAndApplyExpiration(session, now);
+        }
+        return sessions.stream().map(FocusSessionResponse::from).toList();
     }
 
     @Transactional

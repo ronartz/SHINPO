@@ -101,6 +101,26 @@ export async function getFocusSessions(
   return parseResponse<FocusSession[]>(response)
 }
 
+export async function getFocusSessionsByDate(date: string): Promise<FocusSession[]> {
+  const response = await fetch(`${API_BASE}/by-date?date=${encodeURIComponent(date)}`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<FocusSession[]>(response)
+}
+
+export async function getFocusSessionsAgenda(
+  startDate: string,
+  endDate: string,
+): Promise<FocusSession[]> {
+  const response = await fetch(
+    `${API_BASE}/agenda?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+    {
+      headers: authHeaders(),
+    },
+  )
+  return parseResponse<FocusSession[]>(response)
+}
+
 export async function getFocusSession(
   id: number,
   _userId?: number,

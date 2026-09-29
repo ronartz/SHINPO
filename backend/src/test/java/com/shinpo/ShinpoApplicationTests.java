@@ -692,6 +692,24 @@ class ShinpoApplicationTests {
         assertTrue(goalRepository.existsById(otherGoal.getId()));
     }
 
+    @Test
+    void shouldQueryFocusSessionsByDateAndAgenda() {
+        LocalDate today = LocalDate.now();
+        ResponseEntity<FocusSessionResponse[]> byDateResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/focus-sessions/by-date?date=" + today,
+                FocusSessionResponse[].class
+        );
+        assertEquals(200, byDateResponse.getStatusCode().value());
+        assertNotNull(byDateResponse.getBody());
+
+        ResponseEntity<FocusSessionResponse[]> agendaResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/focus-sessions/agenda?startDate=" + today + "&endDate=" + today.plusDays(7),
+                FocusSessionResponse[].class
+        );
+        assertEquals(200, agendaResponse.getStatusCode().value());
+        assertNotNull(agendaResponse.getBody());
+    }
+
     private Long createFocusSessionId() {
         ResponseEntity<FocusSessionResponse> response = createFocusSession();
         assertEquals(201, response.getStatusCode().value());
