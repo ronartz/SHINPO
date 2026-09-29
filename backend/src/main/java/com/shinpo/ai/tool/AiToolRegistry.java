@@ -168,6 +168,74 @@ public class AiToolRegistry {
         return map;
     }
 
+    public List<Map<String, Object>> getTodaysMissions(Long userId) {
+        List<Mission> missions = missionRepository.findAllByGoal_User_IdOrderByCreatedAtDesc(userId);
+        return missions.stream().map(m -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", m.getId());
+            map.put("title", m.getTitle());
+            map.put("description", m.getDescription());
+            map.put("status", m.getStatus());
+            map.put("estimatedMinutes", m.getEstimatedMinutes());
+            map.put("goalTitle", m.getGoal() != null ? m.getGoal().getTitle() : null);
+            return map;
+        }).toList();
+    }
+
+    public List<Map<String, Object>> getRecentSessionEvents(Long userId) {
+        List<FocusSession> sessions = focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
+        return sessions.stream().limit(5).map(s -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", s.getId());
+            map.put("name", s.getName());
+            map.put("status", s.getStatus().name());
+            map.put("durationMinutes", s.getDurationMinutes());
+            map.put("startedAt", s.getStartedAt() != null ? s.getStartedAt().toString() : null);
+            map.put("endedAt", s.getEndedAt() != null ? s.getEndedAt().toString() : null);
+            map.put("completionQuality", s.getCompletionQuality());
+            return map;
+        }).toList();
+    }
+
+    public Map<String, Object> getEnforcementExplanation(Long userId, String query) {
+        Map<String, Object> activeSession = getActiveFocusSession(userId);
+        boolean hasActive = Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("id");
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        if (hasActive) {
+            result.put("activeBlockPresent", true);
+            result.put("sessionName", activeSession.get("name"));
+            result.put("remainingSeconds", activeSession.get("remainingSeconds"));
+            result.put("reason", "A focus session is actively running ('" + activeSession.get("name") + "'). Distraction processes and sites are blocked by Sentinel to preserve deep work.");
+        } else {
+            result.put("activeBlockPresent", false);
+            List<Map<String, Object>> recent = getRecentSessionEvents(userId);
+            if (!recent.isEmpty()) {
+                Map<String, Object> last = recent.get(0);
+                result.put("lastSessionStatus", last.get("status"));
+                result.put("lastSessionName", last.get("name"));
+                result.put("reason", "No focus session is currently active. The most recent session '" + last.get("name") + "' ended with status " + last.get("status") + ".");
+            } else {
+                result.put("reason", "No focus session is currently active, and no Sentinel block is engaged. SHINPO did not terminate or block this process.");
+            }
+        }
+        return result;
+    }
+
+    public Map<String, Object> getSanitizedDiagnostics(Long userId, String feature) {
+        Map<String, Object> diag = new LinkedHashMap<>();
+        diag.put("appVersion", "SHINPO v1.0.0-PROD");
+        diag.put("feature", feature != null && !feature.isBlank() ? feature : "GENERAL");
+        diag.put("os", System.getProperty("os.name") + " " + System.getProperty("os.version") + " (" + System.getProperty("os.arch") + ")");
+        diag.put("javaVersion", System.getProperty("java.version"));
+        diag.put("availableProcessors", Runtime.getRuntime().availableProcessors());
+        diag.put("maxMemoryMB", Runtime.getRuntime().maxMemory() / (1024 * 1024));
+        diag.put("freeMemoryMB", Runtime.getRuntime().freeMemory() / (1024 * 1024));
+        diag.put("activeFocusSession", getActiveFocusSession(userId));
+        diag.put("timestamp", Instant.now().toString());
+        return diag;
+    }
+
     public Map<String, Object> assembleFullContext(Long userId, Long contextualGoalId, Long contextualMissionId, Long contextualSessionId) {
         Map<String, Object> ctx = new LinkedHashMap<>();
         ctx.put("user", getCurrentUser(userId));

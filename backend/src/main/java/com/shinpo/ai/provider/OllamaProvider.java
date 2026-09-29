@@ -53,7 +53,7 @@ public class OllamaProvider implements AIProvider {
     public AiProviderResponse generate(AiProviderRequest request) {
         long start = System.currentTimeMillis();
         String baseUrl = aiProperties.getOllama().getBaseUrl();
-        String model = aiProperties.getOllama().getModel();
+        String model = resolveEffectiveModel(baseUrl, aiProperties.getOllama().getModel());
 
         try {
             String endpoint = baseUrl.replaceAll("/+$", "") + "/api/generate";
@@ -125,6 +125,47 @@ public class OllamaProvider implements AIProvider {
     @Override
     public String getProviderName() {
         return "ollama";
+    }
+
+    private String resolveEffectiveModel(String baseUrl, String requestedModel) {
+        if (requestedModel == null || requestedModel.isBlank()) {
+            return "qwen2.5:0.5b";
+        }
+        try {
+            String healthUrl = baseUrl.replaceAll("/+$", "") + "/api/tags";
+            ResponseEntity<String> response = healthRestTemplate.getForEntity(healthUrl, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode modelsNode = root.get("models");
+                if (modelsNode != null && modelsNode.isArray()) {
+                    boolean foundRequested = false;
+                    String firstAvailable = null;
+                    for (JsonNode modelNode : modelsNode) {
+                        JsonNode nameNode = modelNode.get("name");
+                        if (nameNode != null) {
+                            String name = nameNode.asString();
+                            if (firstAvailable == null) {
+                                firstAvailable = name;
+                            }
+                            if (name.equalsIgnoreCase(requestedModel) || name.startsWith(requestedModel + ":") || requestedModel.startsWith(name)) {
+                                foundRequested = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (foundRequested) {
+                        return requestedModel;
+                    }
+                    if (firstAvailable != null) {
+                        log.info("Requested AI model '{}' not yet available in Ollama. Using fallback available model '{}'", requestedModel, firstAvailable);
+                        return firstAvailable;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not query Ollama tags at {}: {}", baseUrl, e.getMessage());
+        }
+        return requestedModel;
     }
 
     @Override

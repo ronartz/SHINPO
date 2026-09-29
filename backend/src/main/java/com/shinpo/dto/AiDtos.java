@@ -1,5 +1,6 @@
 package com.shinpo.dto;
 
+import java.time.Instant;
 import java.util.List;
 
 public class AiDtos {
@@ -9,8 +10,13 @@ public class AiDtos {
             String message,
             Long contextualGoalId,
             Long contextualMissionId,
-            Long contextualSessionId
-    ) {}
+            Long contextualSessionId,
+            String conversationId
+    ) {
+        public AiChatRequest(Long userId, String message, Long contextualGoalId, Long contextualMissionId, Long contextualSessionId) {
+            this(userId, message, contextualGoalId, contextualMissionId, contextualSessionId, null);
+        }
+    }
 
     public record ProposedMission(
             String title,
@@ -64,9 +70,71 @@ public class AiDtos {
             List<RecoveryOption> recoveryOptions
     ) {}
 
+    public record TutorialStep(
+            String tutorialId,
+            int stepId,
+            String targetTab,
+            String instruction,
+            String completionCondition
+    ) {}
+
+    public record BugReportInfo(
+            String bugId,
+            String summary,
+            String feature,
+            String status,
+            String diagnostics
+    ) {}
+
+    public record ConversationMessageDto(
+            Long id,
+            String role,
+            String content,
+            String suggestionType,
+            Object structuredCard,
+            TutorialStep tutorial,
+            BugReportInfo bugReport,
+            Instant createdAt
+    ) {}
+
+    public record ConversationDto(
+            String conversationId,
+            String title,
+            String status,
+            List<ConversationMessageDto> messages,
+            Instant updatedAt
+    ) {}
+
     public record AiChatResponse(
             String reply,
             String suggestionType,
-            Object structuredCard
-    ) {}
+            Object structuredCard,
+            TutorialStep tutorial,
+            BugReportInfo bugReport,
+            String conversationId
+    ) {
+        public AiChatResponse(String reply, String suggestionType, Object structuredCard, TutorialStep tutorial, BugReportInfo bugReport) {
+            this(reply, suggestionType, structuredCard, tutorial, bugReport, null);
+        }
+
+        public AiChatResponse(String reply, String suggestionType, Object structuredCard) {
+            this(reply, suggestionType, structuredCard, null, null, null);
+        }
+
+        public static AiChatResponse conversational(String reply, String suggestionType) {
+            return new AiChatResponse(reply, suggestionType, null, null, null, null);
+        }
+
+        public static AiChatResponse withTutorial(String reply, TutorialStep tutorial) {
+            return new AiChatResponse(reply, "TUTORIAL", null, tutorial, null, null);
+        }
+
+        public static AiChatResponse withBugReport(String reply, BugReportInfo bugReport) {
+            return new AiChatResponse(reply, "BUG_REPORT", null, null, bugReport, null);
+        }
+
+        public AiChatResponse withConversationId(String conversationId) {
+            return new AiChatResponse(reply, suggestionType, structuredCard, tutorial, bugReport, conversationId);
+        }
+    }
 }

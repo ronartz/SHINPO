@@ -17,33 +17,17 @@ const REFRESH_KEY = 'shinpo_refresh_token'
 const USER_KEY = 'shinpo_auth_user'
 
 export function getAuthToken(): string | null {
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search)
-    const queryToken = params.get('token')
-    if (queryToken) {
-      localStorage.setItem(TOKEN_KEY, queryToken)
-      return queryToken
-    }
-  }
+  if (typeof window === 'undefined') return null
   return localStorage.getItem(TOKEN_KEY)
 }
 
 export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null
   return localStorage.getItem(REFRESH_KEY)
 }
 
 export function getStoredUser(): AuthUser | null {
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search)
-    const queryUser = params.get('user')
-    if (queryUser) {
-      try {
-        const u = JSON.parse(decodeURIComponent(queryUser))
-        localStorage.setItem(USER_KEY, JSON.stringify(u))
-        return u
-      } catch {}
-    }
-  }
+  if (typeof window === 'undefined') return null
   const userJson = localStorage.getItem(USER_KEY)
   if (!userJson) return null
   try {
@@ -91,7 +75,9 @@ export async function login(usernameOrEmail: string, password: string): Promise<
     try {
       const data = await res.json()
       if (data.message) errorMsg = data.message
-    } catch {}
+    } catch {
+      // ignore parse error, fallback to status
+    }
     throw new Error(errorMsg)
   }
 
@@ -112,7 +98,9 @@ export async function register(username: string, email: string, password: string
     try {
       const data = await res.json()
       if (data.message) errorMsg = data.message
-    } catch {}
+    } catch {
+      // ignore parse error, fallback to status
+    }
     throw new Error(errorMsg)
   }
 
@@ -152,7 +140,9 @@ export async function logout(): Promise<void> {
         headers: authHeaders(),
         body: JSON.stringify({ refreshToken }),
       })
-    } catch {}
+    } catch {
+      // ignore logout network failure on teardown
+    }
   }
   clearAuthSession()
 }

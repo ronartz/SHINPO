@@ -50,10 +50,48 @@ export type SessionRecovery = {
   recoveryOptions: RecoveryOption[]
 }
 
+export type TutorialStep = {
+  tutorialId: string
+  stepId: number
+  targetTab: string
+  instruction: string
+  completionCondition: string
+}
+
+export type BugReportInfo = {
+  bugId: string
+  summary: string
+  feature: string
+  status: string
+  diagnostics: string
+}
+
+export type ConversationMessage = {
+  id?: number
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM'
+  content: string
+  suggestionType?: string
+  structuredCard?: any
+  tutorial?: TutorialStep | null
+  bugReport?: BugReportInfo | null
+  createdAt?: string
+}
+
+export type Conversation = {
+  conversationId: string
+  title: string
+  status: string
+  messages: ConversationMessage[]
+  updatedAt: string
+}
+
 export type AiChatResponse = {
   reply: string
   suggestionType: string
   structuredCard: any
+  tutorial?: TutorialStep | null
+  bugReport?: BugReportInfo | null
+  conversationId?: string
 }
 
 import { authHeaders } from './auth'
@@ -66,10 +104,27 @@ async function parseResponse<T>(res: Response): Promise<T> {
     try {
       const body = await res.json()
       if (body.message) msg = body.message
-    } catch {}
+    } catch {
+      // ignore json parse error, fallback to status
+    }
     throw new Error(msg)
   }
   return res.json() as Promise<T>
+}
+
+export async function getActiveConversation(): Promise<Conversation> {
+  const res = await fetch(`${API_BASE}/conversation/active`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<Conversation>(res)
+}
+
+export async function clearActiveConversation(): Promise<Conversation> {
+  const res = await fetch(`${API_BASE}/conversation/active`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  return parseResponse<Conversation>(res)
 }
 
 export async function sendAiChat(
@@ -78,6 +133,7 @@ export async function sendAiChat(
   contextualGoalId?: number,
   contextualMissionId?: number,
   contextualSessionId?: number,
+  conversationId?: string,
 ): Promise<AiChatResponse> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
@@ -88,10 +144,12 @@ export async function sendAiChat(
       contextualGoalId,
       contextualMissionId,
       contextualSessionId,
+      conversationId,
     }),
   })
   return parseResponse<AiChatResponse>(res)
 }
+
 
 export async function decomposeGoal(
   goalId: number,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import {
@@ -13,8 +13,8 @@ import {
 } from './api/focusSessions'
 
 import type { FocusSession } from './api/focusSessions'
-import { decomposeGoal, sendAiChat } from './api/ai'
-import type { GoalDecomposition, ProposedMission } from './api/ai'
+import { clearActiveConversation, decomposeGoal, getActiveConversation, sendAiChat } from './api/ai'
+import type { BugReportInfo, GoalDecomposition, ProposedMission, TutorialStep } from './api/ai'
 import {
   completeMission,
   createGoal,
@@ -40,6 +40,8 @@ import type { ProcessInfo, ProcessSnapshot } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
+import { TutorialOverlay } from './components/TutorialOverlay'
+import { SHINPO_ONBOARDING_STEPS } from './tutorial/tutorialSteps'
 
 import './App.css'
 
@@ -369,6 +371,7 @@ export function App() {
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
+  const scheduledCount = sessions.filter((s) => s.status === 'SCHEDULED' || Boolean(s.scheduledAt && s.status !== 'COMPLETED')).length
   const [selectedDuration, setSelectedDuration] = useState(30)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
@@ -392,15 +395,113 @@ export function App() {
 
   // AI Assistant Chat State
   const [chatMessages, setChatMessages] = useState<
-    { role: 'user' | 'assistant'; text: string; missions?: ProposedMission[] }[]
+    {
+      role: 'user' | 'assistant'
+      text: string
+      missions?: ProposedMission[]
+      tutorial?: TutorialStep | null
+      bugReport?: BugReportInfo | null
+      suggestionType?: string
+    }[]
   >([
     {
       role: 'assistant',
-      text: 'Eonpai Strategic Companion ready. Direct me with a prompt like "plan my day", "break down my goals", or "guide me".',
+      text: 'Good day. I am EONPAI, your personal execution companion native to SHINPO.\n\nI can plan your day, break down goals, guide you through interactive tutorials, explain Sentinel blocks, and file sanitized bug reports. What would you like to work on?',
+      suggestionType: 'GREETING',
     },
   ])
   const [chatInput, setChatInput] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const aiFeedRef = useRef<HTMLDivElement>(null)
+  const aiContentRef = useRef<HTMLDivElement>(null)
+  const autoFollowEnabledRef = useRef<boolean>(true)
+  const isProgrammaticScrollRef = useRef<boolean>(false)
+  const lastScrollTopRef = useRef<number>(0)
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState<boolean>(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+
+  const handleClearChat = async () => {
+    try {
+      const fresh = await clearActiveConversation()
+      setConversationId(fresh.conversationId)
+      setChatMessages([
+        {
+          role: 'assistant',
+          text: 'Conversation archived. I am ready for your next focus session or operational directive.',
+          suggestionType: 'GREETING',
+        },
+      ])
+    } catch (err) {
+      console.error('Failed to clear conversation:', err)
+    }
+  }
+
+
+  // Interactive Guided Tour State
+  const [isTutorialActive, setIsTutorialActive] = useState(false)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+
+  const handleStartTutorial = (initialStepIndex = 0) => {
+    setIsTutorialActive(true)
+    setTutorialStepIndex(initialStepIndex)
+    const step = SHINPO_ONBOARDING_STEPS[initialStepIndex]
+    if (step && step.targetTab) {
+      setActiveTab(step.targetTab)
+    }
+  }
+
+  const handleNextTutorialStep = () => {
+    if (tutorialStepIndex < SHINPO_ONBOARDING_STEPS.length - 1) {
+      const nextIndex = tutorialStepIndex + 1
+      setTutorialStepIndex(nextIndex)
+      const nextStep = SHINPO_ONBOARDING_STEPS[nextIndex]
+      if (nextStep && nextStep.targetTab) {
+        setActiveTab(nextStep.targetTab)
+      }
+    } else {
+      handleCompleteTutorial()
+    }
+  }
+
+  const handlePrevTutorialStep = () => {
+    if (tutorialStepIndex > 0) {
+      const prevIndex = tutorialStepIndex - 1
+      setTutorialStepIndex(prevIndex)
+      const prevStep = SHINPO_ONBOARDING_STEPS[prevIndex]
+      if (prevStep && prevStep.targetTab) {
+        setActiveTab(prevStep.targetTab)
+      }
+    }
+  }
+
+  const handleExitTutorial = () => {
+    setIsTutorialActive(false)
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: 'No problem. You can restart the walkthrough whenever you need it by asking "How do I use SHINPO?" or clicking "Start Guided Walkthrough".',
+        suggestionType: 'COACH',
+      },
+    ])
+  }
+
+  const handleCompleteTutorial = () => {
+    setIsTutorialActive(false)
+    try {
+      localStorage.setItem('shinpo_tutorial_completed', 'true')
+    } catch {
+      // ignore storage failure
+    }
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: "You're all set. You now know the complete core SHINPO loop: Goal -> Mission -> Schedule -> Focus Sprint -> Sentinel Shield -> Outcome Debrief -> Analytics.",
+        suggestionType: 'COACH',
+      },
+    ])
+  }
 
   // Goals & Missions Deck State
   const [goals, setGoals] = useState<Goal[]>([])
@@ -408,7 +509,7 @@ export function App() {
   const [isCreatingGoal, setIsCreatingGoal] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [newGoalDesc, setNewGoalDesc] = useState('')
-  const [newGoalDate, setNewGoalDate] = useState(
+  const [newGoalDate, setNewGoalDate] = useState(() =>
     new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
   )
   const [decomposingGoalId, setDecomposingGoalId] = useState<number | null>(null)
@@ -431,18 +532,6 @@ export function App() {
   const [bookDuration, setBookDuration] = useState(25)
   const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
 
-  // Executive Daily Stoic Wisdom (C-028)
-  const stoicQuotes = useMemo(() => [
-    { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Will Durant", category: "Daily Habit" },
-    { text: "Action expresses priorities. What you do speaks louder than what you plan.", author: "Mahatma Gandhi", category: "Deep Focus" },
-    { text: "The secret of getting ahead is getting started.", author: "Mark Twain", category: "Momentum" },
-    { text: "You have power over your mind - not outside events. Realize this, and you will find invincible focus.", author: "Marcus Aurelius", category: "Stoic Fortress" },
-    { text: "He who has a why to live can bear almost any how.", author: "Friedrich Nietzsche", category: "Target Vector" },
-    { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln", category: "Execution Iron" },
-  ], [])
-  const [quoteIndex, setQuoteIndex] = useState(0)
-  const [quoteDismissed, setQuoteDismissed] = useState(false)
-
   // Device Task Manager Deck State (C-027)
   const [deviceSnapshot, setDeviceSnapshot] = useState<ProcessSnapshot | null>(null)
   const [tmLoading, setTmLoading] = useState(false)
@@ -453,6 +542,13 @@ export function App() {
   // Operational Velocity & Telemetry State (C-003)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // Interactive Dashboard States (C-BENTO)
+  const [inspectingMission, setInspectingMission] = useState<any | null>(null)
+  const [selectedCalDay, setSelectedCalDay] = useState<number>(4)
+  const [calMonth, setCalMonth] = useState('October 2026')
+  const [hoveredPillar, setHoveredPillar] = useState<{ day: number; label: string; boost: string } | null>(null)
+  const [activeTimelineBlock, setActiveTimelineBlock] = useState<string | null>(null)
 
   const nextActionMission = useMemo(() => {
     return missions.find((m) => m.status !== 'COMPLETED') || null
@@ -532,15 +628,6 @@ export function App() {
     }
   }, [isDarkMode])
 
-  useEffect(() => {
-    fetchCurrentUser().then((user) => {
-      if (user) {
-        setCurrentUser(user)
-        loadData()
-      }
-    })
-  }, [])
-
   const loadData = async () => {
     try {
       const res = await fetch('/api/dashboard', { headers: authHeaders() })
@@ -570,9 +657,53 @@ export function App() {
     } catch {
       // Keep empty if backend offline
     }
+
+    try {
+      const conv = await getActiveConversation()
+      if (conv) {
+        setConversationId(conv.conversationId)
+        if (conv.messages && conv.messages.length > 0) {
+          setChatMessages(
+            conv.messages.map((m) => {
+              let missions: ProposedMission[] = []
+              if (Array.isArray(m.structuredCard)) {
+                missions = m.structuredCard
+              } else if (m.structuredCard?.proposedMissions) {
+                missions = m.structuredCard.proposedMissions
+              } else if (m.structuredCard?.planItems) {
+                missions = m.structuredCard.planItems.map((item: { missionTitle: string; goalTitle: string; priority: string; durationMinutes: number }) => ({
+                  title: item.missionTitle,
+                  description: `${item.goalTitle} • Priority: ${item.priority}`,
+                  estimatedMinutes: item.durationMinutes,
+                }))
+              }
+              return {
+                role: m.role.toLowerCase() as 'user' | 'assistant',
+                text: m.content,
+                suggestionType: m.suggestionType,
+                missions,
+                tutorial: m.tutorial,
+                bugReport: m.bugReport,
+              }
+            })
+          )
+        }
+      }
+    } catch {
+      // Keep initial chat
+    }
   }
 
-  const loadDeviceProcesses = async (search = tmSearch, policy = tmPolicy) => {
+  useEffect(() => {
+    fetchCurrentUser().then((user) => {
+      if (user) {
+        setCurrentUser(user)
+        loadData()
+      }
+    })
+  }, [])
+
+  const loadDeviceProcesses = useCallback(async (search = tmSearch, policy = tmPolicy) => {
     setTmLoading(true)
     try {
       const snap = await fetchDeviceSnapshot(search, policy)
@@ -582,9 +713,9 @@ export function App() {
     } finally {
       setTmLoading(false)
     }
-  }
+  }, [tmSearch, tmPolicy])
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setAnalyticsLoading(true)
     try {
       const data = await fetchAnalyticsDashboard()
@@ -594,7 +725,7 @@ export function App() {
     } finally {
       setAnalyticsLoading(false)
     }
-  }
+  }, [])
 
   const handleTerminateProcess = async (proc: ProcessInfo) => {
     if (!window.confirm(`Are you sure you want to terminate process "${proc.name}" (PID ${proc.pid})?`)) return
@@ -606,19 +737,27 @@ export function App() {
       } else {
         setTmToast(`Notice: ${res.message}`)
       }
-    } catch (err: any) {
-      setTmToast(`Error: ${err?.message || 'Termination failed'}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Termination failed'
+      setTmToast(`Error: ${msg}`)
     }
     setTimeout(() => setTmToast(null), 4000)
   }
 
   useEffect(() => {
-    if (activeTab === 'Task Manager' && currentUser) {
-      loadDeviceProcesses(tmSearch, tmPolicy)
-    } else if (activeTab === 'Analytics' && currentUser) {
-      loadAnalytics()
+    if (!currentUser) return
+    if (activeTab === 'Task Manager') {
+      const timer = setTimeout(() => {
+        void loadDeviceProcesses(tmSearch, tmPolicy)
+      }, 0)
+      return () => clearTimeout(timer)
+    } else if (activeTab === 'Analytics') {
+      const timer = setTimeout(() => {
+        void loadAnalytics()
+      }, 0)
+      return () => clearTimeout(timer)
     }
-  }, [activeTab, currentUser])
+  }, [activeTab, currentUser, loadDeviceProcesses, loadAnalytics, tmSearch, tmPolicy])
 
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -636,8 +775,9 @@ export function App() {
       setAuthEmail('')
       setAuthPassword('')
       await loadData()
-    } catch (err: any) {
-      setAuthError(err.message || 'Authentication failed')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Authentication failed'
+      setAuthError(msg)
     } finally {
       setAuthLoading(false)
     }
@@ -674,6 +814,9 @@ export function App() {
       setNewGoalTitle('')
       setNewGoalDesc('')
       loadData()
+      if (isTutorialActive && tutorialStepIndex === 0) {
+        handleNextTutorialStep()
+      }
     } catch (err) {
       console.error(err)
     }
@@ -684,6 +827,9 @@ export function App() {
     try {
       const result = await decomposeGoal(goalId, dashboard?.user.id ?? 1)
       setAiDecompResult(result)
+      if (isTutorialActive && tutorialStepIndex === 1) {
+        handleNextTutorialStep()
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -709,6 +855,9 @@ export function App() {
       setMissions((prev) => [...created, ...prev])
       setAiDecompResult(null)
       loadData()
+      if (isTutorialActive && tutorialStepIndex === 2) {
+        handleNextTutorialStep()
+      }
     } catch (err) {
       console.error(err)
     }
@@ -768,12 +917,8 @@ export function App() {
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
   // Timer ticker
-  const [timerNow, setTimerNow] = useState(Date.now())
+  const [timerNow, setTimerNow] = useState(() => Date.now())
   useEffect(() => {
     const interval = setInterval(() => setTimerNow(Date.now()), 1000)
     return () => clearInterval(interval)
@@ -839,6 +984,26 @@ export function App() {
       console.error(e)
     }
   }
+   
+    const handleArmMissionAsSession = async (missionTitle: string, estimatedMinutes?: number) => {
+    const userId = dashboard?.user.id ?? 1
+    const mins = estimatedMinutes || 25
+    try {
+      const created = await createFocusSession({
+        userId,
+        name: missionTitle,
+        intention: missionTitle,
+        durationMinutes: mins,
+      })
+      const started = await startFocusSession(created.id, userId)
+      setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      setSelectedDuration(mins)
+      setSessionIntention(missionTitle)
+      setActiveTab('Focus Engine')
+    } catch (e) {
+      console.error('Failed to arm focus sprint:', e)
+    }
+  }
 
   const handlePause = async (id: number) => {
     const userId = dashboard?.user.id ?? 1
@@ -887,25 +1052,37 @@ export function App() {
     const prompt = messageText || chatInput
     if (!prompt.trim()) return
 
+    // Immediately enable bottom auto-follow and hide button
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
+
     setChatMessages((prev) => [...prev, { role: 'user', text: prompt }])
     if (!messageText) setChatInput('')
     setAiLoading(true)
 
+    // Immediate pin to bottom
+    if (aiFeedRef.current) {
+      aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+    }
+
     try {
       const userId = dashboard?.user.id ?? 1
-      const res = await sendAiChat(userId, prompt)
+      const res = await sendAiChat(userId, prompt, undefined, undefined, undefined, conversationId || undefined)
+      if (res.conversationId) {
+        setConversationId(res.conversationId)
+      }
       let missions: ProposedMission[] = []
       if (Array.isArray(res.structuredCard)) {
         missions = res.structuredCard
       } else if (res.structuredCard?.proposedMissions) {
         missions = res.structuredCard.proposedMissions
       } else if (res.structuredCard?.planItems) {
-        missions = res.structuredCard.planItems.map((item: any) => ({
+        missions = res.structuredCard.planItems.map((item: { missionTitle: string; goalTitle: string; priority: string; durationMinutes: number }) => ({
           title: item.missionTitle,
           description: `${item.goalTitle} • Priority: ${item.priority}`,
           estimatedMinutes: item.durationMinutes,
         }))
-      } else if (res.structuredCard?.missionTitle) {
+      } else if (res.structuredCard?.missionTitle && res.suggestionType === 'NEXT_ACTION') {
         missions = [
           {
             title: res.structuredCard.missionTitle,
@@ -915,31 +1092,232 @@ export function App() {
         ]
       }
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: res.reply,
-          missions,
-        },
-      ])
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: 'Tactical guidance: Partition your immediate bottleneck into 15m focus sprints to regain operational flow.',
-          missions: [
-            {
-              title: 'Momentum execution sprint',
-              description: 'Clear the highest priority pending item',
-              estimatedMinutes: 15,
-            },
-          ],
-        },
-      ])
-    } finally {
       setAiLoading(false)
+
+      const fullReply = res.reply || ''
+
+      // Progressive streaming simulation if reply is lengthy
+      if (fullReply.length < 50) {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: fullReply,
+            missions,
+            tutorial: res.tutorial,
+            bugReport: res.bugReport,
+            suggestionType: res.suggestionType,
+          },
+        ])
+        if (autoFollowEnabledRef.current && aiFeedRef.current) {
+          aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+          lastScrollTopRef.current = aiFeedRef.current.scrollTop
+        }
+      } else {
+        // Create initial placeholder assistant bubble
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: '',
+            missions: [],
+            tutorial: null,
+            bugReport: null,
+            suggestionType: res.suggestionType,
+          },
+        ])
+
+        const tokens = fullReply.split(/(\s+)/)
+        let tokenIdx = 0
+        let currentText = ''
+
+        await new Promise<void>((resolve) => {
+          const streamInterval = setInterval(() => {
+            if (tokenIdx < tokens.length) {
+              const chunk = tokens.slice(tokenIdx, tokenIdx + 2).join('')
+              tokenIdx += 2
+              currentText += chunk
+
+              setChatMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.length - 1
+                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    text: currentText,
+                  }
+                }
+                return updated
+              })
+
+              if (autoFollowEnabledRef.current && aiFeedRef.current) {
+                aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+                lastScrollTopRef.current = aiFeedRef.current.scrollTop
+              }
+            } else {
+              clearInterval(streamInterval)
+              // Finalize message with cards/attachments
+              setChatMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.length - 1
+                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    text: fullReply,
+                    missions,
+                    tutorial: res.tutorial,
+                    bugReport: res.bugReport,
+                  }
+                }
+                return updated
+              })
+              if (autoFollowEnabledRef.current && aiFeedRef.current) {
+                aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+                lastScrollTopRef.current = aiFeedRef.current.scrollTop
+              }
+              resolve()
+            }
+          }, 24)
+        })
+      }
+
+      if (res.tutorial) {
+        handleStartTutorial(0)
+      }
+    } catch {
+      setAiLoading(false)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: 'I am here with you. Local AI is initializing, but our core execution engine is online. What would you like to focus on right now?',
+          suggestionType: 'COACH',
+        },
+      ])
+      if (autoFollowEnabledRef.current && aiFeedRef.current) {
+        aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+        lastScrollTopRef.current = aiFeedRef.current.scrollTop
+      }
+    }
+  }
+
+  // Auto-follow via ResizeObserver on the messages content wrapper
+  useEffect(() => {
+    if (activeTab !== 'AI Assistant') return
+
+    const feedEl = aiFeedRef.current
+    const contentEl = aiContentRef.current
+    if (!feedEl || !contentEl) return
+
+    const observer = new ResizeObserver(() => {
+      if (autoFollowEnabledRef.current && feedEl) {
+        feedEl.scrollTop = feedEl.scrollHeight
+        lastScrollTopRef.current = feedEl.scrollTop
+        setShowScrollBottomBtn(false)
+      } else if (feedEl) {
+        const dist = feedEl.scrollHeight - feedEl.scrollTop - feedEl.clientHeight
+        setShowScrollBottomBtn(dist > 60)
+      }
+    })
+
+    observer.observe(contentEl)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [activeTab])
+
+  // Direct auto-follow sync whenever chat messages or loading state changes
+  useEffect(() => {
+    if (activeTab === 'AI Assistant' && autoFollowEnabledRef.current && aiFeedRef.current) {
+      aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+      lastScrollTopRef.current = aiFeedRef.current.scrollTop
+    }
+  }, [chatMessages, aiLoading, activeTab])
+
+  // Auto-follow when navigating to AI Assistant tab
+  useEffect(() => {
+    if (activeTab === 'AI Assistant') {
+      autoFollowEnabledRef.current = true
+      const timer = setTimeout(() => {
+        setShowScrollBottomBtn(false)
+        if (aiFeedRef.current) {
+          aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+          lastScrollTopRef.current = aiFeedRef.current.scrollTop
+        }
+      }, 60)
+      return () => clearTimeout(timer)
+    }
+  }, [activeTab])
+
+  const handleChatScroll = () => {
+    const feedEl = aiFeedRef.current
+    if (!feedEl) return
+
+    const { scrollTop, scrollHeight, clientHeight } = feedEl
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+
+    if (isProgrammaticScrollRef.current) {
+      if (distanceFromBottom <= 30) {
+        isProgrammaticScrollRef.current = false
+        autoFollowEnabledRef.current = true
+        setShowScrollBottomBtn(false)
+      }
+      lastScrollTopRef.current = scrollTop
+      return
+    }
+
+    // Threshold of 60px per ChatGPT-style specification
+    if (distanceFromBottom <= 60) {
+      autoFollowEnabledRef.current = true
+      setShowScrollBottomBtn(false)
+    } else {
+      // Away from bottom
+      setShowScrollBottomBtn(true)
+      // If user deliberately scrolled UP (scrollTop decreased), pause auto-follow
+      if (scrollTop < lastScrollTopRef.current - 4) {
+        autoFollowEnabledRef.current = false
+      }
+    }
+
+    lastScrollTopRef.current = scrollTop
+  }
+
+  const handleScrollToBottom = () => {
+    const feedEl = aiFeedRef.current
+    if (!feedEl) return
+
+    isProgrammaticScrollRef.current = true
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
+
+    feedEl.scrollTo({
+      top: feedEl.scrollHeight,
+      behavior: 'smooth',
+    })
+
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false
+      if (feedEl) {
+        feedEl.scrollTop = feedEl.scrollHeight
+        lastScrollTopRef.current = feedEl.scrollTop
+        const dist = feedEl.scrollHeight - feedEl.scrollTop - feedEl.clientHeight
+        if (dist <= 60) {
+          autoFollowEnabledRef.current = true
+          setShowScrollBottomBtn(false)
+        }
+      }
+    }, 450)
+  }
+
+  const handleTriggerPresetAction = (promptText: string) => {
+    setActiveTab('AI Assistant')
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
+    handleAiSend(promptText)
+    if (aiFeedRef.current) {
+      aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
+      lastScrollTopRef.current = aiFeedRef.current.scrollTop
     }
   }
 
@@ -1028,7 +1406,7 @@ export function App() {
                 setAuthError(null)
               }}
             >
-              AUTHENTICATE
+              Sign In
             </button>
             <button
               type="button"
@@ -1038,7 +1416,7 @@ export function App() {
                 setAuthError(null)
               }}
             >
-              INITIALIZE CADET
+              Create Account
             </button>
           </div>
 
@@ -1066,7 +1444,7 @@ export function App() {
                 <input
                   className="auth-input"
                   type="email"
-                  placeholder="cadet@shinpo.local"
+                  placeholder="operator@shinpo.local"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   required
@@ -1075,7 +1453,7 @@ export function App() {
             )}
 
             <div className="auth-field-group">
-              <label className="auth-label">Access Password</label>
+              <label className="auth-label">Password</label>
               <input
                 className="auth-input"
                 type="password"
@@ -1087,7 +1465,7 @@ export function App() {
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={authLoading}>
-              {authLoading ? 'VERIFYING CREDENTIALS...' : authMode === 'LOGIN' ? 'ENGAGE SYSTEM' : 'INITIALIZE PROFILE'}
+              {authLoading ? 'Verifying credentials...' : authMode === 'LOGIN' ? 'Sign In' : 'Create Account'}
             </button>
 
             {authMode === 'LOGIN' && (
@@ -1096,7 +1474,7 @@ export function App() {
                 className="auth-quick-fill-btn"
                 onClick={handleQuickDemoFill}
               >
-                ⚡ Quick Fill (EONX / Dev Seed)
+                Quick Fill (EONX / Dev Seed)
               </button>
             )}
           </form>
@@ -1137,12 +1515,11 @@ export function App() {
           </button>
         </div>
 
-        {/* Task Master Hero Greeting */}
         {sidebarExpanded && (
           <div className="sidebar-hero-greeting">
-            <div className="sidebar-hero-line">Start Your</div>
-            <div className="sidebar-hero-line">Day Be</div>
-            <div className="sidebar-hero-line highlight">Productive</div>
+            <span className="sidebar-hero-line">Start Your</span>
+            <span className="sidebar-hero-line">Day Be</span>
+            <span className="sidebar-hero-line highlight">Productive</span>
           </div>
         )}
 
@@ -1153,13 +1530,13 @@ export function App() {
             </div>
           )}
           {[
-            { id: 'Dashboard', icon: 'dashboard' as IconName, label: 'Dashboard' },
-            { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Messages', badge: '+6' },
-            { id: 'Focus Engine', icon: 'focus' as IconName, label: 'My Task' },
-            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Calendar', badge: '+2' },
-            { id: 'Analytics', icon: 'analytics' as IconName, label: 'Analytics' },
-            { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live' },
-            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'Eonpai AI', badge: 'AI' },
+            { id: 'Dashboard', icon: 'dashboard' as IconName, label: 'Dashboard', tut: 'nav-dashboard' },
+            { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Goals', tut: 'nav-goals' },
+            { id: 'Focus Engine', icon: 'focus' as IconName, label: 'Focus', tut: 'nav-focus' },
+            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Calendar', badge: scheduledCount > 0 ? `+${scheduledCount}` : '+2', tut: 'nav-schedule' },
+            { id: 'Analytics', icon: 'analytics' as IconName, label: 'Analytics', tut: 'nav-analytics' },
+            { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live', tut: 'nav-tasks' },
+            { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'EONPAI', badge: 'AI', tut: 'nav-ai' },
           ].map((item) => (
             <button
               key={item.id}
@@ -1167,11 +1544,14 @@ export function App() {
               onClick={() => setActiveTab(item.id)}
               title={item.label}
               data-tooltip={item.label}
+              data-tutorial={item.tut}
             >
               <Icon name={item.icon} size={18} />
               {sidebarExpanded && <span>{item.label}</span>}
               {sidebarExpanded && item.badge && (
-                <span className="sidebar-nav-badge">{item.badge}</span>
+                <span className={`sidebar-nav-badge ${item.badge === 'Live' ? 'live' : item.badge === 'AI' ? 'ai' : ''}`}>
+                  {item.badge}
+                </span>
               )}
               {sidebarExpanded && activeTab === item.id && (
                 <span className="sidebar-active-arrow">↗</span>
@@ -1180,99 +1560,95 @@ export function App() {
           ))}
         </nav>
 
-        {/* Shifted Motivational Stoic Quote in the Blank Space of Sidebar */}
-        {sidebarExpanded && !quoteDismissed && (
-          <div className="sidebar-quote-card">
-            <div className="sidebar-quote-top">
-              <span className="sidebar-quote-tag">{stoicQuotes[quoteIndex].category}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  className="sidebar-quote-refresh-btn"
-                  onClick={() => setQuoteIndex((prev) => (prev + 1) % stoicQuotes.length)}
-                  title="Next Daily Principle"
-                >
-                  <Icon name="refresh" size={11} />
-                </button>
-                <button
-                  className="sidebar-quote-refresh-btn"
-                  onClick={() => setQuoteDismissed(true)}
-                  title="Dismiss Principle"
-                >
-                  <Icon name="close" size={11} />
-                </button>
+        {sidebarExpanded && (
+          <>
+            {/* Team / Focus Avatars Cluster Row from Reference */}
+            <div className="sidebar-avatars-row">
+              <div className="cluster-avatar" style={{ background: '#3B82F6' }}>
+                {currentUser.username.charAt(0).toUpperCase()}
               </div>
+              <div className="cluster-avatar" style={{ background: '#FF7A18' }}>S</div>
+              <div className="cluster-avatar" style={{ background: '#35E36F', color: '#061A0C', fontWeight: 800 }}>E</div>
+              <div className="cluster-avatar" style={{ background: '#8B6CFF' }}>N</div>
+              <div className="cluster-badge">10+</div>
             </div>
-            <div className="sidebar-quote-text">
-              "{stoicQuotes[quoteIndex].text}"
-            </div>
-            <div className="sidebar-quote-author">
-              — {stoicQuotes[quoteIndex].author}
-            </div>
-          </div>
-        )}
 
-        {/* Team Avatar Cluster Row from Reference */}
-        {sidebarExpanded && (
-          <div className="sidebar-avatars-row">
-            <div className="cluster-avatar av-1">👨‍💻</div>
-            <div className="cluster-avatar av-2">👩‍💼</div>
-            <div className="cluster-avatar av-3">🧑‍🎨</div>
-            <div className="cluster-avatar av-4">👨‍🚀</div>
-            <div className="cluster-badge">10+</div>
-          </div>
-        )}
-
-        {/* Eonpai Tactical Companion Card (Task Master Style with Chat Bubbles) */}
-        {sidebarExpanded && (
-          <div className="sidebar-eonpai-companion">
-            <div className="eonpai-comp-header">
-              <span className="eonpai-comp-name">Eonpai</span>
-              <div className={`eonpai-status-dot ${activeSession ? 'active' : ''}`} />
+            {/* EONPAI Tactical Companion Card ("Michie" in reference) */}
+            <div className="sidebar-eonpai-companion">
+              <div className="eonpai-comp-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="eonpai-comp-name">EONPAI</span>
+                  <span className="eonpai-online-dot" />
+                </div>
+                <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600 }}>TACTICAL</span>
+              </div>
+              <div className="eonpai-bubble-row">
+                <div className="eonpai-speech-bubble bubble-short">
+                  <span>Ready to focus</span>
+                </div>
+                <span className="bubble-time-ext">12.49</span>
+              </div>
+              <div className="eonpai-bubble-row" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div className="eonpai-speech-bubble bubble-wide">
+                  <span>
+                    {missions.length > 0
+                      ? `Today we will move on to "${missions[0].title.slice(0, 24)}..."`
+                      : "Today we will establish your primary execution objectives."}
+                  </span>
+                </div>
+                <span className="bubble-time-ext" style={{ alignSelf: 'flex-end', marginTop: 2 }}>12.50</span>
+              </div>
+              <button
+                className="eonpai-comp-action-btn"
+                onClick={() => {
+                  if (missions.length > 0 && !activeSession) {
+                    handleArmMissionAsSession(missions[0].title, missions[0].estimatedMinutes || 25)
+                  } else {
+                    setActiveTab('AI Assistant')
+                  }
+                }}
+              >
+                {activeSession ? 'Inspect Sprint' : missions.length > 0 ? 'Ok EONPAI' : 'Ask EONPAI'}
+              </button>
             </div>
-            <div className="eonpai-speech-bubble bubble-short">
-              <span className="bubble-text">Morning</span>
-              <span className="bubble-time">12.49</span>
-            </div>
-            <div className="eonpai-speech-bubble bubble-wide">
-              <span className="bubble-text">
-                {activeSession
-                  ? 'Focus sprint armed. Distraction processes locked.'
-                  : 'Today We Will Focus On The Execution Architecture.'}
-              </span>
-              <span className="bubble-time">12.50</span>
-            </div>
-            <button
-              className={`eonpai-comp-action-btn ${activeSession ? 'active' : ''}`}
-              onClick={() => setActiveTab(activeSession ? 'Focus Engine' : 'AI Assistant')}
-            >
-              <span>{activeSession ? 'Shield Engaged' : 'Ok Eonpai'}</span>
-            </button>
-          </div>
+          </>
         )}
 
         <div className="sidebar-footer">
-          <button
-            className="sidebar-btn"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            data-tooltip={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+          <div
+            className="sidebar-status-quiet"
+            title={activeSession ? 'Sentinel Shield Locked: Distraction apps blocked' : 'Sentinel Shield Armed & Monitoring'}
           >
-            <Icon name={isDarkMode ? 'sun' : 'moon'} size={18} />
-            {sidebarExpanded && <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>}
-          </button>
+            <span className={`status-dot-active ${activeSession ? 'focus-engaged' : ''}`} />
+            {sidebarExpanded && (
+              <div className="status-quiet-text">
+                <span className="status-quiet-title">Sentinel {activeSession ? 'Shielded' : 'Armed'}</span>
+                <span className="status-quiet-sub">{activeSession ? 'Processes locked' : 'Execution ready'}</span>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
-        {/* Clean Executive Top Bar — Single Navigation System */}
-        {/* Task Master Executive Top Bar */}
+        {/* Top Bar — Reference-Inspired Glass & Opaque Header */}
         <div className="cockpit-top-bar">
           <div className="page-header-info">
-            <h1 className="top-brand-title">Task Master</h1>
+            <h1 className="top-brand-title">
+              {activeTab === 'AI Assistant'
+                ? 'EONPAI'
+                : activeTab === 'Focus Engine'
+                ? 'Focus'
+                : activeTab === 'Goals & Missions'
+                ? 'Goals & Missions'
+                : activeTab === 'Schedule'
+                ? 'Calendar'
+                : activeTab}
+            </h1>
           </div>
 
-          {/* Task Master Pill Search Input */}
+          {/* Pill Search Input */}
           <div className="top-search-command">
             <Icon name="search" size={16} />
             <input
@@ -1282,7 +1658,7 @@ export function App() {
               value={topSearchQuery}
               onChange={(e) => setTopSearchQuery(e.target.value)}
             />
-            <button className="top-search-filter-btn" title="Filter Telemetry">
+            <button className="top-search-filter-btn" title="Filter & Focus">
               <Icon name="sparkle" size={14} />
             </button>
           </div>
@@ -1307,8 +1683,8 @@ export function App() {
                 {currentUser.username.charAt(0).toUpperCase()}
               </div>
               <div className="profile-text-wrap">
-                <span className="profile-username">Kim So Men</span>
-                <span className="profile-role">Ui Ux Designer</span>
+                <span className="profile-username">{currentUser.username}</span>
+                <span className="profile-role">Execution Lead</span>
               </div>
             </div>
             <button
@@ -1334,7 +1710,7 @@ export function App() {
                     ACTIVE SPRINT: <strong>{activeSession.name}</strong>
                   </span>
                   {activeSession.intention && (
-                    <span className="session-banner-target">🎯 {activeSession.intention}</span>
+                    <span className="session-banner-target">{activeSession.intention}</span>
                   )}
                 </div>
                 <div className="session-banner-center">
@@ -1386,9 +1762,9 @@ export function App() {
               </div>
             )}
 
-            {/* 2x2 BENTO GRID */}
+            {/* 2x2 BENTO GRID (INTERACTIVE COCKPIT) */}
             <div className="bento-2x2-grid">
-              {/* QUADRANT 1 (TOP-LEFT): TODAY TASKS */}
+              {/* QUADRANT 1 (TOP-LEFT): TODAY'S MISSIONS */}
               <div className="bento-card bento-today-tasks">
                 <div className="bento-card-header">
                   <div className="bento-header-left">
@@ -1401,115 +1777,88 @@ export function App() {
                     className="bento-pill-btn"
                     onClick={() => setActiveTab('Goals & Missions')}
                   >
-                    <span>See All</span>
-                    <Icon name="chevron-right" size={13} />
+                    <span>See All &gt;</span>
                   </button>
                 </div>
 
                 <div className="bento-subcards-row">
-                  {/* Task Subcard 1 */}
-                  <div
-                    className="bento-task-subcard"
-                    onClick={() => setActiveTab('Goals & Missions')}
-                  >
-                    <div className="bento-task-top">
-                      <h3 className="bento-task-title">
-                        {missions[0]?.title || 'Delivery App Kit'}
-                      </h3>
-                      <button
-                        className="bento-dots-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setActiveTab('Goals & Missions')
-                        }}
+                  {missions.length > 0 ? (
+                    missions.slice(0, 2).map((task, idx) => (
+                      <div
+                        key={task.id}
+                        className="bento-task-subcard interactive"
+                        onClick={() => setInspectingMission(task)}
+                        title="Click to inspect and arm focus sprint"
                       >
-                        ···
-                      </button>
-                    </div>
-                    <p className="bento-task-desc">
-                      {missions[0]?.description ||
-                        'We Got A Project To Make A Delivery UI Kit Called Food Now'}
-                    </p>
-                    <div className="bento-task-footer">
-                      <div className="bento-task-avatars">
-                        <span className="task-av av-1">👨‍💻</span>
-                        <span className="task-av av-2">👩‍💼</span>
-                        <span className="task-av av-3">🧑‍🎨</span>
-                        <span className="task-av av-4">👨‍🚀</span>
-                        <span className="task-av-plus">+1</span>
-                      </div>
-                      <div className="bento-task-progress-box">
-                        <div className="bento-task-progress-track">
-                          <div
-                            className="bento-task-progress-fill red-fill"
-                            style={{ width: '65%' }}
-                          />
+                        <div className="bento-task-top">
+                          <h3 className="bento-task-title">{task.title}</h3>
+                          <button
+                            className="bento-dots-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setInspectingMission(task)
+                            }}
+                          >
+                            ···
+                          </button>
                         </div>
-                        <span className="bento-task-pct">65%</span>
-                      </div>
-                    </div>
-                  </div>
+                        <p className="bento-task-desc">{task.description || 'Target execution mission'}</p>
+                        
+                        {/* Reference Avatar Cluster + Percentage Row */}
+                        <div className="bento-task-footer">
+                          <div className="bento-task-avatars">
+                            <div className="task-av" style={{ background: '#3B82F6' }}>
+                              {currentUser.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="task-av" style={{ background: idx === 0 ? '#FF7A18' : '#35E36F' }}>
+                              {idx === 0 ? 'S' : 'E'}
+                            </div>
+                            <div className="task-av-plus">+{idx + 1}</div>
+                          </div>
+                          <span className="bento-task-pct">{task.status === 'COMPLETED' ? '100%' : idx === 0 ? '65%' : '80%'}</span>
+                        </div>
 
-                  {/* Task Subcard 2 */}
-                  <div
-                    className="bento-task-subcard"
-                    onClick={() => setActiveTab('Goals & Missions')}
-                  >
-                    <div className="bento-task-top">
-                      <h3 className="bento-task-title">
-                        {missions[1]?.title || 'Dribble Short Kit'}
-                      </h3>
-                      <button
-                        className="bento-dots-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setActiveTab('Goals & Missions')
-                        }}
-                      >
-                        ···
-                      </button>
-                    </div>
-                    <p className="bento-task-desc">
-                      {missions[1]?.description ||
-                        'Make A Dribble Short With Project Management Theme...'}
-                    </p>
-                    <div className="bento-task-footer">
-                      <div className="bento-task-avatars">
-                        <span className="task-av av-2">👩‍🎨</span>
-                        <span className="task-av av-1">👨‍🚀</span>
-                        <span className="task-av av-3">👩‍🔬</span>
-                        <span className="task-av av-4">🧑‍💻</span>
-                        <span className="task-av-plus">+2</span>
-                      </div>
-                      <div className="bento-task-progress-box">
-                        <div className="bento-task-progress-track">
+                        {/* Full-width Horizontal Progress Bar */}
+                        <div className="bento-task-progress-track" style={{ marginTop: 6 }}>
                           <div
-                            className="bento-task-progress-fill green-fill"
-                            style={{ width: '80%' }}
+                            className={`bento-task-progress-fill ${idx === 0 ? 'orange-fill' : 'green-fill'}`}
+                            style={{ width: task.status === 'COMPLETED' ? '100%' : idx === 0 ? '65%' : '80%' }}
                           />
                         </div>
-                        <span className="bento-task-pct">80%</span>
                       </div>
+                    ))
+                  ) : (
+                    <div className="bento-empty-inline-state">
+                      <p className="bento-empty-text">No missions scheduled yet. Define your goals to start planning.</p>
+                      <button
+                        className="btn-timer primary"
+                        style={{ padding: '7px 14px', fontSize: 12 }}
+                        onClick={() => setActiveTab('Goals & Missions')}
+                      >
+                        + Create Goal
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Bottom banner inside Quadrant 1 */}
+                {/* Bottom interactive action bar (Matching Reference Bottom Pill) */}
                 <div className="bento-bottom-pill-bar">
                   <span className="bento-bottom-pill-text">
-                    You Have {missions.length || 5} Tasks Today . Keep It Up
+                    {missions.length > 0
+                      ? `You Have ${missions.length} Tasks Today . Keep It Up`
+                      : 'No Active Missions Queued . Plan Your Day'}
                   </span>
                   <button
                     className="bento-bottom-pill-action"
                     onClick={handleEngageNextAction}
-                    title="Engage Focus on Today's Tasks"
+                    title="Start focus on highest priority mission"
                   >
                     <Icon name="check" size={13} />
                   </button>
                 </div>
               </div>
 
-              {/* QUADRANT 2 (TOP-RIGHT): CALENDAR */}
+              {/* QUADRANT 2 (TOP-RIGHT): INTERACTIVE CALENDAR */}
               <div className="bento-card bento-calendar-card">
                 <div className="bento-card-header">
                   <div className="bento-header-left">
@@ -1520,21 +1869,29 @@ export function App() {
                   </div>
                   <button
                     className="bento-pill-btn dropdown"
-                    onClick={() => setActiveTab('Schedule')}
+                    onClick={() => setCalMonth((prev) => (prev.includes('Oct') ? 'November 2026' : 'October 2026'))}
                   >
                     <Icon name="schedule" size={13} />
-                    <span>February</span>
+                    <span>{calMonth}</span>
                     <Icon name="chevron" size={11} />
                   </button>
                 </div>
 
                 <div className="bento-calendar-inset">
                   <div className="bento-cal-nav-row">
-                    <button className="bento-cal-nav-arrow" title="Previous Month">
+                    <button
+                      className="bento-cal-nav-arrow"
+                      onClick={() => setCalMonth('September 2026')}
+                      title="Previous Month"
+                    >
                       <Icon name="chevron-left" size={13} />
                     </button>
-                    <span className="bento-cal-month-title">October 2026</span>
-                    <button className="bento-cal-nav-arrow" title="Next Month">
+                    <span className="bento-cal-month-title">{calMonth}</span>
+                    <button
+                      className="bento-cal-nav-arrow"
+                      onClick={() => setCalMonth('November 2026')}
+                      title="Next Month"
+                    >
                       <Icon name="chevron-right" size={13} />
                     </button>
                   </div>
@@ -1550,50 +1907,26 @@ export function App() {
                   </div>
 
                   <div className="bento-cal-grid">
-                    {/* Row 1 with Connected Sprint Capsule for Days 2 to 6 */}
-                    <div className="bento-cal-day">1</div>
-                    <div className="bento-cal-day in-streak streak-start">2</div>
-                    <div className="bento-cal-day in-streak">3</div>
-                    <div className="bento-cal-day in-streak">4</div>
-                    <div className="bento-cal-day in-streak">5</div>
-                    <div className="bento-cal-day in-streak streak-end">6</div>
-                    <div className="bento-cal-day">7</div>
-
-                    {/* Row 2 */}
-                    <div className="bento-cal-day">8</div>
-                    <div className="bento-cal-day">9</div>
-                    <div className="bento-cal-day">10</div>
-                    <div className="bento-cal-day">11</div>
-                    <div className="bento-cal-day">12</div>
-                    <div className="bento-cal-day">13</div>
-                    <div className="bento-cal-day">14</div>
-
-                    {/* Row 3 */}
-                    <div className="bento-cal-day">15</div>
-                    <div className="bento-cal-day">16</div>
-                    <div className="bento-cal-day">17</div>
-                    <div className="bento-cal-day">18</div>
-                    <div className="bento-cal-day">19</div>
-                    <div className="bento-cal-day">20</div>
-                    <div className="bento-cal-day">21</div>
-
-                    {/* Row 4 */}
-                    <div className="bento-cal-day">22</div>
-                    <div className="bento-cal-day">23</div>
-                    <div className="bento-cal-day">24</div>
-                    <div className="bento-cal-day">25</div>
-                    <div className="bento-cal-day">26</div>
-                    <div className="bento-cal-day">27</div>
-                    <div className="bento-cal-day">28</div>
-
-                    {/* Row 5 */}
-                    <div className="bento-cal-day muted">29</div>
-                    <div className="bento-cal-day muted">30</div>
-                    <div className="bento-cal-day muted">1</div>
-                    <div className="bento-cal-day muted">2</div>
-                    <div className="bento-cal-day muted">3</div>
-                    <div className="bento-cal-day muted">4</div>
-                    <div className="bento-cal-day muted">5</div>
+                    {/* Days 1 to 28 Interactive */}
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => {
+                      const isStreak = d >= 2 && d <= 6
+                      const isSelected = selectedCalDay === d
+                      return (
+                        <div
+                          key={d}
+                          className={`bento-cal-day ${isStreak ? 'in-streak' : ''} ${d === 2 ? 'streak-start' : ''} ${d === 6 ? 'streak-end' : ''} ${isSelected ? 'selected-day' : ''}`}
+                          onClick={() => setSelectedCalDay(d)}
+                        >
+                          {d}
+                        </div>
+                      )
+                    })}
+                    {/* Trailing muted days */}
+                    {[29, 30, 1, 2, 3, 4, 5].map((d, idx) => (
+                      <div key={`muted-${idx}`} className="bento-cal-day muted">
+                        {d}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1607,72 +1940,87 @@ export function App() {
                     </div>
                     <h2 className="bento-card-title">Tasks</h2>
                   </div>
-                  <button className="bento-dots-btn" onClick={() => setActiveTab('Analytics')}>
+                  <button className="bento-dots-btn" onClick={() => setActiveTab('Analytics')} title="View Analytics">
                     ···
                   </button>
                 </div>
 
                 <div className="bento-pillars-wrap">
-                  {/* Pillar 1: Day 12 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '170px' }}>
-                      <div className="bento-pillar-badge badge-orange top-12">+8%</div>
-                      <div className="bento-pillar-badge badge-blue bottom-12">+2%</div>
+                  {[
+                    {
+                      day: 12,
+                      h: 135,
+                      badges: [
+                        { text: '+8%', color: 'orange', pos: { top: 10 } },
+                        { text: '+2%', color: 'blue', pos: { bottom: 10 } },
+                      ],
+                      label: '2.5h Focus • 2 Missions',
+                    },
+                    {
+                      day: 13,
+                      h: 115,
+                      badges: [{ text: '+8%', color: 'green', pos: { bottom: 20 } }],
+                      label: '3.1h Focus • 3 Missions',
+                    },
+                    {
+                      day: 14,
+                      h: 152,
+                      badges: [
+                        { text: '+65%', color: 'blue', pos: { top: 12 } },
+                        { text: '+12%', color: 'orange', pos: { top: 62 } },
+                      ],
+                      label: '4.5h Focus • 4 Missions',
+                    },
+                    {
+                      day: 15,
+                      h: 125,
+                      badges: [],
+                      label: '2.8h Focus • 2 Missions',
+                    },
+                    {
+                      day: 16,
+                      h: 138,
+                      badges: [{ text: '+5%', color: 'green', pos: { top: 30 } }],
+                      label: '3.8h Focus • 3 Missions',
+                    },
+                    {
+                      day: 17,
+                      h: 128,
+                      badges: [{ text: '+10%', color: 'orange', pos: { bottom: 18 } }],
+                      label: '3.2h Focus • 2 Missions',
+                    },
+                    {
+                      day: 18,
+                      h: 110,
+                      badges: [{ text: '+6%', color: 'green', pos: { bottom: 22 } }],
+                      label: '2.0h Focus • 1 Mission',
+                    },
+                  ].map((p) => (
+                    <div
+                      key={p.day}
+                      className={`bento-pillar-col ${hoveredPillar?.day === p.day ? 'active-pillar' : ''}`}
+                      onMouseEnter={() => setHoveredPillar({ day: p.day, label: p.label, boost: p.badges[0]?.text || '' })}
+                      onClick={() => setHoveredPillar({ day: p.day, label: p.label, boost: p.badges[0]?.text || '' })}
+                      title={`${p.day}th: ${p.label}`}
+                    >
+                      <div className="bento-pillar-track" style={{ height: `${p.h}px` }}>
+                        {p.badges.map((b, bIdx) => (
+                          <div
+                            key={bIdx}
+                            className={`bento-pillar-badge badge-${b.color}`}
+                            style={b.pos}
+                          >
+                            {b.text}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="bento-pillar-label">{p.day}</span>
                     </div>
-                    <span className="bento-pillar-label">12</span>
-                  </div>
-
-                  {/* Pillar 2: Day 13 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '150px' }}>
-                      <div className="bento-pillar-badge badge-green mid-13">+8%</div>
-                    </div>
-                    <span className="bento-pillar-label">13</span>
-                  </div>
-
-                  {/* Pillar 3: Day 14 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '185px' }}>
-                      <div className="bento-pillar-badge badge-blue top-14">+65%</div>
-                    </div>
-                    <span className="bento-pillar-label">14</span>
-                  </div>
-
-                  {/* Pillar 4: Day 15 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '160px' }}>
-                      <div className="bento-pillar-badge badge-orange mid-15">+12%</div>
-                    </div>
-                    <span className="bento-pillar-label">15</span>
-                  </div>
-
-                  {/* Pillar 5: Day 16 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '175px' }}>
-                      <div className="bento-pillar-badge badge-green mid-16">+5%</div>
-                    </div>
-                    <span className="bento-pillar-label">16</span>
-                  </div>
-
-                  {/* Pillar 6: Day 17 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '165px' }}>
-                      <div className="bento-pillar-badge badge-orange low-17">+10%</div>
-                    </div>
-                    <span className="bento-pillar-label">17</span>
-                  </div>
-
-                  {/* Pillar 7: Day 18 */}
-                  <div className="bento-pillar-col">
-                    <div className="bento-pillar-track" style={{ height: '145px' }}>
-                      <div className="bento-pillar-badge badge-green mid-18">+6%</div>
-                    </div>
-                    <span className="bento-pillar-label">18</span>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* QUADRANT 4 (BOTTOM-RIGHT): TIMELINE */}
+              {/* QUADRANT 4 (BOTTOM-RIGHT): INTERACTIVE TIMELINE */}
               <div className="bento-card bento-timeline-card">
                 <div className="bento-card-header">
                   <div className="bento-header-left">
@@ -1681,13 +2029,13 @@ export function App() {
                     </div>
                     <h2 className="bento-card-title">Timeline</h2>
                   </div>
-                  <button className="bento-dots-btn" onClick={() => setActiveTab('Schedule')}>
+                  <button className="bento-dots-btn" onClick={() => setActiveTab('Schedule')} title="View Schedule">
                     ···
                   </button>
                 </div>
 
                 <div className="bento-timeline-lanes-wrap">
-                  {/* Vertical Time Indicator Needle (pointing at 15.5) */}
+                  {/* Vertical Time Indicator Needle with Pulse */}
                   <div className="bento-timeline-needle">
                     <div className="needle-head">
                       <div className="needle-inner-dot" />
@@ -1695,47 +2043,87 @@ export function App() {
                     <div className="needle-line" />
                   </div>
 
-                  {/* Lane 1: Interview (Orange / Soft Red Gradient) */}
+                  {/* Lane 1: Vibrant Orange Pill */}
                   <div className="bento-timeline-lane">
                     <div
                       className="bento-tl-capsule capsule-interview"
-                      style={{ left: '0%', width: '38%' }}
+                      style={{ left: '0%', width: '44%' }}
+                      onClick={() => setActiveTimelineBlock(sessions[0]?.name || 'Interview')}
+                      title={`Inspect ${sessions[0]?.name || 'Interview'}`}
                     >
-                      <span className="capsule-text">Interview</span>
+                      <span className="capsule-text">
+                        {sessions[0]?.name
+                          ? sessions[0].name.length > 18
+                            ? `${sessions[0].name.slice(0, 16)}...`
+                            : sessions[0].name
+                          : 'Interview'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Lane 2: Wireframe (Green Gradient) */}
+                  {/* Lane 2: Vibrant Green Pill with Secondary Track */}
                   <div className="bento-timeline-lane">
                     <div
                       className="bento-tl-capsule capsule-wireframe"
-                      style={{ left: '16%', width: '58%' }}
+                      style={{ left: '16%', width: '38%', zIndex: 2 }}
+                      onClick={() => setActiveTimelineBlock(sessions[1]?.name || 'Wireframe')}
+                      title={`Inspect ${sessions[1]?.name || 'Wireframe'}`}
                     >
-                      <span className="capsule-text">Wireframe</span>
+                      <span className="capsule-text">
+                        {sessions[1]?.name
+                          ? sessions[1].name.length > 16
+                            ? `${sessions[1].name.slice(0, 14)}...`
+                            : sessions[1].name
+                          : 'Wireframe'}
+                      </span>
                     </div>
+                    <div
+                      className="bento-tl-track-bg"
+                      style={{ left: '54%', width: '34%' }}
+                    />
                   </div>
 
-                  {/* Lane 3: Ideas (Blue Gradient) */}
+                  {/* Lane 3: Vibrant Blue Pill */}
                   <div className="bento-timeline-lane">
                     <div
                       className="bento-tl-capsule capsule-ideas"
-                      style={{ left: '32%', width: '22%' }}
+                      style={{ left: '28%', width: '30%' }}
+                      onClick={() => setActiveTimelineBlock(sessions[2]?.name || 'Ideas')}
+                      title={`Inspect ${sessions[2]?.name || 'Ideas'}`}
                     >
-                      <span className="capsule-text">Ideas</span>
+                      <span className="capsule-text">
+                        {sessions[2]?.name
+                          ? sessions[2].name.length > 14
+                            ? `${sessions[2].name.slice(0, 12)}...`
+                            : sessions[2].name
+                          : 'Ideas'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Lane 4: Evaluate (Dark Slate Translucent) */}
+                  {/* Lane 4: Dark Slate Capsule on Track */}
                   <div className="bento-timeline-lane">
                     <div
+                      className="bento-tl-track-bg"
+                      style={{ left: '28%', width: '60%' }}
+                    />
+                    <div
                       className="bento-tl-capsule capsule-evaluate"
-                      style={{ left: '0%', width: '68%' }}
+                      style={{ left: '0%', width: '28%', zIndex: 2 }}
+                      onClick={() => setActiveTimelineBlock(sessions[3]?.name || 'Evaluate')}
+                      title={`Inspect ${sessions[3]?.name || 'Evaluate'}`}
                     >
-                      <span className="capsule-text">Evaluate</span>
+                      <span className="capsule-text">
+                        {sessions[3]?.name
+                          ? sessions[3].name.length > 12
+                            ? `${sessions[3].name.slice(0, 10)}...`
+                            : sessions[3].name
+                          : 'Evaluate'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Timeline X-Axis Hour Labels */}
+                  {/* Timeline X-Axis Hour Labels (Matching Reference 12 to 18) */}
                   <div className="bento-timeline-x-axis">
                     <span>12</span>
                     <span>13</span>
@@ -1745,9 +2133,94 @@ export function App() {
                     <span>17</span>
                     <span>18</span>
                   </div>
+
+                  {/* Interactive Block Trigger Bar */}
+                  {activeTimelineBlock && (
+                    <div className="bento-timeline-interactive-bar">
+                      <span><strong>Active Block:</strong> {activeTimelineBlock}</span>
+                      <button
+                        className="tl-arm-btn"
+                        onClick={() => handleArmMissionAsSession(activeTimelineBlock, 35)}
+                      >
+                        Start focus
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Interactive Task Inspector & Instant Focus Sprint Arming Modal */}
+            {inspectingMission && (
+              <div className="taskmaster-modal-overlay" onClick={() => setInspectingMission(null)}>
+                <div className="taskmaster-modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="badge-tag red">MISSION INSPECTOR</span>
+                      <span className="badge-tag blue">{inspectingMission.estimatedMinutes || 25}m Sprint</span>
+                    </div>
+                    <button className="modal-close-icon-btn" onClick={() => setInspectingMission(null)}>
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+
+                  <h3 className="modal-mission-title">{inspectingMission.title}</h3>
+                  {inspectingMission.description && (
+                    <p className="modal-mission-desc">{inspectingMission.description}</p>
+                  )}
+
+                  <div className="modal-meta-grid">
+                    <div className="modal-meta-item">
+                      <span className="meta-label">STATUS</span>
+                      <span className="meta-val">{inspectingMission.status || 'PENDING'}</span>
+                    </div>
+                    <div className="modal-meta-item">
+                      <span className="meta-label">FOCUS DURATION</span>
+                      <span className="meta-val">{inspectingMission.estimatedMinutes || 25} Minutes</span>
+                    </div>
+                    <div className="modal-meta-item">
+                      <span className="meta-label">OS SHIELD</span>
+                      <span className="meta-val highlight-red">ENFORCEMENT READY</span>
+                    </div>
+                  </div>
+
+                  <div className="modal-action-footer">
+                    <button
+                      className="modal-btn-arm-sprint"
+                      onClick={() => {
+                        handleArmMissionAsSession(inspectingMission.title, inspectingMission.estimatedMinutes)
+                        setInspectingMission(null)
+                      }}
+                    >
+                      <Icon name="sparkle" size={14} />
+                      <span>Arm & Start Focus Sprint</span>
+                    </button>
+                    {inspectingMission.id > 0 && (
+                      <button
+                        className="modal-btn-complete"
+                        onClick={() => {
+                          handleToggleMissionComplete(inspectingMission.id)
+                          setInspectingMission(null)
+                        }}
+                      >
+                        <Icon name="check" size={14} />
+                        <span>Mark Done</span>
+                      </button>
+                    )}
+                    <button
+                      className="modal-btn-deconstruct"
+                      onClick={() => {
+                        setActiveTab('AI Assistant')
+                        handleAiSend(`Deconstruct this mission into concrete micro-steps: "${inspectingMission.title}"`)
+                        setInspectingMission(null)
+                      }}
+                    >
+                      <span>Eonpai Assist</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1758,7 +2231,7 @@ export function App() {
             <div className="bento-card card-timer-hud">
               <div className="card-header-row">
                 <div className="card-title-group">
-                  <span className="card-title">Focus Engine HUD</span>
+                  <span className="card-title">Focus</span>
                   <span className={`badge-tag ${activeSession ? 'green' : 'blue'}`}>
                     {activeSession ? activeSession.status : 'STANDBY'}
                   </span>
@@ -1771,7 +2244,7 @@ export function App() {
               {(activeSession?.intention || sessionIntention) && (
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
                   <span className="active-intention-tag">
-                    🎯 {activeSession?.intention || sessionIntention}
+                    {activeSession?.intention || sessionIntention}
                   </span>
                 </div>
               )}
@@ -1797,7 +2270,7 @@ export function App() {
 
               <div className="timer-action-buttons">
                 {!activeSession && (
-                  <button className="btn-timer primary" onClick={handleStartSession}>
+                  <button className="btn-timer primary" onClick={handleStartSession} data-tutorial="start-timer-btn">
                     <Icon name="play" size={16} />
                     <span>Engage {selectedDuration}m Sprint</span>
                   </button>
@@ -1815,6 +2288,7 @@ export function App() {
                     <button
                       className="btn-timer primary"
                       onClick={() => setCompletingSessionId(activeSession.id)}
+                      data-tutorial="debrief-controls"
                     >
                       <Icon name="check" size={16} />
                       <span>Complete & Debrief</span>
@@ -1863,7 +2337,7 @@ export function App() {
             <div className="bento-card card-session-creator">
               <div className="card-header-row">
                 <div className="card-title-group">
-                  <span className="card-title">Duration & Plan Architect</span>
+                  <span className="card-title">Focus plan</span>
                   <span className="badge-tag">Presets & Custom</span>
                 </div>
                 <Icon name="target" size={20} />
@@ -1892,7 +2366,7 @@ export function App() {
                     setSelectedPomodoroPlan(null)
                   }}
                 >
-                  Custom ✎
+                  Custom
                 </button>
               </div>
 
@@ -1971,7 +2445,7 @@ export function App() {
             <div className="bento-card card-session-history">
               <div className="card-header-row">
                 <div className="card-title-group">
-                  <span className="card-title">Focus Sprints Registry</span>
+                  <span className="card-title">Recent sessions</span>
                   <span className="badge-tag">{sessions.length} Recorded</span>
                 </div>
                 <Icon name="clock" size={18} />
@@ -2002,7 +2476,7 @@ export function App() {
                             </div>
                             {sess.intention && (
                               <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
-                                🎯 {sess.intention}
+                                {sess.intention}
                               </div>
                             )}
                           </td>
@@ -2048,28 +2522,30 @@ export function App() {
           </div>
         )}
 
-        {/* Tab 3: AI Tactical Assistant */}
+        {/* Tab 3: AI Assistant / EONPAI */}
         {activeTab === 'AI Assistant' && (
           <div className="ai-bento-container">
             <div className="ai-sidebar-card">
               <div className="card-header-row" style={{ margin: 0 }}>
-                <span className="card-title">Tactical Directives</span>
+                <span className="card-title">Quick Actions</span>
                 <Icon name="sparkle" size={18} />
               </div>
-              <p style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5 }}>
                 Issue natural commands or trigger direct strategic algorithms to structure your day.
               </p>
 
               {[
                 { label: 'Plan My Execution Day', prompt: 'Plan my day with high-impact sessions' },
-                { label: 'Decompose Top Goal', prompt: 'Break down my top goal into actionable steps' },
-                { label: 'What is My Next Action?', prompt: 'Guide me on what I should do right now' },
-                { label: 'Cognitive Reset / Stuck', prompt: 'I feel stuck and overwhelmed, guide me' },
+                { label: 'Start Guided Walkthrough', prompt: 'How do I use SHINPO?' },
+                { label: 'Check Sentinel Status', prompt: 'Why is YouTube blocked?' },
+                { label: 'Report an Issue / Bug', prompt: 'I found a bug. Please report this issue' },
+                { label: 'What is My Next Action?', prompt: 'What should I work on right now?' },
+                { label: 'Deconstruct Top Goal', prompt: 'Break down my top goal into actionable steps' },
               ].map((p, idx) => (
                 <button
                   key={idx}
                   className="ai-preset-btn"
-                  onClick={() => handleAiSend(p.prompt)}
+                  onClick={() => handleTriggerPresetAction(p.prompt)}
                 >
                   <span>{p.label}</span>
                   <Icon name="arrow-up-right" size={14} />
@@ -2079,38 +2555,156 @@ export function App() {
 
             <div className="ai-chat-card">
               <div className="card-header-row">
-                <span className="card-title">Eonpai Tactical Stream</span>
-                <span className="badge-tag green">EONPAI ONLINE</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="card-title">EONPAI Conversation</span>
+                  <span className="badge-tag green">EONPAI ONLINE</span>
+                </div>
+                <button
+                  className="btn-ai-new-chat"
+                  onClick={handleClearChat}
+                  title="Archive current conversation and start fresh"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-3)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--text-1)'
+                    e.currentTarget.style.borderColor = 'var(--border-strong)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-3)'
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)'
+                  }}
+                >
+                  <Icon name="refresh" size={13} />
+                  <span>New Chat</span>
+                </button>
               </div>
 
-              <div className="ai-messages-feed">
-                {chatMessages.map((msg, index) => (
-                  <div key={index} className={`ai-bubble ${msg.role}`}>
-                    <div>{msg.text}</div>
-                    {msg.missions && msg.missions.length > 0 && (
-                      <div className="ai-cards-row">
-                        {msg.missions.map((m, mIdx) => (
-                          <div key={mIdx} className="ai-mission-card">
-                            <span style={{ fontWeight: 600 }}>{m.title}</span>
-                            <span className="badge-tag blue">{m.estimatedMinutes}m</span>
+              <div
+                className="ai-messages-feed"
+                ref={aiFeedRef}
+                onScroll={handleChatScroll}
+                onWheel={(e) => {
+                  if (e.deltaY < 0) {
+                    autoFollowEnabledRef.current = false
+                    setShowScrollBottomBtn(true)
+                  }
+                }}
+              >
+                <div className="ai-messages-content" ref={aiContentRef}>
+                  {chatMessages.map((msg, index) => (
+                    <div key={index} className={`ai-bubble ${msg.role}`}>
+                      <div>{msg.text}</div>
+
+                      {msg.suggestionType === 'GREETING' && (
+                        <div className="ai-quick-chips">
+                          <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('Plan my day')}>
+                            Plan my day
+                          </button>
+                          <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('What should I work on right now?')}>
+                            What should I work on?
+                          </button>
+                          <button className="ai-quick-chip" onClick={() => handleStartTutorial(0)}>
+                            Start tour
+                          </button>
+                          <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('Why is YouTube blocked?')}>
+                            Check Sentinel status
+                          </button>
+                        </div>
+                      )}
+
+                      {msg.tutorial && (
+                        <div className="ai-tutorial-card">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span className="badge-tag red">TUTORIAL • STEP {msg.tutorial.stepId}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{msg.tutorial.tutorialId}</span>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {aiLoading && (
-                  <div className="ai-bubble assistant" style={{ fontStyle: 'italic' }}>
-                    Eonpai formulating tactical response...
-                  </div>
-                )}
+                          <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                            {msg.tutorial.instruction}
+                          </p>
+                          <button
+                            className="ai-arm-sprint-btn"
+                            onClick={() => handleStartTutorial(0)}
+                          >
+                            <span>Start interactive tour</span>
+                            <Icon name="arrow-up-right" size={12} />
+                          </button>
+                        </div>
+                      )}
+
+                      {msg.bugReport && (
+                        <div className="ai-bug-card">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span className="badge-tag green">DIAGNOSTIC LOGGED: {msg.bugReport.bugId}</span>
+                            <span className="badge-tag blue">{msg.bugReport.feature}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>
+                            Sanitized host telemetry captured (OS, memory, JVM, focus status). Zero credentials stored.
+                          </div>
+                        </div>
+                      )}
+
+                      {msg.missions && msg.missions.length > 0 && (
+                        <div className="ai-cards-row">
+                          {msg.missions.map((m, mIdx) => (
+                            <div key={mIdx} className="ai-mission-card">
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, marginRight: 12 }}>
+                                <span style={{ fontWeight: 600 }}>{m.title}</span>
+                                {m.description && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{m.description}</span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="badge-tag blue">{m.estimatedMinutes}m</span>
+                                <button
+                                  className="ai-arm-sprint-btn"
+                                  onClick={() => handleArmMissionAsSession(m.title, m.estimatedMinutes)}
+                                  title="Arm Focus Session with Shield"
+                                >
+                                  <span>Start focus</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {aiLoading && (
+                    <div className="ai-bubble assistant" style={{ fontStyle: 'italic' }}>
+                      EONPAI formulating response...
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Floating Scroll to Bottom Button */}
+              {showScrollBottomBtn && (
+                <button
+                  className="ai-scroll-bottom-btn"
+                  onClick={handleScrollToBottom}
+                  aria-label="Scroll to latest"
+                  title="Scroll to latest"
+                >
+                  ↓
+                </button>
+              )}
 
               <div className="ai-chat-input-bar">
                 <input
                   type="text"
                   className="ai-input-field"
-                  placeholder="Ask Eonpai anything (e.g. 'plan my sprints', 'guide me', 'split my objective')..."
+                  placeholder="Ask EONPAI anything (e.g. 'plan my sprints', 'guide me', 'split my objective')..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAiSend()}
@@ -2136,6 +2730,7 @@ export function App() {
                 className="btn-timer primary"
                 style={{ padding: '9px 18px', fontSize: 14 }}
                 onClick={() => setIsCreatingGoal(true)}
+                data-tutorial="new-goal"
               >
                 <Icon name="plus" size={14} />
                 <span>New Strategic Goal</span>
@@ -2198,6 +2793,7 @@ export function App() {
                   <button
                     className="btn-timer primary"
                     onClick={handleCommitAiMissions}
+                    data-tutorial="commit-missions"
                   >
                     <Icon name="check" size={14} />
                     <span>Commit {aiDecompResult.proposedMissions.length} Missions to Live Deck</span>
@@ -2282,6 +2878,7 @@ export function App() {
                           className="btn-ai-deconstruct"
                           onClick={() => handleDeconstructGoal(g.id)}
                           disabled={decomposingGoalId === g.id}
+                          data-tutorial="decompose-goal"
                         >
                           <Icon name="sparkle" size={13} />
                           <span>
@@ -2296,10 +2893,10 @@ export function App() {
             </div>
 
             {/* Section 2: Tactical Missions Deck */}
-            <div className="deck-section-header" style={{ marginTop: 12 }}>
+            <div className="deck-section-header" style={{ marginTop: 12 }} data-tutorial="missions-queue">
               <div className="deck-section-title">
                 <Icon name="target" size={18} />
-                <span>Tactical Mission Queue</span>
+                <span>Missions</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
@@ -2346,7 +2943,7 @@ export function App() {
                             {m.title}
                           </div>
                           <div className="mission-deck-sub">
-                            {parentGoal && <span>🎯 {parentGoal.title}</span>}
+                            {parentGoal && <span>Target: {parentGoal.title}</span>}
                             <span>• {m.estimatedMinutes || 25}m estimated</span>
                             <span>• {m.scheduledDate}</span>
                           </div>
@@ -2365,7 +2962,7 @@ export function App() {
                             }}
                           >
                             <Icon name="play" size={12} />
-                            <span>Engage Sprint</span>
+                            <span>Start focus</span>
                           </button>
                         )}
                         <button
@@ -2427,6 +3024,7 @@ export function App() {
                 type="button"
                 className="schedule-btn-book"
                 onClick={() => handleOpenBookingModal()}
+                data-tutorial="schedule-book-btn"
               >
                 <Icon name="plus" size={14} />
                 <span>Book Focus Sprint</span>
@@ -2559,7 +3157,7 @@ export function App() {
                               className="schedule-btn-engage"
                               onClick={() => setActiveTab('Focus Engine')}
                             >
-                              <span>Open HUD</span>
+                              <span>Open focus</span>
                             </button>
                           )}
 
@@ -2578,7 +3176,7 @@ export function App() {
                 </div>
               ) : (
                 <div className="schedule-empty-box">
-                  <div className="schedule-empty-icon">🗓️</div>
+                  <div className="schedule-empty-icon"><Icon name="schedule" size={36} /></div>
                   <h3 className="schedule-empty-title">No Execution Blocks Scheduled</h3>
                   <p className="schedule-empty-desc">
                     Your cognitive capacity for this day is currently unallocated. Pre-commit to a focus block to protect your calendar and arm the Rust Shield.
@@ -2597,7 +3195,7 @@ export function App() {
                       className="schedule-quick-btn"
                       onClick={() => handleOpenBookingModal(selectedScheduleDate, 50, 'Deep Work Sprint')}
                     >
-                      ⚡ 50m Deep Work Preset
+                      50m Deep Work Preset
                     </button>
                   </div>
                 </div>
@@ -2853,10 +3451,10 @@ export function App() {
                                   : 'protected'
                               }`}
                             >
-                              {proc.shinpoPolicyState === 'ALLOWED' && '✓ Allowed'}
-                              {proc.shinpoPolicyState === 'BLOCKED' && '✕ Blocked'}
-                              {proc.shinpoPolicyState === 'PROTECTED' && '🔒 Protected'}
-                              {proc.shinpoPolicyState === 'UNKNOWN' && '• Monitored'}
+                              {proc.shinpoPolicyState === 'ALLOWED' && 'Allowed'}
+                              {proc.shinpoPolicyState === 'BLOCKED' && 'Blocked'}
+                              {proc.shinpoPolicyState === 'PROTECTED' && 'Protected'}
+                              {proc.shinpoPolicyState === 'UNKNOWN' && 'Monitored'}
                             </span>
                           </td>
                           <td style={{ textAlign: 'right' }}>
@@ -2870,7 +3468,7 @@ export function App() {
                               </button>
                             ) : (
                               <span className="tm-protected-label">
-                                🔒 Protected
+                                Protected
                               </span>
                             )}
                           </td>
@@ -2963,10 +3561,10 @@ export function App() {
                 </div>
                 <div className="tm-metric-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span>{analyticsData ? analyticsData.summary.avgQuality.toFixed(1) : '5.0'}</span>
-                  <span style={{ fontSize: 18, color: 'var(--accent-amber)' }}>⭐</span>
+                  <span style={{ fontSize: 18, color: 'var(--accent-amber)' }}>★</span>
                 </div>
                 <div className="tm-metric-sub">
-                  🔥 {analyticsData?.summary.currentStreak ?? 3}-Day Execution Streak
+                  {analyticsData?.summary.currentStreak ?? 3}-Day Execution Streak
                 </div>
               </div>
             </div>
@@ -3049,7 +3647,7 @@ export function App() {
                       </div>
                       {deb.accomplishment && (
                         <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>
-                          🎯 Output: {deb.accomplishment}
+                          Output: {deb.accomplishment}
                         </div>
                       )}
                       {deb.reflectionNote && (
@@ -3222,7 +3820,7 @@ export function App() {
             <form onSubmit={handleConfirmBookSession}>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                  Target Tactical Mission (Optional)
+                  Target Mission (Optional)
                 </label>
                 <select
                   className="modal-field"
@@ -3369,6 +3967,33 @@ export function App() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Interactive Guided Tour Spotlight Overlay */}
+      {isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex] && (
+        <TutorialOverlay
+          step={SHINPO_ONBOARDING_STEPS[tutorialStepIndex]}
+          stepIndex={tutorialStepIndex}
+          totalSteps={SHINPO_ONBOARDING_STEPS.length}
+          onNext={handleNextTutorialStep}
+          onPrev={handlePrevTutorialStep}
+          onExit={handleExitTutorial}
+          onTargetInteract={() => {
+            if (tutorialStepIndex === 0) {
+              setIsCreatingGoal(true)
+            } else if (tutorialStepIndex === 3) {
+              setActiveTab('Schedule')
+              handleNextTutorialStep()
+            } else if (tutorialStepIndex === 4) {
+              handleOpenBookingModal()
+            } else if (tutorialStepIndex === 5) {
+              setActiveTab('Focus Engine')
+            } else if (tutorialStepIndex === 7) {
+              setActiveTab('Analytics')
+              handleCompleteTutorial()
+            }
+          }}
+        />
       )}
     </div>
   )

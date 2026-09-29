@@ -75,7 +75,7 @@ The following interactive visualizations have been compiled and validated using 
 | - missions         - focus_sessions|                      |              |
 | - mission_compl.   - session_plans |                      | POST /gen    | SIGKILL
 | - progress_events  - refresh_tokens|                      v              v
-| - ai_suggestions                   |                 +----+----+     +---+---+
+| - ai_suggestions   - bug_reports   |                 +----+----+     +---+---+
 +------------------------------------+                 | OLLAMA  |     | OS    |
                                                        | :11434  |     | PROCS |
                                                        +---------+     +-------+
@@ -87,6 +87,7 @@ The following interactive visualizations have been compiled and validated using 
    - Single Page Application built on React 19 and TypeScript.
    - Modular API clients located in `src/api/`: `auth.ts`, `focusSessions.ts`, `goalsAndMissions.ts`, `ai.ts`, `device.ts`, `analytics.ts`.
    - Task Master 2x2 Bento Dashboard matching interactive specifications (Today tasks, Inset Calendar, Velocity pillars, Glowing needle Timeline, and EONPAI companion).
+   - Interactive EONPAI companion UI with quick reply chips, guided tutorial cards with 1-click navigation, and telemetry-scrubbed bug report confirmation badges.
 
 2. **Security Gateway (`com.shinpo.security`, `com.shinpo.config`)**:
    - `SecurityFilterChain` configuring stateless session creation, CORS handling, and public/private endpoint filters.
@@ -101,11 +102,10 @@ The following interactive visualizations have been compiled and validated using 
    - Enforces relational scoping and foreign-key isolation so users only read and mutate their own objectives.
 
 5. **AI Orchestrator (EONPAI) (`com.shinpo.ai`)**:
-   - `AiGateway`: Central coordinator handling Goal Decomposition, Daily Planning, Next Action routing, and Session Recovery.
-   - `AiToolRegistry`: Provides controlled, read-only system state to the AI (active goals, next mission, today's schedule, system metrics).
-   - `OllamaProvider`: Pluggable implementation of `AIProvider` SPI communicating over HTTP with local Ollama daemon (`http://localhost:11434`).
-   - `Deterministic Fallback Engine`: Hardened fallback routines executing when Ollama is unavailable, ensuring zero downtime and zero hallucinated responses.
-   - `AiSuggestionRepository`: Audits every generated suggestion, token usage, latency, and tool call into the `ai_suggestions` table.
+   - `AiGateway`: Intent-driven conversational coordinator supporting warm time-aware greetings, companion identity, multi-step interactive tutorials (`TutorialStep`), truth-grounded Sentinel enforcement explanations, and sanitized bug report generation (`BugReport`).
+   - `AiToolRegistry`: Controlled read-only system telemetry and application state provider (active focus sessions, recent session debriefs, today's schedule, hardware memory/CPU stats, sanitized diagnostic dumps).
+   - `OllamaProvider`: Pluggable implementation of `AIProvider` SPI with `resolveEffectiveModel()` dynamic model discovery and fallback (using `qwen2.5:0.5b` until `qwen3:4b` completes downloading).
+   - `BugReportRepository` & `AiSuggestionRepository`: Persisting audited diagnostics, user feedback, and suggestion telemetry without token leakage.
 
 6. **Native OS Focus Shield & Task Manager (`crates/shinpo-shield`, `TaskManagerService`)**:
    - `crates/shinpo-shield`: Native Rust daemon using `sysinfo` to monitor running processes, poll the Spring Boot API for active focus sessions, and terminate distraction processes (`discord`, `steam`, `spotify`, etc.) with desktop notifications.

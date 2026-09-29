@@ -51,7 +51,9 @@ async function parseResponse<T>(res: Response): Promise<T> {
     try {
       const body = await res.json()
       if (body.message) msg = body.message
-    } catch {}
+    } catch {
+      // ignore JSON parse error, fallback to status
+    }
     throw new Error(msg)
   }
   return res.json() as Promise<T>
@@ -111,7 +113,9 @@ export async function deleteGoal(goalId: number): Promise<void> {
     try {
       const body = await res.json()
       if (body.message) msg = body.message
-    } catch {}
+    } catch {
+      // ignore JSON parse error, fallback to status
+    }
     throw new Error(msg)
   }
 }
@@ -126,7 +130,9 @@ export async function deleteMission(missionId: number): Promise<void> {
     try {
       const body = await res.json()
       if (body.message) msg = body.message
-    } catch {}
+    } catch {
+      // ignore JSON parse error, fallback to status
+    }
     throw new Error(msg)
   }
 }

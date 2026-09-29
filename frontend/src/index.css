@@ -44,7 +44,7 @@ button:disabled {
 
 ::selection {
   color: #ffffff;
-  background: rgba(239, 68, 68, 0.55);
+  background: rgba(16, 185, 129, 0.4);
 }
 
 ::-webkit-scrollbar {
