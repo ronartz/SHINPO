@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import {
+  cancelFocusSession,
   completeFocusSession,
   createFocusSession,
   deleteFocusSession,
@@ -412,6 +413,21 @@ export function App() {
   const [flightDeckFilter, setFlightDeckFilter] = useState<'ALL' | 'SPRINT' | 'MILESTONES'>('ALL')
   const [topSearchQuery, setTopSearchQuery] = useState('')
 
+  // Schedule Deck State (C-002)
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>(() => {
+    return new URLSearchParams(window.location.search).get('date') || new Date().toISOString().split('T')[0]
+  })
+  const [scheduleWeekOffset, setScheduleWeekOffset] = useState<number>(0)
+  const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+  const [isBookingSession, setIsBookingSession] = useState(() => new URLSearchParams(window.location.search).get('book') === 'true')
+  const [bookMissionId, setBookMissionId] = useState<number | null>(null)
+  const [bookName, setBookName] = useState('')
+  const [bookIntention, setBookIntention] = useState('')
+  const [bookDate, setBookDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [bookTime, setBookTime] = useState('09:00')
+  const [bookDuration, setBookDuration] = useState(25)
+  const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
+
   const getMissionCategory = (m: Mission) => {
     const goal = goals.find((g) => g.id === m.goalId)
     if (!goal) return 'TASK'
@@ -482,6 +498,61 @@ export function App() {
     }
     return days
   }, [todayCompletedSessions.length])
+
+  const scheduleWeekDays = useMemo(() => {
+    const base = new Date()
+    base.setDate(base.getDate() + scheduleWeekOffset * 7)
+    const dayOfWeek = base.getDay()
+    const distToMon = (dayOfWeek + 6) % 7
+    const monday = new Date(base)
+    monday.setDate(base.getDate() - distToMon)
+
+    const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + i)
+      const dateStr = d.toISOString().split('T')[0]
+      const count = sessions.filter((s) => {
+        const sDate = s.scheduledAt
+          ? s.scheduledAt.split('T')[0]
+          : s.startedAt
+          ? s.startedAt.split('T')[0]
+          : s.createdAt.split('T')[0]
+        return sDate === dateStr
+      }).length
+
+      return {
+        dateStr,
+        dayName: dayNames[i],
+        dayNum: d.getDate(),
+        monthName: monthNames[d.getMonth()],
+        isToday: dateStr === todayStr,
+        sessionCount: count,
+      }
+    })
+  }, [scheduleWeekOffset, sessions])
+
+  const selectedDaySessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const sDate = s.scheduledAt
+        ? s.scheduledAt.split('T')[0]
+        : s.startedAt
+        ? s.startedAt.split('T')[0]
+        : s.createdAt.split('T')[0]
+      if (sDate !== selectedScheduleDate) return false
+
+      if (scheduleFilter === 'PENDING') {
+        return s.status === 'SCHEDULED' || s.status === 'ACTIVE' || s.status === 'PAUSED'
+      }
+      if (scheduleFilter === 'COMPLETED') {
+        return s.status === 'COMPLETED'
+      }
+      return true
+    })
+  }, [sessions, selectedScheduleDate, scheduleFilter])
 
   useEffect(() => {
     const handleMouseMove = (e: globalThis.MouseEvent) => {
@@ -862,6 +933,71 @@ export function App() {
       ])
     } finally {
       setAiLoading(false)
+    }
+  }
+
+  const handleOpenBookingModal = (defaultDate?: string, presetDuration?: number, presetPlan?: string) => {
+    setBookDate(defaultDate || selectedScheduleDate)
+    setBookDuration(presetDuration || 25)
+    setBookPlanName(presetPlan || 'Classic Pomodoro')
+    setBookMissionId(null)
+    setBookName('')
+    setBookIntention('')
+    setBookTime('09:00')
+    setIsBookingSession(true)
+  }
+
+  const handleConfirmBookSession = async (e: FormEvent) => {
+    e.preventDefault()
+    const userId = currentUser?.id ?? 1
+    const mission = missions.find((m) => m.id === bookMissionId)
+    const sessionTitle = bookName.trim() || mission?.title || `${bookDuration}m Focus Sprint`
+    const intention = bookIntention.trim() || mission?.title || 'Execution block'
+
+    let scheduledAt: string | undefined = undefined
+    if (bookDate) {
+      const timePart = bookTime ? (bookTime.length === 5 ? `${bookTime}:00` : bookTime) : '09:00:00'
+      scheduledAt = new Date(`${bookDate}T${timePart}Z`).toISOString()
+    }
+
+    try {
+      const created = await createFocusSession({
+        userId,
+        goalId: mission?.goalId,
+        missionId: mission?.id,
+        name: sessionTitle,
+        intention,
+        durationMinutes: bookDuration,
+        scheduledAt,
+      })
+      setSessions((prev) => [created, ...prev])
+      setIsBookingSession(false)
+      loadData()
+    } catch (err) {
+      console.error('Failed to book session:', err)
+      alert('Could not schedule focus session. Check server logs.')
+    }
+  }
+
+  const handleStartFromSchedule = async (sessionId: number) => {
+    const userId = currentUser?.id ?? 1
+    try {
+      const started = await startFocusSession(sessionId, userId)
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? started : s)))
+      setActiveTab('Focus Engine')
+    } catch (err) {
+      console.error('Failed to start session from schedule:', err)
+    }
+  }
+
+  const handleCancelFromSchedule = async (sessionId: number) => {
+    const userId = currentUser?.id ?? 1
+    try {
+      const cancelled = await cancelFocusSession(sessionId, userId)
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? cancelled : s)))
+      loadData()
+    } catch (err) {
+      console.error('Failed to cancel session:', err)
     }
   }
 
@@ -2408,11 +2544,235 @@ export function App() {
           </div>
         )}
 
-        {/* Tab 4: Other Views (Schedule / Analytics) */}
+        {/* Tab 5: Schedule View (C-002) */}
+        {activeTab === 'Schedule' && (
+          <div className="schedule-container">
+            {/* Top Toolbar */}
+            <div className="schedule-top-toolbar">
+              <div className="schedule-nav-group">
+                <button
+                  type="button"
+                  className="schedule-nav-btn"
+                  onClick={() => setScheduleWeekOffset((prev) => prev - 1)}
+                  title="Previous Week"
+                >
+                  <Icon name="chevron-left" size={14} />
+                  <span>Prev Week</span>
+                </button>
+                <button
+                  type="button"
+                  className="schedule-nav-btn"
+                  onClick={() => {
+                    setScheduleWeekOffset(0)
+                    setSelectedScheduleDate(new Date().toISOString().split('T')[0])
+                  }}
+                  title="Return to Current Day"
+                >
+                  <span>Current Day</span>
+                </button>
+                <button
+                  type="button"
+                  className="schedule-nav-btn"
+                  onClick={() => setScheduleWeekOffset((prev) => prev + 1)}
+                  title="Next Week"
+                >
+                  <span>Next Week</span>
+                  <Icon name="chevron-right" size={14} />
+                </button>
+                <span className="schedule-week-range-label">
+                  {scheduleWeekDays[0].monthName} {scheduleWeekDays[0].dayNum} — {scheduleWeekDays[6].monthName} {scheduleWeekDays[6].dayNum}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="schedule-btn-book"
+                onClick={() => handleOpenBookingModal()}
+              >
+                <Icon name="plus" size={14} />
+                <span>Book Focus Sprint</span>
+              </button>
+            </div>
+
+            {/* 7-Day Horizontal Strip */}
+            <div className="schedule-week-strip">
+              {scheduleWeekDays.map((d) => {
+                const isSelected = d.dateStr === selectedScheduleDate
+                return (
+                  <div
+                    key={d.dateStr}
+                    className={`schedule-day-tile ${isSelected ? 'selected' : ''} ${d.isToday ? 'is-today' : ''}`}
+                    onClick={() => setSelectedScheduleDate(d.dateStr)}
+                  >
+                    {d.isToday && <div className="schedule-today-pill" title="Today" />}
+                    <span className="schedule-day-name">{d.dayName}</span>
+                    <span className="schedule-day-number">{d.dayNum}</span>
+                    <span className="schedule-day-badge">
+                      {d.sessionCount === 1 ? '1 Sprint' : `${d.sessionCount} Sprints`}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Day Agenda Board */}
+            <div className="schedule-agenda-board">
+              <div className="schedule-agenda-header">
+                <div className="schedule-agenda-title-group">
+                  <h2>
+                    {new Date(selectedScheduleDate + 'T00:00:00Z').toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      timeZone: 'UTC',
+                    })}
+                  </h2>
+                  <p>
+                    {selectedDaySessions.length} session{selectedDaySessions.length === 1 ? '' : 's'} recorded for this date
+                  </p>
+                </div>
+
+                <div className="schedule-filter-tabs">
+                  {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      className={`schedule-filter-btn ${scheduleFilter === filter ? 'active' : ''}`}
+                      onClick={() => setScheduleFilter(filter)}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedDaySessions.length > 0 ? (
+                <div className="schedule-session-list">
+                  {selectedDaySessions.map((session) => {
+                    const scheduledTime = session.scheduledAt
+                      ? new Date(session.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : session.startedAt
+                      ? new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'Flexible Slot'
+
+                    return (
+                      <div
+                        key={session.id}
+                        className={`schedule-session-item status-${session.status}`}
+                      >
+                        <div className="schedule-session-left">
+                          <div className="schedule-time-badge">
+                            <span>{scheduledTime}</span>
+                          </div>
+
+                          <div className="schedule-session-info">
+                            <div className="schedule-session-title-row">
+                              <span className="schedule-session-title">{session.name}</span>
+                              <span className={`schedule-status-pill ${session.status}`}>
+                                {session.status}
+                              </span>
+                            </div>
+
+                            <div className="schedule-session-meta">
+                              <div className="schedule-session-meta-item">
+                                <Icon name="clock" size={12} />
+                                <span>{session.durationMinutes}m Duration</span>
+                              </div>
+                              {session.intention && (
+                                <div className="schedule-session-meta-item">
+                                  <span>• Intention: {session.intention}</span>
+                                </div>
+                              )}
+                              {session.result?.accomplishment && (
+                                <div className="schedule-session-meta-item" style={{ color: '#34C759' }}>
+                                  <span>• Accomplished: {session.result.accomplishment}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="schedule-session-actions">
+                          {session.status === 'SCHEDULED' && (
+                            <>
+                              <button
+                                type="button"
+                                className="schedule-btn-engage"
+                                onClick={() => handleStartFromSchedule(session.id)}
+                              >
+                                <Icon name="play" size={13} />
+                                <span>Engage Now</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="schedule-btn-cancel"
+                                onClick={() => handleCancelFromSchedule(session.id)}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+
+                          {(session.status === 'ACTIVE' || session.status === 'PAUSED') && (
+                            <button
+                              type="button"
+                              className="schedule-btn-engage"
+                              onClick={() => setActiveTab('Focus Engine')}
+                            >
+                              <span>Open HUD</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn-icon-delete"
+                            title="Delete Session"
+                            onClick={() => handleDeleteSession(session.id)}
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="schedule-empty-box">
+                  <div className="schedule-empty-icon">🗓️</div>
+                  <h3 className="schedule-empty-title">No Execution Blocks Scheduled</h3>
+                  <p className="schedule-empty-desc">
+                    Your cognitive capacity for this day is currently unallocated. Pre-commit to a focus block to protect your calendar and arm the Rust Shield.
+                  </p>
+                  <div className="schedule-empty-actions">
+                    <button
+                      type="button"
+                      className="schedule-btn-book"
+                      onClick={() => handleOpenBookingModal(selectedScheduleDate, 25, 'Classic Pomodoro')}
+                    >
+                      <Icon name="plus" size={14} />
+                      <span>Book Sprint for {selectedScheduleDate}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="schedule-quick-btn"
+                      onClick={() => handleOpenBookingModal(selectedScheduleDate, 50, 'Deep Work Sprint')}
+                    >
+                      ⚡ 50m Deep Work Preset
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Other Views (Analytics, etc.) */}
         {activeTab !== 'Dashboard' &&
           activeTab !== 'Focus Engine' &&
           activeTab !== 'Goals & Missions' &&
-          activeTab !== 'AI Assistant' && (
+          activeTab !== 'AI Assistant' &&
+          activeTab !== 'Schedule' && (
             <div className="bento-card" style={{ padding: 48, textAlign: 'center' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>{activeTab} Module</h2>
               <p style={{ color: 'var(--text-3)', fontSize: 14 }}>
@@ -2539,6 +2899,167 @@ export function App() {
                 <button type="submit" className="btn-timer primary">
                   <Icon name="plus" size={14} />
                   <span>Establish Objective</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Book Focus Sprint Modal (C-002) */}
+      {isBookingSession && (
+        <div className="modal-overlay" onClick={() => setIsBookingSession(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h3 className="modal-title">Book Temporal Focus Sprint</h3>
+            <p className="modal-sub">
+              Reserve a dedicated execution block on your timeline. The Rust shield will activate automatically when this block engages.
+            </p>
+
+            <form onSubmit={handleConfirmBookSession}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Target Tactical Mission (Optional)
+                </label>
+                <select
+                  className="modal-field"
+                  value={bookMissionId ?? ''}
+                  onChange={(e) => {
+                    const id = e.target.value ? Number(e.target.value) : null
+                    setBookMissionId(id)
+                    const m = missions.find((item) => item.id === id)
+                    if (m) {
+                      setBookName(m.title)
+                      setBookIntention(m.title)
+                      if (m.estimatedMinutes) setBookDuration(m.estimatedMinutes)
+                    }
+                  }}
+                >
+                  <option value="">-- Ad-hoc / Standalone Execution Block --</option>
+                  {missions
+                    .filter((m) => m.status !== 'COMPLETED')
+                    .map((m) => {
+                      const g = goals.find((item) => item.id === m.goalId)
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {m.title} {g ? `(Goal: ${g.title})` : ''}
+                        </option>
+                      )
+                    })}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Sprint Title / Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Deep Work Sprint / Refactoring Module..."
+                  value={bookName}
+                  onChange={(e) => setBookName(e.target.value)}
+                  className="modal-field"
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Execution Intention / Boundary
+                </label>
+                <input
+                  type="text"
+                  placeholder="What concrete output will be delivered?"
+                  value={bookIntention}
+                  onChange={(e) => setBookIntention(e.target.value)}
+                  className="modal-field"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Execution Date
+                  </label>
+                  <input
+                    type="date"
+                    value={bookDate}
+                    onChange={(e) => setBookDate(e.target.value)}
+                    className="modal-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Scheduled Time
+                  </label>
+                  <input
+                    type="time"
+                    value={bookTime}
+                    onChange={(e) => setBookTime(e.target.value)}
+                    className="modal-field"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Execution Protocol Plan (Optional)
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {pomodoroPlans.map((plan) => (
+                    <button
+                      type="button"
+                      key={plan.name}
+                      className={`auth-tab-btn ${bookPlanName === plan.name ? 'active' : ''}`}
+                      style={{ padding: '6px 12px', fontSize: 12 }}
+                      onClick={() => {
+                        setBookPlanName(plan.name)
+                        setBookDuration(plan.totalMinutes)
+                        if (!bookName) setBookName(plan.name)
+                      }}
+                    >
+                      {plan.name} ({plan.totalMinutes}m)
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`auth-tab-btn ${bookPlanName === null ? 'active' : ''}`}
+                    style={{ padding: '6px 12px', fontSize: 12 }}
+                    onClick={() => setBookPlanName(null)}
+                  >
+                    Custom Single Block
+                  </button>
+                </div>
+
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Duration Preset ({bookDuration} min)
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[15, 25, 30, 45, 50, 60, 90, 120].map((mins) => (
+                    <button
+                      type="button"
+                      key={mins}
+                      className={`auth-tab-btn ${bookDuration === mins ? 'active' : ''}`}
+                      style={{ padding: '6px 12px', fontSize: 12 }}
+                      onClick={() => setBookDuration(mins)}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button
+                  type="button"
+                  className="btn-timer secondary"
+                  onClick={() => setIsBookingSession(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-timer primary">
+                  <Icon name="check" size={14} />
+                  <span>Confirm Schedule</span>
                 </button>
               </div>
             </form>

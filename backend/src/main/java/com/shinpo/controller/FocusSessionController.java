@@ -6,11 +6,13 @@ import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.FocusSessionService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -38,6 +40,23 @@ public class FocusSessionController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(focusSessionService.getSessionsForUser(principal.getUserId()));
+    }
+
+    @GetMapping("/by-date")
+    public ResponseEntity<List<FocusSessionResponse>> getSessionsByDate(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(focusSessionService.getSessionsByDate(principal.getUserId(), date));
+    }
+
+    @GetMapping("/agenda")
+    public ResponseEntity<List<FocusSessionResponse>> getSessionsAgenda(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return ResponseEntity.ok(focusSessionService.getSessionsForAgenda(principal.getUserId(), startDate, endDate));
     }
 
     @GetMapping("/{sessionId}")
