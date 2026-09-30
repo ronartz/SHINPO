@@ -566,6 +566,78 @@ class ShinpoApplicationTests {
     }
 
     @Test
+    void shouldReturnNotFoundWhenDeletingNonexistentMission() {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(authToken);
+        org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl() + "/api/missions/999999",
+                org.springframework.http.HttpMethod.DELETE,
+                entity,
+                String.class
+        );
+
+        assertEquals(404, response.getStatusCode().value());
+    }
+
+    @Test
+    void shouldPreventDeletingMissionOwnedByAnotherUser() {
+        User otherUser = userRepository.save(
+                new User("mission_victim", "victim@shinpo.dev", passwordEncoder.encode("secret"), Instant.now())
+        );
+        Goal otherGoal = goalRepository.save(
+                new Goal("Victim Goal", "Private", LocalDate.now(), null, otherUser)
+        );
+        Mission otherMission = missionRepository.save(
+                new Mission("Victim Mission", "Private Mission", LocalDate.now(), 25, otherGoal)
+        );
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(authToken);
+        org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl() + "/api/missions/" + otherMission.getId(),
+                org.springframework.http.HttpMethod.DELETE,
+                entity,
+                String.class
+        );
+
+        assertEquals(404, response.getStatusCode().value());
+        assertTrue(missionRepository.existsById(otherMission.getId()));
+    }
+
+    @Test
+    void shouldHandleDuplicateDeleteOfMissionGracefully() {
+        Goal goal = goalRepository.save(new Goal("Duplicate Delete Goal", "Desc", LocalDate.now(), null, testUser));
+        Mission mission = missionRepository.save(new Mission("Duplicate Delete Mission", "Desc", LocalDate.now(), 25, goal));
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth(authToken);
+        org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+        // First delete -> 204
+        ResponseEntity<Void> firstDelete = restTemplate.exchange(
+                baseUrl() + "/api/missions/" + mission.getId(),
+                org.springframework.http.HttpMethod.DELETE,
+                entity,
+                Void.class
+        );
+        assertEquals(204, firstDelete.getStatusCode().value());
+
+        // Second delete -> 404
+        ResponseEntity<String> secondDelete = restTemplate.exchange(
+                baseUrl() + "/api/missions/" + mission.getId(),
+                org.springframework.http.HttpMethod.DELETE,
+                entity,
+                String.class
+        );
+        assertEquals(404, secondDelete.getStatusCode().value());
+    }
+
+
+    @Test
     void shouldDeleteFocusSession() {
         Long sessionId = createFocusSessionId();
         assertTrue(focusSessionRepository.existsById(sessionId));

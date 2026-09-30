@@ -73,6 +73,7 @@ public class OllamaProvider implements AIProvider {
 
             body.put("prompt", promptBuilder.toString());
             body.put("stream", false);
+            body.put("think", false);
 
             if (request.jsonMode()) {
                 body.put("format", "json");
@@ -80,6 +81,8 @@ public class OllamaProvider implements AIProvider {
 
             Map<String, Object> options = new HashMap<>();
             options.put("temperature", request.temperature() != null ? request.temperature() : 0.2);
+            options.put("num_predict", 500);
+            options.put("num_ctx", 2048);
             body.put("options", options);
 
             HttpHeaders headers = new HttpHeaders();

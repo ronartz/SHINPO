@@ -170,14 +170,16 @@ public class AiGateway {
             AiProviderResponse res = provider.generate(req);
 
             if (res.successful() && res.content() != null && !res.content().isBlank()) {
+                String rawContent = cleanJson(res.content());
                 try {
-                    AiChatResponse parsed = objectMapper.readValue(cleanJson(res.content()), AiChatResponse.class);
+                    AiChatResponse parsed = objectMapper.readValue(rawContent, AiChatResponse.class);
                     logSuggestion(userId, "CHAT", rawMsg, res.content());
                     return parsed;
                 } catch (Exception e) {
-                    String cleanContent = cleanJson(res.content());
+                    String cleanContent = extractReplyOrClean(rawContent);
+                    String suggestionType = extractSuggestionType(rawContent);
                     logSuggestion(userId, "CHAT", rawMsg, cleanContent);
-                    return AiChatResponse.conversational(cleanContent, "TACTICAL_ASSISTANT");
+                    return AiChatResponse.conversational(cleanContent, suggestionType);
                 }
             } else {
                 log.warn("Active provider {} failed: {}. Falling back to deterministic engine.",
@@ -359,6 +361,9 @@ public class AiGateway {
     private String cleanJson(String raw) {
         if (raw == null) return "{}";
         String s = raw.trim();
+        if (s.contains("</think>")) {
+            s = s.substring(s.lastIndexOf("</think>") + 8).trim();
+        }
         if (s.startsWith("```json")) {
             s = s.substring(7);
         } else if (s.startsWith("```")) {
@@ -368,6 +373,31 @@ public class AiGateway {
             s = s.substring(0, s.length() - 3);
         }
         return s.trim();
+    }
+
+    private String extractReplyOrClean(String raw) {
+        if (raw == null) return "";
+        try {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"reply\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+            java.util.regex.Matcher m = p.matcher(raw);
+            if (m.find()) {
+                String reply = m.group(1);
+                return reply.replace("\\\"", "\"").replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\");
+            }
+        } catch (Exception ignored) {}
+        return raw;
+    }
+
+    private String extractSuggestionType(String raw) {
+        if (raw == null) return "TACTICAL_ASSISTANT";
+        try {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"suggestionType\"\\s*:\\s*\"([A-Z_]+)\"");
+            java.util.regex.Matcher m = p.matcher(raw);
+            if (m.find()) {
+                return m.group(1);
+            }
+        } catch (Exception ignored) {}
+        return "TACTICAL_ASSISTANT";
     }
 
     private boolean isGreeting(String msg) {

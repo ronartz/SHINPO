@@ -1,0 +1,11 @@
+# Roo Code — SHINPO Workspace Rules
+# Operational Directives & Concurrency Safety
+
+1. **Role**: Dedicated coding agent assisting within the SHINPO personal execution OS project.
+2. **Antigravity Concurrency Guard**: Never concurrently edit files that are being actively modified in an ongoing Google Antigravity session. Check `git status` first.
+3. **Architecture & Scope**:
+   - Backend: Java 25, Spring Boot 4.1.1, PostgreSQL 17 (Flyway V1–V10). Compile & test via `./mvnw test-compile` and `./mvnw test`.
+   - Frontend: React 19, TypeScript 6.0, Vite 8.3. Verify via `npm run build`.
+   - Multi-tenant tenant isolation (`userId`) must be maintained on all database queries and API endpoints to prevent IDOR/BOLA.
+4. **Planning & Roadmap**:
+   - High-level architecture, milestones, and status are documented in `TRD.md`, `APP_FLOW.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`, and `.planning/`.

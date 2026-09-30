@@ -221,6 +221,8 @@ Minimize data: process name/state may be sufficient. Avoid command-line argument
 
 ### Accessibility and UI trust
 
+> **SHINPO is an animated product, not a static dashboard. Motion is a first-class part of the visual identity and interaction model. Every major user action, state transition, navigation change, focus transition, progress event, AI interaction, and meaningful system state should have intentional motion where it improves comprehension or feedback. Animations must remain purposeful, performant, accessible, responsive, and consistent through a centralized motion system. Avoid decorative animation that competes with execution.**
+
 - Support keyboard navigation, visible focus, semantic labels, screen-reader announcements, adequate contrast, responsive layouts, and accessible destructive-action confirmations.
 - Add `prefers-reduced-motion` behavior to the motion system. State changes remain understandable without animation.
 - Label demo, estimated, stale, unavailable, and verified data distinctly.

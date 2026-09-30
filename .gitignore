@@ -27,7 +27,17 @@ dist/
 __pycache__/
 *.py[cod]
 
-# Agent skills
+# Agent skills & GSD runtime
 .agents/
 skills-lock.json
+gsd-core/
+gsd-file-manifest.json
+gsd-install-state.json
+.gsd-profile
+agents/
+scripts/*.cjs
+scripts/changeset/
+scripts/lib/
+
+
 

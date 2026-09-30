@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# ==============================================================================
+# CodeRabbit Configuration for SHINPO (Personal Execution Operating System)
+# Workflow: branch → code → tests → pull request → CodeRabbit review → fix → merge
+# ==============================================================================
+
+language: "en-US"
+tone_instructions: "Senior security reviewer for SHINPO. Focus on security boundaries (IDOR, BOLA, JWT handling, process termination safety), code correctness, performance, and architecture integrity. Be concise and actionable."
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "feature/.*"
+      - "gsd/.*"
+  path_filters:
+    - "!backend/target/**"
+    - "!backend/.mvn/**"
+    - "!frontend/dist/**"
+    - "!frontend/node_modules/**"
+    - "!**/*.log"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.svg"
+    - "!**/*.ico"
+    - "!**/*.lock"
+    - "!**/package-lock.json"
+  path_instructions:
+    - path: "backend/src/main/java/**/*.java"
+      instructions: "Verify user ownership (multi-tenant userId isolation) on every query and mutation to prevent IDOR/BOLA. Ensure strict Controller → Service → Repository boundary separation. Verify input validation using Jakarta @Valid and proper exception handling. Reject any hardcoded production secrets, API keys, or fallback credentials. In TaskManagerService and process management, verify that protected system processes cannot be terminated."
+    - path: "backend/src/main/resources/db/migration/*.sql"
+      instructions: "Verify Flyway naming conventions (V<N>__<name>.sql). Strictly forbid altering or rewriting previously applied migrations (V1 through V10). Flag any destructive SQL operations (DROP TABLE, DROP COLUMN) as high-risk breaking changes."
+    - path: "frontend/src/**/*.ts"
+      instructions: "Ensure React 19 and TypeScript strict type safety. Avoid 'any' where possible. Check that timers and event listeners in useEffect are cleanly torn down on unmount. Verify that authentication tokens are handled securely and API error states are displayed gracefully. Ensure UI changes conform to the established Dark 2x2 Bento Cockpit design system."
+    - path: "frontend/src/**/*.tsx"
+      instructions: "Ensure React 19 and TypeScript strict type safety. Avoid 'any' where possible. Check that timers and event listeners in useEffect are cleanly torn down on unmount. Verify that authentication tokens are handled securely and API error states are displayed gracefully. Ensure UI changes conform to the established Dark 2x2 Bento Cockpit design system."
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
