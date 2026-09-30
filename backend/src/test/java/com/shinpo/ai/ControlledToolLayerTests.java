@@ -5,10 +5,8 @@ import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.ai.tool.ToolDefinition;
 import com.shinpo.ai.tool.ToolResult;
 import com.shinpo.entity.Goal;
-import com.shinpo.entity.Mission;
 import com.shinpo.entity.User;
 import com.shinpo.repository.GoalRepository;
-import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.security.JwtTokenService;
 import com.shinpo.security.UserPrincipal;
@@ -46,9 +44,6 @@ class ControlledToolLayerTests {
 
     @Autowired
     private GoalRepository goalRepository;
-
-    @Autowired
-    private MissionRepository missionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;

@@ -3,7 +3,6 @@ package com.shinpo.ai;
 import com.shinpo.ai.context.ContextEngine;
 import com.shinpo.ai.context.ExecutionIntelligenceContext;
 import com.shinpo.ai.orchestrator.AiGateway;
-import com.shinpo.ai.provider.MockAIProvider;
 import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
 import com.shinpo.entity.FocusSession;
@@ -51,9 +50,6 @@ class SilenceEngineTests {
 
     @Autowired
     private ContextEngine contextEngine;
-
-    @Autowired
-    private MockAIProvider mockAIProvider;
 
     @Autowired
     private com.shinpo.ai.config.AiProperties aiProperties;

@@ -63,11 +63,28 @@ export type NextActionCard = {
   estimatedMinutes?: number | null
 }
 
+export type SessionDebriefAnalysis = {
+  sessionId?: number | null
+  sessionName: string
+  accomplishment?: string
+  reflectionNote?: string
+  completionQuality?: string
+  plannedMinutes: number
+  actualMinutes: number
+  estimationAccuracyPct: number
+  velocityAssessment: string
+  tacticalCritique: string
+  nextSprintRecommendation: string
+  suggestedNextSteps: RecoveryOption[]
+}
+
 export type StructuredCard =
   | ProposedMission[]
   | { proposedMissions: ProposedMission[] }
   | { planItems: DailyPlanItem[] }
   | NextActionCard
+  | SessionDebriefAnalysis
+  | SessionRecovery
 
 export type RecoveryOption = {
   code: string
@@ -213,13 +230,24 @@ export async function getDailyPlan(_userId?: number): Promise<DailyPlan> {
 }
 
 export async function getSessionRecovery(
-  sessionId: number,
+  sessionId?: number,
   _userId?: number,
 ): Promise<SessionRecovery> {
-  const res = await fetch(`${API_BASE}/recovery/${sessionId}`, {
+  const url = sessionId ? `${API_BASE}/recovery/${sessionId}` : `${API_BASE}/recovery/latest`
+  const res = await fetch(url, {
     headers: authHeaders(),
   })
   return parseResponse<SessionRecovery>(res)
+}
+
+export async function analyzeSessionDebrief(
+  sessionId?: number,
+): Promise<SessionDebriefAnalysis> {
+  const url = sessionId ? `${API_BASE}/debrief-analysis/${sessionId}` : `${API_BASE}/debrief-analysis/latest`
+  const res = await fetch(url, {
+    headers: authHeaders(),
+  })
+  return parseResponse<SessionDebriefAnalysis>(res)
 }
 
 export async function commitSuggestion(

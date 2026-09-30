@@ -62,32 +62,36 @@ public class OllamaProvider implements AIProvider {
             body.put("model", model);
             body.put("system", request.systemPrompt() != null ? request.systemPrompt() : "");
 
-            // Build full user prompt with clean, human-readable status context
-            StringBuilder promptBuilder = new StringBuilder();
-            if (request.contextData() != null && !request.contextData().isEmpty()) {
-                promptBuilder.append("USER PRODUCTIVITY STATUS:\n");
-                Object goal = request.contextData().get("currentGoal");
-                if (goal instanceof Map<?, ?> gm && gm.get("title") != null) {
-                    promptBuilder.append("• Active Goal: ").append(gm.get("title")).append("\n");
+            String userPrompt = request.userPrompt() != null ? request.userPrompt() : "";
+            if (userPrompt.startsWith("<system_prompt>") || userPrompt.contains("<user_input>")) {
+                body.put("prompt", userPrompt);
+            } else {
+                StringBuilder promptBuilder = new StringBuilder();
+                if (request.contextData() != null && !request.contextData().isEmpty()) {
+                    promptBuilder.append("USER PRODUCTIVITY STATUS:\n");
+                    Object goal = request.contextData().get("currentGoal");
+                    if (goal instanceof Map<?, ?> gm && gm.get("title") != null) {
+                        promptBuilder.append("• Active Goal: ").append(gm.get("title")).append("\n");
+                    }
+                    Object mission = request.contextData().get("nextMission");
+                    if (mission instanceof Map<?, ?> mm && mm.get("title") != null) {
+                        promptBuilder.append("• Next Mission: ").append(mm.get("title")).append("\n");
+                    }
+                    Object prog = request.contextData().get("progress");
+                    if (prog instanceof Map<?, ?> pm) {
+                        promptBuilder.append("• Progress: ").append(pm.get("completedMissions")).append("/")
+                                .append(pm.get("totalMissions")).append(" missions done\n");
+                    }
+                    Object enf = request.contextData().get("enforcement");
+                    if (enf instanceof Map<?, ?> em && em.get("status") != null) {
+                        promptBuilder.append("• Shield: ").append(em.get("status")).append("\n");
+                    }
+                    promptBuilder.append("\n");
                 }
-                Object mission = request.contextData().get("nextMission");
-                if (mission instanceof Map<?, ?> mm && mm.get("title") != null) {
-                    promptBuilder.append("• Next Mission: ").append(mm.get("title")).append("\n");
-                }
-                Object prog = request.contextData().get("progress");
-                if (prog instanceof Map<?, ?> pm) {
-                    promptBuilder.append("• Progress: ").append(pm.get("completedMissions")).append("/")
-                            .append(pm.get("totalMissions")).append(" missions done\n");
-                }
-                Object enf = request.contextData().get("enforcement");
-                if (enf instanceof Map<?, ?> em && em.get("status") != null) {
-                    promptBuilder.append("• Shield: ").append(em.get("status")).append("\n");
-                }
-                promptBuilder.append("\n");
+                promptBuilder.append("USER INQUIRY: ").append(userPrompt);
+                body.put("prompt", promptBuilder.toString());
             }
-            promptBuilder.append("USER INQUIRY: ").append(request.userPrompt() != null ? request.userPrompt() : "");
 
-            body.put("prompt", promptBuilder.toString());
             body.put("stream", false);
             body.put("think", false);
 
@@ -112,6 +116,9 @@ public class OllamaProvider implements AIProvider {
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode responseNode = root.get("response");
                 String content = responseNode != null ? responseNode.asString() : response.getBody();
+                if (content != null && content.contains("</think>")) {
+                    content = content.substring(content.lastIndexOf("</think>") + 8).trim();
+                }
                 return AiProviderResponse.success(content, latencyMs, "ollama", model);
             } else {
                 String error = "Ollama returned status " + response.getStatusCode();

@@ -13,8 +13,24 @@ import {
 } from './api/focusSessions'
 
 import type { FocusSession } from './api/focusSessions'
-import { clearActiveConversation, commitSuggestion, decomposeGoal, getActiveConversation, sendAiChat } from './api/ai'
-import type { BugReportInfo, GoalDecomposition, ProposedMission, StructuredCard, TutorialStep } from './api/ai'
+import {
+  clearActiveConversation,
+  commitSuggestion,
+  decomposeGoal,
+  getActiveConversation,
+  sendAiChat,
+} from './api/ai'
+import type {
+  BugReportInfo,
+  GoalDecomposition,
+  NextActionCard,
+  ProposedMission,
+  RecoveryOption,
+  SessionDebriefAnalysis,
+  SessionRecovery,
+  StructuredCard,
+  TutorialStep,
+} from './api/ai'
 import {
   completeMission,
   createGoal,
@@ -77,11 +93,12 @@ function mapStructuredCard(card: StructuredCard | null | undefined, suggestionTy
       estimatedMinutes: item.durationMinutes,
     }))
   }
-  if (suggestionType === 'NEXT_ACTION') {
+  if (suggestionType === 'NEXT_ACTION' && 'missionTitle' in card) {
+    const actionCard = card as NextActionCard
     return [{
-      title: card.missionTitle,
-      description: card.recommendedAction ?? card.rationale ?? '',
-      estimatedMinutes: card.estimatedMinutes ?? 25,
+      title: actionCard.missionTitle,
+      description: actionCard.recommendedAction ?? actionCard.rationale ?? '',
+      estimatedMinutes: actionCard.estimatedMinutes ?? 25,
     }]
   }
   return []
@@ -123,6 +140,7 @@ type IconName =
   | 'arrow-up-right'
   | 'power'
   | 'trash'
+  | 'zap'
   | 'search'
 
 const durationPresets = [15, 30, 60, 90]
@@ -320,6 +338,7 @@ function Icon({
         </svg>
       )
     case 'xp':
+    case 'zap':
       return (
         <svg {...common}>
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -432,6 +451,8 @@ export function App() {
       suggestionId?: number
       committed?: boolean
       committing?: boolean
+      debriefAnalysis?: SessionDebriefAnalysis | null
+      sessionRecovery?: SessionRecovery | null
     }[]
   >([
     {
@@ -584,10 +605,12 @@ export function App() {
   const [quickMissionGoalId, setQuickMissionGoalId] = useState<number | null>(null)
   const [quickMissionDuration, setQuickMissionDuration] = useState(25)
   const [isSubmittingQuickMission, setIsSubmittingQuickMission] = useState(false)
+  const [quickMissionError, setQuickMissionError] = useState<string | null>(null)
 
   const handleQuickCreateMission = async (e: FormEvent) => {
     e.preventDefault()
     if (!quickMissionTitle.trim() || !quickMissionGoalId) return
+    setQuickMissionError(null)
     setIsSubmittingQuickMission(true)
     try {
       const today = new Date().toISOString().split('T')[0]
@@ -603,6 +626,11 @@ export function App() {
       await loadData()
     } catch (err) {
       console.error('Failed to create quick mission', err)
+      setQuickMissionError(err instanceof Error ? err.message : 'Could not create mission. Please try again.')
+      if (hasHttpStatus(err, 401)) {
+        clearAuthSession()
+        setCurrentUser(null)
+      }
     } finally {
       setIsSubmittingQuickMission(false)
     }
@@ -751,6 +779,14 @@ export function App() {
               missions: mapStructuredCard(message.structuredCard, message.suggestionType),
               tutorial: message.tutorial,
               bugReport: message.bugReport,
+              debriefAnalysis:
+                message.suggestionType === 'DEBRIEF_ANALYSIS' && message.structuredCard
+                  ? (message.structuredCard as SessionDebriefAnalysis)
+                  : null,
+              sessionRecovery:
+                message.suggestionType === 'SESSION_RECOVERY' && message.structuredCard
+                  ? (message.structuredCard as SessionRecovery)
+                  : null,
             })),
         )
       }
@@ -1155,13 +1191,14 @@ export function App() {
     }
   }
 
-  const handleCompleteSubmit = async (e: FormEvent) => {
+  const handleCompleteSubmit = async (e: FormEvent, debriefWithAi: boolean = false) => {
     e.preventDefault()
     if (!completingSessionId) return
+    const targetSessionId = completingSessionId
     const userId = dashboard?.user.id ?? 1
     try {
       const res = await completeFocusSession(
-        completingSessionId,
+        targetSessionId,
         userId,
         {
           quality: completionQuality,
@@ -1169,16 +1206,43 @@ export function App() {
           reflectionNote: reflectionNotes,
         },
       )
-      setSessions((prev) => prev.map((s) => (s.id === completingSessionId ? res : s)))
+      setSessions((prev) => prev.map((s) => (s.id === targetSessionId ? res : s)))
       setCompletingSessionId(null)
       setAccomplishment('')
       setReflectionNotes('')
+      if (debriefWithAi) {
+        setActiveTab('AI Assistant')
+        handleAiSend(`Analyze session debrief for session #${targetSessionId}`, targetSessionId)
+      }
     } catch (err) {
       console.error(err)
     }
   }
 
-  const handleAiSend = async (messageText?: string) => {
+  const handleRecoveryActionClick = (opt: RecoveryOption) => {
+    if (opt.code === 'MICRO_SPRINT_15M') {
+      const activeRunning = sessions.find((s) => s.status === 'ACTIVE')
+      const sprintTitle = '15m Micro-Sprint: ' + (activeRunning?.name || 'Momentum Recovery')
+      handleArmMissionAsSession(sprintTitle, 15)
+      return
+    }
+    if (opt.code === 'NON_SCREEN_RECESS_10M') {
+      setActiveTab('Focus Engine')
+      handleAiSend('Starting 10-minute non-screen recovery recess. Give me a structured cooldown protocol.')
+      return
+    }
+    if (opt.code === 'DECONSTRUCT_TASK') {
+      handleAiSend('Deconstruct my current mission into atomic 15-minute milestones')
+      return
+    }
+    if (opt.code === 'REST_AND_RECENTER') {
+      handleAiSend('Guide me through a 5-minute somatic and breathwork recentering exercise')
+      return
+    }
+    handleAiSend(opt.suggestedAction || opt.label)
+  }
+
+  const handleAiSend = async (messageText?: string, contextualSessionId?: number) => {
     const prompt = messageText || chatInput
     if (!prompt.trim()) return
 
@@ -1197,7 +1261,7 @@ export function App() {
 
     try {
       const userId = dashboard?.user.id ?? 1
-      const res = await sendAiChat(userId, prompt, undefined, undefined, undefined, conversationId || undefined)
+      const res = await sendAiChat(userId, prompt, undefined, undefined, contextualSessionId, conversationId || undefined)
       if (res.conversationId) {
         setConversationId(res.conversationId)
       }
@@ -1206,6 +1270,14 @@ export function App() {
       const suggestionId = res.structuredCard && typeof res.structuredCard === 'object' && 'suggestionId' in res.structuredCard
         ? (res.structuredCard as { suggestionId?: number }).suggestionId
         : undefined
+      const debriefAnalysis: SessionDebriefAnalysis | null =
+        res.suggestionType === 'DEBRIEF_ANALYSIS' && res.structuredCard
+          ? (res.structuredCard as SessionDebriefAnalysis)
+          : null
+      const sessionRecovery: SessionRecovery | null =
+        res.suggestionType === 'SESSION_RECOVERY' && res.structuredCard
+          ? (res.structuredCard as SessionRecovery)
+          : null
 
       setAiLoading(false)
 
@@ -1223,6 +1295,8 @@ export function App() {
             bugReport: res.bugReport,
             suggestionType: res.suggestionType,
             suggestionId,
+            debriefAnalysis,
+            sessionRecovery,
           },
         ])
         if (autoFollowEnabledRef.current && aiFeedRef.current) {
@@ -1242,6 +1316,8 @@ export function App() {
             tutorial: null,
             bugReport: null,
             suggestionType: res.suggestionType,
+            debriefAnalysis,
+            sessionRecovery,
           },
         ])
 
@@ -1284,6 +1360,8 @@ export function App() {
                     tutorial: res.tutorial,
                     bugReport: res.bugReport,
                     suggestionId,
+                    debriefAnalysis,
+                    sessionRecovery,
                   }
                     : message,
                 ),
@@ -1905,16 +1983,18 @@ export function App() {
                             <span>Start Focus</span>
                           </button>
                         )}
-                        <button
-                          className="card-menu-item"
-                          onClick={() => {
-                            setActiveTaskMenuId(null)
-                            handleToggleMissionComplete(task.id)
-                          }}
-                        >
-                          <Icon name="check" size={13} />
-                          <span>{isDone ? 'Mark Incomplete' : 'Mark Done'}</span>
-                        </button>
+                        {!isDone && (
+                          <button
+                            className="card-menu-item"
+                            onClick={() => {
+                              setActiveTaskMenuId(null)
+                              handleToggleMissionComplete(task.id)
+                            }}
+                          >
+                            <Icon name="check" size={13} />
+                            <span>Mark Done</span>
+                          </button>
+                        )}
                         <div className="card-menu-divider" />
                         <button
                           className="card-menu-item action-delete"
@@ -1998,6 +2078,7 @@ export function App() {
                       onClick={() => {
                         if (goals.length > 0) {
                           setQuickMissionGoalId(goals[0].id)
+                          setQuickMissionError(null)
                           setIsCreatingQuickMission(true)
                         } else {
                           setActiveTab('Goals & Missions')
@@ -2264,17 +2345,24 @@ export function App() {
 
                   <div className="timesheet-list">
                     {sessions.length > 0 ? (
-                      sessions.slice(0, 4).map((s, idx) => (
+                      sessions.slice(0, 4).map((s, idx) => {
+                        const canStart = s.status === 'SCHEDULED' && !activeSession
+                        const title = canStart
+                          ? 'Click to start session'
+                          : s.status === 'COMPLETED'
+                            ? 'Completed session'
+                            : activeSession
+                              ? 'Finish the active focus session before starting another'
+                              : `Session is ${s.status.toLowerCase()}`
+                        return (
                         <div
                           key={s.id}
                           className={`timesheet-item ${idx === 0 ? 'rank-first' : ''}`}
                           onClick={() => {
-                            if (s.status !== 'COMPLETED' && !activeSession) {
-                              handleStartFromSchedule(s.id)
-                            }
+                            if (canStart) void handleStartFromSchedule(s.id)
                           }}
-                          style={{ cursor: s.status !== 'COMPLETED' ? 'pointer' : 'default' }}
-                          title={s.status !== 'COMPLETED' ? 'Click to start session' : 'Completed session'}
+                          style={{ cursor: canStart ? 'pointer' : 'default' }}
+                          title={title}
                         >
                           <div className="timesheet-item-left">
                             <span className="timesheet-rank-pill">{idx + 1}</span>
@@ -2287,7 +2375,8 @@ export function App() {
                             <span className="timesheet-duration-badge">{s.durationMinutes}m</span>
                           </div>
                         </div>
-                      ))
+                        )
+                      })
                     ) : (
                       <div className="status-column-empty" style={{ padding: '16px' }}>
                         <span>No focus sessions recorded yet</span>
@@ -2359,6 +2448,9 @@ export function App() {
                     </div>
 
                     <form className="quick-modal-form" onSubmit={handleQuickCreateMission}>
+                      {quickMissionError && (
+                        <div className="quick-modal-error" role="alert">{quickMissionError}</div>
+                      )}
                       <div className="quick-field-group">
                         <label className="quick-field-label">Target Strategic Goal</label>
                         <select
@@ -2470,7 +2562,7 @@ export function App() {
                         <Icon name="sparkle" size={14} />
                         <span>Arm & Start Focus Sprint</span>
                       </button>
-                      {inspectingMission.id > 0 && (
+                      {inspectingMission.id > 0 && inspectingMission.status !== 'COMPLETED' && (
                         <button
                           className="modal-btn-complete"
                           onClick={() => {
@@ -2479,7 +2571,7 @@ export function App() {
                           }}
                         >
                           <Icon name="check" size={14} />
-                          <span>{inspectingMission.status === 'COMPLETED' ? 'Mark Incomplete' : 'Mark Done'}</span>
+                          <span>Mark Done</span>
                         </button>
                       )}
                       <button
@@ -2826,6 +2918,8 @@ export function App() {
 
               {[
                 { label: 'Plan My Execution Day', prompt: 'Plan my day with high-impact sessions' },
+                { label: 'Debrief Last Sprint', prompt: 'Debrief my last focus session' },
+                { label: 'Cognitive Recovery Protocol', prompt: 'I need a cognitive recovery break' },
                 { label: 'Start Guided Walkthrough', prompt: 'How do I use SHINPO?' },
                 { label: 'Check Sentinel Status', prompt: 'Why is YouTube blocked?' },
                 { label: 'Report an Issue / Bug', prompt: 'I found a bug. Please report this issue' },
@@ -2903,6 +2997,12 @@ export function App() {
                           </button>
                           <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('What should I work on right now?')}>
                             What should I work on?
+                          </button>
+                          <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('Debrief my last focus session')}>
+                            ⚡ Debrief last sprint
+                          </button>
+                          <button className="ai-quick-chip" onClick={() => handleTriggerPresetAction('I need a recovery break')}>
+                            🛡️ Recovery break
                           </button>
                           <button className="ai-quick-chip" onClick={() => handleStartTutorial(0)}>
                             Start tour
@@ -3000,6 +3100,138 @@ export function App() {
                                     <span>Start focus</span>
                                   </button>
                                 </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {msg.debriefAnalysis && (
+                        <div className="ai-debrief-card" role="region" aria-label="Session Debrief Analysis">
+                          <div className="ai-debrief-header">
+                            <div className="ai-debrief-title-row">
+                              <span className="badge-tag coral">
+                                <span className="debrief-pulse-dot" /> SPRINT DEBRIEF
+                              </span>
+                              <span className={`badge-tag ${
+                                msg.debriefAnalysis.velocityAssessment === 'PEAK_EXECUTION_FLOW'
+                                  ? 'green'
+                                  : msg.debriefAnalysis.velocityAssessment === 'COGNITIVE_RECOVERY_REQUIRED'
+                                  ? 'red'
+                                  : msg.debriefAnalysis.velocityAssessment === 'PACING_CALIBRATION_NEEDED'
+                                  ? 'amber'
+                                  : 'blue'
+                              }`}>
+                                {msg.debriefAnalysis.velocityAssessment.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            <h4 className="ai-debrief-session-name">{msg.debriefAnalysis.sessionName}</h4>
+                          </div>
+
+                          <div className="ai-debrief-metrics-grid">
+                            <div className="ai-debrief-metric-box">
+                              <span className="debrief-metric-label">Planned</span>
+                              <span className="debrief-metric-val">{msg.debriefAnalysis.plannedMinutes}m</span>
+                            </div>
+                            <div className="ai-debrief-metric-box">
+                              <span className="debrief-metric-label">Actual</span>
+                              <span className="debrief-metric-val">{msg.debriefAnalysis.actualMinutes}m</span>
+                            </div>
+                            <div className="ai-debrief-metric-box">
+                              <span className="debrief-metric-label">Estimation</span>
+                              <span className="debrief-metric-val">{msg.debriefAnalysis.estimationAccuracyPct.toFixed(0)}%</span>
+                            </div>
+                            {msg.debriefAnalysis.completionQuality && (
+                              <div className="ai-debrief-metric-box">
+                                <span className="debrief-metric-label">Quality</span>
+                                <span className="debrief-metric-val">⭐ {msg.debriefAnalysis.completionQuality}/5</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {msg.debriefAnalysis.accomplishment && (
+                            <div className="ai-debrief-section">
+                              <span className="ai-debrief-section-title">Outcome Achieved</span>
+                              <p className="ai-debrief-text">{msg.debriefAnalysis.accomplishment}</p>
+                            </div>
+                          )}
+
+                          {msg.debriefAnalysis.reflectionNote && (
+                            <div className="ai-debrief-section">
+                              <span className="ai-debrief-section-title">Sprint Reflection</span>
+                              <p className="ai-debrief-text font-italic">"{msg.debriefAnalysis.reflectionNote}"</p>
+                            </div>
+                          )}
+
+                          <div className="ai-debrief-critique-box">
+                            <div className="ai-debrief-critique-header">
+                              <Icon name="target" size={13} />
+                              <span>Tactical Pacing Critique</span>
+                            </div>
+                            <p className="ai-debrief-text">{msg.debriefAnalysis.tacticalCritique}</p>
+                          </div>
+
+                          <div className="ai-debrief-recommendation-box">
+                            <div className="ai-debrief-recommendation-header">
+                              <Icon name="zap" size={13} />
+                              <span>Next Sprint Recommendation</span>
+                            </div>
+                            <p className="ai-debrief-text">{msg.debriefAnalysis.nextSprintRecommendation}</p>
+                          </div>
+
+                          {msg.debriefAnalysis.suggestedNextSteps && msg.debriefAnalysis.suggestedNextSteps.length > 0 && (
+                            <div className="ai-debrief-actions">
+                              <span className="ai-debrief-actions-title">Recommended Execution Actions:</span>
+                              <div className="ai-recovery-options-row">
+                                {msg.debriefAnalysis.suggestedNextSteps.map((opt, oIdx) => (
+                                  <button
+                                    key={oIdx}
+                                    className="recovery-action-chip"
+                                    onClick={() => handleRecoveryActionClick(opt)}
+                                    title={opt.suggestedAction}
+                                  >
+                                    <span className="chip-label">{opt.label}</span>
+                                    <span className="chip-sub">{opt.suggestedAction}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.sessionRecovery && (
+                        <div className="ai-recovery-card" role="region" aria-label="Cognitive Recovery Protocol">
+                          <div className="ai-recovery-header">
+                            <span className="badge-tag amber">
+                              🛡️ COGNITIVE RECOVERY WORKFLOW
+                            </span>
+                            {msg.sessionRecovery.sessionName && (
+                              <span className="ai-recovery-session-tag">
+                                {msg.sessionRecovery.sessionName}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="ai-recovery-diagnostic">
+                            {msg.sessionRecovery.diagnosticMessage}
+                          </p>
+
+                          <div className="ai-recovery-options-grid">
+                            {msg.sessionRecovery.recoveryOptions?.map((opt, oIdx) => (
+                              <div key={oIdx} className="ai-recovery-option-card">
+                                <div className="recovery-option-info">
+                                  <span className="recovery-option-title">{opt.label}</span>
+                                  <span className="recovery-option-desc">{opt.suggestedAction}</span>
+                                </div>
+                                <button
+                                  className="ai-arm-sprint-btn"
+                                  onClick={() => handleRecoveryActionClick(opt)}
+                                  title={`Activate ${opt.label}`}
+                                >
+                                  <span>Activate</span>
+                                  <Icon name="arrow-up-right" size={12} />
+                                </button>
                               </div>
                             ))}
                           </div>
@@ -4049,7 +4281,7 @@ export function App() {
                 onChange={(e) => setReflectionNotes(e.target.value)}
               />
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', marginTop: 18, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn-timer secondary"
@@ -4059,6 +4291,15 @@ export function App() {
                 </button>
                 <button type="submit" className="btn-timer primary">
                   Record Outcome
+                </button>
+                <button
+                  type="button"
+                  className="btn-timer debrief-ai-btn"
+                  onClick={(e) => handleCompleteSubmit(e, true)}
+                  title="Save session debrief and trigger cognitive analysis with EONPAI"
+                >
+                  <Icon name="zap" size={13} />
+                  <span>Record & Debrief with EONPAI ⚡</span>
                 </button>
               </div>
             </form>

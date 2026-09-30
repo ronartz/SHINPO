@@ -115,6 +115,37 @@ public class AiController {
         return ResponseEntity.ok(aiService.getSessionRecovery(sessionId, principal.getUserId()));
     }
 
+    @GetMapping("/recovery/latest")
+    public ResponseEntity<RecoveryResponse> getLatestSessionRecovery(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.getLatestSessionRecovery(principal.getUserId()));
+    }
+
+    @GetMapping("/debrief-analysis/{sessionId}")
+    public ResponseEntity<SessionDebriefAnalysisResponse> analyzeSessionDebrief(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.analyzeSessionDebrief(sessionId, principal.getUserId()));
+    }
+
+    @GetMapping("/debrief-analysis/latest")
+    public ResponseEntity<SessionDebriefAnalysisResponse> analyzeLatestSessionDebrief(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.analyzeLatestSessionDebrief(principal.getUserId()));
+    }
+
     @PostMapping("/suggestions/{suggestionId}/accept")
     public ResponseEntity<Void> acceptSuggestion(
             @PathVariable Long suggestionId,

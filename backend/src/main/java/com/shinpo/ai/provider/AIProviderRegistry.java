@@ -50,7 +50,7 @@ public class AIProviderRegistry {
         }
         // Fallback: look for available provider
         return providers.values().stream()
-                .filter(AIProvider::isAvailable)
+            .filter(provider -> provider.isAvailable())
                 .findFirst()
                 .orElse(providers.values().stream().findFirst().orElse(null));
     }
@@ -60,6 +60,6 @@ public class AIProviderRegistry {
     }
 
     public boolean isAnyAvailable() {
-        return providers.values().stream().anyMatch(AIProvider::isAvailable);
+        return providers.values().stream().anyMatch(provider -> provider.isAvailable());
     }
 }

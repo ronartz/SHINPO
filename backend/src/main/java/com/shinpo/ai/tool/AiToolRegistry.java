@@ -98,7 +98,7 @@ public class AiToolRegistry {
 
     public List<ToolDefinition> getToolDefinitions() {
         Set<AiTool> uniqueTools = new LinkedHashSet<>(toolMap.values());
-        return uniqueTools.stream().map(AiTool::getDefinition).toList();
+        return uniqueTools.stream().map(tool -> tool.getDefinition()).toList();
     }
 
     public Collection<AiTool> getTools() {
