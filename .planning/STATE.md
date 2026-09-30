@@ -1,10 +1,10 @@
 # GSD State Tracker — SHINPO
 
 ## Active Milestone
-**Milestone 3**: Sentinel Process Hardening & OS Enforcement
+**Milestone 4**: Native Shield & Cross-Platform Distribution
 
 ## Active Phase
-**Phase 3.3**: Task Manager Permission Boundary & Administrative Policy Gate
+**Phase 4.1**: Native Rust Shield Daemon Integration
 
 ## Current Status
 - Milestone 1 COMPLETE (Core Domain, Focus Session Engine, JWT Stateless Auth, 2x2 Bento Cockpit).
