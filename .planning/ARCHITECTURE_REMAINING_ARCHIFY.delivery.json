@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "62e83c57-163d-4ebe-8c5f-706a2ad8ae55",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/eonx/Projects/SHINPO/.planning/ARCHITECTURE_CANDIDATE.json",
+  "output": "/home/eonx/Projects/SHINPO/.planning/ARCHITECTURE_REMAINING_ARCHIFY.html",
+  "specification": {
+    "sha256": "915dc194e308bc0c4ba1f45b8c6dd7df69e0a733accd0cb17ca8835cbe345dd6",
+    "bytes": 2623
+  },
+  "artifact": {
+    "sha256": "ec21b88d562a435a956f2db5e2b9835b78944b4d02f295322346e398eb92bb3f",
+    "bytes": 761414
+  }
+}
