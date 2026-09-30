@@ -1,0 +1,487 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SHINPO: Browser App to Windows and Linux Desktop",
+    "subtitle": "What exists today, what a desktop shell can reuse, and where local device control must move",
+    "output": "shinpo-desktop-path.html",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "repository": {
+      "url": "git@github.com:ronartz/SHINPO.git",
+      "link_mode": "local-only",
+      "revision": "aa6d621e27de565a0dc9b8b4c17bee5f4968e394"
+    },
+    "views": [
+      {
+        "id": "today",
+        "label": "Today: browser stack",
+        "focus": [
+          "user",
+          "react-ui",
+          "vite",
+          "spring-api",
+          "postgres",
+          "ollama"
+        ],
+        "note": "The browser UI talks to Spring; Vite provides the current /api development proxy."
+      },
+      {
+        "id": "desktop",
+        "label": "Desktop shell target",
+        "focus": [
+          "user",
+          "tauri-app",
+          "spring-api",
+          "postgres",
+          "native-bridge",
+          "client-os"
+        ],
+        "note": "Package the React build in Tauri; configure API origin and keep client OS commands behind narrow native APIs."
+      },
+      {
+        "id": "process-control",
+        "label": "Process-control boundary",
+        "focus": [
+          "spring-api",
+          "backend-host",
+          "linux-rust-shield",
+          "linux-python-shield",
+          "client-os",
+          "native-bridge"
+        ]
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "You",
+      "sublabel": "Windows / Linux user",
+      "pos": [
+        40,
+        290
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "sources": [
+        {
+          "path": "frontend/src/main.tsx",
+          "line": 6,
+          "end_line": 10,
+          "label": "UI entry"
+        }
+      ]
+    },
+    {
+      "id": "react-ui",
+      "type": "frontend",
+      "label": "SHINPO React UI",
+      "sublabel": "React 19 \u00b7 Vite \u00b7 browser today",
+      "tag": "EXISTS",
+      "pos": [
+        240,
+        170
+      ],
+      "size": [
+        190,
+        72
+      ],
+      "sources": [
+        {
+          "path": "frontend/package.json",
+          "line": 6,
+          "end_line": 15,
+          "label": "React + Vite"
+        },
+        {
+          "path": "frontend/src/main.tsx",
+          "line": 1,
+          "end_line": 10,
+          "label": "React mount"
+        }
+      ]
+    },
+    {
+      "id": "vite",
+      "type": "backend",
+      "label": "Vite dev server",
+      "sublabel": "serves UI \u00b7 proxies /api",
+      "tag": "DEV ONLY",
+      "pos": [
+        505,
+        170
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "sources": [
+        {
+          "path": "frontend/vite.config.ts",
+          "line": 4,
+          "end_line": 15,
+          "label": "development proxy"
+        }
+      ]
+    },
+    {
+      "id": "spring-api",
+      "type": "backend",
+      "label": "Spring Boot API",
+      "sublabel": "localhost:8080 \u00b7 authenticated REST",
+      "tag": "EXISTS",
+      "pos": [
+        790,
+        285
+      ],
+      "size": [
+        200,
+        76
+      ],
+      "sources": [
+        {
+          "path": "backend/src/main/java/com/shinpo/controller/FocusSessionController.java",
+          "line": 18,
+          "end_line": 43,
+          "label": "focus session API"
+        },
+        {
+          "path": "backend/src/main/resources/application.properties",
+          "line": 1,
+          "end_line": 10,
+          "label": "Spring + DB config"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "shinpo database \u00b7 port 5432",
+      "tag": "EXISTS",
+      "pos": [
+        1080,
+        285
+      ],
+      "size": [
+        165,
+        72
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 1,
+          "end_line": 15,
+          "label": "Postgres service"
+        },
+        {
+          "path": "backend/src/main/resources/application.properties",
+          "line": 4,
+          "end_line": 10,
+          "label": "JDBC + Flyway"
+        }
+      ]
+    },
+    {
+      "id": "ollama",
+      "type": "external",
+      "label": "Ollama runtime",
+      "sublabel": "configured at localhost:11434",
+      "tag": "OPTIONAL AI",
+      "pos": [
+        1080,
+        430
+      ],
+      "size": [
+        165,
+        72
+      ],
+      "sources": [
+        {
+          "path": "backend/src/main/resources/application.properties",
+          "line": 12,
+          "end_line": 17,
+          "label": "AI provider config"
+        }
+      ]
+    },
+    {
+      "id": "backend-host",
+      "type": "backend",
+      "label": "Backend host OS",
+      "sublabel": "ProcessHandle acts on this machine",
+      "tag": "CURRENT PROCESS API",
+      "pos": [
+        1090,
+        120
+      ],
+      "size": [
+        190,
+        78
+      ],
+      "sources": [
+        {
+          "path": "backend/src/main/java/com/shinpo/service/TaskManagerService.java",
+          "line": 28,
+          "end_line": 58,
+          "label": "host metrics"
+        },
+        {
+          "path": "backend/src/main/java/com/shinpo/service/TaskManagerService.java",
+          "line": 145,
+          "end_line": 170,
+          "label": "process termination"
+        }
+      ]
+    },
+    {
+      "id": "linux-rust-shield",
+      "type": "backend",
+      "label": "Rust Shield CLI",
+      "sublabel": "Linux process monitor \u00b7 auto-kill defaults on",
+      "tag": "EXISTS \u00b7 LINUX",
+      "pos": [
+        760,
+        485
+      ],
+      "size": [
+        215,
+        76
+      ],
+      "sources": [
+        {
+          "path": "crates/shinpo-shield/src/main.rs",
+          "line": 32,
+          "end_line": 53,
+          "label": "API + policy defaults"
+        },
+        {
+          "path": "crates/shinpo-shield/src/main.rs",
+          "line": 180,
+          "end_line": 224,
+          "label": "process enforcement"
+        }
+      ]
+    },
+    {
+      "id": "linux-python-shield",
+      "type": "backend",
+      "label": "Python Shield daemon",
+      "sublabel": "Linux polling daemon \u00b7 auto-kill defaults on",
+      "tag": "EXISTS \u00b7 LINUX",
+      "pos": [
+        500,
+        485
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "daemon/shinpo_shield.py",
+          "line": 21,
+          "end_line": 33,
+          "label": "API + policy defaults"
+        },
+        {
+          "path": "daemon/shinpo_shield.py",
+          "line": 68,
+          "end_line": 112,
+          "label": "process enforcement"
+        }
+      ]
+    },
+    {
+      "id": "tauri-app",
+      "type": "frontend",
+      "label": "SHINPO Desktop",
+      "sublabel": "Proposed Tauri shell + packaged React build",
+      "tag": "TARGET \u00b7 NOT IMPLEMENTED",
+      "pos": [
+        270,
+        640
+      ],
+      "size": [
+        230,
+        82
+      ],
+      "sources": [
+        {
+          "path": "frontend/package.json",
+          "line": 6,
+          "end_line": 15,
+          "label": "reusable React UI"
+        },
+        {
+          "path": "crates/shinpo-shield/Cargo.toml",
+          "line": 1,
+          "end_line": 10,
+          "label": "existing Rust capability"
+        }
+      ]
+    },
+    {
+      "id": "native-bridge",
+      "type": "backend",
+      "label": "Scoped native bridge",
+      "sublabel": "Proposed \u00b7 typed, consented device APIs",
+      "tag": "TARGET \u00b7 NEW",
+      "pos": [
+        555,
+        640
+      ],
+      "size": [
+        190,
+        82
+      ],
+      "sources": [
+        {
+          "path": "crates/shinpo-shield/Cargo.toml",
+          "line": 1,
+          "end_line": 10,
+          "label": "Rust reuse boundary"
+        }
+      ]
+    },
+    {
+      "id": "client-os",
+      "type": "external",
+      "label": "Your desktop OS",
+      "sublabel": "Local device \u00b7 Windows / Linux",
+      "pos": [
+        850,
+        640
+      ],
+      "size": [
+        190,
+        72
+      ],
+      "sources": [
+        {
+          "path": "frontend/src/api/device.ts",
+          "line": 3,
+          "end_line": 17,
+          "label": "current device API shape"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-browser",
+      "from": "user",
+      "to": "react-ui",
+      "label": "uses in browser",
+      "variant": "emphasis"
+    },
+    {
+      "id": "react-vite",
+      "from": "react-ui",
+      "to": "vite",
+      "label": "dev assets"
+    },
+    {
+      "id": "vite-api",
+      "from": "vite",
+      "to": "spring-api",
+      "label": "/api proxy \u2192 :8080",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-postgres",
+      "from": "spring-api",
+      "to": "postgres",
+      "label": "JDBC / Flyway"
+    },
+    {
+      "id": "api-ollama",
+      "from": "spring-api",
+      "to": "ollama",
+      "label": "configured provider",
+      "variant": "dashed"
+    },
+    {
+      "id": "api-host",
+      "from": "spring-api",
+      "to": "backend-host",
+      "label": "device/process calls execute here",
+      "variant": "security"
+    },
+    {
+      "id": "rust-poll",
+      "from": "linux-rust-shield",
+      "to": "spring-api",
+      "variant": "dashed"
+    },
+    {
+      "id": "python-poll",
+      "from": "linux-python-shield",
+      "to": "spring-api",
+      "variant": "dashed"
+    },
+    {
+      "id": "tauri-api",
+      "from": "tauri-app",
+      "to": "spring-api",
+      "label": "HTTPS REST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tauri-bridge",
+      "from": "tauri-app",
+      "to": "native-bridge",
+      "label": "IPC",
+      "variant": "security"
+    },
+    {
+      "id": "bridge-device",
+      "from": "native-bridge",
+      "to": "client-os",
+      "label": "Local API",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What you have",
+      "items": [
+        "A React 19 + Vite frontend and Spring Boot REST backend.",
+        "The current /api \u2192 localhost:8080 route is Vite development configuration; the packaged app needs an explicit API base URL.",
+        "compose.yaml starts PostgreSQL only. No Tauri/Electron wrapper or Windows/Linux installer was found."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Desktop recommendation",
+      "items": [
+        "Start with Tauri v2: reuse the existing React UI and package the built frontend in a native window.",
+        "Keep Spring + PostgreSQL as a separately deployed service for the first release; a desktop shell alone does not make the app offline or local-first.",
+        "Create Windows and Linux builds in CI/on each target OS. Choose MSI or NSIS for Windows; select Linux packages based on your supported distros."
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Fix before shipping device control",
+      "items": [
+        "TaskManagerService uses ProcessHandle inside the Spring host JVM. A remote backend therefore sees/controls server processes, not the user's PC.",
+        "The existing Linux Rust/Python shields poll the API and can terminate name-matched processes; both default auto-kill on. Do not simply package them as a desktop feature.",
+        "Move local-device operations behind typed, least-privilege native commands; begin read-only, require explicit user policy/consent, and verify outcomes. Do not expose arbitrary shell execution."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Worktree snapshot at diagram creation",
+      "items": [
+        "HEAD pinned to aa6d621e27de565a0dc9b8b4c17bee5f4968e394; cited repo evidence is from that commit.",
+        "Modified: backend AiGateway, OllamaProvider, AiToolRegistry, AiController, AiDtos, AiSuggestionRepository, FocusSessionRepository, AiService; frontend App.css, App.tsx, api/ai.ts.",
+        "Untracked: backend tests AdaptivePlanningTests.java. These dirty files are recorded here but are not used as evidence for HEAD."
+      ]
+    }
+  ]
+}

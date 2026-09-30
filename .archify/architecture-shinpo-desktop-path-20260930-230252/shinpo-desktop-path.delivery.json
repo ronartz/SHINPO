@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "3ed2de3d-6dd3-497e-88d2-724a52f762ac",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/eonx/Projects/SHINPO/.archify/architecture-shinpo-desktop-path-20260930-230252/candidate.json",
+  "output": "/home/eonx/Projects/SHINPO/.archify/architecture-shinpo-desktop-path-20260930-230252/shinpo-desktop-path.html",
+  "specification": {
+    "sha256": "639bac2a32e4fcb49378b8d45313c6e61cd0a9f8c2a2dbd018f923a514c9a811",
+    "bytes": 12140
+  },
+  "artifact": {
+    "sha256": "3ad9d182fb0b9f3301c431437b21ac3d23bc0dd846693aab1732d2fa29185b71",
+    "bytes": 773529
+  }
+}

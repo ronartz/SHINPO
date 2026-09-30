@@ -63,8 +63,10 @@ import {
   addSentinelRule,
   deleteSentinelRule,
   updateSentinelMode,
+  emergencyOverride,
+  fetchSentinelTamperEvents,
 } from './api/device'
-import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule } from './api/device'
+import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule, SentinelTamperEventItem } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
@@ -154,6 +156,8 @@ type IconName =
   | 'trash'
   | 'zap'
   | 'search'
+  | 'shield'
+  | 'lock'
 
 const durationPresets = [15, 30, 60, 90]
 
@@ -408,6 +412,19 @@ function Icon({
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       )
+    case 'shield':
+      return (
+        <svg {...common}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      )
+    case 'lock':
+      return (
+        <svg {...common}>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      )
     default:
       return (
         <svg {...common}>
@@ -612,6 +629,16 @@ export function App() {
   const [showAddRuleModal, setShowAddRuleModal] = useState(false)
   const [newRulePattern, setNewRulePattern] = useState('')
   const [newRuleType, setNewRuleType] = useState<'BLOCKED' | 'ALLOWED'>('BLOCKED')
+  // Sentinel Administrative Policy Gate & Tamper Resistance (Phase 3.3)
+  const [showOverrideModal, setShowOverrideModal] = useState(false)
+  const [overridePassword, setOverridePassword] = useState('')
+  const [overrideReason, setOverrideReason] = useState('')
+  const [overrideTargetMode, setOverrideTargetMode] = useState<'CONTAINMENT' | 'AUDIT_ONLY'>('CONTAINMENT')
+  const [overrideLoading, setOverrideLoading] = useState(false)
+  const [overrideError, setOverrideError] = useState<string | null>(null)
+  const [tamperEvents, setTamperEvents] = useState<SentinelTamperEventItem[]>([])
+  const [tamperEventsExpanded, setTamperEventsExpanded] = useState(false)
+  const [tamperEventsLoading, setTamperEventsLoading] = useState(false)
 
   // Operational Velocity & Telemetry State (C-003)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
@@ -846,17 +873,31 @@ export function App() {
     return () => clearTimeout(timer)
   }, [currentUser, loadData, loadActiveConversation])
 
+  const loadSentinelTamperEvents = useCallback(async () => {
+    setTamperEventsLoading(true)
+    try {
+      const events = await fetchSentinelTamperEvents()
+      setTamperEvents(events)
+    } catch (err) {
+      console.error('Failed to load Sentinel tamper events', err)
+    } finally {
+      setTamperEventsLoading(false)
+    }
+  }, [])
+
   const loadDeviceProcesses = useCallback(async (search = tmSearch, policy = tmPolicy) => {
     setTmLoading(true)
     try {
-      const [snap, sentStatus, rules] = await Promise.all([
+      const [snap, sentStatus, rules, tEvents] = await Promise.all([
         fetchDeviceSnapshot(search, policy),
         fetchSentinelStatus().catch(() => null),
         fetchSentinelRules().catch(() => []),
+        fetchSentinelTamperEvents().catch(() => []),
       ])
       setDeviceSnapshot(snap)
       if (sentStatus) setSentinelStatus(sentStatus)
       if (rules) setSentinelRules(rules)
+      if (tEvents) setTamperEvents(tEvents)
     } catch (err) {
       console.error('Failed to load device snapshot', err)
     } finally {
@@ -883,6 +924,12 @@ export function App() {
 
   const handleToggleSentinelMode = async () => {
     if (!sentinelStatus) return
+    if (sentinelStatus.isPolicyLocked) {
+      setTmToast('Administrative Policy Gate Active: STRICT mode cannot be altered during an active sprint. Use Emergency Override.')
+      setShowOverrideModal(true)
+      setTimeout(() => setTmToast(null), 4500)
+      return
+    }
     const nextMode = sentinelStatus.enforcementMode === 'STRICT' ? 'AUDIT_ONLY'
       : sentinelStatus.enforcementMode === 'AUDIT_ONLY' ? 'CONTAINMENT' : 'STRICT'
     try {
@@ -891,7 +938,10 @@ export function App() {
       setTmToast(`Sentinel enforcement mode set to: ${nextMode}`)
       setTimeout(() => setTmToast(null), 3000)
     } catch (err: unknown) {
-      console.error('Failed to update enforcement mode', err)
+      const msg = err instanceof Error ? err.message : 'Failed to update enforcement mode'
+      setTmToast(msg)
+      setTimeout(() => setTmToast(null), 4500)
+      void loadSentinelTamperEvents()
     }
   }
 
@@ -920,8 +970,46 @@ export function App() {
       setTimeout(() => setTmToast(null), 3500)
       void loadDeviceProcesses()
     } catch (err: unknown) {
-      setTmToast(err instanceof Error ? err.message : 'Failed to delete rule')
-      setTimeout(() => setTmToast(null), 3500)
+      const msg = err instanceof Error ? err.message : 'Failed to delete rule'
+      setTmToast(msg)
+      setTimeout(() => setTmToast(null), 4500)
+      void loadSentinelTamperEvents()
+    }
+  }
+
+  const handleEmergencyOverrideSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!overridePassword) {
+      setOverrideError('Administrator password is required')
+      return
+    }
+    if (overrideReason.trim().length < 15) {
+      setOverrideError('Justification must be at least 15 characters to satisfy audit requirements')
+      return
+    }
+    setOverrideLoading(true)
+    setOverrideError(null)
+    try {
+      const res = await emergencyOverride({
+        password: overridePassword,
+        reason: overrideReason.trim(),
+        targetMode: overrideTargetMode,
+      })
+      setTmToast(`🛡️ Emergency Override Approved: Enforcement set to ${res.newMode}`)
+      setTimeout(() => setTmToast(null), 5000)
+      setShowOverrideModal(false)
+      setOverridePassword('')
+      setOverrideReason('')
+      const st = await fetchSentinelStatus().catch(() => null)
+      if (st) setSentinelStatus(st)
+      void loadDeviceProcesses()
+      void loadSentinelTamperEvents()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Emergency override failed'
+      setOverrideError(msg)
+      void loadSentinelTamperEvents()
+    } finally {
+      setOverrideLoading(false)
     }
   }
 
@@ -4225,11 +4313,17 @@ export function App() {
                     <button
                       type="button"
                       className="sentinel-mode-badge"
-                      title="Click to toggle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT"
+                      title={sentinelStatus?.isPolicyLocked ? "Administrative Policy Gate Active: Click to request Emergency Override" : "Click to toggle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT"}
                       onClick={handleToggleSentinelMode}
                     >
                       {sentinelStatus?.enforcementMode ?? 'STRICT'}
                     </button>
+                    {sentinelStatus?.isPolicyLocked && (
+                      <span className="sentinel-policy-locked-badge" title="Administrative Policy Gate Active: Mode locked during active focus sprint">
+                        <Icon name="lock" size={11} />
+                        <span>POLICY LOCKED</span>
+                      </span>
+                    )}
                   </div>
                   <div className="tm-metric-sub">
                     {sentinelStatus?.activeFocusSessionName
@@ -4300,6 +4394,19 @@ export function App() {
 
               <button
                 type="button"
+                className="emergency-override-btn"
+                onClick={() => {
+                  setOverrideError(null)
+                  setShowOverrideModal(true)
+                }}
+                title="Open Administrative Policy Gate to authorize emergency enforcement override"
+              >
+                <Icon name="shield" size={14} />
+                <span>Emergency Override</span>
+              </button>
+
+              <button
+                type="button"
                 className="tm-refresh-btn btn-spring"
                 onClick={handleSentinelSweep}
                 disabled={sentinelSweeping}
@@ -4358,14 +4465,27 @@ export function App() {
                       <span key={rule.id} className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}>
                         <span>{rule.policyType === 'BLOCKED' ? '🚫' : '✓'} {rule.processNamePattern}</span>
                         {rule.isCustom && (
-                          <button
-                            type="button"
-                            className="sentinel-rule-del-btn"
-                            onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
-                            title="Remove rule"
-                          >
-                            ×
-                          </button>
+                          sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? (
+                            <span
+                              className="sentinel-rule-locked-indicator"
+                              title="Locked by Administrative Policy Gate during active sprint. Click for policy info."
+                              onClick={() => {
+                                setTmToast('Administrative Policy Gate: Distraction rules are locked during active sprints. Use Emergency Override.')
+                                setTimeout(() => setTmToast(null), 4000)
+                              }}
+                            >
+                              <Icon name="lock" size={11} />
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="sentinel-rule-del-btn"
+                              onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
+                              title="Remove rule"
+                            >
+                              ×
+                            </button>
+                          )
                         )}
                       </span>
                     ))
@@ -4399,6 +4519,105 @@ export function App() {
                   </div>
                 </div>
               )}
+
+              {/* Sentinel Administrative Tamper Resistance & Audit Section */}
+              <div className="sentinel-tamper-section">
+                <div
+                  className="sentinel-tamper-header"
+                  onClick={() => setTamperEventsExpanded((prev) => !prev)}
+                  title="Click to toggle administrative tamper audit events"
+                >
+                  <div className="sentinel-tamper-title">
+                    <Icon name="shield" size={15} />
+                    <span>ADMINISTRATIVE AUDIT & TAMPER RESISTANCE FEED</span>
+                    <span
+                      className={`sentinel-tamper-badge-count ${
+                        tamperEvents.length === 0 ? 'clean' : 'alert'
+                      }`}
+                    >
+                      {tamperEvents.length === 0
+                        ? '✓ Policy Secure'
+                        : `⚠️ ${tamperEvents.length} Security Event${tamperEvents.length > 1 ? 's' : ''}`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-3)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <span>{tamperEventsExpanded ? 'Collapse' : 'Expand Audit Log'}</span>
+                    <Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} />
+                  </button>
+                </div>
+
+                {tamperEventsExpanded && (
+                  <div className="sentinel-tamper-timeline">
+                    {tamperEventsLoading ? (
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>
+                        Loading tamper audit logs...
+                      </div>
+                    ) : tamperEvents.length === 0 ? (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--accent-emerald)',
+                          padding: '10px 12px',
+                          background: 'rgba(46, 213, 115, 0.05)',
+                          borderRadius: 'var(--radius-sm, 8px)',
+                          border: '1px solid rgba(46, 213, 115, 0.15)',
+                        }}
+                      >
+                        ✓ Zero tamper attempts detected. Administrative policy boundary is intact and enforcing strictly.
+                      </div>
+                    ) : (
+                      tamperEvents.map((evt) => (
+                        <div key={evt.id} className="sentinel-tamper-item">
+                          <div className="sentinel-tamper-item-top">
+                            <div className="sentinel-tamper-item-left">
+                              <span
+                                className={`sentinel-severity-badge ${evt.severity.toLowerCase()}`}
+                              >
+                                {evt.severity}
+                              </span>
+                              <strong style={{ color: 'var(--text-1)' }}>
+                                {evt.eventType.replace(/_/g, ' ')}
+                              </strong>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
+                                [{evt.enforcementMode}]
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                              {new Date(evt.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                              })}
+                            </div>
+                          </div>
+                          {evt.justification && (
+                            <div className="sentinel-tamper-justification">
+                              <strong>Justification:</strong> {evt.justification}
+                            </div>
+                          )}
+                          {evt.details && (
+                            <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                              {evt.details}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Add Rule Modal */}
@@ -4452,6 +4671,148 @@ export function App() {
                         disabled={!newRulePattern.trim()}
                       >
                         Add Policy Rule
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Administrative Policy Gate - Emergency Override Modal */}
+            {showOverrideModal && (
+              <div
+                className="quick-modal-overlay"
+                onClick={() => {
+                  if (!overrideLoading) setShowOverrideModal(false)
+                }}
+              >
+                <div
+                  className="quick-modal-card"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    maxWidth: 500,
+                    borderTop: '3px solid var(--accent-coral, #FF4D5E)',
+                  }}
+                >
+                  <div className="quick-modal-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name="shield" size={18} />
+                      <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)' }}>
+                        Administrative Policy Gate
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="quick-modal-close"
+                      onClick={() => {
+                        if (!overrideLoading) setShowOverrideModal(false)
+                      }}
+                      disabled={overrideLoading}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleEmergencyOverrideSubmit} className="quick-modal-body">
+                    <div className="override-modal-warning">
+                      <strong>
+                        <Icon name="lock" size={14} />
+                        SPRINT ENFORCEMENT CONTAINMENT ACTIVE
+                      </strong>
+                      <span>
+                        An active focus sprint is currently bound to strict distraction policy.
+                        Disarming or downgrading Sentinel requires administrator password authentication and a mandatory logged justification for tamper-resistance audit integrity.
+                      </span>
+                    </div>
+
+                    {overrideError && (
+                      <div className="override-error-banner">
+                        ⚠️ {overrideError}
+                      </div>
+                    )}
+
+                    <div className="quick-form-group">
+                      <label className="quick-form-label">DESIRED ENFORCEMENT MODE</label>
+                      <select
+                        className="quick-form-input"
+                        value={overrideTargetMode}
+                        onChange={(e) =>
+                          setOverrideTargetMode(e.target.value as 'CONTAINMENT' | 'AUDIT_ONLY')
+                        }
+                        disabled={overrideLoading}
+                      >
+                        <option value="CONTAINMENT">
+                          CONTAINMENT (Allow launch with warning logs)
+                        </option>
+                        <option value="AUDIT_ONLY">
+                          AUDIT_ONLY (Passive telemetry monitoring only)
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className="quick-form-group">
+                      <label className="quick-form-label">ADMINISTRATIVE PASSWORD</label>
+                      <input
+                        type="password"
+                        className="quick-form-input"
+                        placeholder="Enter your administrative account password..."
+                        value={overridePassword}
+                        onChange={(e) => setOverridePassword(e.target.value)}
+                        required
+                        disabled={overrideLoading}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="quick-form-group">
+                      <label className="quick-form-label">
+                        OVERRIDE JUSTIFICATION (MIN. 15 CHARACTERS)
+                      </label>
+                      <textarea
+                        className="quick-form-input"
+                        rows={3}
+                        style={{ resize: 'vertical', minHeight: 70 }}
+                        placeholder="State clear operational reason for breaking sprint policy (e.g. Urgent production release hotfix deployment)..."
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        required
+                        disabled={overrideLoading}
+                      />
+                      <div
+                        className={`override-char-counter ${
+                          overrideReason.trim().length >= 15 ? 'valid' : 'invalid'
+                        }`}
+                      >
+                        {overrideReason.trim().length} / 15 chars min
+                      </div>
+                    </div>
+
+                    <div className="quick-modal-actions">
+                      <button
+                        type="button"
+                        className="quick-btn-cancel"
+                        onClick={() => setShowOverrideModal(false)}
+                        disabled={overrideLoading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="quick-btn-submit"
+                        disabled={
+                          overrideLoading ||
+                          !overridePassword ||
+                          overrideReason.trim().length < 15
+                        }
+                        style={{
+                          background:
+                            overrideReason.trim().length >= 15 && overridePassword
+                              ? 'linear-gradient(135deg, #FF4D5E 0%, #D92B3E 100%)'
+                              : undefined,
+                          borderColor: '#FF4D5E',
+                        }}
+                      >
+                        {overrideLoading ? 'Authenticating...' : 'Authorize & Execute Override'}
                       </button>
                     </div>
                   </form>

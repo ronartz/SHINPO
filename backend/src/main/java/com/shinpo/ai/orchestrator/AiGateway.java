@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -596,7 +595,7 @@ public class AiGateway {
 
         int totalPlannedMins = items.stream().mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
         int totalFocusMins = items.stream().filter(it -> !it.isRestorativeBreak()).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
-        int totalBreakMins = items.stream().filter(DailyPlanItem::isRestorativeBreak).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
+        int totalBreakMins = items.stream().filter(item -> item != null && Boolean.TRUE.equals(item.isRestorativeBreak())).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
 
         String pacingStrategy = (biasPct != 0.0)
                 ? String.format("BIAS_CALIBRATED_ULTRADIAN_FLOW (%+.0f%% estimation calibration applied)", biasPct)

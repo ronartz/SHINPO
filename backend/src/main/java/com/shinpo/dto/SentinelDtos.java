@@ -2,6 +2,7 @@ package com.shinpo.dto;
 
 import com.shinpo.entity.SentinelPolicyRule;
 import com.shinpo.entity.SentinelQuarantineRecord;
+import com.shinpo.entity.SentinelTamperEvent;
 
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +16,8 @@ public class SentinelDtos {
             String enforcementMode,
             long totalInterceptedToday,
             long activePolicyRulesCount,
+            long tamperEventsCount,
+            boolean isPolicyLocked,
             List<SentinelQuarantineItem> recentQuarantines,
             Instant lastSweepAt
     ) {}
@@ -41,6 +44,30 @@ public class SentinelDtos {
                     record.getEnforcementMode(),
                     record.getReason(),
                     record.getDetectedAt()
+            );
+        }
+    }
+
+    public record SentinelTamperEventItem(
+            Long id,
+            Long focusSessionId,
+            String eventType,
+            String severity,
+            String enforcementMode,
+            String justification,
+            String details,
+            Instant createdAt
+    ) {
+        public static SentinelTamperEventItem from(SentinelTamperEvent event) {
+            return new SentinelTamperEventItem(
+                    event.getId(),
+                    event.getFocusSession() != null ? event.getFocusSession().getId() : null,
+                    event.getEventType(),
+                    event.getSeverity(),
+                    event.getEnforcementMode(),
+                    event.getJustification(),
+                    event.getDetails(),
+                    event.getCreatedAt()
             );
         }
     }
@@ -79,5 +106,18 @@ public class SentinelDtos {
 
     public record UpdateEnforcementModeRequest(
             String enforcementMode
+    ) {}
+
+    public record EmergencyOverrideRequest(
+            String password,
+            String reason,
+            String targetMode
+    ) {}
+
+    public record EmergencyOverrideResponse(
+            boolean success,
+            String message,
+            String newMode,
+            Instant timestamp
     ) {}
 }

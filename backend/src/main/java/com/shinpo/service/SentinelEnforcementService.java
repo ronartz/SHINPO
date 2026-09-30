@@ -5,14 +5,17 @@ import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.SentinelPolicyRule;
 import com.shinpo.entity.SentinelQuarantineRecord;
+import com.shinpo.entity.SentinelTamperEvent;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.SentinelPolicyRuleRepository;
 import com.shinpo.repository.SentinelQuarantineRepository;
+import com.shinpo.repository.SentinelTamperEventRepository;
 import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +48,9 @@ public class SentinelEnforcementService {
     private final FocusSessionRepository focusSessionRepository;
     private final SentinelQuarantineRepository quarantineRepository;
     private final SentinelPolicyRuleRepository policyRuleRepository;
+    private final SentinelTamperEventRepository tamperEventRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // Per-user enforcement mode (default STRICT)
     private final Map<Long, String> userEnforcementModes = new ConcurrentHashMap<>();
@@ -59,18 +64,23 @@ public class SentinelEnforcementService {
             FocusSessionRepository focusSessionRepository,
             SentinelQuarantineRepository quarantineRepository,
             SentinelPolicyRuleRepository policyRuleRepository,
-            UserRepository userRepository
+            SentinelTamperEventRepository tamperEventRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
         this.policyRuleRepository = policyRuleRepository;
+        this.tamperEventRepository = tamperEventRepository;
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public String getEnforcementMode(Long userId) {
         return userEnforcementModes.getOrDefault(userId, "STRICT");
     }
 
+    @Transactional
     public void setEnforcementMode(Long userId, String mode) {
         if (mode == null || mode.isBlank()) {
             mode = "STRICT";
@@ -79,6 +89,30 @@ public class SentinelEnforcementService {
         if (!List.of("STRICT", "AUDIT_ONLY", "CONTAINMENT").contains(upper)) {
             throw new IllegalArgumentException("Invalid enforcement mode: " + mode + ". Must be STRICT, AUDIT_ONLY, or CONTAINMENT.");
         }
+
+        String currentMode = getEnforcementMode(userId);
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+
+        if (activeSession != null && "STRICT".equals(currentMode) && !upper.equals("STRICT")) {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                SentinelTamperEvent tamper = new SentinelTamperEvent(
+                        user,
+                        activeSession,
+                        "UNAUTHORIZED_MODE_CHANGE_ATTEMPT",
+                        "HIGH",
+                        currentMode,
+                        null,
+                        "Attempted mode downgrade from STRICT to " + upper + " during active sprint: " + activeSession.getName()
+                );
+                tamperEventRepository.save(tamper);
+            }
+            log.warn("SENTINEL_POLICY_GATE_BLOCKED: user={} activeSession={} attemptedMode={}",
+                    userId, activeSession.getId(), upper);
+            throw new IllegalStateException("Administrative Policy Gate: Enforcement mode cannot be downgraded during an active STRICT focus sprint. Execute emergency override with password verification.");
+        }
+
         userEnforcementModes.put(userId, upper);
         log.info("SENTINEL_MODE_UPDATED: user={} mode={}", userId, upper);
     }
@@ -104,6 +138,12 @@ public class SentinelEnforcementService {
         long totalInterceptedToday = quarantineRepository.countByUser_IdAndDetectedAtAfter(userId, todayStart);
         long activePolicyRulesCount = policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId).size();
 
+        long tamperEventsCount = (activeSession != null)
+                ? tamperEventRepository.countByUser_IdAndFocusSession_Id(userId, activeSession.getId())
+                : tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(userId).size();
+
+        boolean isPolicyLocked = activeSession != null && "STRICT".equals(getEnforcementMode(userId));
+
         List<SentinelQuarantineItem> recent = quarantineRepository.findTop20ByUser_IdOrderByDetectedAtDesc(userId)
                 .stream()
                 .map(SentinelQuarantineItem::from)
@@ -116,6 +156,8 @@ public class SentinelEnforcementService {
                 getEnforcementMode(userId),
                 totalInterceptedToday,
                 activePolicyRulesCount,
+                tamperEventsCount,
+                isPolicyLocked,
                 recent,
                 lastGlobalSweep
         );
@@ -129,29 +171,31 @@ public class SentinelEnforcementService {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 
+        lastGlobalSweep = Instant.now();
         return executeSweepForUser(user, activeSession);
     }
 
     @Scheduled(fixedRate = 5000)
-    @Transactional
-    public void sweepActiveFocusSessions() {
-        lastGlobalSweep = Instant.now();
-        List<FocusSession> allActive = focusSessionRepository.findAll().stream()
+    public void periodicSentinelDaemon() {
+        List<FocusSession> activeSessions = focusSessionRepository.findAll().stream()
                 .filter(s -> s.getStatus() == FocusSessionStatus.ACTIVE)
                 .toList();
 
-        if (allActive.isEmpty()) {
+        if (activeSessions.isEmpty()) {
             return;
         }
 
+        lastGlobalSweep = Instant.now();
+
         Set<Long> processedUsers = new HashSet<>();
-        for (FocusSession session : allActive) {
+        for (FocusSession session : activeSessions) {
             User user = session.getUser();
             if (user != null && processedUsers.add(user.getId())) {
                 try {
                     executeSweepForUser(user, session);
                 } catch (Exception e) {
-                    log.error("Error executing Sentinel sweep for user {}: {}", user.getId(), e.getMessage());
+                    log.error("SENTINEL_SWEEP_FAILED: user={} session={} error={}",
+                            user.getId(), session.getId(), e.getMessage());
                 }
             }
         }
@@ -179,6 +223,7 @@ public class SentinelEnforcementService {
         List<String> interceptedNames = new ArrayList<>();
         int scannedCount = 0;
         Instant now = Instant.now();
+        String currentOsUser = System.getProperty("user.name");
 
         for (ProcessHandle handle : ProcessHandle.allProcesses().toList()) {
             scannedCount++;
@@ -221,20 +266,49 @@ public class SentinelEnforcementService {
             String actionTaken = "FLAGGED";
             String reason = "Distraction process detected during active focus session";
 
-            if ("STRICT".equals(mode) && activeSession != null) {
-                boolean terminated = handle.destroy();
-                if (!terminated) {
-                    terminated = handle.destroyForcibly();
+            // Process owner privilege boundary verification
+            Optional<String> procUser = info.user();
+            if (procUser.isPresent() && !procUser.get().equals(currentOsUser) && !"root".equals(currentOsUser)) {
+                actionTaken = "PERMISSION_DENIED";
+                reason = "Privilege boundary violation: target process belongs to user " + procUser.get();
+                if (shouldRecord) {
+                    SentinelTamperEvent privilegeViolation = new SentinelTamperEvent(
+                            user,
+                            activeSession,
+                            "PRIVILEGE_BOUNDARY_VIOLATION",
+                            "MEDIUM",
+                            mode,
+                            "Target process owner mismatch",
+                            "PID " + pid + " (" + name + ") owned by " + procUser.get()
+                    );
+                    tamperEventRepository.save(privilegeViolation);
                 }
-                actionTaken = terminated ? "TERMINATED" : "TERMINATE_ATTEMPTED";
-                reason = "Autonomous sprint enforcement: process terminated forcibly";
-            } else if ("CONTAINMENT".equals(mode) && activeSession != null) {
-                boolean destroyed = handle.destroy();
-                actionTaken = destroyed ? "CONTAINED" : "CONTAINMENT_FAILED";
-                reason = "Autonomous sprint containment: process quarantined";
             } else {
-                actionTaken = "WARNED";
-                reason = "Sentinel audit: distraction detected during focus window";
+                try {
+                    if ("STRICT".equals(mode) && activeSession != null) {
+                        boolean terminated = handle.destroy();
+                        if (!terminated) {
+                            terminated = handle.destroyForcibly();
+                        }
+                        actionTaken = terminated ? "TERMINATED" : "TERMINATE_ATTEMPTED";
+                        reason = "Autonomous sprint enforcement: process terminated forcibly";
+                    } else if ("CONTAINMENT".equals(mode) && activeSession != null) {
+                        boolean destroyed = handle.destroy();
+                        actionTaken = destroyed ? "CONTAINED" : "CONTAINMENT_FAILED";
+                        reason = "Autonomous sprint containment: process quarantined";
+                    } else {
+                        actionTaken = "WARNED";
+                        reason = "Sentinel audit: distraction detected during focus window";
+                    }
+                } catch (SecurityException se) {
+                    actionTaken = "PERMISSION_DENIED";
+                    reason = "OS security policy denied termination: " + se.getMessage();
+                    log.error("SENTINEL_SECURITY_DENIAL: pid={} user={} error={}", pid, userId, se.getMessage());
+                } catch (Exception ex) {
+                    actionTaken = "CONTAINMENT_FAILED";
+                    reason = "Process containment failed: " + ex.getMessage();
+                    log.error("SENTINEL_CONTAINMENT_EXCEPTION: pid={} user={} error={}", pid, userId, ex.getMessage());
+                }
             }
 
             interceptedPids.add(pid);
@@ -328,6 +402,30 @@ public class SentinelEnforcementService {
     public void deletePolicyRule(Long userId, Long ruleId) {
         SentinelPolicyRule rule = policyRuleRepository.findByIdAndUser_Id(ruleId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Policy rule not found: " + ruleId));
+
+        String currentMode = getEnforcementMode(userId);
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+
+        if (activeSession != null && "STRICT".equals(currentMode) && "BLOCKED".equalsIgnoreCase(rule.getPolicyType())) {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                SentinelTamperEvent tamper = new SentinelTamperEvent(
+                        user,
+                        activeSession,
+                        "UNAUTHORIZED_RULE_DELETION_ATTEMPT",
+                        "HIGH",
+                        currentMode,
+                        null,
+                        "Attempted deletion of blocked rule '" + rule.getProcessNamePattern() + "' during active sprint: " + activeSession.getName()
+                );
+                tamperEventRepository.save(tamper);
+            }
+            log.warn("SENTINEL_RULE_DELETION_BLOCKED: user={} activeSession={} ruleId={} pattern={}",
+                    userId, activeSession.getId(), ruleId, rule.getProcessNamePattern());
+            throw new IllegalStateException("Administrative Policy Gate: Distraction blacklist rules cannot be removed during an active focus sprint. Use emergency override if required.");
+        }
+
         policyRuleRepository.delete(rule);
         log.info("SENTINEL_RULE_DELETED: user={} ruleId={}", userId, ruleId);
     }
@@ -337,6 +435,61 @@ public class SentinelEnforcementService {
         return policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(PolicyRuleResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public EmergencyOverrideResponse emergencyOverride(Long userId, EmergencyOverrideRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        if (request.password() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("SENTINEL_OVERRIDE_REJECTED: user={} reason='Invalid credentials'", userId);
+            throw new IllegalArgumentException("Invalid administrative password for emergency override.");
+        }
+
+        if (request.reason() == null || request.reason().trim().length() < 15) {
+            throw new IllegalArgumentException("Justification must be at least 15 characters long explaining the urgent override necessity.");
+        }
+
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+
+        String targetMode = (request.targetMode() != null && !request.targetMode().isBlank())
+                ? request.targetMode().toUpperCase()
+                : "AUDIT_ONLY";
+        if (!List.of("STRICT", "AUDIT_ONLY", "CONTAINMENT").contains(targetMode)) {
+            targetMode = "AUDIT_ONLY";
+        }
+
+        SentinelTamperEvent overrideEvent = new SentinelTamperEvent(
+                user,
+                activeSession,
+                "EMERGENCY_OVERRIDE",
+                "CRITICAL",
+                targetMode,
+                request.reason().trim(),
+                "Administrative emergency override authorized by user. Mode transitioned to " + targetMode
+        );
+        tamperEventRepository.save(overrideEvent);
+
+        userEnforcementModes.put(userId, targetMode);
+        log.warn("SENTINEL_EMERGENCY_OVERRIDE_EXECUTED: user={} session={} targetMode={} reason={}",
+                userId, activeSession != null ? activeSession.getId() : null, targetMode, request.reason());
+
+        return new EmergencyOverrideResponse(
+                true,
+                "Administrative emergency override authorized. Enforcement mode switched to " + targetMode + ".",
+                targetMode,
+                Instant.now()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<SentinelTamperEventItem> listTamperEvents(Long userId) {
+        return tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(SentinelTamperEventItem::from)
                 .toList();
     }
 }
