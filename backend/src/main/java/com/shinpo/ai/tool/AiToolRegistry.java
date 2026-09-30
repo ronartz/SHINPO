@@ -9,6 +9,7 @@ import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.service.TaskManagerService;
+import com.shinpo.service.UserExecutionProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +31,7 @@ public class AiToolRegistry {
     private final MissionRepository missionRepository;
     private final FocusSessionRepository focusSessionRepository;
     private final TaskManagerService taskManagerService;
+    private final UserExecutionProfileService userExecutionProfileService;
 
     private final Map<String, AiTool> toolMap = new LinkedHashMap<>();
 
@@ -39,9 +41,20 @@ public class AiToolRegistry {
             GoalRepository goalRepository,
             MissionRepository missionRepository,
             FocusSessionRepository focusSessionRepository,
+            TaskManagerService taskManagerService,
+            UserExecutionProfileService userExecutionProfileService
+    ) {
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, List.of());
+    }
+
+    public AiToolRegistry(
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, null, List.of());
     }
 
     public AiToolRegistry(
@@ -50,6 +63,7 @@ public class AiToolRegistry {
             MissionRepository missionRepository,
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService,
+            UserExecutionProfileService userExecutionProfileService,
             List<AiTool> customTools
     ) {
         this.userRepository = userRepository;
@@ -57,6 +71,7 @@ public class AiToolRegistry {
         this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
         this.taskManagerService = taskManagerService;
+        this.userExecutionProfileService = userExecutionProfileService;
 
         registerBuiltInTools();
         if (customTools != null) {
@@ -126,6 +141,7 @@ public class AiToolRegistry {
         registerToolWithAliases(new GetRecentSessionEventsTool());
         registerToolWithAliases(new GetEnforcementExplanationTool());
         registerToolWithAliases(new GetSanitizedDiagnosticsTool());
+        registerToolWithAliases(new GetUserExecutionProfileTool());
     }
 
     private void registerToolWithAliases(AiTool tool) {
@@ -609,6 +625,43 @@ public class AiToolRegistry {
         }
     }
 
+    private class GetUserExecutionProfileTool implements AiTool {
+        @Override
+        public String getName() {
+            return "get_user_execution_profile";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Returns the user's calibrated historical execution profile, tracking completed sprint count, average focus duration, and empirical estimation bias percentage without fabrication.";
+        }
+
+        @Override
+        public Map<String, ToolParameter> getParameters() {
+            return Map.of();
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
+            if (userExecutionProfileService == null) {
+                Map<String, Object> fallback = new LinkedHashMap<>();
+                fallback.put("userId", authenticatedUserId);
+                fallback.put("hasSufficientData", false);
+                fallback.put("completedSessionsCount", 0);
+                fallback.put("totalMissionsCompleted", 0);
+                fallback.put("totalFocusMinutes", 0L);
+                fallback.put("averageFocusMinutes", null);
+                fallback.put("estimationBiasPercentage", null);
+                fallback.put("estimationAccuracyCategory", "INSUFFICIENT_DATA");
+                fallback.put("confidenceLevel", "NONE");
+                fallback.put("completionVelocityPerDay", null);
+                fallback.put("statusMessage", "Profile service unavailable");
+                return ToolResult.ok(getName(), fallback);
+            }
+            return ToolResult.ok(getName(), userExecutionProfileService.getUserExecutionProfileMap(authenticatedUserId));
+        }
+    }
+
     // =========================================================================
     // BACKWARDS-COMPATIBLE TYPED HELPER ACCESSORS
     // =========================================================================
@@ -733,6 +786,16 @@ public class AiToolRegistry {
         return Map.of("appVersion", "SHINPO v1.0.0-PROD");
     }
 
+    public Map<String, Object> getUserExecutionProfile(Long userId) {
+        ToolResult res = executeTool("get_user_execution_profile", userId, Map.of());
+        if (res.success() && res.data() instanceof Map<?, ?> m) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) m;
+            return map;
+        }
+        return Map.of("hasSufficientData", false, "statusMessage", "Insufficient data");
+    }
+
     public Map<String, Object> assembleFullContext(Long userId, Long contextualGoalId, Long contextualMissionId, Long contextualSessionId) {
         Map<String, Object> ctx = new LinkedHashMap<>();
         ctx.put("user", getCurrentUser(userId));
@@ -743,6 +806,7 @@ public class AiToolRegistry {
         ctx.put("progress", getProgressSummary(userId));
         ctx.put("enforcement", getEnforcementState(userId));
         ctx.put("device", getDeviceStatus(userId));
+        ctx.put("executionProfile", getUserExecutionProfile(userId));
         return ctx;
     }
 

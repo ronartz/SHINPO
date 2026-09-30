@@ -151,14 +151,20 @@
   4. Authored comprehensive test suite in `SilenceEngineTests.java` covering planning interception, goal deconstruction diversion, minimal greeting tone, deterministic fallback quietness, prompt injection of silence directives, session completion restoration, and authenticated REST API verification.
 - **Exit Condition Achieved:** All 71 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 380ms with 0 errors and 0 lint warnings.
 
-### AI.7 — User Execution Profile Engine (APPROVED NEXT SLICE)
+### AI.7 — User Execution Profile Engine (COMPLETED)
 - **Goal:** Track historical estimation bias and completion velocity from real data.
-- **Tasks:**
-  1. Compute average focus duration and estimation bias percentage from completed sessions.
-  2. Never fabricate metrics when data is insufficient.
+- **Preconditions:** AI.6 complete.
+- **Tasks & Deliverables:**
+  1. Created `UserExecutionProfileService` to compute average focus session duration, completed missions ratio, and estimation bias percentage (`(actualDuration - estimatedDuration) / estimatedDuration * 100`) from completed `FocusSession` and `Mission` database records.
+  2. Enforced strict truthfulness constraint: never fabricate metrics or confidence percentages when completed session count is below statistical threshold (`< 3` sessions returns `hasSufficientData: false`, `estimationBiasPercentage: null`, `confidenceLevel: NONE`, and explanatory status message).
+  3. Integrated execution profile metrics into `ExecutionIntelligenceContext` and exposed via tool `get_user_execution_profile` in `AiToolRegistry` with caller authentication enforcement and spoofing immunity.
+  4. Added `GET /api/ai/profile` authenticated endpoint in `AiController` and companion intent routing in `AiGateway.processChat`.
+  5. Exported typed `UserExecutionProfile` contract and `getUserExecutionProfile` API helper in `frontend/src/api/ai.ts`.
+  6. Authored `UserExecutionProfileTests.java` covering 10 rigorous scenarios: zero sessions truthfulness, 2-session threshold defense, underestimating classification (>+15%), overestimating classification (<-15%), on-track accuracy (within ±15%), non-completed session filtering, cross-tenant data isolation, registry tool execution, REST API authentication, and conversational AI intent processing.
+- **Exit Condition Achieved:** All 81 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 151ms with 0 errors and 0 lint warnings.
 
-### AI.8 — Recovery Intelligence
-- **Goal:** Classify session interruptions into Plan Failure vs Execution Failure and suggest constructive recovery paths.
+### AI.8 — Recovery Intelligence (APPROVED NEXT SLICE)
+- **Goal:** Classify session interruptions into Plan Failure vs Execution Failure and suggest constructive recovery paths without punitive shame.
 
 ### AI.9 — Command Center Summarization
 - **Goal:** Multi-dimensional execution state summarization (Goals, Missions, Schedule, Sentinel).

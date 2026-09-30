@@ -233,3 +233,24 @@ export async function commitSuggestion(
   })
   return parseResponse<SuggestionCommitResponse>(res)
 }
+
+export type UserExecutionProfile = {
+  userId: number
+  hasSufficientData: boolean
+  completedSessionsCount: number
+  totalMissionsCompleted: number
+  totalFocusMinutes: number
+  averageFocusMinutes: number | null
+  estimationBiasPercentage: number | null
+  estimationAccuracyCategory: string
+  confidenceLevel: string
+  completionVelocityPerDay: number | null
+  statusMessage: string
+}
+
+export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
+  const res = await fetch(`${API_BASE}/profile`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<UserExecutionProfile>(res)
+}

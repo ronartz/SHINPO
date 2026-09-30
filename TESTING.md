@@ -218,3 +218,23 @@ Before declaring any frontend change complete:
 | **06** | `testNormalPlanningRestoredAfterFocusSessionCompleted` | Once active session is completed, standard planning and decomposition capabilities are cleanly restored | PASS |
 | **07** | `testSilenceEngineViaRestEndpoint` | `POST /api/ai/chat` enforces silence rules over HTTP REST API with JWT bearer auth | PASS |
 
+---
+
+## 13. Phase 2 Slice AI.7 User Execution Profile Engine (`UserExecutionProfileTests`)
+
+| Scenario | Test Method | Covered Behavioral Science & Calibration Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testZeroSessions_ReturnsInsufficientDataWithoutFabrication` | 0 completed sessions strictly returns `hasSufficientData: false`, `estimationBiasPercentage: null`, `confidenceLevel: NONE`, zero-fabrication message | PASS |
+| **02** | `testTwoSessions_BelowThreshold_NeverFabricatesMetrics` | 2 completed sessions (< 3 threshold) still returns `hasSufficientData: false` and `estimationBiasPercentage: null` | PASS |
+| **03** | `testThreeSessions_Underestimating_CalculatesEmpiricalBias` | 3 completed sessions taking longer than planned computes positive bias (+20.0%), category `UNDERESTIMATING`, `LOW` confidence | PASS |
+| **04** | `testOverestimatingBias_CalculatesNegativeBiasAndCategory` | Sessions finishing faster than allocated computes negative bias (-25.0%), category `OVERESTIMATING` | PASS |
+| **05** | `testOnTrackBias_WithinTolerance` | Sessions finishing within ±15% tolerance computes category `ON_TRACK` | PASS |
+| **06** | `testNonCompletedSessionsIgnoredInCalibration` | Incomplete sessions (`ACTIVE`, `SCHEDULED`, `FAILED`) do not distort calibration counts or bias | PASS |
+| **07** | `testCrossTenantIsolation_NeverLeaksDataBetweenUsers` | User A's completed focus sessions never leak into User B's profile calculation | PASS |
+| **08** | `testToolExecution_GetUserExecutionProfile_ThroughRegistry` | Tool `get_user_execution_profile` executes cleanly via registry with IDOR defense against parameter spoofing | PASS |
+| **09** | `testRestEndpoint_GetProfile_AuthenticatedAndUnauthenticated` | `GET /api/ai/profile` requires bearer auth (401 when missing) and returns 200 with typed `UserExecutionProfileDto` | PASS |
+| **10** | `testAiGateway_ProcessesProfileIntent` | `AiGateway.processChat` routes profile inquiries ("What is my execution profile?") to `PROFILE` intent with calibrated stats | PASS |
+
+**Total Automated Baseline:** **81 tests, 0 failures, 0 errors, 0 skipped** (`./mvnw test`).
+
+

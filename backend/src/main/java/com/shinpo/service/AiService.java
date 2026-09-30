@@ -7,6 +7,7 @@ import com.shinpo.entity.*;
 import com.shinpo.repository.*;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,9 @@ public class AiService {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final TransactionTemplate conversationTransactionTemplate;
+    private final UserExecutionProfileService userExecutionProfileService;
 
+    @Autowired
     public AiService(
             GoalRepository goalRepository,
             MissionRepository missionRepository,
@@ -51,7 +54,8 @@ public class AiService {
             UserRepository userRepository,
             AiSuggestionRepository aiSuggestionRepository,
             ObjectMapper objectMapper,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            UserExecutionProfileService userExecutionProfileService) {
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
@@ -64,6 +68,7 @@ public class AiService {
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.conversationTransactionTemplate = new TransactionTemplate(transactionManager);
         this.conversationTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.userExecutionProfileService = userExecutionProfileService;
     }
 
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId) {
@@ -91,6 +96,14 @@ public class AiService {
 
         long actualMins = session.calculateActiveSeconds(Instant.now()) / 60;
         return aiGateway.getSessionRecovery(sessionId, userId, session.getName(), session.getDurationMinutes(), actualMins);
+    }
+
+    @Transactional(readOnly = true)
+    public UserExecutionProfileDto getUserExecutionProfile(Long userId) {
+        if (userExecutionProfileService == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Execution profile service unavailable");
+        }
+        return userExecutionProfileService.getUserExecutionProfile(userId);
     }
 
     public void acceptSuggestion(Long suggestionId, Long userId) {
