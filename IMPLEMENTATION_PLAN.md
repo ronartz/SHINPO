@@ -100,13 +100,19 @@
   4. Authored `ContextEngineTests` verifying typed context assembly, secret redaction, and prompt injection defanging.
 - **Exit Condition Achieved:** All 52 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 140ms.
 
-### AI.3 — Controlled Tool Layer (APPROVED NEXT SLICE)
+### AI.3 — Controlled Tool Layer (COMPLETED)
 - **Goal:** Formalize read tools with user-scoped isolation and explicit schemas.
-- **Tasks:**
-  1. Refactor `AiToolRegistry` into explicit typed tool contracts.
-  2. Verify all tool calls derive ownership exclusively from authenticated `principal.getUserId()`.
+- **Preconditions:** AI.2 complete.
+- **Tasks & Deliverables:**
+  1. Defined typed contracts `AiTool`, `ToolParameter`, `ToolResult`, and `ToolDefinition`.
+  2. Refactored `AiToolRegistry` into a formal tool container indexing 12 standard tools (`get_current_user`, `get_current_goal`, `get_todays_schedule`, `get_active_focus_session`, `get_next_mission`, `get_todays_missions`, `get_progress_summary`, `get_device_status`, `get_enforcement_state`, `get_recent_session_events`, `get_enforcement_explanation`, `get_sanitized_diagnostics`) with snake_case and camelCase alias normalization.
+  3. Enforced cross-tenant IDOR protection via `GoalRepository.findByIdAndUser_Id` and `MissionRepository.findByIdAndGoal_User_Id`.
+  4. Stripped caller-injected `userId` overrides to ensure strict authentication principal ownership.
+  5. Exposed `GET /api/ai/tools` and `POST /api/ai/tools/{toolName}/execute` in `AiController`.
+  6. Authored `ControlledToolLayerTests` covering schema registration, unauthenticated rejection, cross-tenant IDOR defenses, parameter spoofing immunity, and REST execution.
+- **Exit Condition Achieved:** All 58 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 153ms.
 
-### AI.4 — Structured Suggestions & Transactional Approval
+### AI.4 — Structured Suggestions & Transactional Approval (APPROVED NEXT SLICE)
 - **Goal:** Bridge the gap between AI proposals and authoritative database mutations.
 - **Tasks:**
   1. Add endpoint `POST /api/ai/suggestions/{id}/commit` to atomically convert approved `ProposedMission` items into real database records via `MissionService`.
