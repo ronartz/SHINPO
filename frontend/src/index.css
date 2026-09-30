@@ -44,12 +44,22 @@ button:disabled {
 
 ::selection {
   color: #ffffff;
-  background: rgba(16, 185, 129, 0.4);
+  background: rgba(255, 77, 94, 0.4);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.theme-light *,
+html[data-theme='light'] * {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -58,9 +68,19 @@ button:disabled {
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.theme-light ::-webkit-scrollbar-thumb,
+html[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.theme-light ::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
 }

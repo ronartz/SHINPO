@@ -53,6 +53,7 @@ html[data-theme='dark'],
   --coral-deep: #D92B3E;
   --brand-coral: #FF4D5E;
   --brand-coral-hover: #FF6E7D;
+  --brand-coral-deep: #D92B3E;
   --brand-coral-subtle: rgba(255, 77, 94, 0.12);
   --brand-coral-border: rgba(255, 77, 94, 0.35);
   --brand-coral-glow: 0 0 20px rgba(255, 77, 94, 0.22);
@@ -191,6 +192,7 @@ html[data-theme='light'],
   --coral-deep: #D92B3E;
   --brand-coral: #FF4D5E;
   --brand-coral-hover: #FF6E7D;
+  --brand-coral-deep: #D92B3E;
   --brand-coral-subtle: rgba(255, 77, 94, 0.10);
   --brand-coral-border: rgba(255, 77, 94, 0.30);
   --brand-coral-glow: 0 0 16px rgba(255, 77, 94, 0.15);
@@ -1696,19 +1698,29 @@ html[data-theme='dark'] .sidebar-shield-card {
   flex-direction: column;
   gap: 10px;
   flex: 1;
-  max-height: 380px;
+  max-height: 460px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
-  padding-right: 4px;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  padding-right: 8px;
 }
 
 .status-column-cards::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
+}
+
+.status-column-cards::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .status-column-cards::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.status-column-cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .status-column-empty {
@@ -1762,6 +1774,13 @@ html[data-theme='dark'] .sidebar-shield-card {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.16);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.flight-deck-card.has-open-menu {
+  z-index: 50;
+  border-color: rgba(255, 77, 94, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
 }
 
 .flight-deck-card.is-active-sprint {
@@ -1819,21 +1838,55 @@ html[data-theme='dark'] .sidebar-shield-card {
   color: var(--text);
 }
 
+/* Task Menu Click-Catcher Invisible Backdrop */
+.card-menu-backdrop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+  cursor: default;
+}
+
 /* Card Dropdown Menu */
 .flight-deck-card-menu {
   position: absolute;
-  top: calc(100% + 4px);
   right: 0;
-  min-width: 175px;
+  width: 180px;
   background: var(--surface-elevated);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   padding: 6px;
-  box-shadow: var(--shadow-elevated);
-  z-index: 50;
+  box-shadow: var(--shadow-elevated), 0 12px 36px rgba(0, 0, 0, 0.55);
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.flight-deck-card-menu.portal-menu {
+  position: fixed;
+  right: auto;
+  width: 180px;
+}
+
+.flight-deck-card-menu.menu-open-up {
+  transform-origin: bottom right;
+  animation: menuPopUp 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flight-deck-card-menu.menu-open-down {
+  transform-origin: top right;
+  animation: menuPopDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes menuPopUp {
+  from { opacity: 0; transform: scale(0.95) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes menuPopDown {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .card-menu-item {
@@ -2304,7 +2357,23 @@ html[data-theme='dark'] .sidebar-shield-card {
   margin: auto 0;
   max-height: 190px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  padding-right: 6px;
+}
+
+.timesheet-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.timesheet-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timesheet-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
 }
 
 .timesheet-item {
@@ -2398,7 +2467,23 @@ html[data-theme='dark'] .sidebar-shield-card {
   margin: auto 0;
   max-height: 190px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  padding-right: 6px;
+}
+
+.activity-feed-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.activity-feed-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-feed-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
 }
 
 .activity-feed-item {
@@ -2661,6 +2746,39 @@ html[data-theme='light'] .flight-deck-quick-modal-card {
   background: #FFFFFF;
   border-color: rgba(0, 0, 0, 0.12);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .flight-deck-card.has-open-menu,
+html[data-theme='light'] .flight-deck-card.has-open-menu {
+  border-color: rgba(255, 77, 94, 0.4);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .status-column-cards,
+html[data-theme='light'] .status-column-cards,
+.theme-light .timesheet-list,
+html[data-theme='light'] .timesheet-list,
+.theme-light .activity-feed-list,
+html[data-theme='light'] .activity-feed-list {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.theme-light .status-column-cards::-webkit-scrollbar-thumb,
+html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb,
+.theme-light .timesheet-list::-webkit-scrollbar-thumb,
+html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb,
+.theme-light .activity-feed-list::-webkit-scrollbar-thumb,
+html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .status-column-cards::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb:hover,
+.theme-light .timesheet-list::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb:hover,
+.theme-light .activity-feed-list::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .theme-light .card-menu-item:hover,
@@ -8893,8 +9011,9 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .taskmaster-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8905,11 +9024,11 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .taskmaster-modal-card {
   width: 90%;
   max-width: 520px;
-  background: #11141A;
-  border: 1px solid rgba(255, 82, 82, 0.3);
-  border-radius: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 82, 82, 0.15);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 24px rgba(255, 77, 94, 0.12);
   animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -8933,24 +9052,25 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .modal-close-icon-btn {
   background: transparent;
   border: none;
-  color: #64748B;
+  color: var(--text-3);
   cursor: pointer;
+  transition: color 0.15s ease;
 }
 
 .modal-close-icon-btn:hover {
-  color: #ffffff;
+  color: var(--text);
 }
 
 .modal-mission-title {
   font-size: 20px;
   font-weight: 800;
-  color: #F8FAFC;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
 .modal-mission-desc {
   font-size: 13px;
-  color: #94A3B8;
+  color: var(--text-2);
   line-height: 1.5;
   margin-bottom: 18px;
 }
@@ -8960,10 +9080,10 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 22px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-inner);
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
 }
 
 .modal-meta-item {
@@ -8975,18 +9095,18 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .meta-label {
   font-size: 10px;
   font-weight: 700;
-  color: #64748B;
+  color: var(--text-3);
   text-transform: uppercase;
 }
 
 .meta-val {
   font-size: 12px;
   font-weight: 700;
-  color: #E2E8F0;
+  color: var(--text);
 }
 
 .meta-val.highlight-red {
-  color: #FF5252;
+  color: var(--primary-coral);
 }
 
 .modal-action-footer {
@@ -8997,7 +9117,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 
 .modal-btn-arm-sprint {
   flex: 2;
-  background: linear-gradient(135deg, #FF5252 0%, #DC2626 100%);
+  background: var(--brand-coral-gradient);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -9009,7 +9129,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 4px 16px rgba(255, 82, 82, 0.4);
+  box-shadow: 0 4px 16px rgba(255, 77, 94, 0.35);
   transition: all 0.18s ease;
 }
 
@@ -9036,14 +9156,27 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 
 .modal-btn-deconstruct {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  color: #94A3B8;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-hover);
+  color: var(--text-2);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.theme-light .taskmaster-modal-card,
+html[data-theme='light'] .taskmaster-modal-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15), 0 0 24px rgba(255, 77, 94, 0.1);
+}
+
+.theme-light .modal-meta-grid,
+html[data-theme='light'] .modal-meta-grid {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .modal-btn-delete {

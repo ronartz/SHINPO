@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 
 import {
@@ -618,7 +619,10 @@ export function App() {
 
   // Interactive Dashboard / Flight Deck States
   const [inspectingMission, setInspectingMission] = useState<Mission | null>(null)
-  const [activeTaskMenuId, setActiveTaskMenuId] = useState<number | null>(null)
+  const [activeTaskMenu, setActiveTaskMenu] = useState<{
+    task: Mission
+    rect: DOMRect
+  } | null>(null)
   const [deletingMissionId, setDeletingMissionId] = useState<number | null>(null)
   const [isCreatingQuickMission, setIsCreatingQuickMission] = useState(false)
   const [quickMissionTitle, setQuickMissionTitle] = useState('')
@@ -738,18 +742,21 @@ export function App() {
   }, [isDarkMode])
  
   useEffect(() => {
-    if (!activeTaskMenuId) return
-    const handleClickOutside = () => setActiveTaskMenuId(null)
+    if (!activeTaskMenu) return
+    const handleClickOutside = () => setActiveTaskMenu(null)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveTaskMenuId(null)
+      if (e.key === 'Escape') setActiveTaskMenu(null)
     }
+    const handleScroll = () => setActiveTaskMenu(null)
     window.addEventListener('click', handleClickOutside)
     window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('scroll', handleScroll, true)
     return () => {
       window.removeEventListener('click', handleClickOutside)
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('scroll', handleScroll, true)
     }
-  }, [activeTaskMenuId])
+  }, [activeTaskMenu])
 
   const loadData = useCallback(async () => {
     try {
@@ -1174,7 +1181,7 @@ export function App() {
       if (inspectingMission?.id === missionId) {
         setInspectingMission(null)
       }
-      setActiveTaskMenuId(null)
+      setActiveTaskMenu(null)
       await loadData()
     } catch (err: unknown) {
       if (hasHttpStatus(err, 404)) {
@@ -1183,7 +1190,7 @@ export function App() {
         if (inspectingMission?.id === missionId) {
           setInspectingMission(null)
         }
-        setActiveTaskMenuId(null)
+        setActiveTaskMenu(null)
         await loadData()
       } else {
         console.error('Failed to delete task:', err)
@@ -2072,12 +2079,19 @@ export function App() {
               task.title.toLowerCase() === activeSession.name.toLowerCase() ||
               (activeSession.intention && task.title.toLowerCase() === activeSession.intention.toLowerCase())
             )
+            const hasOpenMenu = activeTaskMenu?.task.id === task.id
 
             return (
               <div
                 key={task.id}
-                className={`flight-deck-card ${isActive ? 'is-active-sprint' : ''}`}
-                onClick={() => setInspectingMission(task)}
+                className={`flight-deck-card ${isActive ? 'is-active-sprint' : ''} ${hasOpenMenu ? 'has-open-menu' : ''}`}
+                onClick={() => {
+                  if (hasOpenMenu) {
+                    setActiveTaskMenu(null)
+                    return
+                  }
+                  setInspectingMission(task)
+                }}
                 title="Click to inspect mission details"
               >
                 <div className="card-top-row">
@@ -2086,64 +2100,18 @@ export function App() {
                   </h3>
                   <div className="card-menu-container" onClick={(e) => e.stopPropagation()}>
                     <button
-                      className={`card-menu-btn ${activeTaskMenuId === task.id ? 'active' : ''}`}
-                      onClick={() => setActiveTaskMenuId((prev) => (prev === task.id ? null : task.id))}
+                      className={`card-menu-btn ${hasOpenMenu ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setActiveTaskMenu((prev) => (prev?.task.id === task.id ? null : { task, rect }))
+                      }}
                       title="Task actions"
                       aria-label="Task actions"
-                      aria-expanded={activeTaskMenuId === task.id}
+                      aria-expanded={hasOpenMenu}
                     >
                       ···
                     </button>
-                    {activeTaskMenuId === task.id && (
-                      <div className="flight-deck-card-menu">
-                        <button
-                          className="card-menu-item"
-                          onClick={() => {
-                            setActiveTaskMenuId(null)
-                            setInspectingMission(task)
-                          }}
-                        >
-                          <Icon name="sparkle" size={13} />
-                          <span>Inspect Details</span>
-                        </button>
-                        {!isDone && (
-                          <button
-                            className="card-menu-item"
-                            onClick={() => {
-                              setActiveTaskMenuId(null)
-                              handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
-                            }}
-                          >
-                            <Icon name="play" size={13} />
-                            <span>Start Focus</span>
-                          </button>
-                        )}
-                        {!isDone && (
-                          <button
-                            className="card-menu-item"
-                            onClick={() => {
-                              setActiveTaskMenuId(null)
-                              handleToggleMissionComplete(task.id)
-                            }}
-                          >
-                            <Icon name="check" size={13} />
-                            <span>Mark Done</span>
-                          </button>
-                        )}
-                        <div className="card-menu-divider" />
-                        <button
-                          className="card-menu-item action-delete"
-                          onClick={() => {
-                            setActiveTaskMenuId(null)
-                            handleDeleteMission(task.id, task.title)
-                          }}
-                          disabled={deletingMissionId === task.id}
-                        >
-                          <Icon name="trash" size={13} />
-                          <span>{deletingMissionId === task.id ? 'Deleting...' : 'Delete Task'}</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -2186,6 +2154,93 @@ export function App() {
 
           return (
             <div className="shinpo-flight-deck">
+              {/* Task Actions Floating Portal Menu - Completely immune to overflow/scroll clipping */}
+              {activeTaskMenu && typeof document !== 'undefined' && createPortal(
+                (() => {
+                  const { task, rect } = activeTaskMenu
+                  const isDone = task.status === 'COMPLETED'
+                  const menuWidth = 175
+                  const menuHeight = 160
+                  const spaceBelow = window.innerHeight - rect.bottom
+                  const openUp = spaceBelow < menuHeight + 12
+
+                  const top = openUp ? Math.max(10, rect.top - menuHeight - 6) : rect.bottom + 6
+                  const left = Math.max(10, Math.min(window.innerWidth - menuWidth - 16, rect.right - menuWidth))
+
+                  return (
+                    <>
+                      <div
+                        className="card-menu-backdrop-overlay"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveTaskMenu(null)
+                        }}
+                      />
+                      <div
+                        className={`flight-deck-card-menu portal-menu ${openUp ? 'menu-open-up' : 'menu-open-down'}`}
+                        style={{
+                          position: 'fixed',
+                          top: `${top}px`,
+                          left: `${left}px`,
+                          width: `${menuWidth}px`,
+                          right: 'auto',
+                          zIndex: 9999,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          className="card-menu-item"
+                          onClick={() => {
+                            setActiveTaskMenu(null)
+                            setInspectingMission(task)
+                          }}
+                        >
+                          <Icon name="sparkle" size={13} />
+                          <span>Inspect Details</span>
+                        </button>
+                        {!isDone && (
+                          <button
+                            className="card-menu-item"
+                            onClick={() => {
+                              setActiveTaskMenu(null)
+                              handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
+                            }}
+                          >
+                            <Icon name="play" size={13} />
+                            <span>Start Focus</span>
+                          </button>
+                        )}
+                        {!isDone && (
+                          <button
+                            className="card-menu-item"
+                            onClick={() => {
+                              setActiveTaskMenu(null)
+                              handleToggleMissionComplete(task.id)
+                            }}
+                          >
+                            <Icon name="check" size={13} />
+                            <span>Mark Done</span>
+                          </button>
+                        )}
+                        <div className="card-menu-divider" />
+                        <button
+                          className="card-menu-item action-delete"
+                          onClick={() => {
+                            setActiveTaskMenu(null)
+                            handleDeleteMission(task.id, task.title)
+                          }}
+                          disabled={deletingMissionId === task.id}
+                        >
+                          <Icon name="trash" size={13} />
+                          <span>{deletingMissionId === task.id ? 'Deleting...' : 'Delete Task'}</span>
+                        </button>
+                      </div>
+                    </>
+                  )
+                })(),
+                document.body
+              )}
+
               {/* Top Tier: Multi-Column Kanban Work Board */}
               <section className="flight-deck-board-panel" aria-label="Flight Deck Work Board">
                 <div className="board-panel-header">
