@@ -98,6 +98,40 @@ class AiArchitectureTests {
     }
 
     @Test
+    void enforcementRoutingRequiresWhyQuestionContext() {
+        AiGateway gateway = new AiGateway(
+                List.of(),
+                properties,
+                toolRegistry,
+                suggestionRepository,
+                userRepository,
+                objectMapper
+        );
+
+        when(toolRegistry.getNextMission(any()))
+                .thenReturn(Map.of("id", 101L, "title", "Ship Distributed Shield", "estimatedMinutes", 45));
+        when(toolRegistry.getCurrentGoal(any(), any()))
+                .thenReturn(Map.of("id", 1L, "title", "Launch SHINPO 1.0"));
+        when(toolRegistry.getSanitizedDiagnostics(any(), any())).thenReturn(Map.of());
+        when(toolRegistry.getEnforcementExplanation(any(), any()))
+                .thenReturn(Map.of("reason", "No active enforcement.", "activeBlockPresent", false));
+
+        AiChatResponse nextAction = gateway.processChat(
+                new AiChatRequest(1L, "What should I do about the blocked app?", null, null, null)
+        );
+        AiChatResponse bugReport = gateway.processChat(
+                new AiChatRequest(1L, "I found a bug: the app was terminated unexpectedly.", null, null, null)
+        );
+        AiChatResponse enforcement = gateway.processChat(
+                new AiChatRequest(1L, "Why is YouTube blocked?", null, null, null)
+        );
+
+        assertEquals("NEXT_ACTION", nextAction.suggestionType());
+        assertEquals("BUG_REPORT", bugReport.suggestionType());
+        assertEquals("ENFORCEMENT_EXPLANATION", enforcement.suggestionType());
+    }
+
+    @Test
     void aiGatewayParsesStructuredJsonOutputFromModel() {
         AIProvider mockProvider = mock(AIProvider.class);
         when(mockProvider.getProviderName()).thenReturn("ollama");
