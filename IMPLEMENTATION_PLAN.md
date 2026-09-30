@@ -123,13 +123,21 @@
   5. Authored `StructuredSuggestionApprovalTests` verifying suggestion audit creation, atomic mission database persistence, selective mission committing, cross-tenant 403 Forbidden rejection, and REST API execution.
 - **Exit Condition Achieved:** All 63 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 201ms.
 
-### AI.5 — Conversational UX & Action Cards (APPROVED NEXT SLICE)
+### AI.5 — Conversational UX & Action Cards (COMPLETED)
 - **Goal:** Elevate frontend chat with interactive approval cards and accessibility.
-- **Tasks:**
-  1. Render actionable cards in `App.tsx` with one-click "Approve & Schedule" buttons.
-  2. Verify keyboard navigation, ARIA labels, and reduced-motion styling.
+- **Preconditions:** AI.4 complete.
+- **Tasks & Deliverables:**
+  1. Defined typed `SuggestionCommitRequest`, `SuggestionCommitResponse`, and `commitSuggestion` API call in `frontend/src/api/ai.ts`.
+  2. Implemented interactive proposal cards container in `frontend/src/App.tsx`:
+     - Proposal header bar with item count and "⚡ Approve & Add All to Backlog" batch commit button.
+     - "✓ Added to Backlog" indicator when proposals have been committed to the database.
+     - Individual "+ Backlog" single-mission commit buttons with immediate reactive state update.
+     - Single-click "Start focus" arming sprint button.
+     - Strict ARIA regions (`role="region"`, `aria-label="Actionable AI proposal cards"`, `role="group"`) and loading states (`msg.committing`) preventing duplicate concurrent submissions.
+  3. Styled `.ai-cards-container`, `.ai-card-header-bar`, `.ai-card-header-title`, `.ai-commit-all-btn`, and `.ai-commit-single-btn` in `frontend/src/App.css` with responsive layout, light/dark theme variables, focus-visible outlines, and `@media (prefers-reduced-motion: reduce)` motion suppression.
+- **Exit Condition Achieved:** All 63 backend tests pass (0 failures, 0 errors). Frontend builds cleanly via `tsc -b && vite build` in 147ms with 0 errors and passes ESLint with 0 warnings.
 
-### AI.6 — Contextual Execution AI & Silence Engine
+### AI.6 — Contextual Execution AI & Silence Engine (APPROVED NEXT SLICE)
 - **Goal:** Implement silence rules during active focus sessions.
 - **Tasks:**
   1. Detect active focus sessions; suppress proactive interruptions and motivational spam.

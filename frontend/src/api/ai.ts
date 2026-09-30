@@ -9,6 +9,27 @@ export type GoalDecomposition = {
   goalTitle: string
   analysis: string
   proposedMissions: ProposedMission[]
+  suggestionId?: number
+}
+
+export type SuggestionCommitRequest = {
+  targetGoalId?: number
+  selectedMissions?: ProposedMission[]
+}
+
+export type SuggestionCommitResponse = {
+  suggestionId: number
+  goalId: number
+  committedMissionsCount: number
+  committedMissions: Array<{
+    id: number
+    goalId: number
+    title: string
+    description?: string
+    scheduledDate?: string
+    estimatedMinutes?: number
+    status?: string
+  }>
 }
 
 export type NextAction = {
@@ -34,6 +55,19 @@ export type DailyPlan = {
   rationale: string
   planItems: DailyPlanItem[]
 }
+
+export type NextActionCard = {
+  missionTitle: string
+  recommendedAction?: string | null
+  rationale?: string | null
+  estimatedMinutes?: number | null
+}
+
+export type StructuredCard =
+  | ProposedMission[]
+  | { proposedMissions: ProposedMission[] }
+  | { planItems: DailyPlanItem[] }
+  | NextActionCard
 
 export type RecoveryOption = {
   code: string
@@ -71,7 +105,7 @@ export type ConversationMessage = {
   role: 'USER' | 'ASSISTANT' | 'SYSTEM'
   content: string
   suggestionType?: string
-  structuredCard?: any
+  structuredCard?: StructuredCard | null
   tutorial?: TutorialStep | null
   bugReport?: BugReportInfo | null
   createdAt?: string
@@ -88,7 +122,7 @@ export type Conversation = {
 export type AiChatResponse = {
   reply: string
   suggestionType: string
-  structuredCard: any
+  structuredCard: StructuredCard | null
   tutorial?: TutorialStep | null
   bugReport?: BugReportInfo | null
   conversationId?: string
@@ -107,7 +141,9 @@ async function parseResponse<T>(res: Response): Promise<T> {
     } catch {
       // ignore json parse error, fallback to status
     }
-    throw new Error(msg)
+    const error = new Error(msg) as Error & { status: number }
+    error.status = res.status
+    throw error
   }
   return res.json() as Promise<T>
 }
@@ -184,4 +220,16 @@ export async function getSessionRecovery(
     headers: authHeaders(),
   })
   return parseResponse<SessionRecovery>(res)
+}
+
+export async function commitSuggestion(
+  suggestionId: number,
+  request?: SuggestionCommitRequest,
+): Promise<SuggestionCommitResponse> {
+  const res = await fetch(`${API_BASE}/suggestions/${suggestionId}/commit`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: request ? JSON.stringify(request) : undefined,
+  })
+  return parseResponse<SuggestionCommitResponse>(res)
 }
