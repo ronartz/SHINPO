@@ -15,7 +15,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PLAN_FILE="$SCRIPT_DIR/IMPLEMENTATION_PLAN.md"
 PROMPT_FILE="$SCRIPT_DIR/PROMPT.md"
 AGENTS_FILE="$SCRIPT_DIR/AGENTS.md"
-LOG_FILE="$PROJECT_ROOT/.planning/ralph.log"
+LOG_FILE="$PROJECT_ROOT/.logs/ralph.log"
+LOG_DIR="$(dirname "$LOG_FILE")"
 
 MAX_ITERATIONS=""
 DRY_RUN=false
@@ -77,7 +78,7 @@ if [[ ! -f "$PROMPT_FILE" ]]; then
 fi
 
 # Ensure log directory exists
-mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$LOG_DIR"
 
 # ------------------------------------------------------------------------------
 # Backpressure & Validation Functions

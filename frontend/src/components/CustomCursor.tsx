@@ -48,6 +48,9 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
     const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (isTouch || prefersReducedMotion) return
+    document.documentElement.classList.add('custom-cursor-active')
+
+    let renderFrame = () => {}
 
     const handleMouseMove = (e: MouseEvent) => {
       mousePos.current = { x: e.clientX, y: e.clientY }
@@ -57,6 +60,9 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
       if (dotRef.current) {
         const scale = isClickingRef.current ? 0.7 : isHoveredRef.current ? 0 : 1
         dotRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(${scale})`
+      }
+      if (animFrameId.current === null) {
+        animFrameId.current = requestAnimationFrame(renderFrame)
       }
 
       // Target element inspection for morphing
@@ -97,8 +103,14 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
       isClickingRef.current = false
       setIsClicking(false)
     }
-    const handleMouseLeave = () => setIsVisible(false)
-    const handleMouseEnter = () => setIsVisible(true)
+    const handleMouseLeave = () => {
+      setIsVisible(false)
+      document.documentElement.classList.remove('custom-cursor-active')
+    }
+    const handleMouseEnter = () => {
+      setIsVisible(true)
+      document.documentElement.classList.add('custom-cursor-active')
+    }
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true })
     window.addEventListener('mousedown', handleMouseDown)
@@ -109,7 +121,8 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
     // Smooth physics loop for the trailing ring (LERP animation)
     const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor
 
-    const render = () => {
+    renderFrame = () => {
+      animFrameId.current = null
       const smoothing = isHoveredRef.current ? 0.24 : 0.16
       ringPos.current.x = lerp(ringPos.current.x, mousePos.current.x, smoothing)
       ringPos.current.y = lerp(ringPos.current.y, mousePos.current.y, smoothing)
@@ -118,10 +131,13 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
         ringRef.current.style.transform = `translate3d(${ringPos.current.x}px, ${ringPos.current.y}px, 0)`
       }
 
-      animFrameId.current = requestAnimationFrame(render)
+      if (Math.abs(mousePos.current.x - ringPos.current.x) > 0.1
+        || Math.abs(mousePos.current.y - ringPos.current.y) > 0.1) {
+        animFrameId.current = requestAnimationFrame(renderFrame)
+      }
     }
 
-    animFrameId.current = requestAnimationFrame(render)
+    animFrameId.current = requestAnimationFrame(renderFrame)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
@@ -130,6 +146,7 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
       document.removeEventListener('mouseleave', handleMouseLeave)
       document.removeEventListener('mouseenter', handleMouseEnter)
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
+      document.documentElement.classList.remove('custom-cursor-active')
     }
   }, [enableTextMorph])
 
@@ -170,7 +187,7 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
           backgroundColor: color,
           borderRadius: '50%',
           boxShadow: `0 0 10px ${color}`,
-          transform: `translate3d(${mousePos.current.x}px, ${mousePos.current.y}px, 0) scale(${isClicking ? 0.7 : isHovered ? 0 : 1})`,
+          transform: `translate3d(-100px, -100px, 0) scale(${isClicking ? 0.7 : isHovered ? 0 : 1})`,
           transition: 'transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease',
           opacity: isHovered && cursorText ? 0 : 1,
           pointerEvents: 'none',

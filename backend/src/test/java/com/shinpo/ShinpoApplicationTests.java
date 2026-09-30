@@ -246,6 +246,30 @@ class ShinpoApplicationTests {
     }
 
     @Test
+    void shouldRejectStartingSecondSessionWhenOneIsAlreadyActive() {
+        Long session1Id = createFocusSessionId();
+        ResponseEntity<FocusSessionResponse> res1 = postLifecycleAction(session1Id, "/start");
+        assertEquals(200, res1.getStatusCode().value());
+
+        Long session2Id = createFocusSessionId();
+        ResponseEntity<String> res2 = restTemplate.postForEntity(
+                baseUrl() + "/api/focus-sessions/" + session2Id + "/start?userId=" + testUser.getId(),
+                null,
+                String.class
+        );
+        assertEquals(409, res2.getStatusCode().value());
+
+        // Complete session 1
+        postLifecycleAction(session1Id, "/complete");
+
+        // Now session 2 can start
+        ResponseEntity<FocusSessionResponse> res2Retry = postLifecycleAction(session2Id, "/start");
+        assertEquals(200, res2Retry.getStatusCode().value());
+        assertNotNull(res2Retry.getBody());
+        assertEquals("ACTIVE", res2Retry.getBody().getStatus().name());
+    }
+
+    @Test
     void shouldTransitionScheduledSessionToExpiredWhenWindowHasPassed() {
         Instant pastScheduledTime = Instant.now().minus(java.time.Duration.ofHours(2));
 
