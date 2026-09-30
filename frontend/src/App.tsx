@@ -41,6 +41,7 @@ import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
 import { TutorialOverlay } from './components/TutorialOverlay'
+import { CustomCursor } from './components/CustomCursor'
 import { SHINPO_ONBOARDING_STEPS } from './tutorial/tutorialSteps'
 
 import './App.css'
@@ -545,6 +546,8 @@ export function App() {
 
   // Interactive Dashboard States (C-BENTO)
   const [inspectingMission, setInspectingMission] = useState<any | null>(null)
+  const [activeTaskMenuId, setActiveTaskMenuId] = useState<number | null>(null)
+  const [deletingMissionId, setDeletingMissionId] = useState<number | null>(null)
   const [selectedCalDay, setSelectedCalDay] = useState<number>(4)
   const [calMonth, setCalMonth] = useState('October 2026')
   const [hoveredPillar, setHoveredPillar] = useState<{ day: number; label: string; boost: string } | null>(null)
@@ -627,6 +630,20 @@ export function App() {
       document.body.classList.add('theme-light')
     }
   }, [isDarkMode])
+ 
+  useEffect(() => {
+    if (!activeTaskMenuId) return
+    const handleClickOutside = () => setActiveTaskMenuId(null)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveTaskMenuId(null)
+    }
+    window.addEventListener('click', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('click', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeTaskMenuId])
 
   const loadData = async () => {
     try {
@@ -891,18 +908,41 @@ export function App() {
   }
 
   const handleDeleteMission = async (missionId: number, missionTitle: string) => {
-    if (!window.confirm(`Delete tactical mission "${missionTitle}"?`)) {
+    if (deletingMissionId === missionId) return
+    if (!window.confirm(`Delete task "${missionTitle}"?\n\nThis will remove it from your tactical execution queue.`)) {
       return
     }
     try {
+      setDeletingMissionId(missionId)
       await deleteMission(missionId)
       setMissions((prev) => prev.filter((m) => m.id !== missionId))
-      loadData()
-    } catch (err) {
-      console.error('Failed to delete mission:', err)
-      alert('Could not delete mission. Please check server logs.')
+      if (inspectingMission?.id === missionId) {
+        setInspectingMission(null)
+      }
+      setActiveTaskMenuId(null)
+      await loadData()
+    } catch (err: any) {
+      if (
+        err?.message &&
+        (err.message.includes('404') ||
+          err.message.toLowerCase().includes('not found'))
+      ) {
+        // Concurrency / already deleted on server: safely synchronize state
+        setMissions((prev) => prev.filter((m) => m.id !== missionId))
+        if (inspectingMission?.id === missionId) {
+          setInspectingMission(null)
+        }
+        setActiveTaskMenuId(null)
+        await loadData()
+      } else {
+        console.error('Failed to delete task:', err)
+        alert(`Could not delete task: ${err?.message || 'Server error'}`)
+      }
+    } finally {
+      setDeletingMissionId(null)
     }
   }
+
 
   const handleDeleteSession = async (sessionId: number) => {
     if (!window.confirm(`Delete focus session #${sessionId}?`)) {
@@ -1184,8 +1224,15 @@ export function App() {
       if (res.tutorial) {
         handleStartTutorial(0)
       }
-    } catch {
+    } catch (err: unknown) {
+      console.error('EONPAI chat error:', err)
       setAiLoading(false)
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      if (errorMsg.includes('401')) {
+        clearAuthSession()
+        setCurrentUser(null)
+        return
+      }
       setChatMessages((prev) => [
         ...prev,
         {
@@ -1792,15 +1839,75 @@ export function App() {
                       >
                         <div className="bento-task-top">
                           <h3 className="bento-task-title">{task.title}</h3>
-                          <button
-                            className="bento-dots-btn"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setInspectingMission(task)
-                            }}
-                          >
-                            ···
-                          </button>
+                          <div className="bento-task-menu-container">
+                            <button
+                              className={`bento-dots-btn ${activeTaskMenuId === task.id ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setActiveTaskMenuId((prev) => (prev === task.id ? null : task.id))
+                              }}
+                              title="Task actions"
+                              aria-label="Task actions"
+                              aria-expanded={activeTaskMenuId === task.id}
+                            >
+                              ···
+                            </button>
+                            {activeTaskMenuId === task.id && (
+                              <div
+                                className="bento-task-action-menu"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  className="task-action-item action-inspect"
+                                  onClick={() => {
+                                    setActiveTaskMenuId(null)
+                                    setInspectingMission(task)
+                                  }}
+                                >
+                                  <Icon name="sparkle" size={13} />
+                                  <span>Inspect Details</span>
+                                </button>
+
+                                <button
+                                  className="task-action-item action-arm"
+                                  onClick={() => {
+                                    setActiveTaskMenuId(null)
+                                    handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
+                                  }}
+                                >
+                                  <Icon name="play" size={13} />
+                                  <span>Start Focus</span>
+                                </button>
+
+                                {task.status !== 'COMPLETED' && (
+                                  <button
+                                    className="task-action-item action-complete"
+                                    onClick={() => {
+                                      setActiveTaskMenuId(null)
+                                      handleToggleMissionComplete(task.id)
+                                    }}
+                                  >
+                                    <Icon name="check" size={13} />
+                                    <span>Mark Done</span>
+                                  </button>
+                                )}
+
+                                <div className="task-action-divider" />
+
+                                <button
+                                  className="task-action-item action-delete"
+                                  onClick={() => {
+                                    setActiveTaskMenuId(null)
+                                    handleDeleteMission(task.id, task.title)
+                                  }}
+                                  disabled={deletingMissionId === task.id}
+                                >
+                                  <Icon name="trash" size={13} />
+                                  <span>{deletingMissionId === task.id ? 'Deleting...' : 'Delete Task'}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <p className="bento-task-desc">{task.description || 'Target execution mission'}</p>
                         
@@ -2217,6 +2324,19 @@ export function App() {
                     >
                       <span>Eonpai Assist</span>
                     </button>
+                    {inspectingMission.id > 0 && (
+                      <button
+                        className="modal-btn-delete"
+                        onClick={() => {
+                          handleDeleteMission(inspectingMission.id, inspectingMission.title)
+                        }}
+                        disabled={deletingMissionId === inspectingMission.id}
+                        title="Delete this task permanently"
+                      >
+                        <Icon name="trash" size={14} />
+                        <span>{deletingMissionId === inspectingMission.id ? 'Deleting...' : 'Delete'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3995,6 +4115,9 @@ export function App() {
           }}
         />
       )}
+
+      {/* SHINPO Interactive Custom Cursor */}
+      <CustomCursor />
     </div>
   )
 }

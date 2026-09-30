@@ -1,4 +1,13 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "roo-cline.allowedCommands": [
+        "git status",
+        "git diff",
+        "git log -n 5",
+        "./mvnw test-compile",
+        "./mvnw test",
+        "npm run build",
+        "npm run lint"
+    ]
 }
