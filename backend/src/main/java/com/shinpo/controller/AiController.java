@@ -1,22 +1,36 @@
 package com.shinpo.controller;
 
+import com.shinpo.ai.tool.AiToolRegistry;
+import com.shinpo.ai.tool.ToolDefinition;
+import com.shinpo.ai.tool.ToolResult;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.AiService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/ai")
 public class AiController {
 
     private final AiService aiService;
+    private final AiToolRegistry toolRegistry;
+
+    @Autowired
+    public AiController(AiService aiService, AiToolRegistry toolRegistry) {
+        this.aiService = aiService;
+        this.toolRegistry = toolRegistry;
+    }
 
     public AiController(AiService aiService) {
-        this.aiService = aiService;
+        this(aiService, null);
     }
 
     @PostMapping("/chat")
@@ -111,5 +125,41 @@ public class AiController {
         }
         aiService.acceptSuggestion(suggestionId, principal.getUserId());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/tools")
+    public ResponseEntity<List<ToolDefinition>> getAvailableTools(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        if (toolRegistry == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(toolRegistry.getToolDefinitions());
+    }
+
+    @PostMapping("/tools/{toolName}/execute")
+    public ResponseEntity<ToolResult> executeTool(
+            @PathVariable String toolName,
+            @RequestBody(required = false) Map<String, Object> parameters,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        if (toolRegistry == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Tool registry unavailable");
+        }
+        ToolResult result = toolRegistry.executeTool(
+                toolName,
+                principal.getUserId(),
+                parameters != null ? parameters : Map.of()
+        );
+        if (!result.success() && result.errorMessage() != null && result.errorMessage().contains("access denied")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
+        }
+        return ResponseEntity.ok(result);
     }
 }

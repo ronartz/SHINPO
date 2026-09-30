@@ -168,3 +168,16 @@ Before declaring any frontend change complete:
 | **02** | `testSanitizesSecretsFromContext` | Redacts raw JWT tokens, API keys, password fields, and credentials before injecting into LLM context | PASS |
 | **03** | `testDefangsPromptInjectionInIsolatedPrompt` | Wraps context in `<context>` XML block, isolates user prompt in `<user_input>`, and escapes injected closing tags | PASS |
 
+---
+
+## 9. Phase 2 Slice AI.3 Controlled Tool Layer Test Suite (`ControlledToolLayerTests`)
+
+| Scenario | Test Method | Covered Tool Security & Ownership Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testToolCatalogAndMetadataRegistered` | 12 core read tools registered with non-blank metadata, descriptions, schemas, read-only flags, and case-insensitive aliases | PASS |
+| **02** | `testToolExecutionRequiresAuthenticatedUser` | Tool execution with `authenticatedUserId == null` is strictly rejected with `Unauthenticated` error | PASS |
+| **03** | `testCrossTenantIdorProtectionOnGoalInspection` | User A attempting to inspect User B's goal by `goalId` fails with access denied; User B succeeds cleanly | PASS |
+| **04** | `testCallerSpoofedUserIdParameterIgnored` | Caller-injected `userId` parameter is stripped; security principal is strictly authoritative | PASS |
+| **05** | `testDataSanitizationInDiagnosticsAndDeviceTelemetry` | Diagnostics and telemetry outputs omit environment variables, passwords, tokens, and raw keys | PASS |
+| **06** | `testControlledToolEndpointsViaRest` | `GET /api/ai/tools` and `POST /api/ai/tools/{toolName}/execute` enforce bearer token auth and return 403 on cross-tenant IDOR attempts | PASS |
+
