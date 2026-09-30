@@ -2,10 +2,12 @@ package com.shinpo.service;
 
 import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.dto.AiDtos.*;
+import com.shinpo.dto.MissionResponse;
 import com.shinpo.entity.*;
 import com.shinpo.repository.*;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,10 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -26,31 +30,40 @@ public class AiService {
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
     private final GoalRepository goalRepository;
+    private final MissionRepository missionRepository;
     private final FocusSessionRepository focusSessionRepository;
     private final AiGateway aiGateway;
     private final ConversationRepository conversationRepository;
     private final ConversationMessageRepository conversationMessageRepository;
     private final UserRepository userRepository;
+    private final AiSuggestionRepository aiSuggestionRepository;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final TransactionTemplate conversationTransactionTemplate;
 
     public AiService(
             GoalRepository goalRepository,
+            MissionRepository missionRepository,
             FocusSessionRepository focusSessionRepository,
             AiGateway aiGateway,
             ConversationRepository conversationRepository,
             ConversationMessageRepository conversationMessageRepository,
             UserRepository userRepository,
+            AiSuggestionRepository aiSuggestionRepository,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.goalRepository = goalRepository;
+        this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
         this.aiGateway = aiGateway;
         this.conversationRepository = conversationRepository;
         this.conversationMessageRepository = conversationMessageRepository;
         this.userRepository = userRepository;
+        this.aiSuggestionRepository = aiSuggestionRepository;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.conversationTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.conversationTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId) {
@@ -84,6 +97,114 @@ public class AiService {
         aiGateway.acceptSuggestion(suggestionId, userId);
     }
 
+    public SuggestionCommitResponse commitSuggestion(Long suggestionId, Long userId, SuggestionCommitRequest request) {
+        if (suggestionId == null || userId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "suggestionId and userId are required");
+        }
+
+        AiSuggestion suggestion = aiSuggestionRepository.findById(suggestionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suggestion not found: " + suggestionId));
+
+        if (!suggestion.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: suggestion not owned by authenticated user");
+        }
+
+        // 1. Resolve Target Goal
+        Long targetGoalId = request != null ? request.targetGoalId() : null;
+        if (targetGoalId == null && suggestion.getInputContext() != null && suggestion.getInputContext().contains("goalId=")) {
+            String ctx = suggestion.getInputContext();
+            int idx = ctx.indexOf("goalId=");
+            int end = ctx.indexOf(" ", idx);
+            if (end == -1) end = ctx.length();
+            try {
+                targetGoalId = Long.parseLong(ctx.substring(idx + 7, end).trim());
+            } catch (Exception ignored) {}
+        }
+        if (targetGoalId == null) {
+            List<Goal> userGoals = goalRepository.findAllByUser_Id(userId);
+            if (!userGoals.isEmpty()) {
+                targetGoalId = userGoals.get(0).getId();
+            }
+        }
+        if (targetGoalId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No target goal available to attach proposed missions");
+        }
+
+        final Long resolvedGoalId = targetGoalId;
+        Goal goal = goalRepository.findByIdAndUser_Id(resolvedGoalId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target goal " + resolvedGoalId + " not found or unauthorized"));
+
+        // 2. Extract proposed missions
+        List<ProposedMission> missionsToCommit = new ArrayList<>();
+        if (request != null && request.selectedMissions() != null && !request.selectedMissions().isEmpty()) {
+            missionsToCommit.addAll(request.selectedMissions());
+        } else {
+            String payload = suggestion.getOutputPayload();
+            if (payload != null && !payload.isBlank()) {
+                try {
+                    JsonNode node = objectMapper.readTree(payload);
+                    if (node.has("proposedMissions") && node.get("proposedMissions").isArray()) {
+                        for (JsonNode mNode : node.get("proposedMissions")) {
+                            missionsToCommit.add(new ProposedMission(
+                                    mNode.has("title") ? mNode.get("title").asText() : "Tactical Mission",
+                                    mNode.has("description") ? mNode.get("description").asText() : "",
+                                    mNode.has("estimatedMinutes") ? mNode.get("estimatedMinutes").asInt() : 30
+                            ));
+                        }
+                    } else if (node.isArray()) {
+                        for (JsonNode mNode : node) {
+                            missionsToCommit.add(new ProposedMission(
+                                    mNode.has("title") ? mNode.get("title").asText() : "Tactical Mission",
+                                    mNode.has("description") ? mNode.get("description").asText() : "",
+                                    mNode.has("estimatedMinutes") ? mNode.get("estimatedMinutes").asInt() : 30
+                            ));
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse suggestion payload: {}", e.getMessage());
+                }
+            }
+        }
+
+        if (missionsToCommit.isEmpty()) {
+            missionsToCommit.add(new ProposedMission(
+                    "High-Impact Execution Block",
+                    "Derived from AI suggestion: " + suggestion.getSuggestionType(),
+                    30
+            ));
+        }
+
+        // 3. Persist Missions
+        LocalDate today = LocalDate.now();
+        List<MissionResponse> committedList = new ArrayList<>();
+        for (ProposedMission proposed : missionsToCommit) {
+            Mission m = new Mission(
+                    proposed.title(),
+                    proposed.description(),
+                    today,
+                    proposed.estimatedMinutes() != null ? proposed.estimatedMinutes() : 30,
+                    goal
+            );
+            Mission saved = missionRepository.save(m);
+            committedList.add(new MissionResponse(
+                    saved.getId(),
+                    goal.getId(),
+                    saved.getTitle(),
+                    saved.getDescription(),
+                    saved.getScheduledDate(),
+                    saved.getEstimatedMinutes(),
+                    saved.getStatus(),
+                    saved.getCreatedAt()
+            ));
+        }
+
+        // 4. Update and audit suggestion status
+        suggestion.setAccepted(true);
+        aiSuggestionRepository.save(suggestion);
+
+        return new SuggestionCommitResponse(suggestion.getId(), goal.getId(), committedList.size(), committedList);
+    }
+
     // -------------------------------------------------------------------------
     // CONVERSATION CONTINUITY & PERSISTENCE (PHASE B)
     // -------------------------------------------------------------------------
@@ -93,13 +214,16 @@ public class AiService {
         return mapToConversationDto(conv);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ConversationDto clearActiveConversation(Long userId) {
-        conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE")
-                .ifPresent(conv -> {
-                    conv.setStatus("ARCHIVED");
-                    conv.setUpdatedAt(Instant.now());
-                    conversationRepository.save(conv);
-                });
+        transactionTemplate.executeWithoutResult(status ->
+                conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE")
+                        .ifPresent(conv -> {
+                            conv.setStatus("ARCHIVED");
+                            conv.setUpdatedAt(Instant.now());
+                            conversationRepository.save(conv);
+                        })
+        );
         Conversation fresh = getOrCreateActiveConversationEntity(userId);
         return mapToConversationDto(fresh);
     }
@@ -192,8 +316,11 @@ public class AiService {
         private record ChatContext(Long conversationId, String conversationUuid, List<Map<String, String>> history) {}
 
     private Conversation getOrCreateActiveConversationEntity(Long userId) {
-        return conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE")
-                .orElseGet(() -> {
+        Optional<Conversation> active = conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE");
+        if (active.isPresent()) return active.get();
+
+        try {
+            return conversationTransactionTemplate.execute(status -> {
                     User user = userRepository.findById(userId)
                             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
                     Conversation newConv = new Conversation(
@@ -201,8 +328,14 @@ public class AiService {
                             user,
                             "EONPAI Session " + java.time.LocalDate.now()
                     );
-                    return conversationRepository.save(newConv);
-                });
+                    return conversationRepository.saveAndFlush(newConv);
+            });
+        } catch (DataIntegrityViolationException e) {
+            return conversationTransactionTemplate.execute(status ->
+                    conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE")
+                            .orElseThrow(() -> e)
+            );
+        }
     }
 
     private ConversationDto mapToConversationDto(Conversation conv) {

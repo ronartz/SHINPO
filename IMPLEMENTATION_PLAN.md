@@ -112,13 +112,18 @@
   6. Authored `ControlledToolLayerTests` covering schema registration, unauthenticated rejection, cross-tenant IDOR defenses, parameter spoofing immunity, and REST execution.
 - **Exit Condition Achieved:** All 58 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 153ms.
 
-### AI.4 — Structured Suggestions & Transactional Approval (APPROVED NEXT SLICE)
+### AI.4 — Structured Suggestions & Transactional Approval (COMPLETED)
 - **Goal:** Bridge the gap between AI proposals and authoritative database mutations.
-- **Tasks:**
-  1. Add endpoint `POST /api/ai/suggestions/{id}/commit` to atomically convert approved `ProposedMission` items into real database records via `MissionService`.
-  2. Link suggestions to `AiSuggestion` audit records.
+- **Preconditions:** AI.3 complete.
+- **Tasks & Deliverables:**
+  1. Extended `GoalDecompositionResponse` with `suggestionId` and defined `SuggestionCommitRequest` and `SuggestionCommitResponse` DTOs.
+  2. Implemented `AiService.commitSuggestion` that validates caller tenant ownership, extracts proposed missions from `AiSuggestion` payload, and transactionally persists them into `Mission` database records linked to the target `Goal`.
+  3. Added endpoint `POST /api/ai/suggestions/{id}/commit` in `AiController` enforcing authenticated principal ownership.
+  4. Updated `AiGateway.decomposeGoal` to serialize structured suggestions and return the generated audit `suggestionId`.
+  5. Authored `StructuredSuggestionApprovalTests` verifying suggestion audit creation, atomic mission database persistence, selective mission committing, cross-tenant 403 Forbidden rejection, and REST API execution.
+- **Exit Condition Achieved:** All 63 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 201ms.
 
-### AI.5 — Conversational UX & Action Cards
+### AI.5 — Conversational UX & Action Cards (APPROVED NEXT SLICE)
 - **Goal:** Elevate frontend chat with interactive approval cards and accessibility.
 - **Tasks:**
   1. Render actionable cards in `App.tsx` with one-click "Approve & Schedule" buttons.

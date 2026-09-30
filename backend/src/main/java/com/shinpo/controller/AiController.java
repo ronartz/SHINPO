@@ -127,6 +127,18 @@ public class AiController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/suggestions/{suggestionId}/commit")
+    public ResponseEntity<SuggestionCommitResponse> commitSuggestion(
+            @PathVariable Long suggestionId,
+            @RequestBody(required = false) SuggestionCommitRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.commitSuggestion(suggestionId, principal.getUserId(), request));
+    }
+
     @GetMapping("/tools")
     public ResponseEntity<List<ToolDefinition>> getAvailableTools(
             @AuthenticationPrincipal UserPrincipal principal

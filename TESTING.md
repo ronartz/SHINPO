@@ -181,3 +181,15 @@ Before declaring any frontend change complete:
 | **05** | `testDataSanitizationInDiagnosticsAndDeviceTelemetry` | Diagnostics and telemetry outputs omit environment variables, passwords, tokens, and raw keys | PASS |
 | **06** | `testControlledToolEndpointsViaRest` | `GET /api/ai/tools` and `POST /api/ai/tools/{toolName}/execute` enforce bearer token auth and return 403 on cross-tenant IDOR attempts | PASS |
 
+---
+
+## 10. Phase 2 Slice AI.4 Structured Suggestion Approval Test Suite (`StructuredSuggestionApprovalTests`)
+
+| Scenario | Test Method | Covered Suggestion Audit & Transactional Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testDecompositionAttachesSuggestionAuditRecord` | Goal decomposition automatically generates audit record in `ai_suggestions` with `accepted=false` and returns `suggestionId` | PASS |
+| **02** | `testCommitSuggestionPersistsMissionsAndMarksAccepted` | Committing suggestion atomically converts proposed missions into database records linked to user's goal and flags suggestion as accepted | PASS |
+| **03** | `testCrossTenantCommitRejectedWithForbidden` | User A attempting to commit User B's suggestion is rejected with HTTP 403 Forbidden; suggestion remains unaccepted | PASS |
+| **04** | `testCommitSpecificSelectedMissions` | Selective commit supports choosing a specific subset of proposed missions to persist into the database | PASS |
+| **05** | `testCommitSuggestionViaRestEndpoint` | `POST /api/ai/suggestions/{id}/commit` requires bearer auth, mutates database records transactionally, and rejects cross-tenant commits | PASS |
+

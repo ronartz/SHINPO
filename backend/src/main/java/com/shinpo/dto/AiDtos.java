@@ -28,7 +28,24 @@ public class AiDtos {
             Long goalId,
             String goalTitle,
             String analysis,
-            List<ProposedMission> proposedMissions
+            List<ProposedMission> proposedMissions,
+            Long suggestionId
+    ) {
+        public GoalDecompositionResponse(Long goalId, String goalTitle, String analysis, List<ProposedMission> proposedMissions) {
+            this(goalId, goalTitle, analysis, proposedMissions, null);
+        }
+    }
+
+    public record SuggestionCommitRequest(
+            Long targetGoalId,
+            List<ProposedMission> selectedMissions
+    ) {}
+
+    public record SuggestionCommitResponse(
+            Long suggestionId,
+            Long goalId,
+            int committedMissionsCount,
+            List<com.shinpo.dto.MissionResponse> committedMissions
     ) {}
 
     public record NextActionResponse(
