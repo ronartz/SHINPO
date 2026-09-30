@@ -9,9 +9,11 @@ import java.util.List;
 @Repository
 public interface SentinelTamperEventRepository extends JpaRepository<SentinelTamperEvent, Long> {
 
-    List<SentinelTamperEvent> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
+    long countByUser_Id(Long userId);
 
     List<SentinelTamperEvent> findTop20ByUser_IdOrderByCreatedAtDesc(Long userId);
+
+    List<SentinelTamperEvent> findTop20ByUser_IdAndFocusSession_IdOrderByCreatedAtDesc(Long userId, Long focusSessionId);
 
     long countByUser_IdAndFocusSession_Id(Long userId, Long focusSessionId);
 }

@@ -17,7 +17,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.File;
 import java.time.Duration;
@@ -51,6 +54,7 @@ public class SentinelEnforcementService {
     private final SentinelTamperEventRepository tamperEventRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionTemplate auditTransactionTemplate;
 
     // Per-user enforcement mode (default STRICT)
     private final Map<Long, String> userEnforcementModes = new ConcurrentHashMap<>();
@@ -66,7 +70,8 @@ public class SentinelEnforcementService {
             SentinelPolicyRuleRepository policyRuleRepository,
             SentinelTamperEventRepository tamperEventRepository,
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            PlatformTransactionManager transactionManager
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
@@ -74,6 +79,8 @@ public class SentinelEnforcementService {
         this.tamperEventRepository = tamperEventRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.auditTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     public String getEnforcementMode(Long userId) {

@@ -3,6 +3,7 @@ package com.shinpo.controller;
 import com.shinpo.dto.SentinelDtos.*;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.SentinelEnforcementService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -80,15 +81,16 @@ public class SentinelController {
     @PostMapping("/emergency-override")
     public ResponseEntity<EmergencyOverrideResponse> emergencyOverride(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody EmergencyOverrideRequest request
+            @Valid @RequestBody EmergencyOverrideRequest request
     ) {
         return ResponseEntity.ok(sentinelService.emergencyOverride(principal.getUserId(), request));
     }
 
     @GetMapping("/tamper-events")
     public ResponseEntity<List<SentinelTamperEventItem>> listTamperEvents(
-            @AuthenticationPrincipal UserPrincipal principal
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "sessionId", required = false) Long sessionId
     ) {
-        return ResponseEntity.ok(sentinelService.listTamperEvents(principal.getUserId()));
+        return ResponseEntity.ok(sentinelService.listTamperEvents(principal.getUserId(), sessionId));
     }
 }

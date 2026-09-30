@@ -3,6 +3,8 @@ package com.shinpo.dto;
 import com.shinpo.entity.SentinelPolicyRule;
 import com.shinpo.entity.SentinelQuarantineRecord;
 import com.shinpo.entity.SentinelTamperEvent;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.util.List;
@@ -109,7 +111,10 @@ public class SentinelDtos {
     ) {}
 
     public record EmergencyOverrideRequest(
+            @NotBlank
             String password,
+            @NotBlank
+            @Size(min = 15)
             String reason,
             String targetMode
     ) {}
