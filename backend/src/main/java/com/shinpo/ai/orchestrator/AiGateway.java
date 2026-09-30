@@ -378,7 +378,7 @@ public class AiGateway {
     }
 
     private String extractReplyOrClean(String raw) {
-        if (raw == null) return "";
+        if (raw == null || raw.isBlank()) return "I am EONPAI, ready to assist your execution. What are we tackling?";
         try {
             java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"reply\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
             java.util.regex.Matcher m = p.matcher(raw);
@@ -387,6 +387,12 @@ public class AiGateway {
                 return reply.replace("\\\"", "\"").replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\");
             }
         } catch (Exception ignored) {}
+
+        String trimmed = raw.trim();
+        // If the model echoed raw context JSON without a reply field, present a clean companion response
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return "I am EONPAI, your Personal Strategic Execution AI Companion. I am tracking your active goals and missions. How can I help you execute right now?";
+        }
         return raw;
     }
 
@@ -411,7 +417,10 @@ public class AiGateway {
     }
 
     private boolean isIdentityQuery(String msg) {
-        return msg.contains("who are you") || msg.contains("what are you")
+        String clean = msg.replaceAll("[!?,.]", "").trim().toLowerCase();
+        return clean.equals("who are u") || clean.equals("who r u") || clean.equals("who are you") || clean.equals("what are you")
+                || msg.contains("who are you") || msg.contains("what are you")
+                || msg.contains("who are u") || msg.contains("who r u")
                 || msg.contains("introduce yourself") || msg.contains("what can you do")
                 || msg.contains("what is eonpai") || msg.contains("about eonpai");
     }

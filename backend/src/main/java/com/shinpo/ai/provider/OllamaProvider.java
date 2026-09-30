@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -65,9 +66,21 @@ public class OllamaProvider implements AIProvider {
             // Build full user prompt with context if present
             StringBuilder promptBuilder = new StringBuilder();
             if (request.contextData() != null && !request.contextData().isEmpty()) {
-                promptBuilder.append("CURRENT SHINPO APPLICATION CONTEXT:\n");
-                promptBuilder.append(objectMapper.writeValueAsString(request.contextData()));
-                promptBuilder.append("\n\nUSER REQUEST:\n");
+                promptBuilder.append("CURRENT APPLICATION CONTEXT:\n");
+                request.contextData().forEach((k, v) -> {
+                    if (v != null) {
+                        try {
+                            if (v instanceof Map || v instanceof List) {
+                                promptBuilder.append("- ").append(k).append(": ").append(objectMapper.writeValueAsString(v)).append("\n");
+                            } else {
+                                promptBuilder.append("- ").append(k).append(": ").append(v).append("\n");
+                            }
+                        } catch (Exception ignored) {
+                            promptBuilder.append("- ").append(k).append(": ").append(v).append("\n");
+                        }
+                    }
+                });
+                promptBuilder.append("\nUSER INSTRUCTION:\n");
             }
             promptBuilder.append(request.userPrompt() != null ? request.userPrompt() : "");
 
@@ -141,27 +154,14 @@ public class OllamaProvider implements AIProvider {
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode modelsNode = root.get("models");
                 if (modelsNode != null && modelsNode.isArray()) {
-                    boolean foundRequested = false;
-                    String firstAvailable = null;
                     for (JsonNode modelNode : modelsNode) {
                         JsonNode nameNode = modelNode.get("name");
                         if (nameNode != null) {
                             String name = nameNode.asString();
-                            if (firstAvailable == null) {
-                                firstAvailable = name;
-                            }
                             if (name.equalsIgnoreCase(requestedModel) || name.startsWith(requestedModel + ":") || requestedModel.startsWith(name)) {
-                                foundRequested = true;
-                                break;
+                                return requestedModel;
                             }
                         }
-                    }
-                    if (foundRequested) {
-                        return requestedModel;
-                    }
-                    if (firstAvailable != null) {
-                        log.info("Requested AI model '{}' not yet available in Ollama. Using fallback available model '{}'", requestedModel, firstAvailable);
-                        return firstAvailable;
                     }
                 }
             }
