@@ -20,7 +20,15 @@ public record ExecutionIntelligenceContext(
 
     public record MissionSummary(Long id, String title, String description, Integer estimatedMinutes, String goalTitle) {}
 
-    public record SessionSummary(Long id, String name, String status, Integer durationMinutes, Long remainingSeconds) {}
+    public record SessionSummary(Long id, String name, String status, Integer durationMinutes, Long remainingSeconds) {
+        public boolean isActive() {
+            return "ACTIVE".equalsIgnoreCase(status);
+        }
+    }
+
+    public boolean isSilenceModeActive() {
+        return activeSession != null && activeSession.isActive();
+    }
 
     public record ProgressSummary(int totalGoals, int totalMissions, long completedMissions, int totalSessions, long completedSessions) {}
 

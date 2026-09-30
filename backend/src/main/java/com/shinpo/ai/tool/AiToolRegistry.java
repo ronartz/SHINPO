@@ -310,6 +310,7 @@ public class AiToolRegistry {
                     .findFirst()
                     .map(s -> {
                         Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("hasActiveSession", true);
                         m.put("id", s.getId());
                         m.put("name", s.getName());
                         m.put("intention", s.getIntention());

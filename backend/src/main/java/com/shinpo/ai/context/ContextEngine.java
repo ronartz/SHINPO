@@ -78,7 +78,7 @@ public class ContextEngine {
         Object rawSession = fullContext.get("activeSession");
         Map<?, ?> sMap = (rawSession instanceof Map<?, ?> m) ? m : (toolRegistry != null ? toolRegistry.getActiveFocusSession(userId) : null);
         SessionSummary session = null;
-        if (sMap != null && Boolean.TRUE.equals(sMap.get("hasActiveSession"))) {
+        if (sMap != null && (Boolean.TRUE.equals(sMap.get("hasActiveSession")) || sMap.containsKey("id"))) {
             session = new SessionSummary(
                     sMap.get("id") instanceof Long sid ? sid : null,
                     (String) sMap.get("name"),
@@ -176,7 +176,11 @@ public class ContextEngine {
             }
             if (context.activeSession() != null) {
                 sb.append("ACTIVE FOCUS SESSION: ").append(context.activeSession().name())
-                        .append(" (Remaining: ").append(context.activeSession().remainingSeconds() != null ? context.activeSession().remainingSeconds() / 60 : 0).append(" min)\n");
+                        .append(" (Status: ").append(context.activeSession().status())
+                        .append(", Remaining: ").append(context.activeSession().remainingSeconds() != null ? context.activeSession().remainingSeconds() / 60 : 0).append(" min)\n");
+                if (context.isSilenceModeActive()) {
+                    sb.append("SILENCE_ENGINE: ACTIVE. User is in a deep focus sprint. Provide minimal, calm, laser-focused assistance. Strictly avoid conversational clutter, planning overhead, or unsolicited task generation.\n");
+                }
             }
             if (context.progress() != null) {
                 sb.append("PROGRESS: ").append(context.progress().completedMissions()).append("/").append(context.progress().totalMissions())
@@ -234,6 +238,16 @@ public class ContextEngine {
         }
         if (context.device() != null) {
             map.put("device", Map.of("os", context.device().os(), "activeProcessCount", context.device().activeProcessCount()));
+        }
+        if (context.activeSession() != null) {
+            map.put("activeSession", Map.of(
+                    "hasActiveSession", true,
+                    "name", context.activeSession().name() != null ? context.activeSession().name() : "",
+                    "status", context.activeSession().status() != null ? context.activeSession().status() : "",
+                    "silenceMode", context.isSilenceModeActive()
+            ));
+        } else {
+            map.put("activeSession", Map.of("hasActiveSession", false, "silenceMode", false));
         }
         return map;
     }
