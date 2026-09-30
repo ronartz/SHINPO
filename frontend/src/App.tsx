@@ -575,14 +575,38 @@ export function App() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
-  // Interactive Dashboard States (C-BENTO)
+  // Interactive Dashboard / Flight Deck States
   const [inspectingMission, setInspectingMission] = useState<Mission | null>(null)
   const [activeTaskMenuId, setActiveTaskMenuId] = useState<number | null>(null)
   const [deletingMissionId, setDeletingMissionId] = useState<number | null>(null)
-  const [selectedCalDay, setSelectedCalDay] = useState<number>(4)
-  const [calMonth, setCalMonth] = useState('October 2026')
-  const [hoveredPillar, setHoveredPillar] = useState<{ day: number; label: string; boost: string } | null>(null)
-  const [activeTimelineBlock, setActiveTimelineBlock] = useState<{ sessionId: number | null; name: string } | null>(null)
+  const [isCreatingQuickMission, setIsCreatingQuickMission] = useState(false)
+  const [quickMissionTitle, setQuickMissionTitle] = useState('')
+  const [quickMissionGoalId, setQuickMissionGoalId] = useState<number | null>(null)
+  const [quickMissionDuration, setQuickMissionDuration] = useState(25)
+  const [isSubmittingQuickMission, setIsSubmittingQuickMission] = useState(false)
+
+  const handleQuickCreateMission = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!quickMissionTitle.trim() || !quickMissionGoalId) return
+    setIsSubmittingQuickMission(true)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      await createMission({
+        goalId: quickMissionGoalId,
+        title: quickMissionTitle.trim(),
+        description: 'Tactical execution sprint',
+        scheduledDate: today,
+        estimatedMinutes: quickMissionDuration,
+      })
+      setQuickMissionTitle('')
+      setIsCreatingQuickMission(false)
+      await loadData()
+    } catch (err) {
+      console.error('Failed to create quick mission', err)
+    } finally {
+      setIsSubmittingQuickMission(false)
+    }
+  }
 
   const nextActionMission = useMemo(() => {
     return missions.find((m) => m.status !== 'COMPLETED') || null
@@ -692,16 +716,16 @@ export function App() {
     }
 
     try {
-      const s = await getFocusSessions()
-      setSessions(s)
-    } catch {
-      // Keep empty if backend offline
-    }
-
-    try {
-      const [g, m] = await Promise.all([getGoals(), getMissions()])
+      const [g, m, s, analytics] = await Promise.all([
+        getGoals(),
+        getMissions(),
+        getFocusSessions(),
+        fetchAnalyticsDashboard().catch(() => null),
+      ])
       setGoals(g)
       setMissions(m)
+      setSessions(s)
+      if (analytics) setAnalyticsData(analytics)
     } catch {
       // Keep empty if backend offline
     }
@@ -1661,18 +1685,7 @@ export function App() {
 
         {sidebarExpanded && (
           <>
-            {/* Team / Focus Avatars Cluster Row from Reference */}
-            <div className="sidebar-avatars-row">
-              <div className="cluster-avatar" style={{ background: '#3B82F6' }}>
-                {currentUser.username.charAt(0).toUpperCase()}
-              </div>
-              <div className="cluster-avatar" style={{ background: '#FF7A18' }}>S</div>
-              <div className="cluster-avatar" style={{ background: '#35E36F', color: '#061A0C', fontWeight: 800 }}>E</div>
-              <div className="cluster-avatar" style={{ background: '#8B6CFF' }}>N</div>
-              <div className="cluster-badge">10+</div>
-            </div>
-
-            {/* EONPAI Tactical Companion Card ("Michie" in reference) */}
+            {/* EONPAI Tactical Companion Card */}
             <div className="sidebar-eonpai-companion">
               <div className="eonpai-comp-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1798,611 +1811,708 @@ export function App() {
 
         {/* Dynamic Tab Render */}
         {/* Dynamic Tab Render: Task Master 2x2 Bento Quadrant Dashboard */}
-        {activeTab === 'Dashboard' && (
-          <div className="taskmaster-bento-dashboard">
-            {/* Active Focus Sprint Sentinel Banner (if active session exists) */}
-            {activeSession && (
-              <div className="taskmaster-active-session-banner">
-                <div className="session-banner-left">
-                  <span className="live-dot" />
-                  <span className="session-banner-title">
-                    ACTIVE SPRINT: <strong>{activeSession.name}</strong>
-                  </span>
-                  {activeSession.intention && (
-                    <span className="session-banner-target">{activeSession.intention}</span>
-                  )}
-                </div>
-                <div className="session-banner-center">
-                  <div className="session-banner-digits">{formatTimerDigits(timerSeconds)}</div>
-                  <div className="session-banner-track">
-                    <div
-                      className="session-banner-bar"
-                      style={{
-                        width: `${Math.max(
-                          0,
-                          Math.min(
-                            100,
-                            ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
-                              ((activeSession.durationMinutes || 25) * 60)) *
-                              100),
-                          ),
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="session-banner-actions">
-                  {activeSession.status === 'ACTIVE' && (
+        {/* Dynamic Tab Render: SHINPO Flight Deck Dashboard */}
+        {activeTab === 'Dashboard' && (() => {
+          const totalMissionsCount = missions.length
+          const completedMissionsCount = missions.filter((m) => m.status === 'COMPLETED').length
+          const velocityRate = totalMissionsCount > 0
+            ? Math.round((completedMissionsCount / totalMissionsCount) * 100)
+            : (analyticsData?.summary?.completionRate ? Math.round(analyticsData.summary.completionRate) : 0)
+
+          const gaugeCircumference = 235.62
+          const gaugeOffset = gaugeCircumference * (1 - Math.min(100, Math.max(0, velocityRate)) / 100)
+
+          const q = topSearchQuery.trim().toLowerCase()
+          const searchFilter = (m: Mission) => {
+            if (!q) return true
+            return m.title.toLowerCase().includes(q) || (m.description && m.description.toLowerCase().includes(q))
+          }
+
+          const inProgM = missions.filter((m) => {
+            if (!searchFilter(m)) return false
+            if (activeSession) {
+              const matchesActive =
+                m.title.toLowerCase() === activeSession.name.toLowerCase() ||
+                (activeSession.intention && m.title.toLowerCase() === activeSession.intention.toLowerCase())
+              if (matchesActive) return true
+            }
+            return m.status === 'IN_PROGRESS'
+          })
+
+          const compM = missions.filter((m) => m.status === 'COMPLETED' && searchFilter(m))
+          const inProgIds = new Set(inProgM.map((m) => m.id))
+          const pendM = missions.filter((m) => m.status !== 'COMPLETED' && !inProgIds.has(m.id) && searchFilter(m))
+
+          const displayInProgress = inProgM.length > 0 ? inProgM : (activeSession && pendM.length > 0 ? [pendM[0]] : [])
+          const displayPending = displayInProgress.length > 0 && pendM.length > 0 && displayInProgress[0].id === pendM[0].id
+            ? pendM.slice(1)
+            : pendM
+
+          const recentDebriefsList = analyticsData?.recentDebriefs && analyticsData.recentDebriefs.length > 0
+            ? analyticsData.recentDebriefs
+            : []
+
+          const renderFlightDeckCard = (task: Mission) => {
+            const parentGoal = goals.find((g) => g.id === task.goalId)
+            const isDone = task.status === 'COMPLETED'
+            const isActive = activeSession && (
+              task.title.toLowerCase() === activeSession.name.toLowerCase() ||
+              (activeSession.intention && task.title.toLowerCase() === activeSession.intention.toLowerCase())
+            )
+
+            return (
+              <div
+                key={task.id}
+                className={`flight-deck-card ${isActive ? 'is-active-sprint' : ''}`}
+                onClick={() => setInspectingMission(task)}
+                title="Click to inspect mission details"
+              >
+                <div className="card-top-row">
+                  <h3 className={`card-title ${isDone ? 'completed-title' : ''}`}>
+                    {task.title}
+                  </h3>
+                  <div className="card-menu-container" onClick={(e) => e.stopPropagation()}>
                     <button
-                      className="session-banner-btn secondary"
-                      onClick={() => handlePause(activeSession.id)}
+                      className={`card-menu-btn ${activeTaskMenuId === task.id ? 'active' : ''}`}
+                      onClick={() => setActiveTaskMenuId((prev) => (prev === task.id ? null : task.id))}
+                      title="Task actions"
+                      aria-label="Task actions"
+                      aria-expanded={activeTaskMenuId === task.id}
                     >
-                      <Icon name="pause" size={13} />
-                      <span>Pause</span>
+                      ···
                     </button>
-                  )}
-                  {activeSession.status === 'PAUSED' && (
-                    <button
-                      className="session-banner-btn primary"
-                      onClick={() => handleResume(activeSession.id)}
-                    >
-                      <Icon name="play" size={13} />
-                      <span>Resume</span>
-                    </button>
-                  )}
-                  <button
-                    className="session-banner-btn primary"
-                    onClick={() => setCompletingSessionId(activeSession.id)}
-                  >
-                    <Icon name="check" size={13} />
-                    <span>Debrief</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 2x2 BENTO GRID (INTERACTIVE COCKPIT) */}
-            <div className="bento-2x2-grid">
-              {/* QUADRANT 1 (TOP-LEFT): TODAY'S MISSIONS */}
-              <div className="bento-card bento-today-tasks">
-                <div className="bento-card-header">
-                  <div className="bento-header-left">
-                    <div className="bento-icon-circle">
-                      <Icon name="schedule" size={16} />
-                    </div>
-                    <h2 className="bento-card-title">Today tasks</h2>
-                  </div>
-                  <button
-                    className="bento-pill-btn"
-                    onClick={() => setActiveTab('Goals & Missions')}
-                  >
-                    <span>See All &gt;</span>
-                  </button>
-                </div>
-
-                <div className="bento-subcards-row">
-                  {missions.length > 0 ? (
-                    missions.slice(0, 2).map((task, idx) => (
-                      <div
-                        key={task.id}
-                        className="bento-task-subcard interactive"
-                        onClick={() => setInspectingMission(task)}
-                        title="Click to inspect and arm focus sprint"
-                      >
-                        <div className="bento-task-top">
-                          <h3 className="bento-task-title">{task.title}</h3>
-                          <div className="bento-task-menu-container">
-                            <button
-                              className={`bento-dots-btn ${activeTaskMenuId === task.id ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setActiveTaskMenuId((prev) => (prev === task.id ? null : task.id))
-                              }}
-                              title="Task actions"
-                              aria-label="Task actions"
-                              aria-expanded={activeTaskMenuId === task.id}
-                            >
-                              ···
-                            </button>
-                            {activeTaskMenuId === task.id && (
-                              <div
-                                className="bento-task-action-menu"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  className="task-action-item action-inspect"
-                                  onClick={() => {
-                                    setActiveTaskMenuId(null)
-                                    setInspectingMission(task)
-                                  }}
-                                >
-                                  <Icon name="sparkle" size={13} />
-                                  <span>Inspect Details</span>
-                                </button>
-
-                                <button
-                                  className="task-action-item action-arm"
-                                  onClick={() => {
-                                    setActiveTaskMenuId(null)
-                                    handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
-                                  }}
-                                >
-                                  <Icon name="play" size={13} />
-                                  <span>Start Focus</span>
-                                </button>
-
-                                {task.status !== 'COMPLETED' && (
-                                  <button
-                                    className="task-action-item action-complete"
-                                    onClick={() => {
-                                      setActiveTaskMenuId(null)
-                                      handleToggleMissionComplete(task.id)
-                                    }}
-                                  >
-                                    <Icon name="check" size={13} />
-                                    <span>Mark Done</span>
-                                  </button>
-                                )}
-
-                                <div className="task-action-divider" />
-
-                                <button
-                                  className="task-action-item action-delete"
-                                  onClick={() => {
-                                    setActiveTaskMenuId(null)
-                                    handleDeleteMission(task.id, task.title)
-                                  }}
-                                  disabled={deletingMissionId === task.id}
-                                >
-                                  <Icon name="trash" size={13} />
-                                  <span>{deletingMissionId === task.id ? 'Deleting...' : 'Delete Task'}</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <p className="bento-task-desc">{task.description || 'Target execution mission'}</p>
-                        
-                        {/* Reference Avatar Cluster + Percentage Row */}
-                        <div className="bento-task-footer">
-                          <div className="bento-task-avatars">
-                            <div className="task-av" style={{ background: '#3B82F6' }}>
-                              {currentUser.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="task-av" style={{ background: idx === 0 ? '#FF7A18' : '#35E36F' }}>
-                              {idx === 0 ? 'S' : 'E'}
-                            </div>
-                            <div className="task-av-plus">+{idx + 1}</div>
-                          </div>
-                          {task.status === 'COMPLETED' && <span className="bento-task-pct">100%</span>}
-                        </div>
-
-                        {/* Full-width Horizontal Progress Bar */}
-                        {task.status === 'COMPLETED' && (
-                          <div className="bento-task-progress-track" style={{ marginTop: 6 }}>
-                            <div className="bento-task-progress-fill green-fill" style={{ width: '100%' }} />
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="bento-empty-inline-state">
-                      <p className="bento-empty-text">No missions scheduled yet. Define your goals to start planning.</p>
-                      <button
-                        className="btn-timer primary"
-                        style={{ padding: '7px 14px', fontSize: 12 }}
-                        onClick={() => setActiveTab('Goals & Missions')}
-                      >
-                        + Create Goal
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom interactive action bar (Matching Reference Bottom Pill) */}
-                <div className="bento-bottom-pill-bar">
-                  <span className="bento-bottom-pill-text">
-                    {missions.length > 0
-                      ? `You Have ${missions.length} Tasks Today . Keep It Up`
-                      : 'No Active Missions Queued . Plan Your Day'}
-                  </span>
-                  <button
-                    className="bento-bottom-pill-action"
-                    onClick={handleEngageNextAction}
-                    title="Start focus on highest priority mission"
-                  >
-                    <Icon name="check" size={13} />
-                  </button>
-                </div>
-              </div>
-
-              {/* QUADRANT 2 (TOP-RIGHT): INTERACTIVE CALENDAR */}
-              <div className="bento-card bento-calendar-card">
-                <div className="bento-card-header">
-                  <div className="bento-header-left">
-                    <div className="bento-icon-circle">
-                      <Icon name="schedule" size={16} />
-                    </div>
-                    <h2 className="bento-card-title">Calendar</h2>
-                  </div>
-                  <button
-                    className="bento-pill-btn dropdown"
-                    onClick={() => setCalMonth((prev) => (prev.includes('Oct') ? 'November 2026' : 'October 2026'))}
-                  >
-                    <Icon name="schedule" size={13} />
-                    <span>{calMonth}</span>
-                    <Icon name="chevron" size={11} />
-                  </button>
-                </div>
-
-                <div className="bento-calendar-inset">
-                  <div className="bento-cal-nav-row">
-                    <button
-                      className="bento-cal-nav-arrow"
-                      onClick={() => setCalMonth('September 2026')}
-                      title="Previous Month"
-                    >
-                      <Icon name="chevron-left" size={13} />
-                    </button>
-                    <span className="bento-cal-month-title">{calMonth}</span>
-                    <button
-                      className="bento-cal-nav-arrow"
-                      onClick={() => setCalMonth('November 2026')}
-                      title="Next Month"
-                    >
-                      <Icon name="chevron-right" size={13} />
-                    </button>
-                  </div>
-
-                  <div className="bento-cal-weekdays">
-                    <span>Mo</span>
-                    <span>Tu</span>
-                    <span>We</span>
-                    <span>Th</span>
-                    <span>Fr</span>
-                    <span>Sa</span>
-                    <span>Su</span>
-                  </div>
-
-                  <div className="bento-cal-grid">
-                    {/* Days 1 to 28 Interactive */}
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => {
-                      const isStreak = d >= 2 && d <= 6
-                      const isSelected = selectedCalDay === d
-                      return (
-                        <div
-                          key={d}
-                          className={`bento-cal-day ${isStreak ? 'in-streak' : ''} ${d === 2 ? 'streak-start' : ''} ${d === 6 ? 'streak-end' : ''} ${isSelected ? 'selected-day' : ''}`}
-                          onClick={() => setSelectedCalDay(d)}
+                    {activeTaskMenuId === task.id && (
+                      <div className="flight-deck-card-menu">
+                        <button
+                          className="card-menu-item"
+                          onClick={() => {
+                            setActiveTaskMenuId(null)
+                            setInspectingMission(task)
+                          }}
                         >
-                          {d}
-                        </div>
-                      )
-                    })}
-                    {/* Trailing muted days */}
-                    {[29, 30, 1, 2, 3, 4, 5].map((d, idx) => (
-                      <div key={`muted-${idx}`} className="bento-cal-day muted">
-                        {d}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* QUADRANT 3 (BOTTOM-LEFT): TASKS VELOCITY PILLARS */}
-              <div className="bento-card bento-tasks-pillars-card">
-                <div className="bento-card-header">
-                  <div className="bento-header-left">
-                    <div className="bento-icon-circle">
-                      <Icon name="check" size={16} />
-                    </div>
-                    <h2 className="bento-card-title">Tasks</h2>
-                  </div>
-                  <button className="bento-dots-btn" onClick={() => setActiveTab('Analytics')} title="View Analytics">
-                    ···
-                  </button>
-                </div>
-
-                <div className="bento-pillars-wrap">
-                  {[
-                    {
-                      day: 12,
-                      h: 135,
-                      badges: [
-                        { text: '+8%', color: 'orange', pos: { top: 10 } },
-                        { text: '+2%', color: 'blue', pos: { bottom: 10 } },
-                      ],
-                      label: '2.5h Focus • 2 Missions',
-                    },
-                    {
-                      day: 13,
-                      h: 115,
-                      badges: [{ text: '+8%', color: 'green', pos: { bottom: 20 } }],
-                      label: '3.1h Focus • 3 Missions',
-                    },
-                    {
-                      day: 14,
-                      h: 152,
-                      badges: [
-                        { text: '+65%', color: 'blue', pos: { top: 12 } },
-                        { text: '+12%', color: 'orange', pos: { top: 62 } },
-                      ],
-                      label: '4.5h Focus • 4 Missions',
-                    },
-                    {
-                      day: 15,
-                      h: 125,
-                      badges: [],
-                      label: '2.8h Focus • 2 Missions',
-                    },
-                    {
-                      day: 16,
-                      h: 138,
-                      badges: [{ text: '+5%', color: 'green', pos: { top: 30 } }],
-                      label: '3.8h Focus • 3 Missions',
-                    },
-                    {
-                      day: 17,
-                      h: 128,
-                      badges: [{ text: '+10%', color: 'orange', pos: { bottom: 18 } }],
-                      label: '3.2h Focus • 2 Missions',
-                    },
-                    {
-                      day: 18,
-                      h: 110,
-                      badges: [{ text: '+6%', color: 'green', pos: { bottom: 22 } }],
-                      label: '2.0h Focus • 1 Mission',
-                    },
-                  ].map((p) => (
-                    <div
-                      key={p.day}
-                      className={`bento-pillar-col ${hoveredPillar?.day === p.day ? 'active-pillar' : ''}`}
-                      onMouseEnter={() => setHoveredPillar({ day: p.day, label: p.label, boost: p.badges[0]?.text || '' })}
-                      onClick={() => setHoveredPillar({ day: p.day, label: p.label, boost: p.badges[0]?.text || '' })}
-                      title={`${p.day}th: ${p.label}`}
-                    >
-                      <div className="bento-pillar-track" style={{ height: `${p.h}px` }}>
-                        {p.badges.map((b, bIdx) => (
-                          <div
-                            key={bIdx}
-                            className={`bento-pillar-badge badge-${b.color}`}
-                            style={b.pos}
+                          <Icon name="sparkle" size={13} />
+                          <span>Inspect Details</span>
+                        </button>
+                        {!isDone && (
+                          <button
+                            className="card-menu-item"
+                            onClick={() => {
+                              setActiveTaskMenuId(null)
+                              handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
+                            }}
                           >
-                            {b.text}
-                          </div>
-                        ))}
+                            <Icon name="play" size={13} />
+                            <span>Start Focus</span>
+                          </button>
+                        )}
+                        <button
+                          className="card-menu-item"
+                          onClick={() => {
+                            setActiveTaskMenuId(null)
+                            handleToggleMissionComplete(task.id)
+                          }}
+                        >
+                          <Icon name="check" size={13} />
+                          <span>{isDone ? 'Mark Incomplete' : 'Mark Done'}</span>
+                        </button>
+                        <div className="card-menu-divider" />
+                        <button
+                          className="card-menu-item action-delete"
+                          onClick={() => {
+                            setActiveTaskMenuId(null)
+                            handleDeleteMission(task.id, task.title)
+                          }}
+                          disabled={deletingMissionId === task.id}
+                        >
+                          <Icon name="trash" size={13} />
+                          <span>{deletingMissionId === task.id ? 'Deleting...' : 'Delete Task'}</span>
+                        </button>
                       </div>
-                      <span className="bento-pillar-label">{p.day}</span>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                </div>
+
+                <div className="card-context-row">
+                  {parentGoal ? (
+                    <span className="card-goal-tag">🎯 {parentGoal.title}</span>
+                  ) : (
+                    <span className="card-goal-tag">⚡ Strategic Mission</span>
+                  )}
+                </div>
+
+                <div className="card-meta-row">
+                  <div className="card-meta-left">
+                    <span className="card-duration-chip">
+                      <Icon name="clock" size={11} />
+                      <span>{task.estimatedMinutes || 25}m</span>
+                    </span>
+                    <span className="card-priority-chip">
+                      {isDone ? '✓ Completed' : isActive ? '⚡ In Sprint' : 'High Priority'}
+                    </span>
+                  </div>
+
+                  {!isDone && (
+                    <button
+                      className="card-quick-arm-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleArmMissionAsSession(task.title, task.estimatedMinutes || undefined)
+                      }}
+                      title="Arm Focus Sprint"
+                    >
+                      <Icon name="play" size={11} />
+                      <span>Focus</span>
+                    </button>
+                  )}
                 </div>
               </div>
+            )
+          }
 
-              {/* QUADRANT 4 (BOTTOM-RIGHT): INTERACTIVE TIMELINE */}
-              <div className="bento-card bento-timeline-card">
-                <div className="bento-card-header">
-                  <div className="bento-header-left">
-                    <div className="bento-icon-circle">
-                      <Icon name="clock" size={16} />
+          return (
+            <div className="shinpo-flight-deck">
+              {/* Top Tier: Multi-Column Kanban Work Board */}
+              <section className="flight-deck-board-panel" aria-label="Flight Deck Work Board">
+                <div className="board-panel-header">
+                  <div className="board-header-left">
+                    <h2 className="board-panel-title">All Tasks</h2>
+                    <div className="board-status-summary">
+                      <span className="summary-pill active">
+                        {displayInProgress.length + displayPending.length} in progress & ready
+                      </span>
+                      <span className="summary-pill completed">
+                        {compM.length} completed
+                      </span>
                     </div>
-                    <h2 className="bento-card-title">Timeline</h2>
                   </div>
-                  <button className="bento-dots-btn" onClick={() => setActiveTab('Schedule')} title="View Schedule">
-                    ···
-                  </button>
+
+                  <div className="board-header-actions">
+                    {topSearchQuery && (
+                      <div className="board-filter-indicator">
+                        <span>Filtering: "{topSearchQuery}"</span>
+                        <button onClick={() => setTopSearchQuery('')} title="Clear filter">×</button>
+                      </div>
+                    )}
+                    <button
+                      className="board-action-btn primary"
+                      onClick={() => {
+                        if (goals.length > 0) {
+                          setQuickMissionGoalId(goals[0].id)
+                          setIsCreatingQuickMission(true)
+                        } else {
+                          setActiveTab('Goals & Missions')
+                        }
+                      }}
+                      title="Add a new mission"
+                    >
+                      <Icon name="plus" size={13} />
+                      <span>Add Task</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bento-timeline-lanes-wrap">
-                  {/* Vertical Time Indicator Needle with Pulse */}
-                  <div className="bento-timeline-needle">
-                    <div className="needle-head">
-                      <div className="needle-inner-dot" />
+                <div className="flight-deck-board-grid">
+                  {/* Column 1: IN PROGRESS */}
+                  <div className="status-column col-in-progress">
+                    <div className="status-column-header">
+                      <div className="column-header-title">
+                        <span className="column-status-dot dot-coral" />
+                        <span className="column-title-text">IN PROGRESS</span>
+                      </div>
+                      <span className="column-count-badge">{displayInProgress.length}</span>
                     </div>
-                    <div className="needle-line" />
+
+                    <div className="status-column-cards">
+                      {displayInProgress.length > 0 ? (
+                        displayInProgress.map((t) => renderFlightDeckCard(t))
+                      ) : (
+                        <div className="status-column-empty">
+                          <span>No task currently running</span>
+                          {displayPending.length > 0 && (
+                            <button
+                              className="empty-action-link"
+                              onClick={() => handleArmMissionAsSession(displayPending[0].title, displayPending[0].estimatedMinutes || 25)}
+                            >
+                              ⚡ Start Next Focus Sprint
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Lane 1: Vibrant Orange Pill */}
-                  <div className="bento-timeline-lane">
-                    <div
-                      className="bento-tl-capsule capsule-interview"
-                      style={{ left: '0%', width: '44%' }}
-                      onClick={() => setActiveTimelineBlock(sessions[0]
-                        ? { sessionId: sessions[0].id, name: sessions[0].name }
-                        : { sessionId: null, name: 'Interview' })}
-                      title={`Inspect ${sessions[0]?.name || 'Interview'}`}
-                    >
-                      <span className="capsule-text">
-                        {sessions[0]?.name
-                          ? sessions[0].name.length > 18
-                            ? `${sessions[0].name.slice(0, 16)}...`
-                            : sessions[0].name
-                          : 'Interview'}
+                  {/* Column 2: READY FOR SPRINT */}
+                  <div className="status-column col-backlog">
+                    <div className="status-column-header">
+                      <div className="column-header-title">
+                        <span className="column-status-dot dot-cyan" />
+                        <span className="column-title-text">READY FOR SPRINT</span>
+                      </div>
+                      <span className="column-count-badge">{displayPending.length}</span>
+                    </div>
+
+                    <div className="status-column-cards">
+                      {displayPending.length > 0 ? (
+                        displayPending.map((t) => renderFlightDeckCard(t))
+                      ) : (
+                        <div className="status-column-empty">
+                          <span>Sprint queue clear</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Column 3: COMPLETED */}
+                  <div className="status-column col-completed">
+                    <div className="status-column-header">
+                      <div className="column-header-title">
+                        <span className="column-status-dot dot-emerald" />
+                        <span className="column-title-text">COMPLETED</span>
+                      </div>
+                      <span className="column-count-badge">{compM.length}</span>
+                    </div>
+
+                    <div className="status-column-cards">
+                      {compM.length > 0 ? (
+                        compM.map((t) => renderFlightDeckCard(t))
+                      ) : (
+                        <div className="status-column-empty">
+                          <span>No completed tasks yet</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Bottom Tier: Supporting Cockpit Panels (4 Bento Cards) */}
+              <section className="flight-deck-cockpit-grid" aria-label="Flight Deck Supporting Cockpit Panels">
+                {/* PANEL 1: ACTIVE EXECUTION COCKPIT HERO */}
+                <div className="cockpit-panel cockpit-hero-panel">
+                  <div className="cockpit-panel-header">
+                    <div className="cockpit-panel-header-left">
+                      <div className="cockpit-panel-icon">
+                        <Icon name="focus" size={16} />
+                      </div>
+                      <h3 className="cockpit-panel-title">Execution Cockpit</h3>
+                    </div>
+                    {activeSession ? (
+                      <span className="hero-session-tag">
+                        <span className="hero-pulse-dot" />
+                        <span>ACTIVE</span>
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Lane 2: Vibrant Green Pill with Secondary Track */}
-                  <div className="bento-timeline-lane">
-                    <div
-                      className="bento-tl-capsule capsule-wireframe"
-                      style={{ left: '16%', width: '38%', zIndex: 2 }}
-                      onClick={() => setActiveTimelineBlock(sessions[1]
-                        ? { sessionId: sessions[1].id, name: sessions[1].name }
-                        : { sessionId: null, name: 'Wireframe' })}
-                      title={`Inspect ${sessions[1]?.name || 'Wireframe'}`}
-                    >
-                      <span className="capsule-text">
-                        {sessions[1]?.name
-                          ? sessions[1].name.length > 16
-                            ? `${sessions[1].name.slice(0, 14)}...`
-                            : sessions[1].name
-                          : 'Wireframe'}
+                    ) : (
+                      <span className="hero-idle-shield-tag">
+                        <span>SHIELD ARMED</span>
                       </span>
+                    )}
+                  </div>
+
+                  {activeSession ? (
+                    <div className="hero-body-active">
+                      <div className="hero-session-name">{activeSession.name}</div>
+                      {activeSession.intention && (
+                        <div className="hero-session-intention">{activeSession.intention}</div>
+                      )}
+                      <div className="hero-timer-display">{formatTimerDigits(timerSeconds)}</div>
+                      <div className="hero-progress-track">
+                        <div
+                          className="hero-progress-bar"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
+                                  ((activeSession.durationMinutes || 25) * 60)) *
+                                  100),
+                              ),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="hero-actions-row">
+                        {activeSession.status === 'ACTIVE' && (
+                          <button
+                            className="hero-btn secondary"
+                            onClick={() => handlePause(activeSession.id)}
+                          >
+                            <Icon name="pause" size={12} />
+                            <span>Pause</span>
+                          </button>
+                        )}
+                        {activeSession.status === 'PAUSED' && (
+                          <button
+                            className="hero-btn primary"
+                            onClick={() => handleResume(activeSession.id)}
+                          >
+                            <Icon name="play" size={12} />
+                            <span>Resume</span>
+                          </button>
+                        )}
+                        <button
+                          className="hero-btn primary"
+                          onClick={() => setCompletingSessionId(activeSession.id)}
+                        >
+                          <Icon name="check" size={12} />
+                          <span>Debrief</span>
+                        </button>
+                      </div>
                     </div>
-                    <div
-                      className="bento-tl-track-bg"
-                      style={{ left: '54%', width: '34%' }}
-                    />
-                  </div>
-
-                  {/* Lane 3: Vibrant Blue Pill */}
-                  <div className="bento-timeline-lane">
-                    <div
-                      className="bento-tl-capsule capsule-ideas"
-                      style={{ left: '28%', width: '30%' }}
-                      onClick={() => setActiveTimelineBlock(sessions[2]
-                        ? { sessionId: sessions[2].id, name: sessions[2].name }
-                        : { sessionId: null, name: 'Ideas' })}
-                      title={`Inspect ${sessions[2]?.name || 'Ideas'}`}
-                    >
-                      <span className="capsule-text">
-                        {sessions[2]?.name
-                          ? sessions[2].name.length > 14
-                            ? `${sessions[2].name.slice(0, 12)}...`
-                            : sessions[2].name
-                          : 'Ideas'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Lane 4: Dark Slate Capsule on Track */}
-                  <div className="bento-timeline-lane">
-                    <div
-                      className="bento-tl-track-bg"
-                      style={{ left: '28%', width: '60%' }}
-                    />
-                    <div
-                      className="bento-tl-capsule capsule-evaluate"
-                      style={{ left: '0%', width: '28%', zIndex: 2 }}
-                      onClick={() => setActiveTimelineBlock(sessions[3]
-                        ? { sessionId: sessions[3].id, name: sessions[3].name }
-                        : { sessionId: null, name: 'Evaluate' })}
-                      title={`Inspect ${sessions[3]?.name || 'Evaluate'}`}
-                    >
-                      <span className="capsule-text">
-                        {sessions[3]?.name
-                          ? sessions[3].name.length > 12
-                            ? `${sessions[3].name.slice(0, 10)}...`
-                            : sessions[3].name
-                          : 'Evaluate'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Timeline X-Axis Hour Labels (Matching Reference 12 to 18) */}
-                  <div className="bento-timeline-x-axis">
-                    <span>12</span>
-                    <span>13</span>
-                    <span>14</span>
-                    <span>15</span>
-                    <span>16</span>
-                    <span>17</span>
-                    <span>18</span>
-                  </div>
-
-                  {/* Interactive Block Trigger Bar */}
-                  {activeTimelineBlock && (
-                    <div className="bento-timeline-interactive-bar">
-                      <span><strong>Active Block:</strong> {activeTimelineBlock.name}</span>
+                  ) : (
+                    <div className="hero-body-idle">
+                      <div className="hero-idle-headline">Sentinel Shield Ready</div>
+                      <div className="hero-idle-task-preview">
+                        <span className="hero-preview-label">Next Action Target</span>
+                        <span className="hero-preview-title">
+                          {nextActionMission?.title || (missions.length > 0 ? missions[0].title : 'Plan your next sprint')}
+                        </span>
+                      </div>
                       <button
-                        className="tl-arm-btn"
-                        onClick={() => activeTimelineBlock.sessionId !== null && handleStartFromSchedule(activeTimelineBlock.sessionId)}
-                        disabled={activeTimelineBlock.sessionId === null}
+                        className="hero-arm-btn"
+                        onClick={handleEngageNextAction}
+                        title="Start focus on highest priority mission"
                       >
-                        Start focus
+                        <Icon name="play" size={13} />
+                        <span>⚡ Start Focus Sprint</span>
                       </button>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Interactive Task Inspector & Instant Focus Sprint Arming Modal */}
-            {inspectingMission && (
-              <div className="taskmaster-modal-overlay" onClick={() => setInspectingMission(null)}>
-                <div className="taskmaster-modal-card" onClick={(e) => e.stopPropagation()}>
-                  <div className="modal-header-row">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="badge-tag red">MISSION INSPECTOR</span>
-                      <span className="badge-tag blue">{inspectingMission.estimatedMinutes || 25}m Sprint</span>
+                {/* PANEL 2: SPRINT VELOCITY ARC GAUGE */}
+                <div className="cockpit-panel cockpit-velocity-panel">
+                  <div className="cockpit-panel-header">
+                    <div className="cockpit-panel-header-left">
+                      <div className="cockpit-panel-icon">
+                        <Icon name="analytics" size={16} />
+                      </div>
+                      <h3 className="cockpit-panel-title">Sprint Velocity</h3>
                     </div>
-                    <button className="modal-close-icon-btn" onClick={() => setInspectingMission(null)}>
-                      <Icon name="close" size={14} />
-                    </button>
-                  </div>
-
-                  <h3 className="modal-mission-title">{inspectingMission.title}</h3>
-                  {inspectingMission.description && (
-                    <p className="modal-mission-desc">{inspectingMission.description}</p>
-                  )}
-
-                  <div className="modal-meta-grid">
-                    <div className="modal-meta-item">
-                      <span className="meta-label">STATUS</span>
-                      <span className="meta-val">{inspectingMission.status || 'PENDING'}</span>
-                    </div>
-                    <div className="modal-meta-item">
-                      <span className="meta-label">FOCUS DURATION</span>
-                      <span className="meta-val">{inspectingMission.estimatedMinutes || 25} Minutes</span>
-                    </div>
-                    <div className="modal-meta-item">
-                      <span className="meta-label">OS SHIELD</span>
-                      <span className="meta-val highlight-red">ENFORCEMENT READY</span>
-                    </div>
-                  </div>
-
-                  <div className="modal-action-footer">
                     <button
-                      className="modal-btn-arm-sprint"
-                      onClick={() => {
-                        handleArmMissionAsSession(inspectingMission.title, inspectingMission.estimatedMinutes ?? undefined)
-                        setInspectingMission(null)
-                      }}
+                      className="cockpit-panel-action-icon"
+                      onClick={() => setActiveTab('Analytics')}
+                      title="View Detailed Analytics"
                     >
-                      <Icon name="sparkle" size={14} />
-                      <span>Arm & Start Focus Sprint</span>
+                      <Icon name="arrow-up-right" size={13} />
                     </button>
-                    {inspectingMission.id > 0 && (
+                  </div>
+
+                  <div className="velocity-body">
+                    <div className="velocity-score-row">
+                      <div className="velocity-score-num">{velocityRate}%</div>
+                      <div className="velocity-score-label">Mission Completion Rate</div>
+                    </div>
+
+                    <div className="velocity-gauge-wrap">
+                      <svg className="velocity-gauge-svg" viewBox="0 0 200 115" width="100%" height="115">
+                        <defs>
+                          <linearGradient id="velocityGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#38BDF8" />
+                            <stop offset="50%" stopColor="#F59E0B" />
+                            <stop offset="100%" stopColor="#FF4D5E" />
+                          </linearGradient>
+                        </defs>
+                        {/* Background track arc */}
+                        <path
+                          d="M 25 95 A 75 75 0 0 1 175 95"
+                          fill="none"
+                          stroke="rgba(255, 255, 255, 0.08)"
+                          strokeWidth="11"
+                          strokeLinecap="round"
+                        />
+                        {/* Foreground progress arc */}
+                        <path
+                          d="M 25 95 A 75 75 0 0 1 175 95"
+                          fill="none"
+                          stroke="url(#velocityGaugeGrad)"
+                          strokeWidth="11"
+                          strokeLinecap="round"
+                          strokeDasharray={gaugeCircumference}
+                          strokeDashoffset={gaugeOffset}
+                          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
+                        />
+                      </svg>
+                      <div className="velocity-tick-labels">
+                        <span>• Mon</span>
+                        <span>• Tue</span>
+                        <span>• Wed</span>
+                        <span>• Thu</span>
+                        <span>• Fri</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PANEL 3: TIME SHEET / SCHEDULE */}
+                <div className="cockpit-panel cockpit-timesheet-panel">
+                  <div className="cockpit-panel-header">
+                    <div className="cockpit-panel-header-left">
+                      <div className="cockpit-panel-icon">
+                        <Icon name="schedule" size={16} />
+                      </div>
+                      <h3 className="cockpit-panel-title">Time Sheet</h3>
+                    </div>
+                    <button
+                      className="cockpit-panel-action-icon"
+                      onClick={() => setActiveTab('Schedule')}
+                      title="Open Calendar Schedule"
+                    >
+                      <Icon name="arrow-up-right" size={13} />
+                    </button>
+                  </div>
+
+                  <div className="timesheet-list">
+                    {sessions.length > 0 ? (
+                      sessions.slice(0, 4).map((s, idx) => (
+                        <div
+                          key={s.id}
+                          className={`timesheet-item ${idx === 0 ? 'rank-first' : ''}`}
+                          onClick={() => {
+                            if (s.status !== 'COMPLETED' && !activeSession) {
+                              handleStartFromSchedule(s.id)
+                            }
+                          }}
+                          style={{ cursor: s.status !== 'COMPLETED' ? 'pointer' : 'default' }}
+                          title={s.status !== 'COMPLETED' ? 'Click to start session' : 'Completed session'}
+                        >
+                          <div className="timesheet-item-left">
+                            <span className="timesheet-rank-pill">{idx + 1}</span>
+                            <div className="timesheet-meta">
+                              <span className="timesheet-name">{s.name}</span>
+                              <span className="timesheet-sub">{s.intention || 'Strategic Sprint'}</span>
+                            </div>
+                          </div>
+                          <div className="timesheet-item-right">
+                            <span className="timesheet-duration-badge">{s.durationMinutes}m</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="status-column-empty" style={{ padding: '16px' }}>
+                        <span>No focus sessions recorded yet</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* PANEL 4: ACTIVITY FEED */}
+                <div className="cockpit-panel cockpit-activity-panel">
+                  <div className="cockpit-panel-header">
+                    <div className="cockpit-panel-header-left">
+                      <div className="cockpit-panel-icon">
+                        <Icon name="sparkle" size={16} />
+                      </div>
+                      <h3 className="cockpit-panel-title">Activity</h3>
+                    </div>
+                    <span className="card-goal-tag" style={{ fontSize: '10.5px' }}>Today</span>
+                  </div>
+
+                  <div className="activity-feed-list">
+                    {recentDebriefsList.length > 0 ? (
+                      recentDebriefsList.slice(0, 3).map((d) => (
+                        <div key={d.sessionId} className="activity-feed-item">
+                          <div className="activity-feed-top">
+                            <span className="activity-feed-name">{d.sessionName}</span>
+                            <span className="activity-feed-time">
+                              {d.completedAt ? new Date(d.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                            </span>
+                          </div>
+                          <span className="activity-feed-note">
+                            {d.accomplishment || d.reflectionNote || 'Completed sprint and recorded debrief telemetry'}
+                          </span>
+                          <span className="activity-feed-tag">✓ Sprint Debriefed ({d.durationMinutes}m)</span>
+                        </div>
+                      ))
+                    ) : sessions.filter((s) => s.status === 'COMPLETED').length > 0 ? (
+                      sessions
+                        .filter((s) => s.status === 'COMPLETED')
+                        .slice(0, 3)
+                        .map((s) => (
+                          <div key={s.id} className="activity-feed-item">
+                            <div className="activity-feed-top">
+                              <span className="activity-feed-name">{s.name}</span>
+                              <span className="activity-feed-time">Completed</span>
+                            </div>
+                            <span className="activity-feed-note">{s.intention || 'Execution session concluded successfully'}</span>
+                            <span className="activity-feed-tag">✓ {s.durationMinutes}m Focus Completed</span>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="status-column-empty" style={{ padding: '16px' }}>
+                        <span>No recent debrief records</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* Quick Mission Creator Modal */}
+              {isCreatingQuickMission && (
+                <div className="flight-deck-quick-modal-overlay" onClick={() => setIsCreatingQuickMission(false)}>
+                  <div className="flight-deck-quick-modal-card" onClick={(e) => e.stopPropagation()}>
+                    <div className="quick-modal-header">
+                      <h3 className="quick-modal-title">Create Tactical Mission</h3>
+                      <button className="quick-modal-close" onClick={() => setIsCreatingQuickMission(false)}>
+                        <Icon name="close" size={14} />
+                      </button>
+                    </div>
+
+                    <form className="quick-modal-form" onSubmit={handleQuickCreateMission}>
+                      <div className="quick-field-group">
+                        <label className="quick-field-label">Target Strategic Goal</label>
+                        <select
+                          className="quick-field-select"
+                          value={quickMissionGoalId ?? ''}
+                          onChange={(e) => setQuickMissionGoalId(Number(e.target.value))}
+                          required
+                        >
+                          {goals.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="quick-field-group">
+                        <label className="quick-field-label">Mission Title</label>
+                        <input
+                          type="text"
+                          className="quick-field-input"
+                          placeholder="E.g. Refactor API telemetry endpoint..."
+                          value={quickMissionTitle}
+                          onChange={(e) => setQuickMissionTitle(e.target.value)}
+                          required
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="quick-field-group">
+                        <label className="quick-field-label">Sprint Duration</label>
+                        <div className="quick-duration-presets">
+                          {[15, 25, 45, 60].map((dur) => (
+                            <button
+                              type="button"
+                              key={dur}
+                              className={`quick-preset-btn ${quickMissionDuration === dur ? 'active' : ''}`}
+                              onClick={() => setQuickMissionDuration(dur)}
+                            >
+                              {dur}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="quick-modal-actions">
+                        <button
+                          type="button"
+                          className="board-action-btn secondary"
+                          onClick={() => setIsCreatingQuickMission(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="board-action-btn primary"
+                          disabled={isSubmittingQuickMission || !quickMissionTitle.trim()}
+                        >
+                          {isSubmittingQuickMission ? 'Creating...' : '+ Create Mission'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Inspector & Focus Sprint Arming Modal */}
+              {inspectingMission && (
+                <div className="taskmaster-modal-overlay" onClick={() => setInspectingMission(null)}>
+                  <div className="taskmaster-modal-card" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="badge-tag red">MISSION INSPECTOR</span>
+                        <span className="badge-tag blue">{inspectingMission.estimatedMinutes || 25}m Sprint</span>
+                      </div>
+                      <button className="modal-close-icon-btn" onClick={() => setInspectingMission(null)}>
+                        <Icon name="close" size={14} />
+                      </button>
+                    </div>
+
+                    <h3 className="modal-mission-title">{inspectingMission.title}</h3>
+                    {inspectingMission.description && (
+                      <p className="modal-mission-desc">{inspectingMission.description}</p>
+                    )}
+
+                    <div className="modal-meta-grid">
+                      <div className="modal-meta-item">
+                        <span className="meta-label">STATUS</span>
+                        <span className="meta-val">{inspectingMission.status || 'PENDING'}</span>
+                      </div>
+                      <div className="modal-meta-item">
+                        <span className="meta-label">FOCUS DURATION</span>
+                        <span className="meta-val">{inspectingMission.estimatedMinutes || 25} Minutes</span>
+                      </div>
+                      <div className="modal-meta-item">
+                        <span className="meta-label">OS SHIELD</span>
+                        <span className="meta-val highlight-red">ENFORCEMENT READY</span>
+                      </div>
+                    </div>
+
+                    <div className="modal-action-footer">
                       <button
-                        className="modal-btn-complete"
+                        className="modal-btn-arm-sprint"
                         onClick={() => {
-                          handleToggleMissionComplete(inspectingMission.id)
+                          handleArmMissionAsSession(inspectingMission.title, inspectingMission.estimatedMinutes ?? undefined)
                           setInspectingMission(null)
                         }}
                       >
-                        <Icon name="check" size={14} />
-                        <span>Mark Done</span>
+                        <Icon name="sparkle" size={14} />
+                        <span>Arm & Start Focus Sprint</span>
                       </button>
-                    )}
-                    <button
-                      className="modal-btn-deconstruct"
-                      onClick={() => {
-                        setActiveTab('AI Assistant')
-                        handleAiSend(`Deconstruct this mission into concrete micro-steps: "${inspectingMission.title}"`)
-                        setInspectingMission(null)
-                      }}
-                    >
-                      <span>Eonpai Assist</span>
-                    </button>
-                    {inspectingMission.id > 0 && (
+                      {inspectingMission.id > 0 && (
+                        <button
+                          className="modal-btn-complete"
+                          onClick={() => {
+                            handleToggleMissionComplete(inspectingMission.id)
+                            setInspectingMission(null)
+                          }}
+                        >
+                          <Icon name="check" size={14} />
+                          <span>{inspectingMission.status === 'COMPLETED' ? 'Mark Incomplete' : 'Mark Done'}</span>
+                        </button>
+                      )}
                       <button
-                        className="modal-btn-delete"
+                        className="modal-btn-deconstruct"
                         onClick={() => {
-                          handleDeleteMission(inspectingMission.id, inspectingMission.title)
+                          setActiveTab('AI Assistant')
+                          handleAiSend(`Deconstruct this mission into concrete micro-steps: "${inspectingMission.title}"`)
+                          setInspectingMission(null)
                         }}
-                        disabled={deletingMissionId === inspectingMission.id}
-                        title="Delete this task permanently"
                       >
-                        <Icon name="trash" size={14} />
-                        <span>{deletingMissionId === inspectingMission.id ? 'Deleting...' : 'Delete'}</span>
+                        <span>Eonpai Assist</span>
                       </button>
-                    )}
+                      {inspectingMission.id > 0 && (
+                        <button
+                          className="modal-btn-delete"
+                          onClick={() => {
+                            handleDeleteMission(inspectingMission.id, inspectingMission.title)
+                          }}
+                          disabled={deletingMissionId === inspectingMission.id}
+                          title="Delete this task permanently"
+                        >
+                          <Icon name="trash" size={14} />
+                          <span>{deletingMissionId === inspectingMission.id ? 'Deleting...' : 'Delete'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )
+        })()}
+
 
         {/* Tab 2: Focus Engine */}
         {activeTab === 'Focus Engine' && (
