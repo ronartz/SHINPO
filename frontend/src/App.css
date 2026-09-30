@@ -9141,6 +9141,187 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   }
 }
 
+/* Sentinel Active Pulse (Coral Protocol) */
+.sentinel-radar-container.active-pulse .sentinel-radar-core {
+  background: var(--accent-coral, #FF4D5E);
+  box-shadow: 0 0 12px var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-radar-container.active-pulse .sentinel-radar-ring {
+  border-color: var(--accent-coral, #FF4D5E);
+  animation: radarRingPulseCoral 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes radarRingPulseCoral {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.sentinel-mode-badge {
+  background: rgba(255, 77, 94, 0.12);
+  border: 1px solid rgba(255, 77, 94, 0.35);
+  color: var(--accent-coral, #FF4D5E);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sentinel-mode-badge:hover {
+  background: rgba(255, 77, 94, 0.25);
+  border-color: var(--accent-coral, #FF4D5E);
+}
+
+.summary-pill.sentinel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.summary-pill.sentinel-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.summary-pill.sentinel-pill.active-defense {
+  border-color: rgba(255, 77, 94, 0.4);
+  background: rgba(255, 77, 94, 0.08);
+  color: var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.sentinel-interception-badge {
+  background: var(--accent-coral, #FF4D5E);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+/* Sentinel Control & Audit Panel */
+.sentinel-panel {
+  background: var(--surface-card, #12151C);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg, 16px);
+  padding: 20px 24px;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sentinel-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sentinel-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1, #F3F4F6);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.sentinel-rules-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sentinel-rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.25);
+  color: var(--text-1, #F3F4F6);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.sentinel-rule-chip.allowed {
+  background: rgba(46, 213, 115, 0.08);
+  border-color: rgba(46, 213, 115, 0.25);
+}
+
+.sentinel-rule-del-btn {
+  background: none;
+  border: none;
+  color: var(--text-3, #565D6D);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sentinel-rule-del-btn:hover {
+  color: var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-audit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.sentinel-audit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 12px;
+}
+
+.sentinel-audit-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sentinel-audit-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 77, 94, 0.2);
+  color: var(--accent-coral, #FF4D5E);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

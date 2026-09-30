@@ -8,6 +8,7 @@ import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
+import com.shinpo.service.SentinelEnforcementService;
 import com.shinpo.service.TaskManagerService;
 import com.shinpo.service.UserExecutionProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ public class AiToolRegistry {
     private final FocusSessionRepository focusSessionRepository;
     private final TaskManagerService taskManagerService;
     private final UserExecutionProfileService userExecutionProfileService;
+    private final SentinelEnforcementService sentinelEnforcementService;
 
     private final Map<String, AiTool> toolMap = new LinkedHashMap<>();
 
@@ -42,9 +44,21 @@ public class AiToolRegistry {
             MissionRepository missionRepository,
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService,
+            UserExecutionProfileService userExecutionProfileService,
+            @Autowired(required = false) SentinelEnforcementService sentinelEnforcementService
+    ) {
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, sentinelEnforcementService, List.of());
+    }
+
+    public AiToolRegistry(
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            FocusSessionRepository focusSessionRepository,
+            TaskManagerService taskManagerService,
             UserExecutionProfileService userExecutionProfileService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, null, List.of());
     }
 
     public AiToolRegistry(
@@ -54,7 +68,7 @@ public class AiToolRegistry {
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, null, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, null, null, List.of());
     }
 
     public AiToolRegistry(
@@ -64,6 +78,7 @@ public class AiToolRegistry {
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService,
             UserExecutionProfileService userExecutionProfileService,
+            SentinelEnforcementService sentinelEnforcementService,
             List<AiTool> customTools
     ) {
         this.userRepository = userRepository;
@@ -72,6 +87,7 @@ public class AiToolRegistry {
         this.focusSessionRepository = focusSessionRepository;
         this.taskManagerService = taskManagerService;
         this.userExecutionProfileService = userExecutionProfileService;
+        this.sentinelEnforcementService = sentinelEnforcementService;
 
         registerBuiltInTools();
         if (customTools != null) {
@@ -499,15 +515,27 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            Map<String, Object> activeSession = getActiveFocusSession(authenticatedUserId);
-            boolean shieldEngaged = Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
-                    || activeSession.containsKey("id");
-
             Map<String, Object> map = new LinkedHashMap<>();
-            map.put("shieldEngaged", shieldEngaged);
-            map.put("enforcementLevel", shieldEngaged ? "LEVEL_1_PROCESS_RESTRICTION" : "LEVEL_0_OBSERVATIONAL");
-            map.put("sentinelMode", "ACTIVE_DEFENSE");
-
+            if (sentinelEnforcementService != null) {
+                var status = sentinelEnforcementService.getSentinelStatus(authenticatedUserId);
+                boolean shieldEngaged = "ACTIVE_DEFENSE".equalsIgnoreCase(status.status());
+                map.put("status", status.status());
+                map.put("shieldEngaged", shieldEngaged);
+                map.put("enforcementMode", status.enforcementMode());
+                map.put("totalInterceptedToday", status.totalInterceptedToday());
+                map.put("activeFocusSessionId", status.activeFocusSessionId());
+                map.put("activeFocusSessionName", status.activeFocusSessionName());
+                map.put("activePolicyRulesCount", status.activePolicyRulesCount());
+                map.put("lastSweepAt", status.lastSweepAt() != null ? status.lastSweepAt().toString() : null);
+            } else {
+                Map<String, Object> activeSession = getActiveFocusSession(authenticatedUserId);
+                boolean shieldEngaged = Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                        || activeSession.containsKey("id");
+                map.put("status", shieldEngaged ? "ACTIVE_DEFENSE" : "IDLE");
+                map.put("shieldEngaged", shieldEngaged);
+                map.put("enforcementMode", "STRICT");
+                map.put("enforcementLevel", shieldEngaged ? "LEVEL_1_PROCESS_RESTRICTION" : "LEVEL_0_OBSERVATIONAL");
+            }
             return ToolResult.ok(getName(), map);
         }
     }
@@ -566,25 +594,45 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            Map<String, Object> activeSession = getActiveFocusSession(authenticatedUserId);
-            boolean hasActive = Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("id");
             Map<String, Object> result = new LinkedHashMap<>();
-
-            if (hasActive) {
-                result.put("activeBlockPresent", true);
-                result.put("sessionName", activeSession.get("name"));
-                result.put("remainingSeconds", activeSession.get("remainingSeconds"));
-                result.put("reason", "A focus session is actively running ('" + activeSession.get("name") + "'). Distraction processes and sites are blocked by Sentinel to preserve deep work.");
-            } else {
-                result.put("activeBlockPresent", false);
-                List<Map<String, Object>> recent = getRecentSessionEvents(authenticatedUserId);
-                if (!recent.isEmpty()) {
-                    Map<String, Object> last = recent.get(0);
-                    result.put("lastSessionStatus", last.get("status"));
-                    result.put("lastSessionName", last.get("name"));
-                    result.put("reason", "No focus session is currently active. The most recent session '" + last.get("name") + "' ended with status " + last.get("status") + ".");
+            if (sentinelEnforcementService != null) {
+                var status = sentinelEnforcementService.getSentinelStatus(authenticatedUserId);
+                boolean hasActive = "ACTIVE_DEFENSE".equalsIgnoreCase(status.status());
+                result.put("activeBlockPresent", hasActive);
+                result.put("status", status.status());
+                result.put("enforcementMode", status.enforcementMode());
+                result.put("totalInterceptedToday", status.totalInterceptedToday());
+                if (hasActive) {
+                    result.put("sessionName", status.activeFocusSessionName());
+                    result.put("sessionId", status.activeFocusSessionId());
+                    result.put("reason", "A focus sprint is actively in progress ('" + status.activeFocusSessionName()
+                            + "'). Sentinel active defense is engaged (" + status.enforcementMode()
+                            + " mode) to quarantine distraction apps and protect flow state.");
+                } else if ("STANDBY".equalsIgnoreCase(status.status())) {
+                    result.put("reason", "No focus session currently active. Sentinel is on STANDBY for an upcoming scheduled sprint.");
                 } else {
-                    result.put("reason", "No focus session is currently active, and no Sentinel block is engaged. SHINPO did not terminate or block this process.");
+                    result.put("reason", "No focus sprint is currently active. Distraction quarantines are disengaged and processes run unrestricted.");
+                }
+                result.put("recentQuarantinesCount", status.recentQuarantines().size());
+            } else {
+                Map<String, Object> activeSession = getActiveFocusSession(authenticatedUserId);
+                boolean hasActive = Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("id");
+                result.put("activeBlockPresent", hasActive);
+                if (hasActive) {
+                    result.put("sessionName", activeSession.get("name"));
+                    result.put("remainingSeconds", activeSession.get("remainingSeconds"));
+                    result.put("reason", "A focus session is actively running ('" + activeSession.get("name") + "'). Distraction processes and sites are blocked by Sentinel to preserve deep work.");
+                } else {
+                    result.put("activeBlockPresent", false);
+                    List<Map<String, Object>> recent = getRecentSessionEvents(authenticatedUserId);
+                    if (!recent.isEmpty()) {
+                        Map<String, Object> last = recent.get(0);
+                        result.put("lastSessionStatus", last.get("status"));
+                        result.put("lastSessionName", last.get("name"));
+                        result.put("reason", "No focus session is currently active. The most recent session '" + last.get("name") + "' ended with status " + last.get("status") + ".");
+                    } else {
+                        result.put("reason", "No focus session is currently active, and no Sentinel block is engaged. SHINPO did not terminate or block this process.");
+                    }
                 }
             }
 
@@ -756,14 +804,6 @@ public class AiToolRegistry {
         return Map.of("shieldEngaged", false, "enforcementLevel", "LEVEL_0_OBSERVATIONAL");
     }
 
-    @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> getTodaysMissions(Long userId) {
-        ToolResult res = executeTool("get_todays_missions", userId, Map.of());
-        if (res.success() && res.data() instanceof List<?> l) {
-            return (List<Map<String, Object>>) l;
-        }
-        return List.of();
-    }
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getRecentSessionEvents(Long userId) {
