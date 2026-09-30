@@ -158,3 +158,13 @@ Before declaring any frontend change complete:
 | **03** | `testAiGatewayMockRoutingAndOfflineFallback` | `AiGateway` transparently routes chat through active provider and falls back to deterministic safe engine on outage | PASS |
 | **04** | `testGoalDecompositionMockAndFallback` | Goal decomposition operates through provider SPI with automatic deterministic fallback if provider is unavailable | PASS |
 
+---
+
+## 8. Phase 2 Slice AI.2 Context Engine Test Suite (`ContextEngineTests`)
+
+| Scenario | Test Method | Covered Resilience Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testAssembleContextMapsTypedRecords` | Assembles full execution context into typed record tree with User, Goal, Mission, Session, Progress, Enforcement, and Device | PASS |
+| **02** | `testSanitizesSecretsFromContext` | Redacts raw JWT tokens, API keys, password fields, and credentials before injecting into LLM context | PASS |
+| **03** | `testDefangsPromptInjectionInIsolatedPrompt` | Wraps context in `<context>` XML block, isolates user prompt in `<user_input>`, and escapes injected closing tags | PASS |
+

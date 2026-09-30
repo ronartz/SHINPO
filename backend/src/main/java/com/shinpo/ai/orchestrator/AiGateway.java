@@ -2,6 +2,8 @@ package com.shinpo.ai.orchestrator;
 
 import tools.jackson.databind.ObjectMapper;
 import com.shinpo.ai.config.AiProperties;
+import com.shinpo.ai.context.ContextEngine;
+import com.shinpo.ai.context.ExecutionIntelligenceContext;
 import com.shinpo.ai.provider.AIProvider;
 import com.shinpo.ai.provider.AIProviderRegistry;
 import com.shinpo.ai.provider.AiProviderRequest;
@@ -29,6 +31,7 @@ public class AiGateway {
     private final AIProviderRegistry providerRegistry;
     private final AiProperties aiProperties;
     private final AiToolRegistry toolRegistry;
+    private final ContextEngine contextEngine;
     private final AiSuggestionRepository aiSuggestionRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -39,6 +42,7 @@ public class AiGateway {
             AIProviderRegistry providerRegistry,
             AiProperties aiProperties,
             AiToolRegistry toolRegistry,
+            ContextEngine contextEngine,
             AiSuggestionRepository aiSuggestionRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper,
@@ -47,10 +51,23 @@ public class AiGateway {
         this.providerRegistry = providerRegistry;
         this.aiProperties = aiProperties;
         this.toolRegistry = toolRegistry;
+        this.contextEngine = contextEngine;
         this.aiSuggestionRepository = aiSuggestionRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.bugReportRepository = bugReportRepository;
+    }
+
+    public AiGateway(
+            AIProviderRegistry providerRegistry,
+            AiProperties aiProperties,
+            AiToolRegistry toolRegistry,
+            AiSuggestionRepository aiSuggestionRepository,
+            UserRepository userRepository,
+            ObjectMapper objectMapper,
+            BugReportRepository bugReportRepository
+    ) {
+        this(providerRegistry, aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
     }
 
     public AiGateway(
@@ -62,7 +79,7 @@ public class AiGateway {
             ObjectMapper objectMapper,
             BugReportRepository bugReportRepository
     ) {
-        this(new AIProviderRegistry(providers, aiProperties), aiProperties, toolRegistry, aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
+        this(new AIProviderRegistry(providers, aiProperties), aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
     }
 
     public AiGateway(
@@ -148,16 +165,15 @@ public class AiGateway {
             return new AiChatResponse(reply, "NEXT_ACTION", next);
         }
 
-        // 7. GENERAL QUERY: MODEL GENERATION WITH FALLBACK
-        Map<String, Object> context = toolRegistry.assembleFullContext(
+        // 7. GENERAL QUERY: MODEL GENERATION WITH FALLBACK (SANITIZED VIA CONTEXT ENGINE)
+        ExecutionIntelligenceContext intelContext = contextEngine.assembleContext(
                 userId,
                 request.contextualGoalId(),
                 request.contextualMissionId(),
-                request.contextualSessionId()
+                request.contextualSessionId(),
+                conversationHistory
         );
-        if (conversationHistory != null && !conversationHistory.isEmpty()) {
-            context.put("recentConversationHistory", conversationHistory);
-        }
+        Map<String, Object> safeContext = contextEngine.toSafeContextMap(intelContext);
 
         AIProvider provider = getActiveProvider();
         if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
@@ -176,7 +192,8 @@ public class AiGateway {
                     Do not echo application context. Return ONLY the JSON object. Do not include Markdown code fences.
                     """;
 
-            AiProviderRequest req = AiProviderRequest.of(systemPrompt, rawMsg, context);
+            String isolatedPrompt = contextEngine.buildIsolatedPrompt(systemPrompt, intelContext, rawMsg);
+            AiProviderRequest req = AiProviderRequest.of(systemPrompt, isolatedPrompt, safeContext);
             AiProviderResponse res = provider.generate(req);
 
             if (res.successful() && res.content() != null && !res.content().isBlank()) {
