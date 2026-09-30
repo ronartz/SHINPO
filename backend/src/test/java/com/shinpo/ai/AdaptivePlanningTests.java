@@ -14,7 +14,6 @@ import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.security.JwtTokenService;
 import com.shinpo.security.UserPrincipal;
-import com.shinpo.service.AiService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,9 +40,6 @@ class AdaptivePlanningTests {
 
     @Autowired
     private AiGateway aiGateway;
-
-    @Autowired
-    private AiService aiService;
 
     @Autowired
     private UserRepository userRepository;
@@ -118,7 +114,7 @@ class AdaptivePlanningTests {
 
         // Verify circadian windows are assigned
         boolean hasDeepFocus = plan.planItems().stream().anyMatch(i -> "DEEP_FOCUS".equals(i.energyWindow()));
-        boolean hasRestorativeBreak = plan.planItems().stream().anyMatch(DailyPlanItem::isRestorativeBreak);
+        boolean hasRestorativeBreak = plan.planItems().stream().anyMatch(item -> item != null && Boolean.TRUE.equals(item.isRestorativeBreak()));
 
         assertTrue(hasDeepFocus, "Must contain at least one DEEP_FOCUS block");
         assertTrue(hasRestorativeBreak, "Must insert non-screen restorative micro-breaks between sprints");

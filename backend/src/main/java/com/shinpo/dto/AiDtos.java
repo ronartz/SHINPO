@@ -128,7 +128,7 @@ public class AiDtos {
 
         public Integer totalBreakMinutes() {
             if (totalBreakMinutes != null && totalBreakMinutes > 0) return totalBreakMinutes;
-            return planItems != null ? planItems.stream().filter(DailyPlanItem::isRestorativeBreak).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0;
+            return planItems != null ? planItems.stream().filter(item -> item != null && Boolean.TRUE.equals(item.isRestorativeBreak())).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0;
         }
     }
 

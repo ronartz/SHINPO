@@ -105,8 +105,34 @@ export interface SentinelStatus {
   enforcementMode: 'STRICT' | 'AUDIT_ONLY' | 'CONTAINMENT' | string
   totalInterceptedToday: number
   activePolicyRulesCount: number
+  tamperEventsCount?: number
+  isPolicyLocked?: boolean
   recentQuarantines: SentinelQuarantineItem[]
   lastSweepAt: string | null
+}
+
+export interface SentinelTamperEventItem {
+  id: number
+  focusSessionId: number | null
+  eventType: string
+  severity: string
+  enforcementMode: string
+  justification: string | null
+  details: string | null
+  createdAt: string
+}
+
+export interface EmergencyOverrideRequest {
+  password: string
+  reason: string
+  targetMode?: string
+}
+
+export interface EmergencyOverrideResponse {
+  success: boolean
+  message: string
+  newMode: string
+  timestamp: string
 }
 
 export interface SentinelSweepResult {
@@ -177,7 +203,10 @@ export async function deleteSentinelRule(ruleId: number): Promise<void> {
     method: 'DELETE',
     headers: authHeaders(),
   })
-  if (!res.ok) throw new Error(`Failed to delete policy rule: ${res.status}`)
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null)
+    throw new Error(errData?.message || `Failed to delete policy rule: ${res.status}`)
+  }
 }
 
 export async function updateSentinelMode(enforcementMode: string): Promise<SentinelStatus> {
@@ -186,6 +215,31 @@ export async function updateSentinelMode(enforcementMode: string): Promise<Senti
     headers: authHeaders(),
     body: JSON.stringify({ enforcementMode }),
   })
-  if (!res.ok) throw new Error(`Failed to update enforcement mode: ${res.status}`)
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null)
+    throw new Error(errData?.message || `Failed to update enforcement mode: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function emergencyOverride(request: EmergencyOverrideRequest): Promise<EmergencyOverrideResponse> {
+  const res = await fetch(`${SENTINEL_BASE}/emergency-override`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(request),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null)
+    throw new Error(errData?.message || `Emergency override failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function fetchSentinelTamperEvents(sessionId?: number): Promise<SentinelTamperEventItem[]> {
+  const qs = sessionId ? `?sessionId=${sessionId}` : ''
+  const res = await fetch(`${SENTINEL_BASE}/tamper-events${qs}`, {
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error(`Failed to fetch tamper events: ${res.status}`)
   return res.json()
 }

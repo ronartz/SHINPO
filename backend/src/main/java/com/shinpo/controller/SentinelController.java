@@ -76,4 +76,19 @@ public class SentinelController {
         sentinelService.setEnforcementMode(principal.getUserId(), request.enforcementMode());
         return ResponseEntity.ok(sentinelService.getSentinelStatus(principal.getUserId()));
     }
+
+    @PostMapping("/emergency-override")
+    public ResponseEntity<EmergencyOverrideResponse> emergencyOverride(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody EmergencyOverrideRequest request
+    ) {
+        return ResponseEntity.ok(sentinelService.emergencyOverride(principal.getUserId(), request));
+    }
+
+    @GetMapping("/tamper-events")
+    public ResponseEntity<List<SentinelTamperEventItem>> listTamperEvents(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(sentinelService.listTamperEvents(principal.getUserId()));
+    }
 }
