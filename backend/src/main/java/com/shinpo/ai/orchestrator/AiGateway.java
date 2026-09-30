@@ -173,14 +173,16 @@ public class AiGateway {
                 String rawContent = cleanJson(res.content());
                 try {
                     AiChatResponse parsed = objectMapper.readValue(rawContent, AiChatResponse.class);
-                    logSuggestion(userId, "CHAT", rawMsg, res.content());
-                    return parsed;
-                } catch (Exception e) {
-                    String cleanContent = extractReplyOrClean(rawContent);
-                    String suggestionType = extractSuggestionType(rawContent);
-                    logSuggestion(userId, "CHAT", rawMsg, cleanContent);
-                    return AiChatResponse.conversational(cleanContent, suggestionType);
+                    if (parsed != null && parsed.reply() != null && !parsed.reply().isBlank()) {
+                        logSuggestion(userId, "CHAT", rawMsg, res.content());
+                        return parsed;
+                    }
+                } catch (Exception ignored) {
                 }
+                String cleanContent = extractReplyOrClean(rawContent);
+                String suggestionType = extractSuggestionType(rawContent);
+                logSuggestion(userId, "CHAT", rawMsg, cleanContent);
+                return AiChatResponse.conversational(cleanContent, suggestionType);
             } else {
                 log.warn("Active provider {} failed: {}. Falling back to deterministic engine.",
                         provider.getProviderName(), res.errorMessage());
@@ -421,10 +423,11 @@ public class AiGateway {
     }
 
     private boolean isEnforcementQuery(String msg) {
-        return msg.contains("why can't i") || msg.contains("why cant i")
+        return msg.contains("why ")
+                && (msg.contains("can't i") || msg.contains("cant i")
                 || msg.contains("blocked") || msg.contains("terminated")
                 || msg.contains("closed") || msg.contains("session end")
-                || msg.contains("why did my session") || msg.contains("youtube");
+                || msg.contains("my session") || msg.contains("youtube"));
     }
 
     private boolean isBugReportIntent(String msg) {

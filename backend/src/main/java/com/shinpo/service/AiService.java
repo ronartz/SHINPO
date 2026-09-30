@@ -152,11 +152,15 @@ public class AiService {
             log.warn("Failed to serialize message metadata: {}", e.getMessage());
         }
 
+        String replyText = (response.reply() != null && !response.reply().isBlank())
+                ? response.reply()
+                : "Execution directive acknowledged. Core engine ready.";
+
         ConversationMessage assistantMsg = new ConversationMessage(
                 conversation,
                 "ASSISTANT",
-                response.reply(),
-                response.suggestionType(),
+                replyText,
+                response.suggestionType() != null ? response.suggestionType() : "COACH",
                 metadataJson
         );
         conversationMessageRepository.save(assistantMsg);
