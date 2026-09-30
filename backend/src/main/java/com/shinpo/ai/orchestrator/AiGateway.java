@@ -252,8 +252,14 @@ public class AiGateway {
             if (res.successful() && res.content() != null) {
                 try {
                     GoalDecompositionResponse parsed = objectMapper.readValue(cleanJson(res.content()), GoalDecompositionResponse.class);
-                    logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, res.content());
-                    return parsed;
+                    AiSuggestion s = logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, res.content());
+                    return new GoalDecompositionResponse(
+                            parsed.goalId(),
+                            parsed.goalTitle(),
+                            parsed.analysis(),
+                            parsed.proposedMissions(),
+                            s != null ? s.getId() : null
+                    );
                 } catch (Exception e) {
                     log.warn("Failed to parse decomposition JSON output: {}", e.getMessage());
                 }
@@ -267,14 +273,19 @@ public class AiGateway {
                 new ProposedMission("Execute deep focus sprint on critical bottleneck", "Eliminate the single highest constraint.", 45),
                 new ProposedMission("Audit execution metrics & review outcomes", "Measure results and close loop.", 20)
         );
-        GoalDecompositionResponse fallback = new GoalDecompositionResponse(
+        String payloadJson = "{}";
+        try {
+            payloadJson = objectMapper.writeValueAsString(fallbackMissions);
+        } catch (Exception ignored) {}
+
+        AiSuggestion s = logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, payloadJson);
+        return new GoalDecompositionResponse(
                 goalId,
                 goalTitle,
                 "Goal strategically partitioned into high-velocity execution blocks (Deterministic Safe Engine).",
-                fallbackMissions
+                fallbackMissions,
+                s != null ? s.getId() : null
         );
-        logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, "Deterministic fallback used");
-        return fallback;
     }
 
     /**
@@ -376,14 +387,16 @@ public class AiGateway {
         });
     }
     
-    private void logSuggestion(Long userId, String type, String context, String payload) {
+    private AiSuggestion logSuggestion(Long userId, String type, String context, String payload) {
         try {
-            userRepository.findById(userId).ifPresent(user -> {
+            if (userRepository == null || aiSuggestionRepository == null) return null;
+            return userRepository.findById(userId).map(user -> {
                 AiSuggestion s = new AiSuggestion(user, type, context, payload);
-                aiSuggestionRepository.save(s);
-            });
+                return aiSuggestionRepository.save(s);
+            }).orElse(null);
         } catch (Exception e) {
             log.error("Failed to log AI suggestion audit: {}", e.getMessage());
+            return null;
         }
     }
 
