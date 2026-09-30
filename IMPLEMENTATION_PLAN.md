@@ -90,14 +90,17 @@
   5. Authored comprehensive test suite in `AIProviderPipelineTests.java` verifying registry lookup, dynamic provider switching, mock generation, and offline fail-soft fallback.
 - **Exit Condition Achieved:** All 49 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 177ms.
 
-### AI.2 — Centralized Context Engine (APPROVED NEXT SLICE)
+### AI.2 — Centralized Context Engine (COMPLETED)
 - **Goal:** Build typed, sanitized context assembly with prompt injection defense.
-- **Tasks:**
-  1. Define typed record `ExecutionIntelligenceContext`.
-  2. Isolate context with strict delimiters: `<system_prompt>`, `<context>`, `<user_input>`.
-  3. Ensure zero passwords, tokens, or raw host secrets ever enter prompt context.
+- **Preconditions:** AI.1 complete.
+- **Tasks & Deliverables:**
+  1. Defined typed record `ExecutionIntelligenceContext` covering User, Goal, Mission, Session, Progress, Enforcement, Device summaries, and schedule items.
+  2. Implemented `ContextEngine` which sanitizes prompts, strips token/password patterns, isolates context blocks within `<system_prompt>`, `<context>`, and `<user_input>` XML tags, and defangs prompt injection.
+  3. Integrated `ContextEngine` directly into `AiGateway.processChat`.
+  4. Authored `ContextEngineTests` verifying typed context assembly, secret redaction, and prompt injection defanging.
+- **Exit Condition Achieved:** All 52 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 140ms.
 
-### AI.3 — Controlled Tool Layer
+### AI.3 — Controlled Tool Layer (APPROVED NEXT SLICE)
 - **Goal:** Formalize read tools with user-scoped isolation and explicit schemas.
 - **Tasks:**
   1. Refactor `AiToolRegistry` into explicit typed tool contracts.
