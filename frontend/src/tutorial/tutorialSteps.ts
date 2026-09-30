@@ -57,7 +57,7 @@ export const SHINPO_ONBOARDING_STEPS: TutorialStepDef[] = [
     fallbackSelector: "[data-tutorial='nav-focus']",
     placement: 'top',
     eonpaiDialogue: 'Run your sprint with distraction blocking.',
-    instruction: "Click 'Start focus' to begin.",
+    instruction: "Click 'Engage 30m Sprint' to begin.",
     completionCondition: 'FOCUS_STARTED',
   },
   {

@@ -30,7 +30,7 @@ SHINPO uses a single-page reactive application shell driven by URL search parame
 
 ### URL Parameter Contracts:
 - `?tab=Dashboard` $\rightarrow$ Command Center Dashboard
-- `?tab=Goals & Missions` $\rightarrow$ Goal & Mission Backlog
+- `?tab=Goals%20%26%20Missions` $\rightarrow$ Goal & Mission Backlog
 - `?tab=Focus Engine` $\rightarrow$ Live Focus Session Cockpit
 - `?tab=Schedule` $\rightarrow$ Calendar & Session Agendas
 - `?tab=Analytics` $\rightarrow$ Historical Execution Analytics

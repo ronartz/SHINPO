@@ -30,6 +30,8 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
   const [isClicking, setIsClicking] = useState(false)
   const [cursorText, setCursorText] = useState<string | null>(null)
   const [targetRect, setTargetRect] = useState<{ width: number; height: number; radius: number } | null>(null)
+  const isHoveredRef = useRef(false)
+  const isClickingRef = useRef(false)
 
   // Real mouse coordinates
   const mousePos = useRef({ x: -100, y: -100 })
@@ -49,11 +51,12 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
 
     const handleMouseMove = (e: MouseEvent) => {
       mousePos.current = { x: e.clientX, y: e.clientY }
-      if (!isVisible) setIsVisible(true)
+      setIsVisible(true)
 
       // Direct dot positioning for instantaneous responsiveness
       if (dotRef.current) {
-        dotRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`
+        const scale = isClickingRef.current ? 0.7 : isHoveredRef.current ? 0 : 1
+        dotRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(${scale})`
       }
 
       // Target element inspection for morphing
@@ -62,6 +65,7 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
       ) as HTMLElement | null
 
       if (target) {
+        isHoveredRef.current = true
         setIsHovered(true)
         const customText = target.getAttribute('data-cursor-text')
         setCursorText(enableTextMorph && customText ? customText : null)
@@ -78,14 +82,21 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
           setTargetRect(null)
         }
       } else {
+        isHoveredRef.current = false
         setIsHovered(false)
         setCursorText(null)
         setTargetRect(null)
       }
     }
 
-    const handleMouseDown = () => setIsClicking(true)
-    const handleMouseUp = () => setIsClicking(false)
+    const handleMouseDown = () => {
+      isClickingRef.current = true
+      setIsClicking(true)
+    }
+    const handleMouseUp = () => {
+      isClickingRef.current = false
+      setIsClicking(false)
+    }
     const handleMouseLeave = () => setIsVisible(false)
     const handleMouseEnter = () => setIsVisible(true)
 
@@ -99,7 +110,7 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
     const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor
 
     const render = () => {
-      const smoothing = isHovered ? 0.24 : 0.16
+      const smoothing = isHoveredRef.current ? 0.24 : 0.16
       ringPos.current.x = lerp(ringPos.current.x, mousePos.current.x, smoothing)
       ringPos.current.y = lerp(ringPos.current.y, mousePos.current.y, smoothing)
 
@@ -120,7 +131,7 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({
       document.removeEventListener('mouseenter', handleMouseEnter)
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
     }
-  }, [isVisible, isHovered, enableTextMorph])
+  }, [enableTextMorph])
 
   // Don't render if invisible or not mounted
   if (!isVisible) return null

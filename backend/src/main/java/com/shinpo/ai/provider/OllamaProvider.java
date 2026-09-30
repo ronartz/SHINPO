@@ -54,7 +54,7 @@ public class OllamaProvider implements AIProvider {
     public AiProviderResponse generate(AiProviderRequest request) {
         long start = System.currentTimeMillis();
         String baseUrl = aiProperties.getOllama().getBaseUrl();
-        String model = resolveEffectiveModel(baseUrl, aiProperties.getOllama().getModel());
+        String model = resolveEffectiveModel(aiProperties.getOllama().getModel());
 
         try {
             String endpoint = baseUrl.replaceAll("/+$", "") + "/api/generate";
@@ -63,26 +63,30 @@ public class OllamaProvider implements AIProvider {
             body.put("model", model);
             body.put("system", request.systemPrompt() != null ? request.systemPrompt() : "");
 
-            // Build full user prompt with context if present
+            // Build full user prompt with clean, human-readable status context
             StringBuilder promptBuilder = new StringBuilder();
             if (request.contextData() != null && !request.contextData().isEmpty()) {
-                promptBuilder.append("CURRENT APPLICATION CONTEXT:\n");
-                request.contextData().forEach((k, v) -> {
-                    if (v != null) {
-                        try {
-                            if (v instanceof Map || v instanceof List) {
-                                promptBuilder.append("- ").append(k).append(": ").append(objectMapper.writeValueAsString(v)).append("\n");
-                            } else {
-                                promptBuilder.append("- ").append(k).append(": ").append(v).append("\n");
-                            }
-                        } catch (Exception ignored) {
-                            promptBuilder.append("- ").append(k).append(": ").append(v).append("\n");
-                        }
-                    }
-                });
-                promptBuilder.append("\nUSER INSTRUCTION:\n");
+                promptBuilder.append("USER PRODUCTIVITY STATUS:\n");
+                Object goal = request.contextData().get("currentGoal");
+                if (goal instanceof Map<?, ?> gm && gm.get("title") != null) {
+                    promptBuilder.append("• Active Goal: ").append(gm.get("title")).append("\n");
+                }
+                Object mission = request.contextData().get("nextMission");
+                if (mission instanceof Map<?, ?> mm && mm.get("title") != null) {
+                    promptBuilder.append("• Next Mission: ").append(mm.get("title")).append("\n");
+                }
+                Object prog = request.contextData().get("progress");
+                if (prog instanceof Map<?, ?> pm) {
+                    promptBuilder.append("• Progress: ").append(pm.get("completedMissions")).append("/")
+                            .append(pm.get("totalMissions")).append(" missions done\n");
+                }
+                Object enf = request.contextData().get("enforcement");
+                if (enf instanceof Map<?, ?> em && em.get("status") != null) {
+                    promptBuilder.append("• Shield: ").append(em.get("status")).append("\n");
+                }
+                promptBuilder.append("\n");
             }
-            promptBuilder.append(request.userPrompt() != null ? request.userPrompt() : "");
+            promptBuilder.append("USER INQUIRY: ").append(request.userPrompt() != null ? request.userPrompt() : "");
 
             body.put("prompt", promptBuilder.toString());
             body.put("stream", false);
@@ -143,30 +147,9 @@ public class OllamaProvider implements AIProvider {
         return "ollama";
     }
 
-    private String resolveEffectiveModel(String baseUrl, String requestedModel) {
+    private String resolveEffectiveModel(String requestedModel) {
         if (requestedModel == null || requestedModel.isBlank()) {
             return "qwen2.5:0.5b";
-        }
-        try {
-            String healthUrl = baseUrl.replaceAll("/+$", "") + "/api/tags";
-            ResponseEntity<String> response = healthRestTemplate.getForEntity(healthUrl, String.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode root = objectMapper.readTree(response.getBody());
-                JsonNode modelsNode = root.get("models");
-                if (modelsNode != null && modelsNode.isArray()) {
-                    for (JsonNode modelNode : modelsNode) {
-                        JsonNode nameNode = modelNode.get("name");
-                        if (nameNode != null) {
-                            String name = nameNode.asString();
-                            if (name.equalsIgnoreCase(requestedModel) || name.startsWith(requestedModel + ":") || requestedModel.startsWith(name)) {
-                                return requestedModel;
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.debug("Could not query Ollama tags at {}: {}", baseUrl, e.getMessage());
         }
         return requestedModel;
     }

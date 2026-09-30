@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "title": "Map the project, stack, and review scope",
+      "status": "done"
+    },
+    {
+      "title": "Review architecture, implementation, security, and tests in parallel",
+      "status": "done"
+    },
+    {
+      "title": "Run available checks and validate the main findings",
+      "status": "done"
+    },
+    {
+      "title": "Summarize project health, risks, and prioritized recommendations",
+      "status": "done"
+    }
+  ],
+  "updated_at": "2026-09-30T10:35:21.948Z",
+  "session_id": "01a0f1bb-f4ba-726a-91f4-5a42a3faccf1"
+}

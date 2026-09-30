@@ -10,7 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -29,6 +32,7 @@ public class AiService {
     private final ConversationMessageRepository conversationMessageRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     public AiService(
             GoalRepository goalRepository,
@@ -37,7 +41,8 @@ public class AiService {
             ConversationRepository conversationRepository,
             ConversationMessageRepository conversationMessageRepository,
             UserRepository userRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager) {
         this.goalRepository = goalRepository;
         this.focusSessionRepository = focusSessionRepository;
         this.aiGateway = aiGateway;
@@ -45,6 +50,7 @@ public class AiService {
         this.conversationMessageRepository = conversationMessageRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId) {
@@ -98,6 +104,7 @@ public class AiService {
         return mapToConversationDto(fresh);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AiChatResponse processChat(AiChatRequest request) {
         if (request == null || request.userId() == null) {
             throw new IllegalArgumentException("Authenticated userId is required to process chat");
@@ -107,38 +114,39 @@ public class AiService {
             throw new IllegalArgumentException("User not found: " + userId);
         }
 
-        Conversation conversation;
-        if (request.conversationId() != null && !request.conversationId().isBlank()) {
-            conversation = conversationRepository.findByConversationUuidAndUser_Id(request.conversationId(), userId)
-                    .orElseGet(() -> getOrCreateActiveConversationEntity(userId));
-        } else {
-            conversation = getOrCreateActiveConversationEntity(userId);
-        }
-
-        // 1. Persist user message
         String userRaw = request.message() != null ? request.message().trim() : "";
-        ConversationMessage userMsg = new ConversationMessage(conversation, "USER", userRaw, null, null);
-        conversationMessageRepository.save(userMsg);
-        conversation.setUpdatedAt(Instant.now());
-        conversationRepository.save(conversation);
+        ChatContext chatContext = transactionTemplate.execute(status -> {
+            Conversation conversation;
+            if (request.conversationId() != null && !request.conversationId().isBlank()) {
+                conversation = conversationRepository.findByConversationUuidAndUser_Id(request.conversationId(), userId)
+                        .orElseGet(() -> getOrCreateActiveConversationEntity(userId));
+            } else {
+                conversation = getOrCreateActiveConversationEntity(userId);
+            }
 
-        // 2. Fetch bounded recent history (12-20 turns)
-        List<ConversationMessage> recentDesc = conversationMessageRepository.findTop20ByConversation_IdOrderByCreatedAtDesc(conversation.getId());
-        List<ConversationMessage> recentAsc = new ArrayList<>(recentDesc);
-        Collections.reverse(recentAsc);
+            ConversationMessage userMsg = new ConversationMessage(conversation, "USER", userRaw, null, null);
+            conversationMessageRepository.save(userMsg);
+            conversation.setUpdatedAt(Instant.now());
+            conversationRepository.save(conversation);
 
-        List<Map<String, String>> historyList = new ArrayList<>();
-        for (ConversationMessage m : recentAsc) {
-            historyList.add(Map.of(
-                    "role", m.getRole().toLowerCase(Locale.ROOT),
-                    "content", m.getContent()
-            ));
-        }
+            List<ConversationMessage> recentDesc = conversationMessageRepository
+                    .findTop20ByConversation_IdOrderByCreatedAtDesc(conversation.getId());
+            List<ConversationMessage> recentAsc = new ArrayList<>(recentDesc);
+            Collections.reverse(recentAsc);
 
-        // 3. Process through Gateway
-        AiChatResponse response = aiGateway.processChat(request, historyList);
+            List<Map<String, String>> historyList = new ArrayList<>();
+            for (ConversationMessage message : recentAsc) {
+                historyList.add(Map.of(
+                        "role", message.getRole().toLowerCase(Locale.ROOT),
+                        "content", message.getContent()
+                ));
+            }
 
-        // 4. Persist assistant reply with metadata
+            return new ChatContext(conversation.getId(), conversation.getConversationUuid(), historyList);
+        });
+
+        AiChatResponse response = aiGateway.processChat(request, chatContext.history());
+
         String metadataJson = null;
         try {
             Map<String, Object> meta = new HashMap<>();
@@ -156,19 +164,32 @@ public class AiService {
                 ? response.reply()
                 : "Execution directive acknowledged. Core engine ready.";
 
-        ConversationMessage assistantMsg = new ConversationMessage(
+        String suggestionType = response.suggestionType();
+        if (suggestionType != null && suggestionType.length() > 50) {
+            suggestionType = suggestionType.substring(0, 50);
+        }
+
+        String normalizedSuggestionType = suggestionType;
+        String normalizedMetadataJson = metadataJson;
+        transactionTemplate.executeWithoutResult(status -> {
+            Conversation conversation = conversationRepository.findById(chatContext.conversationId())
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + chatContext.conversationId()));
+            ConversationMessage assistantMsg = new ConversationMessage(
                 conversation,
                 "ASSISTANT",
                 replyText,
-                response.suggestionType() != null ? response.suggestionType() : "COACH",
-                metadataJson
-        );
-        conversationMessageRepository.save(assistantMsg);
-        conversation.setUpdatedAt(Instant.now());
-        conversationRepository.save(conversation);
+                normalizedSuggestionType,
+                    normalizedMetadataJson
+            );
+            conversationMessageRepository.save(assistantMsg);
+            conversation.setUpdatedAt(Instant.now());
+            conversationRepository.save(conversation);
+        });
 
-        return response.withConversationId(conversation.getConversationUuid());
+        return response.withConversationId(chatContext.conversationUuid());
     }
+
+        private record ChatContext(Long conversationId, String conversationUuid, List<Map<String, String>> history) {}
 
     private Conversation getOrCreateActiveConversationEntity(Long userId) {
         return conversationRepository.findFirstByUser_IdAndStatusOrderByUpdatedAtDesc(userId, "ACTIVE")

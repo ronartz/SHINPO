@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--background); color: var(--foreground); font-family: inherit; }
+
+    .arch-container { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+    .arch-header { text-align: center; margin-bottom: 24px; }
+    .arch-title { font-size: 22px; font-weight: 700; color: var(--foreground); letter-spacing: -0.5px; }
+    .arch-subtitle { font-size: 13px; color: var(--muted-foreground); margin-top: 4px; }
+
+    .trust-zone { border-radius: 12px; padding: 16px; margin-bottom: 16px; position: relative; }
+    .trust-zone-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; position: absolute; top: 8px; right: 12px; opacity: 0.55; }
+    .zone-unauth { border: 1.5px dashed #6366f1; background: rgba(99,102,241,0.04); }
+    .zone-jwt { border: 1.5px dashed #10b981; background: rgba(16,185,129,0.04); }
+    .zone-os { border: 1.5px dashed #f59e0b; background: rgba(245,158,11,0.04); }
+    .zone-ext { border: 1.5px dashed #64748b; background: rgba(100,116,139,0.04); }
+
+    .components-grid { display: grid; gap: 10px; }
+    .comp-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+    .comp-node {
+      flex: 1; min-width: 140px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      position: relative;
+      user-select: none;
+    }
+    .comp-node:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .comp-node.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+    .comp-node.primary-path { border-color: #10b981; }
+    .comp-icon { font-size: 20px; margin-bottom: 4px; }
+    .comp-name { font-size: 13px; font-weight: 600; color: var(--foreground); line-height: 1.2; }
+    .comp-tag { font-size: 10px; color: var(--muted-foreground); margin-top: 2px; }
+    .comp-status { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; }
+    .status-done { background: #10b981; }
+    .status-partial { background: #f59e0b; }
+    .status-missing { background: #ef4444; }
+
+    .primary-path-banner {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 8px; padding: 8px 12px; margin-bottom: 16px; font-size: 12px;
+    }
+    .path-step {
+      background: rgba(16,185,129,0.15); border-radius: 4px;
+      padding: 2px 8px; font-weight: 600; color: #10b981; white-space: nowrap;
+    }
+    .path-arrow { color: #10b981; opacity: 0.6; font-size: 14px; }
+
+    .detail-panel {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-top: 16px;
+      min-height: 120px; transition: opacity 0.2s;
+    }
+    .detail-title { font-size: 15px; font-weight: 700; color: var(--foreground); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .detail-card {
+      background: var(--background); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .detail-card-title { font-size: 11px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .detail-card-body { font-size: 12px; color: var(--foreground); line-height: 1.5; }
+    .tag-done { color: #10b981; font-weight: 600; }
+    .tag-partial { color: #f59e0b; font-weight: 600; }
+    .tag-missing { color: #ef4444; font-weight: 600; }
+    .tag-stub { background: #f59e0b22; color: #f59e0b; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+    .tag-gap { background: #ef444422; color: #ef4444; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+    .tag-ok { background: #10b98122; color: #10b981; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted-foreground); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .gap-section { margin-top: 16px; }
+    .gap-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--foreground); }
+    .gap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .gap-card { border-radius: 8px; padding: 10px 12px; border: 1px solid; }
+    .gap-card.done { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.06); }
+    .gap-card.partial { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
+    .gap-card.missing { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
+    .gap-card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .gap-card.done .gap-card-label { color: #10b981; }
+    .gap-card.partial .gap-card-label { color: #f59e0b; }
+    .gap-card.missing .gap-card-label { color: #ef4444; }
+    .gap-item { font-size: 12px; color: var(--foreground); padding: 2px 0; line-height: 1.4; }
+
+    .placeholder { color: var(--muted-foreground); font-size: 13px; text-align: center; padding: 20px; }
+
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--background); color: var(--muted-foreground);
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  </style>
+</head>
+<body>
+<div class="arch-container">
+
+  <div class="arch-header">
+    <div class="arch-title">SHINPO — Runtime Architecture</div>
+    <div class="arch-subtitle">Click any component to inspect it &middot; Green border = primary execution path</div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('arch', this)">Architecture</button>
+    <button class="tab-btn" onclick="showTab('gaps', this)">Gap Analysis</button>
+    <button class="tab-btn" onclick="showTab('phases', this)">Roadmap</button>
+  </div>
+
+  <!-- Architecture Tab -->
+  <div id="tab-arch">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Fully implemented</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Partial / incomplete</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Missing / not built</div>
+    </div>
+
+    <div class="primary-path-banner">
+      <span style="font-size:11px;color:var(--muted-foreground);font-weight:700;">PRIMARY PATH:</span>
+      <span class="path-step">Browser</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">React SPA</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">JWT Auth</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">Dashboard</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">Mission</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">Focus Session</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">EONPAI</span><span class="path-arrow">&#8594;</span>
+      <span class="path-step">Analytics</span>
+    </div>
+
+    <div class="trust-zone zone-unauth">
+      <div class="trust-zone-label" style="color:#6366f1;">Unauthenticated Zone</div>
+      <div class="comp-row">
+        <div class="comp-node primary-path" onclick="selectComp('auth')" id="node-auth">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">🔐</div>
+          <div class="comp-name">Auth Gateway</div>
+          <div class="comp-tag">JWT + Refresh Token</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('user')" id="node-user">
+          <div class="comp-status status-partial"></div>
+          <div class="comp-icon">👤</div>
+          <div class="comp-name">User / Identity</div>
+          <div class="comp-tag">Register · Login · Profile</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-zone zone-jwt" style="margin-top:10px;">
+      <div class="trust-zone-label" style="color:#10b981;">JWT Protected Zone</div>
+      <div class="comp-row" style="margin-bottom:10px;">
+        <div class="comp-node primary-path" onclick="selectComp('dashboard')" id="node-dashboard">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">🏠</div>
+          <div class="comp-name">Dashboard</div>
+          <div class="comp-tag">Bento · Today · Calendar</div>
+        </div>
+        <div class="comp-node primary-path" onclick="selectComp('goals')" id="node-goals">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">🎯</div>
+          <div class="comp-name">Goals &amp; Missions</div>
+          <div class="comp-tag">CRUD · Completion · Delete</div>
+        </div>
+        <div class="comp-node primary-path" onclick="selectComp('focus')" id="node-focus">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">&#9203;</div>
+          <div class="comp-name">Focus Engine</div>
+          <div class="comp-tag">Sessions · Intervals · Debrief</div>
+        </div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-node primary-path" onclick="selectComp('eonpai')" id="node-eonpai">
+          <div class="comp-status status-partial"></div>
+          <div class="comp-icon">🤖</div>
+          <div class="comp-name">EONPAI / AI</div>
+          <div class="comp-tag">Chat · Decompose · Tools</div>
+        </div>
+        <div class="comp-node primary-path" onclick="selectComp('analytics')" id="node-analytics">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">📊</div>
+          <div class="comp-name">Analytics</div>
+          <div class="comp-tag">Velocity · Debriefs · History</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('progress')" id="node-progress">
+          <div class="comp-status status-partial"></div>
+          <div class="comp-icon">⭐</div>
+          <div class="comp-name">Progress / XP</div>
+          <div class="comp-tag">XP Events · Levels</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('sentinel')" id="node-sentinel">
+          <div class="comp-status status-partial"></div>
+          <div class="comp-icon">🛡️</div>
+          <div class="comp-name">Sentinel / Device</div>
+          <div class="comp-tag">Process · Task Manager</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-zone zone-os" style="margin-top:10px;">
+      <div class="trust-zone-label" style="color:#f59e0b;">OS Boundary (Privileged)</div>
+      <div class="comp-row">
+        <div class="comp-node" onclick="selectComp('taskmanager')" id="node-taskmanager">
+          <div class="comp-status status-partial"></div>
+          <div class="comp-icon">🖥️</div>
+          <div class="comp-name">Task Manager</div>
+          <div class="comp-tag">/proc · ps · kill</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('daemon')" id="node-daemon">
+          <div class="comp-status status-missing"></div>
+          <div class="comp-icon">👻</div>
+          <div class="comp-name">Sentinel Daemon</div>
+          <div class="comp-tag">Desktop enforcement (MISSING)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-zone zone-ext" style="margin-top:10px;">
+      <div class="trust-zone-label" style="color:#64748b;">External Dependencies</div>
+      <div class="comp-row">
+        <div class="comp-node" onclick="selectComp('postgres')" id="node-postgres">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">🐘</div>
+          <div class="comp-name">PostgreSQL 17</div>
+          <div class="comp-tag">Docker · V1–V10 Flyway</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('ollama')" id="node-ollama">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">🦙</div>
+          <div class="comp-name">Ollama / LLM</div>
+          <div class="comp-tag">Local · qwen3:4b · Port 11434</div>
+        </div>
+        <div class="comp-node" onclick="selectComp('vite')" id="node-vite">
+          <div class="comp-status status-done"></div>
+          <div class="comp-icon">⚡</div>
+          <div class="comp-name">Vite / React SPA</div>
+          <div class="comp-tag">React 19 · TypeScript 6 · Port 5173</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detail-panel">
+      <div class="placeholder">Click a component above to see what is built, what is missing, and the recommended next action.</div>
+    </div>
+  </div>
+
+  <!-- Gaps Tab -->
+  <div id="tab-gaps" style="display:none;">
+    <div class="gap-title">Implementation Gap Analysis</div>
+    <div class="gap-grid">
+      <div class="gap-card done">
+        <div class="gap-card-label">&#10003; Complete (14)</div>
+        <div class="gap-item">Auth — JWT + refresh rotation</div>
+        <div class="gap-item">Goals CRUD</div>
+        <div class="gap-item">Missions CRUD + Delete (IDOR protected)</div>
+        <div class="gap-item">Focus Sessions — full lifecycle</div>
+        <div class="gap-item">Session Plans + Intervals</div>
+        <div class="gap-item">Dashboard Bento 2x2 UI</div>
+        <div class="gap-item">Task action menu (popover + delete)</div>
+        <div class="gap-item">Analytics — velocity + debriefs</div>
+        <div class="gap-item">EONPAI chat (streaming SSE)</div>
+        <div class="gap-item">Goal decomposition (AI)</div>
+        <div class="gap-item">Conversations (V10 DB schema)</div>
+        <div class="gap-item">CustomCursor component (integrated)</div>
+        <div class="gap-item">TutorialOverlay component (integrated)</div>
+        <div class="gap-item">Bug Reports entity + repository</div>
+      </div>
+      <div class="gap-card partial">
+        <div class="gap-card-label">&#9888; Partial (12)</div>
+        <div class="gap-item">Progress/XP — backend API exists, frontend never calls it</div>
+        <div class="gap-item">AI Suggestions — proposals created, no commit endpoint</div>
+        <div class="gap-item">AI Tool Registry — exists, no typed schema contracts</div>
+        <div class="gap-item">Sentinel UI — radar cosmetic only, no real enforcement</div>
+        <div class="gap-item">Tutorial — no persistence of completion state</div>
+        <div class="gap-item">User roles (RBAC) — hardcoded ROLE_USER, no DB migration</div>
+        <div class="gap-item">JWT secret — dev default fallback still in properties</div>
+        <div class="gap-item">GET /api/users/default — seed endpoint still exposed</div>
+        <div class="gap-item">AI Context isolation — no prompt injection delimiters</div>
+        <div class="gap-item">AI Action Cards — buttons exist, no approval flow wired</div>
+        <div class="gap-item">Focus silence engine — EONPAI not suppressed during session</div>
+        <div class="gap-item">MockAIProvider — no hermetic test provider (CI hangs)</div>
+      </div>
+      <div class="gap-card missing">
+        <div class="gap-card-label">&#10007; Missing (12)</div>
+        <div class="gap-item">Sentinel desktop daemon (decoupled enforcement)</div>
+        <div class="gap-item">POST /api/ai/suggestions/{id}/commit endpoint</div>
+        <div class="gap-item">AI endpoint rate limiting filter</div>
+        <div class="gap-item">Conversation retention/deletion policy</div>
+        <div class="gap-item">User execution profile engine (estimation bias)</div>
+        <div class="gap-item">Recovery intelligence (plan vs execution failure)</div>
+        <div class="gap-item">Command center AI summarization</div>
+        <div class="gap-item">Pessimistic lock on refresh token fetch</div>
+        <div class="gap-item">Multi-stage Dockerfile (backend)</div>
+        <div class="gap-item">Production Nginx config + Dockerfile (frontend)</div>
+        <div class="gap-item">Production compose.yaml (all services + health checks)</div>
+        <div class="gap-item">Settings / preferences tab</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roadmap Tab -->
+  <div id="tab-phases" style="display:none;">
+    <div class="gap-title">IMPLEMENTATION_PLAN.md — Phase Status</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="detail-card">
+        <div class="detail-card-title">Phase 0 — Baseline &amp; Docs <span class="tag-ok">DONE</span></div>
+        <div class="detail-card-body">Codebase audit complete. TRD / APP_FLOW / IMPLEMENTATION_PLAN / TESTING authored. Build passes. 36 tests green.</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Phase 1 — Auth &amp; RBAC Hardening <span class="tag-gap">NOT STARTED — P0 SECURITY</span></div>
+        <div class="detail-card-body">
+          1.1: V11__add_user_roles.sql migration &mdash; add role column + is_active to users.<br/>
+          1.2: Remove JWT secret fallback from application.properties.<br/>
+          1.3: Delete GET /api/users/default seed endpoint.<br/>
+          1.4: @Lock(PESSIMISTIC_WRITE) on RefreshTokenRepository.findByTokenHash.
+        </div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Phase 2 — EONPAI Hardening (AI.0–AI.14) <span class="tag-stub">IN PROGRESS</span></div>
+        <div class="detail-card-body">
+          AI.0 ✅ Architecture audit complete.<br/>
+          AI.1: MockAIProvider + OllamaProvider strict timeouts (NEXT).<br/>
+          AI.2: Context engine with prompt injection delimiters.<br/>
+          AI.3: Typed tool schema contracts.<br/>
+          AI.4: POST /api/ai/suggestions/{id}/commit endpoint.<br/>
+          AI.5: Approval action cards in EONPAI UI.<br/>
+          AI.6: Focus session silence rules.<br/>
+          AI.7: User execution profile (estimation bias).<br/>
+          AI.8–AI.14: Recovery, summarization, rate limiting, acceptance.
+        </div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Phase 3 — Sentinel Decoupling <span class="tag-gap">NOT STARTED — P0 SECURITY</span></div>
+        <div class="detail-card-body">Gate /api/device/processes/{pid}/terminate behind ROLE_ADMIN. Decouple enforcement to authenticated desktop daemon with pairing protocol.</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Phase 4 — Production Packaging <span class="tag-gap">NOT STARTED</span></div>
+        <div class="detail-card-body">Multi-stage Dockerfile for Spring Boot. Nginx Dockerfile for React. Production compose.yaml with backend + frontend + postgres + health checks.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.25);border-radius:8px;font-size:12px;color:var(--foreground);line-height:1.6;">
+      <strong>Recommended priority:</strong><br/>
+      1. Phase 1 security gaps (P0 — JWT secret, seed endpoint, RBAC)<br/>
+      2. AI.1 + AI.4 (MockAIProvider + suggestions commit endpoint)<br/>
+      3. Progress/XP frontend wiring (backend exists, frontend never calls it)<br/>
+      4. Sentinel terminate gate (Phase 3 — any authenticated user can kill OS processes)<br/>
+      5. Phase 4 containerization
+    </div>
+  </div>
+
+</div>
+
+<script>
+  var components = {
+    auth: {
+      name: '🔐 Auth Gateway',
+      status: 'done',
+      built: 'Register, Login, Logout, JWT (HMAC-256), Refresh Token rotation. JwtAuthenticationFilter on all /api/** routes. Auth token stored in localStorage.',
+      gaps: 'JWT secret fallback still present in application.properties. GET /api/users/default seed endpoint exposed. No pessimistic lock on refresh token fetch (race condition possible).',
+      files: 'AuthController.java · AuthService.java · JwtTokenService.java · JwtAuthenticationFilter.java · SecurityConfig.java',
+      next: 'Phase 1: V11 migration, remove fallback secret, delete seed endpoint, add @Lock to RefreshTokenRepository.findByTokenHash'
+    },
+    user: {
+      name: '👤 User / Identity',
+      status: 'partial',
+      built: 'User entity. UserPrincipal. CustomUserDetailsService. UserController (GET /api/users/me). Registration + authentication wired.',
+      gaps: 'No role column in DB — hardcoded ROLE_USER only. No is_active flag. No RBAC enforcement on any endpoint. No admin role. No account deactivation.',
+      files: 'User.java · UserPrincipal.java · UserController.java · UserService.java',
+      next: 'Phase 1.1: V11__add_user_roles.sql — add role VARCHAR(20) + is_active BOOLEAN. Update User.java + UserPrincipal.java for dynamic GrantedAuthority.'
+    },
+    dashboard: {
+      name: '🏠 Dashboard',
+      status: 'done',
+      built: 'Full Bento 2x2 layout: Today Tasks, Calendar, Velocity Pillars, Timeline. Task action menu with Delete. Sentinel radar display. Mission Inspector modal.',
+      gaps: 'Progress/XP widget not connected to backend /api/progress. Calendar CSS range highlight artifact. Responsive breakpoints untested on mobile.',
+      files: 'App.tsx (~line 1700–2100) · App.css (.bento-* classes) · DashboardController.java · DashboardService.java',
+      next: 'Import fetchProgress in App.tsx. Wire XP data to dashboard widget. Fix calendar CSS range highlight.'
+    },
+    goals: {
+      name: '🎯 Goals & Missions',
+      status: 'done',
+      built: 'Goals CRUD (create, list, delete). Missions CRUD + completion + delete with IDOR protection (ownership check). Dashboard task action menu. Mission Inspector modal.',
+      gaps: 'No goal editing (only create/delete). No mission priority/tags. No drag-and-drop reordering. No bulk operations.',
+      files: 'GoalController.java · MissionController.java · GoalService.java · MissionService.java · goalsAndMissions.ts',
+      next: 'Goal PATCH endpoint. Mission priority field. Optional: tags + filtering.'
+    },
+    focus: {
+      name: '⏱️ Focus Engine',
+      status: 'done',
+      built: 'Full lifecycle: SCHEDULED → ACTIVE → PAUSED → COMPLETED/ABORTED. Session plans, intervals (focus/break), debrief. Pomodoro-style intervals. Session booking modal.',
+      gaps: 'EONPAI not silenced during active focus sessions (AI.6 not built). No real Sentinel enforcement (only UI label, no OS blocking).',
+      files: 'FocusSessionController.java · FocusSessionService.java · focusSessions.ts · App.tsx (Focus tab)',
+      next: 'AI.6: Detect active session — suppress EONPAI proactive prompts. Phase 3: Sentinel daemon for OS-level blocking.'
+    },
+    eonpai: {
+      name: '🤖 EONPAI / AI',
+      status: 'partial',
+      built: 'Chat with streaming (SSE). Goal decomposition. Active conversation persistence (V10 schema). AiGateway → OllamaProvider → qwen3:4b. Bug report filing. Tutorial guidance. Preset prompts.',
+      gaps: 'No MockAIProvider — test suite can hang if Ollama offline. No typed tool schema contracts (AI.3). No commit endpoint for AI suggestions (AI.4). No prompt injection delimiters. No rate limiting on /api/ai/**. Focus silence not implemented.',
+      files: 'AiController.java · AiService.java · AiGateway.java · OllamaProvider.java · AiToolRegistry.java · ai.ts',
+      next: 'AI.1: MockAIProvider + strict timeouts. AI.2: Context delimiters. AI.4: /api/ai/suggestions/{id}/commit. AI.12: Rate limiting filter.'
+    },
+    analytics: {
+      name: '📊 Analytics',
+      status: 'done',
+      built: 'Dashboard endpoint with daily focus velocity, weekly totals, average session duration, recent debriefs. Frontend Analytics tab with velocity chart and debrief history.',
+      gaps: 'No user estimation bias tracking (AI.7). No streak computation. No data export. No period comparison.',
+      files: 'AnalyticsController.java · AnalyticsService.java · analytics.ts · App.tsx (Analytics tab)',
+      next: 'AI.7: User execution profile — estimation bias %, completion velocity from real session data.'
+    },
+    progress: {
+      name: '⭐ Progress / XP',
+      status: 'partial',
+      built: 'ProgressController (/api/progress) exists. ProgressService exists. ProgressEvent entity. MissionCompletion entity with XP. Backend computes XP totals.',
+      gaps: 'Frontend NEVER imports or calls /api/progress. No XP display on Dashboard. No level system in UI. No streak counter. Progress tab does not exist.',
+      files: 'ProgressController.java · ProgressService.java · ProgressEvent.java · ProgressResponse.java',
+      next: 'Add fetchProgress() to api/ module. Import in App.tsx. Add XP/level widget to Dashboard bento. Wire MissionCompletion → XP refresh.'
+    },
+    sentinel: {
+      name: '🛡️ Sentinel / Device',
+      status: 'partial',
+      built: 'Sentinel radar UI on Dashboard. Sentinel banner on Focus Sprint tab. TaskManagerController (/api/device/processes). Process listing and termination via TaskManagerService.',
+      gaps: 'No real distraction blocking. Sentinel radar is purely cosmetic. Process termination is server-side with no admin role check (security risk). No desktop enforcement daemon.',
+      files: 'TaskManagerController.java · TaskManagerService.java · device.ts · App.tsx (Task Manager tab)',
+      next: 'Phase 1: Gate terminate endpoint behind ROLE_ADMIN. Phase 3: Decouple to desktop daemon with secure pairing protocol.'
+    },
+    taskmanager: {
+      name: '🖥️ Task Manager',
+      status: 'partial',
+      built: 'Process list via /proc (Linux). CPU/memory snapshot. Per-process terminate (SIGKILL via ProcessHandle). Frontend Task Manager tab with live refresh.',
+      gaps: 'Terminate requires no admin role — any authenticated user can kill OS processes. No Wayland window title detection. No process block-list enforcement logic.',
+      files: 'TaskManagerController.java · TaskManagerService.java · device.ts · App.tsx',
+      next: 'Phase 1/3: Add @PreAuthorize("hasRole(\'ROLE_ADMIN\')") to terminate endpoint.'
+    },
+    daemon: {
+      name: '👻 Sentinel Desktop Daemon',
+      status: 'missing',
+      built: 'Nothing built. Only referenced in TRD.md, .clinerules, and EONPAI text as "Sentinel Shield".',
+      gaps: 'Entire component is missing. No daemon binary. No pairing protocol. No platform-specific blocking (iptables on Linux, WFP on Windows, FamilyControls on iOS/macOS). No IPC channel to backend.',
+      files: 'Not built. TRD.md describes the intended architecture.',
+      next: 'Phase 3: Design pairing protocol. Build per-platform daemon. Linux first: systemd user service + iptables rules for domain blocking.'
+    },
+    postgres: {
+      name: '🐘 PostgreSQL 17',
+      status: 'done',
+      built: 'Docker container (shinpo-postgres:5432). Flyway V1–V10 applied. Full schema: users, goals, missions, mission_completions, progress_events, focus_sessions, session_plans, session_intervals, refresh_tokens, ai_suggestions, bug_reports, conversations, conversation_messages.',
+      gaps: 'No V11 migration (user roles). No backup/restore automation. HikariCP at defaults (no explicit pool sizing).',
+      files: 'db/migration/V1–V10.sql · compose.yaml · application.properties',
+      next: 'V11__add_user_roles.sql for Phase 1. Consider PgBouncer or HikariCP tuning for Phase 4.'
+    },
+    ollama: {
+      name: '🦙 Ollama / LLM',
+      status: 'done',
+      built: 'Docker container (shinpo-ollama:11434). qwen3:4b model. OllamaProvider with streaming. AiProperties config bean. Used by AiGateway for all AI requests.',
+      gaps: 'No fallback if Ollama is offline — integration tests can hang. No MockAIProvider for CI. Connection and read timeouts not configured in OllamaProvider.',
+      files: 'OllamaProvider.java · AiProperties.java · AiGateway.java · application.properties',
+      next: 'AI.1: Add MockAIProvider bean + configure strict connection/read timeouts in OllamaProvider.'
+    },
+    vite: {
+      name: '⚡ Vite / React SPA',
+      status: 'done',
+      built: 'React 19.2.8 · TypeScript 6.0.2 · Vite 8.3.0. Monolithic App.tsx (~4100+ lines). All tabs wired conditionally via activeTab state. Build passes clean: 0 TS errors.',
+      gaps: 'No production Nginx config. No multi-stage Docker build for frontend. No code splitting / lazy loading. App.tsx monolith — maintainability concern at scale.',
+      files: 'frontend/src/App.tsx · frontend/src/App.css · vite.config.ts · package.json',
+      next: 'Phase 4: Nginx Dockerfile with security headers. Optional: split App.tsx into feature modules (Goals, Focus, Analytics, etc.).'
+    }
+  };
+
+  var activeNode = null;
+
+  function selectComp(id) {
+    if (activeNode) {
+      var prev = document.getElementById('node-' + activeNode);
+      if (prev) prev.classList.remove('active');
+    }
+    activeNode = id;
+    var curr = document.getElementById('node-' + id);
+    if (curr) curr.classList.add('active');
+
+    var c = components[id];
+    if (!c) return;
+
+    var statusTag = c.status === 'done'
+      ? '<span class="tag-ok">COMPLETE</span>'
+      : c.status === 'partial'
+      ? '<span class="tag-stub">PARTIAL</span>'
+      : '<span class="tag-gap">MISSING</span>';
+
+    document.getElementById('detail-panel').innerHTML =
+      '<div class="detail-title">' + c.name + ' ' + statusTag + '</div>' +
+      '<div class="detail-grid">' +
+        '<div class="detail-card">' +
+          '<div class="detail-card-title">What Is Built</div>' +
+          '<div class="detail-card-body">' + c.built + '</div>' +
+        '</div>' +
+        '<div class="detail-card">' +
+          '<div class="detail-card-title" style="color:#ef4444">Gaps / Missing</div>' +
+          '<div class="detail-card-body">' + c.gaps + '</div>' +
+        '</div>' +
+        '<div class="detail-card">' +
+          '<div class="detail-card-title">Key Files</div>' +
+          '<div class="detail-card-body" style="font-size:11px;opacity:0.85;">' + c.files + '</div>' +
+        '</div>' +
+        '<div class="detail-card">' +
+          '<div class="detail-card-title">Next Action</div>' +
+          '<div class="detail-card-body">' + c.next + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function showTab(name, btn) {
+    ['arch','gaps','phases'].forEach(function(t) {
+      document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
+    });
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

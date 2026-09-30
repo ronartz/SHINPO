@@ -145,6 +145,11 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   // Keyboard navigation (Esc to exit, Arrow keys for step navigation)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) {
+        return
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault()
         onExit()
