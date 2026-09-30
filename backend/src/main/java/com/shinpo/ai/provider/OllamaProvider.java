@@ -13,7 +13,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Component
@@ -33,7 +32,7 @@ public class OllamaProvider implements AIProvider {
 
         int timeoutSec = aiProperties.getOllama() != null ? aiProperties.getOllama().getTimeoutSeconds() : 30;
         SimpleClientHttpRequestFactory reqFactory = new SimpleClientHttpRequestFactory();
-        reqFactory.setConnectTimeout(Duration.ofSeconds(5));
+        reqFactory.setConnectTimeout(Duration.ofSeconds(3));
         reqFactory.setReadTimeout(Duration.ofSeconds(timeoutSec > 0 ? timeoutSec : 30));
         this.restTemplate = new RestTemplate(reqFactory);
 
