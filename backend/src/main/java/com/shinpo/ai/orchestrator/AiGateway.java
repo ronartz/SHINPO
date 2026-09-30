@@ -142,6 +142,17 @@ public class AiGateway {
 
         // 6. EXPLICIT PLANNING / GOALS / NEXT ACTION INTENTS
         if (isPlanIntent(msgLower)) {
+            Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
+            if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                    && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
+                String sessionName = (String) activeSession.get("name");
+                Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
+                long remainingMins = Math.max(0, remainingSecs / 60);
+                String reply = "🛡️ **Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
+                        + "Your current session is actively ticking. To prevent planning theater and preserve momentum, complete or pause this sprint before scheduling new blocks.";
+                logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
+                return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
+            }
             DailyPlanResponse plan = getDailyPlan(userId);
             String reply = "📅 Tactical daily itinerary assembled (" + plan.planItems().size() + " execution blocks):";
             logSuggestion(userId, "PLANNER", rawMsg, reply);
@@ -149,6 +160,17 @@ public class AiGateway {
         }
 
         if (isGoalIntent(msgLower)) {
+            Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
+            if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                    && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
+                String sessionName = (String) activeSession.get("name");
+                Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
+                long remainingMins = Math.max(0, remainingSecs / 60);
+                String reply = "🛡️ **Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
+                        + "Avoid task switching during an active sprint. Focus on completing your current mission before decomposing new strategic goals.";
+                logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
+                return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
+            }
             Map<String, Object> currentGoal = toolRegistry.getCurrentGoal(userId, request.contextualGoalId());
             Long goalId = currentGoal.get("id") instanceof Long gid ? gid : null;
             String goalTitle = currentGoal.get("title") instanceof String gt ? gt : "Primary Objective";
@@ -177,16 +199,21 @@ public class AiGateway {
 
         AIProvider provider = getActiveProvider();
         if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
+            String silenceDirective = intelContext.isSilenceModeActive()
+                    ? "SILENCE MODE ACTIVE: User is in an active focus sprint. Keep replies extremely calm, brief, and directly relevant to the user's specific request. Do NOT introduce new tasks, planning rabbit holes, or conversational tangents. Preserve flow state.\n"
+                    : "";
+
             String systemPrompt = """
                     You are EONPAI (also known as SHINPAI), the Personal Strategic Execution AI Companion for SHINPO (SYSTEM: ARISE).
                     Philosophy: Execution > Planning Theater. Real Data > Vanity Metrics.
                     Role: You analyze the user's current goals, missions, and schedule to provide crisp, concrete, actionable guidance.
                     Robustness: Deduce user intent intelligently even if the user has typos, informal shorthand, or misspellings.
+                    """ + silenceDirective + """
                     CRITICAL: You are an advisory companion. You NEVER directly modify databases or execute processes.
                     You MUST respond strictly in valid JSON matching this schema:
                     {
                       "reply": "Your clear, inspiring, and concise tactical message to the user",
-                      "suggestionType": "TACTICAL_ASSISTANT" | "PLANNER" | "ARCHITECT" | "COACH",
+                      "suggestionType": "TACTICAL_ASSISTANT" | "PLANNER" | "ARCHITECT" | "COACH" | "FOCUS_ASSISTANT",
                       "structuredCard": null
                     }
                     Do not echo application context. Return ONLY the JSON object. Do not include Markdown code fences.
@@ -484,11 +511,17 @@ public class AiGateway {
 
     private boolean isGreeting(String msg) {
         String clean = msg.replaceAll("[!?,.]", "").trim().toLowerCase(Locale.ROOT);
-        return clean.equals("hi") || clean.equals("hello") || clean.equals("helo")
-                || clean.equals("hey") || clean.equals("hy") || clean.equals("hlo")
-                || clean.equals("yo") || clean.equals("sup") || clean.equals("morning")
-                || clean.startsWith("good morning") || clean.startsWith("good afternoon")
-                || clean.startsWith("good evening") || clean.equals("greetings")
+        return clean.equals("hi") || clean.startsWith("hi ")
+                || clean.equals("hello") || clean.startsWith("hello ")
+                || clean.equals("helo") || clean.startsWith("helo ")
+                || clean.equals("hey") || clean.startsWith("hey ")
+                || clean.equals("hy") || clean.startsWith("hy ")
+                || clean.equals("hlo") || clean.startsWith("hlo ")
+                || clean.equals("yo") || clean.startsWith("yo ")
+                || clean.equals("sup") || clean.startsWith("sup ")
+                || clean.equals("morning") || clean.startsWith("good morning")
+                || clean.startsWith("good afternoon") || clean.startsWith("good evening")
+                || clean.equals("greetings") || clean.startsWith("greetings ")
                 || fuzzyWordMatch(clean, "hello") || fuzzyWordMatch(clean, "greetings");
     }
 
@@ -594,8 +627,18 @@ public class AiGateway {
         String nameClause = username.isBlank() ? "" : ", " + username;
 
         Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
+        if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
+            String sessionName = (String) activeSession.get("name");
+            Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
+            long remainingMins = Math.max(0, remainingSecs / 60);
+            String reply = timeOfDay + nameClause + ". 🛡️ Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Shield active. What quick assistance do you need to stay in flow?";
+            logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
+            return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
+        }
+
         String sessionNote = "";
-        if (Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("name")) {
+        if (activeSession != null && (Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("name"))) {
             sessionNote = "\n\n💡 *Active focus session:* **" + activeSession.get("name") + "** is currently active.";
         }
 
@@ -688,6 +731,18 @@ public class AiGateway {
     }
 
     private AiChatResponse deterministicConversationalFallback(String rawMsg, Long userId) {
+        Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
+        if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
+            String sessionName = (String) activeSession.get("name");
+            Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
+            long remainingMins = Math.max(0, remainingSecs / 60);
+            String reply = "🛡️ Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
+                    + "I'm keeping interruptions minimal so you can maintain flow. Stay focused on your mission; when your session concludes, we'll log your debrief.";
+            logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
+            return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
+        }
+
         String reply = "I understand you're asking about: \"" + rawMsg + "\".\n\n"
                 + "I am continuously monitoring your execution loop. You can ask me to:\n"
                 + "• **`Plan my day`** — generate a structured sprint block itinerary\n"

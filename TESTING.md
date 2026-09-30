@@ -204,3 +204,17 @@ Before declaring any frontend change complete:
  | **04** | Sprint Arming Integration | "Start focus" button arms focus session sprint with mission title and estimated duration | PASS |
  | **05** | Accessibility & Motion Standards | Region and group ARIA roles, `:focus-visible` emerald rings, and `@media (prefers-reduced-motion: reduce)` compliance | PASS |
  | **06** | Light & Dark Theme Parity | Surface card tokens, button backgrounds, borders, and contrast ratios verified across dark and light modes | PASS |
+---
+
+## 12. Phase 2 Slice AI.6 Contextual Execution AI & Silence Engine (`SilenceEngineTests`)
+
+| Scenario | Test Method | Covered Resilience Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testSilenceEngineInterceptsPlanningWhenFocusSessionIsActive` | Intercepts "Plan my day" intent during active focus sprint, directs user to complete/pause current sprint, prevents planning theater | PASS |
+| **02** | `testSilenceEngineInterceptsGoalDecompositionWhenFocusSessionIsActive` | Intercepts goal decomposition intent during active sprint, warns against task-switching rabbit holes | PASS |
+| **03** | `testSilenceEngineMinimalGreetingDuringFocusSession` | Calms greeting response to state active sprint name and remaining duration without spamming multiple planning options | PASS |
+| **04** | `testSilenceEngineDeterministicFallbackDuringFocusSession` | Deterministic fallback stays quiet and brief during active focus sprint, avoiding distracting bullet menus | PASS |
+| **05** | `testSilenceEngineDirectivesInContextEngineAndPrompt` | `ContextEngine` detects active sprint, sets `isSilenceModeActive()`, and injects strict silence directives into `<context>` prompt | PASS |
+| **06** | `testNormalPlanningRestoredAfterFocusSessionCompleted` | Once active session is completed, standard planning and decomposition capabilities are cleanly restored | PASS |
+| **07** | `testSilenceEngineViaRestEndpoint` | `POST /api/ai/chat` enforces silence rules over HTTP REST API with JWT bearer auth | PASS |
+

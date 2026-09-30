@@ -137,13 +137,21 @@
   3. Styled `.ai-cards-container`, `.ai-card-header-bar`, `.ai-card-header-title`, `.ai-commit-all-btn`, and `.ai-commit-single-btn` in `frontend/src/App.css` with responsive layout, light/dark theme variables, focus-visible outlines, and `@media (prefers-reduced-motion: reduce)` motion suppression.
 - **Exit Condition Achieved:** All 63 backend tests pass (0 failures, 0 errors). Frontend builds cleanly via `tsc -b && vite build` in 147ms with 0 errors and passes ESLint with 0 warnings.
 
-### AI.6 — Contextual Execution AI & Silence Engine (APPROVED NEXT SLICE)
+### AI.6 — Contextual Execution AI & Silence Engine (COMPLETED)
 - **Goal:** Implement silence rules during active focus sessions.
-- **Tasks:**
-  1. Detect active focus sessions; suppress proactive interruptions and motivational spam.
-  2. Provide quiet assistance only when explicitly prompted by the user.
+- **Preconditions:** AI.5 complete.
+- **Tasks & Deliverables:**
+  1. Enforced active focus sprint awareness in `AiToolRegistry.getActiveFocusSession` ensuring `hasActiveSession: true` is properly propagated when an active or paused session is detected.
+  2. Implemented `ExecutionIntelligenceContext.isSilenceModeActive()` and enriched `ContextEngine.buildIsolatedPrompt` and `toSafeContextMap` with strict `SILENCE_ENGINE: ACTIVE` directives for the LLM during live focus sessions.
+  3. Added flow-protection intercepts in `AiGateway.processChat`:
+     - Intercepted `isPlanIntent` and `isGoalIntent` during active focus sessions to prevent planning theater and preserve user flow.
+     - Calmed `buildGreetingResponse` to return focused sprint status (`FOCUS_ASSISTANT`) instead of broad multi-bullet option menus.
+     - Added minimal focus protection to `deterministicConversationalFallback`.
+     - Broadened `isGreeting` to recognize greetings with companion names (`Hi EONPAI`, `Hello EONPAI`, etc.).
+  4. Authored comprehensive test suite in `SilenceEngineTests.java` covering planning interception, goal deconstruction diversion, minimal greeting tone, deterministic fallback quietness, prompt injection of silence directives, session completion restoration, and authenticated REST API verification.
+- **Exit Condition Achieved:** All 71 backend tests pass (0 failures, 0 errors). Frontend builds cleanly in 380ms with 0 errors and 0 lint warnings.
 
-### AI.7 — User Execution Profile Engine
+### AI.7 — User Execution Profile Engine (APPROVED NEXT SLICE)
 - **Goal:** Track historical estimation bias and completion velocity from real data.
 - **Tasks:**
   1. Compute average focus duration and estimation bias percentage from completed sessions.
