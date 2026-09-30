@@ -53,8 +53,17 @@ import {
   register,
 } from './api/auth'
 import type { AuthUser } from './api/auth'
-import { fetchDeviceSnapshot, terminateProcess } from './api/device'
-import type { ProcessInfo, ProcessSnapshot } from './api/device'
+import {
+  fetchDeviceSnapshot,
+  terminateProcess,
+  fetchSentinelStatus,
+  triggerSentinelSweep,
+  fetchSentinelRules,
+  addSentinelRule,
+  deleteSentinelRule,
+  updateSentinelMode,
+} from './api/device'
+import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
@@ -595,6 +604,14 @@ export function App() {
   const tmPolicyRef = useRef(tmPolicy)
   const [tmToast, setTmToast] = useState<string | null>(null)
 
+  // Sentinel Enforcement & Telemetry State (Phase 3.1 & 3.2)
+  const [sentinelStatus, setSentinelStatus] = useState<SentinelStatus | null>(null)
+  const [sentinelRules, setSentinelRules] = useState<PolicyRule[]>([])
+  const [sentinelSweeping, setSentinelSweeping] = useState(false)
+  const [showAddRuleModal, setShowAddRuleModal] = useState(false)
+  const [newRulePattern, setNewRulePattern] = useState('')
+  const [newRuleType, setNewRuleType] = useState<'BLOCKED' | 'ALLOWED'>('BLOCKED')
+
   // Operational Velocity & Telemetry State (C-003)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
@@ -750,16 +767,18 @@ export function App() {
     }
 
     try {
-      const [g, m, s, analytics] = await Promise.all([
+      const [g, m, s, analytics, sentStatus] = await Promise.all([
         getGoals(),
         getMissions(),
         getFocusSessions(),
         fetchAnalyticsDashboard().catch(() => null),
+        fetchSentinelStatus().catch(() => null),
       ])
       setGoals(g)
       setMissions(m)
       setSessions(s)
       if (analytics) setAnalyticsData(analytics)
+      if (sentStatus) setSentinelStatus(sentStatus)
     } catch {
       // Keep empty if backend offline
     }
@@ -823,14 +842,81 @@ export function App() {
   const loadDeviceProcesses = useCallback(async (search = tmSearch, policy = tmPolicy) => {
     setTmLoading(true)
     try {
-      const snap = await fetchDeviceSnapshot(search, policy)
+      const [snap, sentStatus, rules] = await Promise.all([
+        fetchDeviceSnapshot(search, policy),
+        fetchSentinelStatus().catch(() => null),
+        fetchSentinelRules().catch(() => []),
+      ])
       setDeviceSnapshot(snap)
+      if (sentStatus) setSentinelStatus(sentStatus)
+      if (rules) setSentinelRules(rules)
     } catch (err) {
       console.error('Failed to load device snapshot', err)
     } finally {
       setTmLoading(false)
     }
   }, [tmSearch, tmPolicy])
+
+  const handleSentinelSweep = async () => {
+    setSentinelSweeping(true)
+    try {
+      const res = await triggerSentinelSweep()
+      setTmToast(res.message)
+      setTimeout(() => setTmToast(null), 4500)
+      const st = await fetchSentinelStatus().catch(() => null)
+      if (st) setSentinelStatus(st)
+      void loadDeviceProcesses()
+    } catch (err: unknown) {
+      setTmToast(err instanceof Error ? err.message : 'Sentinel sweep failed')
+      setTimeout(() => setTmToast(null), 4000)
+    } finally {
+      setSentinelSweeping(false)
+    }
+  }
+
+  const handleToggleSentinelMode = async () => {
+    if (!sentinelStatus) return
+    const nextMode = sentinelStatus.enforcementMode === 'STRICT' ? 'AUDIT_ONLY'
+      : sentinelStatus.enforcementMode === 'AUDIT_ONLY' ? 'CONTAINMENT' : 'STRICT'
+    try {
+      const updated = await updateSentinelMode(nextMode)
+      setSentinelStatus(updated)
+      setTmToast(`Sentinel enforcement mode set to: ${nextMode}`)
+      setTimeout(() => setTmToast(null), 3000)
+    } catch (err: unknown) {
+      console.error('Failed to update enforcement mode', err)
+    }
+  }
+
+  const handleAddSentinelRule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newRulePattern.trim()) return
+    try {
+      const created = await addSentinelRule(newRulePattern.trim(), newRuleType)
+      setSentinelRules((prev) => [created, ...prev.filter((r) => r.id !== created.id)])
+      setNewRulePattern('')
+      setShowAddRuleModal(false)
+      setTmToast(`Added "${created.processNamePattern}" to Sentinel distraction blocklist`)
+      setTimeout(() => setTmToast(null), 3500)
+      void loadDeviceProcesses()
+    } catch (err: unknown) {
+      setTmToast(err instanceof Error ? err.message : 'Failed to add rule')
+      setTimeout(() => setTmToast(null), 3500)
+    }
+  }
+
+  const handleDeleteSentinelRule = async (ruleId: number, pattern: string) => {
+    try {
+      await deleteSentinelRule(ruleId)
+      setSentinelRules((prev) => prev.filter((r) => r.id !== ruleId))
+      setTmToast(`Removed "${pattern}" from Sentinel blocklist`)
+      setTimeout(() => setTmToast(null), 3500)
+      void loadDeviceProcesses()
+    } catch (err: unknown) {
+      setTmToast(err instanceof Error ? err.message : 'Failed to delete rule')
+      setTimeout(() => setTmToast(null), 3500)
+    }
+  }
 
   const loadAnalytics = useCallback(async () => {
     setAnalyticsLoading(true)
@@ -2112,6 +2198,22 @@ export function App() {
                       <span className="summary-pill completed">
                         {compM.length} completed
                       </span>
+                      {sentinelStatus && (
+                        <span
+                          className={`summary-pill sentinel-pill ${sentinelStatus.status === 'ACTIVE_DEFENSE' ? 'active-defense' : 'standby'}`}
+                          title={`Sentinel Shield Mode: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today. Click to manage Sentinel.`}
+                          onClick={() => setActiveTab('Task Manager')}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="sentinel-mini-dot" />
+                          <span>Sentinel: {sentinelStatus.status.replace('_', ' ')}</span>
+                          {sentinelStatus.totalInterceptedToday > 0 && (
+                            <span className="sentinel-interception-badge">
+                              {sentinelStatus.totalInterceptedToday}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -4048,20 +4150,42 @@ export function App() {
               <div className="tm-metric-card">
                 <div className="tm-metric-top">
                   <span className="tm-metric-label">SHINPO SENTINEL</span>
-                  <div className="sentinel-radar-container">
+                  <div className={`sentinel-radar-container ${sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'active-pulse' : ''}`}>
                     <div className="sentinel-radar-core" />
                     <div className="sentinel-radar-ring" />
                   </div>
                 </div>
                 <div>
-                  <div className="tm-metric-val" style={{ fontSize: 18, color: 'var(--accent-emerald)' }}>
-                    ACTIVE DEFENSE
+                  <div
+                    className="tm-metric-val"
+                    style={{
+                      fontSize: 18,
+                      color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'var(--accent-coral, #FF4D5E)' : 'var(--accent-emerald)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <span>{sentinelStatus ? sentinelStatus.status.replace('_', ' ') : 'ACTIVE DEFENSE'}</span>
+                    <button
+                      type="button"
+                      className="sentinel-mode-badge"
+                      title="Click to toggle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT"
+                      onClick={handleToggleSentinelMode}
+                    >
+                      {sentinelStatus?.enforcementMode ?? 'STRICT'}
+                    </button>
                   </div>
                   <div className="tm-metric-sub">
-                    {deviceSnapshot?.systemInfo.osName ?? 'Linux'} • {deviceSnapshot?.systemInfo.osArch ?? 'x86_64'}
+                    {sentinelStatus?.activeFocusSessionName
+                      ? `Shielding: "${sentinelStatus.activeFocusSessionName}"`
+                      : `${sentinelStatus?.totalInterceptedToday ?? 0} Distractions Intercepted Today`}
                   </div>
                   <div className="tm-bar-track">
-                    <div className="tm-bar-fill emerald" style={{ width: '100%' }} />
+                    <div
+                      className={`tm-bar-fill ${sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'coral' : 'emerald'}`}
+                      style={{ width: '100%' }}
+                    />
                   </div>
                 </div>
               </div>
@@ -4122,6 +4246,32 @@ export function App() {
               <button
                 type="button"
                 className="tm-refresh-btn btn-spring"
+                onClick={handleSentinelSweep}
+                disabled={sentinelSweeping}
+                style={{
+                  background: 'rgba(255, 77, 94, 0.12)',
+                  borderColor: 'rgba(255, 77, 94, 0.35)',
+                  color: 'var(--accent-coral, #FF4D5E)',
+                }}
+                title="Execute immediate distraction process sweep and containment"
+              >
+                <Icon name="sparkle" size={14} />
+                <span>{sentinelSweeping ? 'Sweeping...' : '⚡ Sweep Distractions'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="tm-refresh-btn btn-spring"
+                onClick={() => setShowAddRuleModal(true)}
+                title="Add new distraction application to quarantine blacklist"
+              >
+                <Icon name="plus" size={14} />
+                <span>Block App</span>
+              </button>
+
+              <button
+                type="button"
+                className="tm-refresh-btn btn-spring"
                 onClick={() => setTmRefreshKey((key) => key + 1)}
                 disabled={tmLoading}
               >
@@ -4129,6 +4279,130 @@ export function App() {
                 <span>{tmLoading ? 'Scanning...' : 'Refresh Telemetry'}</span>
               </button>
             </div>
+
+            {/* Sentinel Policy Rules & Live Quarantine Feed */}
+            <div className="sentinel-panel">
+              <div className="sentinel-panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon name="focus" size={16} />
+                  <h3 className="sentinel-panel-title">Active Sentinel Rules & Quarantine Telemetry</h3>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                  {sentinelRules.length} Custom Rules • Mode: <strong>{sentinelStatus?.enforcementMode ?? 'STRICT'}</strong>
+                </div>
+              </div>
+
+              {/* Rules list */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  TARGETED DISTRACTION APPS & BLACKLIST
+                </div>
+                <div className="sentinel-rules-list">
+                  {sentinelRules.length > 0 ? (
+                    sentinelRules.map((rule) => (
+                      <span key={rule.id} className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}>
+                        <span>{rule.policyType === 'BLOCKED' ? '🚫' : '✓'} {rule.processNamePattern}</span>
+                        {rule.isCustom && (
+                          <button
+                            type="button"
+                            className="sentinel-rule-del-btn"
+                            onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
+                            title="Remove rule"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                      Default heuristics active (discord, steam, spotify, telegram, games, etc.)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Quarantines if any */}
+              {sentinelStatus?.recentQuarantines && sentinelStatus.recentQuarantines.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.05em', marginBottom: 8 }}>
+                    RECENT INTERCEPTION AUDIT LOG
+                  </div>
+                  <div className="sentinel-audit-timeline">
+                    {sentinelStatus.recentQuarantines.map((item) => (
+                      <div key={item.id} className="sentinel-audit-item">
+                        <div className="sentinel-audit-left">
+                          <span className="sentinel-audit-badge">{item.policyAction}</span>
+                          <strong style={{ color: 'var(--text-1)' }}>{item.processName}</strong>
+                          <span style={{ color: 'var(--text-3)' }}>(PID {item.pid})</span>
+                        </div>
+                        <div style={{ color: 'var(--text-2)', fontSize: 11 }}>
+                          {item.reason}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Add Rule Modal */}
+            {showAddRuleModal && (
+              <div className="quick-modal-overlay" onClick={() => setShowAddRuleModal(false)}>
+                <div className="quick-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+                  <div className="quick-modal-header">
+                    <h3 className="quick-modal-title">Block Application with Sentinel</h3>
+                    <button type="button" className="quick-modal-close" onClick={() => setShowAddRuleModal(false)}>×</button>
+                  </div>
+                  <form onSubmit={handleAddSentinelRule} className="quick-modal-body">
+                    <div className="quick-form-group">
+                      <label className="quick-form-label">PROCESS NAME OR EXECUTABLE PATTERN</label>
+                      <input
+                        type="text"
+                        className="quick-form-input"
+                        placeholder="e.g. slack, minecraft, obs, brave"
+                        value={newRulePattern}
+                        onChange={(e) => setNewRulePattern(e.target.value)}
+                        autoFocus
+                        required
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                        System core processes (systemd, shinpo, bash) are protected and cannot be quarantined.
+                      </span>
+                    </div>
+
+                    <div className="quick-form-group">
+                      <label className="quick-form-label">POLICY ACTION</label>
+                      <select
+                        className="quick-form-input"
+                        value={newRuleType}
+                        onChange={(e) => setNewRuleType(e.target.value as 'BLOCKED' | 'ALLOWED')}
+                      >
+                        <option value="BLOCKED">BLOCKED (Quarantine during active sprint)</option>
+                        <option value="ALLOWED">ALLOWED (Whitelist / Bypass)</option>
+                      </select>
+                    </div>
+
+                    <div className="quick-modal-actions">
+                      <button
+                        type="button"
+                        className="quick-btn-cancel"
+                        onClick={() => setShowAddRuleModal(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="quick-btn-submit"
+                        disabled={!newRulePattern.trim()}
+                      >
+                        Add Policy Rule
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* Process Table Card */}
             <div className="tm-table-card">

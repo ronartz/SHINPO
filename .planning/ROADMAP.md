@@ -15,9 +15,9 @@
 - [x] Phase 2.4: Session Debrief Analysis & Cognitive Recovery Workflows
 - [x] Phase 2.5: Adaptive Planning & Daily Agenda Scheduling
 
-### Milestone 3: Sentinel Process Hardening & OS Enforcement (PLANNED)
-- [ ] Phase 3.1: Linux eBPF / Cgroup Process Containment
-- [ ] Phase 3.2: Automated Distraction App Quarantining during Active Sprints
+### Milestone 3: Sentinel Process Hardening & OS Enforcement (IN PROGRESS)
+- [x] Phase 3.1: Linux Process Inspection & Safe Containment Boundaries (OS ProcessHandle inspection, protected system process whitelisting)
+- [x] Phase 3.2: Automated Distraction App Quarantining during Active Sprints (Periodic sweep daemon, custom blacklist/whitelist policy rules, EONPAI tool telemetry)
 - [ ] Phase 3.3: Task Manager Permission Boundary & Administrative Policy Gate
 
 ### Milestone 4: Native Shield & Cross-Platform Distribution (PLANNED)
