@@ -9,6 +9,7 @@ import com.shinpo.entity.RefreshToken;
 import com.shinpo.entity.User;
 import com.shinpo.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,12 +19,14 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 
 @Service
 public class JwtTokenService {
 
+    public static final String KNOWN_DEV_SECRET = "shinpo_arise_master_key_secure_development_secret_2026_production_grade_32b";
     private static final String ISSUER = "shinpo-arise";
     private static final Duration ACCESS_TOKEN_EXPIRY = Duration.ofMinutes(60);
     private static final Duration REFRESH_TOKEN_EXPIRY = Duration.ofDays(30);
@@ -34,13 +37,22 @@ public class JwtTokenService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtTokenService(
-            @Value("${shinpo.jwt.secret}") String secret,
+            @Value("${shinpo.jwt.secret:}") String secret,
+            Environment environment,
             RefreshTokenRepository refreshTokenRepository
     ) {
+        boolean isProduction = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "shinpo.jwt.secret must be configured via the SHINPO_JWT_SECRET environment variable. " +
-                    "A hardcoded or default secret is not permitted in any environment.");
+                    "A hardcoded or empty secret is not permitted.");
+        }
+        if (isProduction && KNOWN_DEV_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                    "Default development JWT secret detected in production profile! " +
+                    "You must provide a secure, unique SHINPO_JWT_SECRET in production.");
         }
         if (secret.length() < 32) {
             throw new IllegalStateException(
