@@ -15,23 +15,31 @@ public class UserPrincipal implements UserDetails {
     private final String username;
     private final String email;
     private final String password;
+    private final boolean active;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserPrincipal(Long userId, String username, String email, String password, Collection<? extends GrantedAuthority> authorities) {
+    public UserPrincipal(Long userId, String username, String email, String password, boolean active, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.username = username;
         this.email = email;
         this.password = password;
+        this.active = active;
         this.authorities = authorities;
     }
 
+    public UserPrincipal(Long userId, String username, String email, String password, Collection<? extends GrantedAuthority> authorities) {
+        this(userId, username, email, password, true, authorities);
+    }
+
     public static UserPrincipal create(User user) {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        String role = (user.getRole() != null && !user.getRole().isBlank()) ? user.getRole() : "ROLE_USER";
+        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
         return new UserPrincipal(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getPasswordHash(),
+                user.isActive(),
                 authorities
         );
     }
@@ -59,6 +67,13 @@ public class UserPrincipal implements UserDetails {
         return username;
     }
 
+    public String getRole() {
+        return authorities.stream()
+                .findFirst()
+                .map(GrantedAuthority::getAuthority)
+                .orElse("ROLE_USER");
+    }
+
     @Override
     public boolean isAccountNonExpired() {
         return true;
@@ -76,7 +91,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 
     @Override

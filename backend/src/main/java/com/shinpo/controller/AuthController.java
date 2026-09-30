@@ -60,7 +60,8 @@ public class AuthController {
         return ResponseEntity.ok(new UserResponse(
                 principal.getUserId(),
                 principal.getUsername(),
-                principal.getEmail()
+                principal.getEmail(),
+                principal.getRole()
         ));
     }
 }

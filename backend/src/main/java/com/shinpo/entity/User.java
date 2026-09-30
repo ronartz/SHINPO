@@ -29,6 +29,12 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(nullable = false, length = 20)
+    private String role = "ROLE_USER";
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -39,9 +45,15 @@ public class User {
     }
 
     public User(String username, String email, String passwordHash, Instant createdAt) {
+        this(username, email, passwordHash, "ROLE_USER", true, createdAt);
+    }
+
+    public User(String username, String email, String passwordHash, String role, boolean isActive, Instant createdAt) {
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.role = (role != null && !role.isBlank()) ? role : "ROLE_USER";
+        this.isActive = isActive;
         this.createdAt = createdAt;
     }
 
@@ -59,5 +71,25 @@ public class User {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = (role != null && !role.isBlank()) ? role : "ROLE_USER";
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        this.isActive = active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 }

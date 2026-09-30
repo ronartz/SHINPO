@@ -32,12 +32,8 @@ public class UserController {
         return new UserResponse(
                 principal.getUserId(),
                 principal.getUsername(),
-                principal.getEmail()
+                principal.getEmail(),
+                principal.getRole()
         );
-    }
-
-    @GetMapping("/default")
-    public UserResponse getDefaultUser() {
-        return userService.getOrCreateDefaultUser();
     }
 }

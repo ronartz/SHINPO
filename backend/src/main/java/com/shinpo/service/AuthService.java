@@ -89,7 +89,8 @@ public class AuthService {
         UserResponse userResponse = new UserResponse(
                 savedUser.getId(),
                 savedUser.getUsername(),
-                savedUser.getEmail()
+                savedUser.getEmail(),
+                savedUser.getRole()
         );
 
         return AuthResponse.of(accessToken, refreshToken, userResponse);
@@ -99,6 +100,10 @@ public class AuthService {
         User user = userRepository.findByUsername(request.usernameOrEmail())
                 .or(() -> userRepository.findByEmail(request.usernameOrEmail()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password"));
+
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is disabled");
+        }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
@@ -111,7 +116,8 @@ public class AuthService {
         UserResponse userResponse = new UserResponse(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail()
+                user.getEmail(),
+                user.getRole()
         );
 
         return AuthResponse.of(accessToken, refreshToken, userResponse);
@@ -124,10 +130,15 @@ public class AuthService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
+            if (!user.isActive()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is disabled");
+            }
+
             UserResponse userResponse = new UserResponse(
                     user.getId(),
                     user.getUsername(),
-                    user.getEmail()
+                    user.getEmail(),
+                    user.getRole()
             );
 
             return AuthResponse.of(pair.accessToken(), pair.refreshToken(), userResponse);

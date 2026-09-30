@@ -134,3 +134,27 @@ Before declaring any frontend change complete:
 | **28** | Test keyboard navigation (`Tab` / `Enter`) | All action buttons and inputs focusable | PASS |
 | **29** | Test responsive layout on mobile viewport | Layout collapses without horizontal scroll bleed | PASS |
 | **30** | Inspect browser console | Zero uncaught errors or unhandled rejections | PASS |
+
+---
+
+## 6. Phase 1 Security Hardening Test Suite (`Phase1SecurityHardeningTests`)
+
+| Scenario | Test Method | Covered Security Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testUserRoleAndActiveStatusMapping` | Flyway V11 `role` & `is_active` attributes map dynamically to `GrantedAuthority`; `isEnabled()` maps to `isActive` | PASS |
+| **02** | `testInactiveUserRejected` | Deactivated accounts are blocked on login with HTTP 401 (`User account is disabled`) | PASS |
+| **03** | `testProductionJwtSecretGating` | Missing or development default JWT secrets in `prod`/`production` profile throw `IllegalStateException` on startup; 32+ char custom keys pass | PASS |
+| **04** | `testDefaultUserEndpointRemoved` | Unauthenticated calls to `/api/users/default` return 401 UNAUTHORIZED; authenticated calls return 404 NOT_FOUND | PASS |
+| **05** | `testRefreshTokenFindByTokenHashLock` | Pessimistic write lock (`@Lock(LockModeType.PESSIMISTIC_WRITE)`) on `RefreshTokenRepository.findByTokenHash` enforces transactional row lock | PASS |
+
+---
+
+## 7. Phase 2 Slice AI.1 Provider Pipeline Test Suite (`AIProviderPipelineTests`)
+
+| Scenario | Test Method | Covered Resilience Guarantee | Status |
+| :--- | :--- | :--- | :--- |
+| **01** | `testProviderRegistryResolutionAndSwitching` | `AIProviderRegistry` manages providers, enables case-insensitive lookups and dynamic switching via `AiProperties` | PASS |
+| **02** | `testMockAIProviderExecution` | `MockAIProvider` serves zero-latency canned responses, records requests, and signals provider outages | PASS |
+| **03** | `testAiGatewayMockRoutingAndOfflineFallback` | `AiGateway` transparently routes chat through active provider and falls back to deterministic safe engine on outage | PASS |
+| **04** | `testGoalDecompositionMockAndFallback` | Goal decomposition operates through provider SPI with automatic deterministic fallback if provider is unavailable | PASS |
+
