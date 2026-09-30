@@ -15,6 +15,8 @@ import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
@@ -65,6 +67,23 @@ class AiArchitectureTests {
         assertNotNull(res.errorMessage());
         assertEquals("ollama", res.provider());
     }
+
+        @Test
+        void ollamaProviderKeepsRequestedModelWhenItIsNotInstalled() {
+                properties.getOllama().setBaseUrl("http://ollama");
+                properties.getOllama().setModel("missing-model");
+                RestTemplate restTemplate = mock(RestTemplate.class);
+                RestTemplate healthRestTemplate = mock(RestTemplate.class);
+                when(healthRestTemplate.getForEntity(anyString(), eq(String.class)))
+                                .thenReturn(ResponseEntity.ok("{\"models\":[{\"name\":\"installed-model\"}]}"));
+                when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))
+                                .thenReturn(ResponseEntity.ok("{\"response\":\"ok\"}"));
+
+                OllamaProvider provider = new OllamaProvider(properties, objectMapper, restTemplate, healthRestTemplate);
+                AiProviderResponse response = provider.generate(AiProviderRequest.of("system", "user"));
+
+                assertEquals("missing-model", response.model());
+        }
 
     @Test
     void aiGatewayFallsBackGracefullyWhenProviderFails() {
@@ -129,6 +148,26 @@ class AiArchitectureTests {
         assertEquals("NEXT_ACTION", nextAction.suggestionType());
         assertEquals("BUG_REPORT", bugReport.suggestionType());
         assertEquals("ENFORCEMENT_EXPLANATION", enforcement.suggestionType());
+    }
+
+    @Test
+    void identityQueryMatchesInformalVariations() {
+        AiGateway gateway = new AiGateway(
+                List.of(),
+                properties,
+                toolRegistry,
+                suggestionRepository,
+                userRepository,
+                objectMapper
+        );
+
+        AiChatResponse r1 = gateway.processChat(new AiChatRequest(1L, "WHO ARE U?", null, null, null));
+        AiChatResponse r2 = gateway.processChat(new AiChatRequest(1L, "who r u", null, null, null));
+        AiChatResponse r3 = gateway.processChat(new AiChatRequest(1L, "Who are you?", null, null, null));
+
+        assertTrue(r1.reply().contains("EONPAI"));
+        assertTrue(r2.reply().contains("EONPAI"));
+        assertTrue(r3.reply().contains("EONPAI"));
     }
 
     @Test
