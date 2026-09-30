@@ -18,10 +18,11 @@
   - Radar modes (`STRICT`, `AUDIT_ONLY`, `CONTAINMENT`) with live mode switching (`/api/device/sentinel/mode`).
   - EONPAI AI tool integration (`GetEnforcementStateTool`, `GetEnforcementExplanationTool`) wired to live `SentinelEnforcementService`.
   - Frontend: Task Manager upgraded with live Coral Protocol Sentinel radar badge, distraction app blacklist pills, manual sweep CTA button, block application modal, and Flight Deck header pill badge.
-- Backend API operational on port 8080 (Spring Boot 4.1.1, 97 passing automated tests across 11 test suites).
+  - Phase 3.3 COMPLETE: Task Manager permission boundary, administrative policy gate, SentinelTamperEvent emergency overrides with BCrypt verification.
+- Backend API operational on port 8080 (Spring Boot 4.1.1, 102 passing automated tests across 12 test suites).
 - Frontend Vite dev server operational on port 5173 (React 19, TypeScript, ESLint 0 errors).
-- PostgreSQL database operational on port 5432 (13 Flyway migrations applied).
-- All Phase 3.1 & 3.2 criteria verified end-to-end via headless Chrome CDP and automated tests.
+- PostgreSQL database operational on port 5432 (14 Flyway migrations applied).
+- All Phase 3 criteria verified end-to-end.
 
 ## Next Verification Gates
-1. Phase 3.3: Task Manager Permission Boundary & Administrative Policy Gate (sudo/polkit credential checks, privileged escalation containment, administrative overrides, and tamper-resistance auditing).
+1. Phase 4.1: Native Rust Shield Daemon Integration (`crates/shinpo-shield`).
