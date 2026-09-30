@@ -129,10 +129,15 @@ class StructuredSuggestionApprovalTests {
         // Verify audit suggestion status
         AiSuggestion updatedSuggestion = aiSuggestionRepository.findById(suggestionId).orElseThrow();
         assertTrue(updatedSuggestion.getAccepted(), "Suggestion must be marked as accepted after commit");
+
+        ResponseStatusException duplicateCommit = assertThrows(ResponseStatusException.class, () ->
+                aiService.commitSuggestion(suggestionId, userA.getId(), null)
+        );
+        assertEquals(HttpStatus.CONFLICT, duplicateCommit.getStatusCode());
     }
 
     @Test
-    @DisplayName("AI.4 Task 3: Cross-tenant commit attack is strictly rejected with 403 Forbidden")
+        @DisplayName("AI.4 Task 3: Cross-tenant commit is concealed with 404 Not Found")
     void testCrossTenantCommitRejectedWithForbidden() {
         // User A generates a goal decomposition
         GoalDecompositionResponse decomp = aiService.decomposeGoal(goalA.getId(), userA.getId());
@@ -143,8 +148,7 @@ class StructuredSuggestionApprovalTests {
                 aiService.commitSuggestion(suggestionId, userB.getId(), null)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Access denied"));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
 
         // Verify suggestion was NOT marked accepted
         AiSuggestion suggestion = aiSuggestionRepository.findById(suggestionId).orElseThrow();
@@ -168,6 +172,44 @@ class StructuredSuggestionApprovalTests {
         assertEquals(2, response.committedMissionsCount());
         assertEquals("Focused Custom Mission A", response.committedMissions().get(0).title());
         assertEquals(35, response.committedMissions().get(0).estimatedMinutes());
+    }
+
+    @Test
+    @DisplayName("Commit rejects selected missions that violate request constraints")
+    void testCommitRejectsInvalidSelectedMissions() {
+        GoalDecompositionResponse decomp = aiService.decomposeGoal(goalA.getId(), userA.getId());
+        String token = jwtTokenService.generateAccessToken(UserPrincipal.create(userA));
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> request = new HttpEntity<>("""
+                {"targetGoalId": %d, "selectedMissions": [{"title": " ", "description": "Bad", "estimatedMinutes": 0}]}
+                """.formatted(goalA.getId()), headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/ai/suggestions/" + decomp.suggestionId() + "/commit",
+                request,
+                String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Commit requires an explicit goal when the suggestion has no goal context")
+    void testCommitRequiresTargetGoalWithoutSuggestionContext() {
+        AiSuggestion suggestion = aiSuggestionRepository.save(new AiSuggestion(
+                userB,
+                "PLANNER",
+                null,
+                "[]"
+        ));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
+                aiService.commitSuggestion(suggestion.getId(), userB.getId(), null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     }
 
     @Test
@@ -202,19 +244,19 @@ class StructuredSuggestionApprovalTests {
         assertEquals(suggestionId, successResponse.getBody().suggestionId());
         assertTrue(successResponse.getBody().committedMissionsCount() > 0);
 
-        // 3. User B calling commit on User A's suggestion returns 403 Forbidden
+        // 3. User B calling commit on User A's suggestion returns 404 Not Found
         String tokenB = jwtTokenService.generateAccessToken(UserPrincipal.create(userB));
         HttpHeaders headersB = new HttpHeaders();
         headersB.setBearerAuth(tokenB);
         headersB.setContentType(MediaType.APPLICATION_JSON);
 
         HttpEntity<Void> reqB = new HttpEntity<>(headersB);
-        ResponseEntity<String> forbiddenResponse = restTemplate.postForEntity(
+        ResponseEntity<String> concealedResponse = restTemplate.postForEntity(
                 "/api/ai/suggestions/" + suggestionId + "/commit",
                 reqB,
                 String.class
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, forbiddenResponse.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, concealedResponse.getStatusCode());
     }
 }

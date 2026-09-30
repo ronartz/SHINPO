@@ -6573,10 +6573,269 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   color: var(--text);
 }
 
-.recovery-option-desc {
+/* Circadian Daily Agenda Card */
+.ai-daily-agenda-card {
+  margin-top: 12px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(24, 27, 36, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 77, 94, 0.32);
+  border-left: 4px solid var(--brand-coral);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: debriefFadeIn 0.25s ease-out;
+}
+
+.theme-light .ai-daily-agenda-card {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(255, 77, 94, 0.4);
+  border-left-color: var(--brand-coral);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ai-daily-agenda-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-agenda-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agenda-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-coral);
+  box-shadow: 0 0 8px var(--brand-coral);
+  display: inline-block;
+  animation: debriefPulse 1.8s infinite ease-in-out;
+}
+
+.ai-agenda-headline {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0 0 0;
+  letter-spacing: -0.01em;
+}
+
+.ai-agenda-rationale {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.ai-agenda-metrics-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.theme-light .ai-agenda-metrics-bar {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.agenda-metric-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agenda-metric-chip:last-child {
+  border-right: none;
+}
+
+.theme-light .agenda-metric-chip {
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+.agenda-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.agenda-metric-val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.agenda-metric-chip.focus .agenda-metric-val {
+  color: var(--brand-coral);
+}
+
+.agenda-metric-chip.recess .agenda-metric-val {
+  color: #2ECC71;
+}
+
+.agenda-metric-chip.buffer .agenda-metric-val {
+  color: #38BDF8;
+}
+
+.ai-agenda-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  padding-left: 4px;
+}
+
+.ai-agenda-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.timeline-time-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-2);
+  min-width: 60px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.theme-light .timeline-time-badge {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.timeline-time-badge .time-sep {
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+.timeline-content-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  transition: all 0.18s ease;
+}
+
+.theme-light .timeline-content-card {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.focus-block .timeline-content-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 77, 94, 0.35);
+}
+
+.recess-block .timeline-content-card {
+  background: rgba(46, 204, 113, 0.06);
+  border-color: rgba(46, 204, 113, 0.22);
+}
+
+.timeline-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.timeline-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timeline-mission-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-duration-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.duration-mins {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.duration-scaled {
+  font-size: 10px;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.timeline-goal-caption {
   font-size: 11px;
   color: var(--text-3);
-  line-height: 1.35;
+}
+
+.timeline-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.ai-agenda-footer {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ai-commit-agenda-btn {
+  width: 100%;
+  padding: 11px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(255, 77, 94, 0.25);
+  transition: all 0.2s ease;
+}
+
+.ai-commit-agenda-btn.committed {
+  background: rgba(46, 204, 113, 0.18) !important;
+  color: #2ECC71 !important;
+  border: 1px solid rgba(46, 204, 113, 0.4) !important;
+  box-shadow: none !important;
+  cursor: default;
 }
 
 .btn-timer.debrief-ai-btn {

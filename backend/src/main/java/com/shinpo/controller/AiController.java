@@ -6,6 +6,7 @@ import com.shinpo.ai.tool.ToolResult;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.AiService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +105,17 @@ public class AiController {
         return ResponseEntity.ok(aiService.getDailyPlan(principal.getUserId()));
     }
 
+    @PostMapping("/daily-plan/commit")
+    public ResponseEntity<CommitDailyPlanResponse> commitDailyPlan(
+            @Valid @RequestBody(required = false) CommitDailyPlanRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.commitDailyPlan(principal.getUserId(), request));
+    }
+
     @GetMapping("/recovery/{sessionId}")
     public ResponseEntity<RecoveryResponse> getSessionRecovery(
             @PathVariable Long sessionId,
@@ -161,7 +173,7 @@ public class AiController {
     @PostMapping("/suggestions/{suggestionId}/commit")
     public ResponseEntity<SuggestionCommitResponse> commitSuggestion(
             @PathVariable Long suggestionId,
-            @RequestBody(required = false) SuggestionCommitRequest request,
+            @Valid @RequestBody(required = false) SuggestionCommitRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         if (principal == null) {

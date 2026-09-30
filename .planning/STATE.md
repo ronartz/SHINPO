@@ -1,20 +1,20 @@
 # GSD State Tracker — SHINPO
 
 ## Active Milestone
-**Milestone 2**: EONPAI Tactical Intelligence & Telemetry Loop
+**Milestone 3**: Sentinel Process Hardening & OS Enforcement
 
 ## Active Phase
-**Phase 2.5**: Adaptive Planning & Daily Agenda Scheduling
+**Phase 3.1**: Linux eBPF / Cgroup Process Containment & Sentinel Architecture
 
 ## Current Status
-- Backend API operational on port 8080 (Spring Boot 4.1.1, 87 passing automated tests)
-- Frontend Vite dev server operational on port 5173 (React 19, TypeScript, ESLint 0 errors)
-- PostgreSQL database operational on port 5432 (10 Flyway migrations applied)
-- Authentication: JWT stateless authentication verified
-- Visual redesign: Reference-aligned 2x2 Bento Cockpit verified
-- Phase 2.4 Complete: Debrief analysis, pacing critiques, velocity assessments, and cognitive recovery protocols verified live with Ollama `qwen3:4b`
+- Milestone 1 COMPLETE (Core Domain, Focus Session Engine, JWT Stateless Auth, 2x2 Bento Cockpit).
+- Milestone 2 COMPLETE (EONPAI local Ollama qwen3:4b provider, read-only system tools, persistent message audit history, debrief analysis, cognitive recovery workflows, adaptive daily planning & agenda scheduling with circadian windows and ART restorative breaks).
+- Backend API operational on port 8080 (Spring Boot 4.1.1, 90 passing automated tests).
+- Frontend Vite dev server operational on port 5173 (React 19, TypeScript, ESLint 0 errors).
+- PostgreSQL database operational on port 5432 (10 Flyway migrations applied).
+- All Phase 2.5 criteria verified end-to-end via headless Chrome CDP and automated tests.
 
 ## Next Verification Gates
-1. Phase 2.5: Dynamic agenda scheduling integrating historical velocity & circadian focus windows
-2. Conflict resolution algorithms for overlapping scheduled sprints
-3. Multi-session time allocation budgeting per strategic goal backlog
+1. Phase 3.1: Linux process inspection (`ProcessHandle` / cgroups / Sentinel process boundaries).
+2. Phase 3.2: Automated distraction application detection and quarantine during active focus sprints.
+3. Phase 3.3: System process whitelist and administrative policy gates.
