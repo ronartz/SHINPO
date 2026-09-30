@@ -7,6 +7,7 @@ import com.shinpo.ai.provider.AIProviderRegistry;
 import com.shinpo.ai.provider.AiProviderRequest;
 import com.shinpo.ai.provider.AiProviderResponse;
 import com.shinpo.ai.provider.MockAIProvider;
+import com.shinpo.ai.provider.OllamaProvider;
 import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
 import com.shinpo.dto.AiDtos.GoalDecompositionResponse;
@@ -17,7 +18,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.Map;
@@ -25,6 +30,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -81,6 +88,37 @@ class AIProviderPipelineTests {
         // Check isAnyAvailable
         assertTrue(providerRegistry.isAnyAvailable());
     }
+
+      @Test
+      @DisplayName("Ollama rejects incomplete or empty reasoning-only responses")
+      void testOllamaRejectsReasoningWithoutVisibleOutput() {
+        AiProviderResponse unclosedThink = generateOllamaResponse("<think>private reasoning");
+        AiProviderResponse emptyAfterThink = generateOllamaResponse("<think>private reasoning</think>");
+
+        assertFalse(unclosedThink.successful());
+        assertFalse(emptyAfterThink.successful());
+      }
+
+      @Test
+      @DisplayName("Ollama returns visible content after a completed reasoning block")
+      void testOllamaReturnsContentAfterThinkBlock() {
+        AiProviderResponse response = generateOllamaResponse("<think>private reasoning</think>Visible answer");
+
+        assertTrue(response.successful());
+        assertEquals("Visible answer", response.content());
+      }
+
+      private AiProviderResponse generateOllamaResponse(String content) {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        server.expect(requestTo("http://localhost:11434/api/generate"))
+            .andRespond(withSuccess("{\"response\":\"" + content + "\"}", MediaType.APPLICATION_JSON));
+        OllamaProvider provider = new OllamaProvider(new AiProperties(), new ObjectMapper(), restTemplate, new RestTemplate());
+
+        AiProviderResponse response = provider.generate(AiProviderRequest.of("system", "prompt"));
+        server.verify();
+        return response;
+      }
 
     @Test
     @DisplayName("AI.1 Task 2: MockAIProvider provides zero-latency canned responses and request recording")

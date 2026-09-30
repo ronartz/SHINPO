@@ -2,6 +2,12 @@ package com.shinpo.dto;
 
 import java.time.Instant;
 import java.util.List;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class AiDtos {
 
@@ -19,8 +25,12 @@ public class AiDtos {
     }
 
     public record ProposedMission(
+            @NotBlank
+            @Size(max = 150)
             String title,
             String description,
+            @Min(1)
+            @Max(480)
             Integer estimatedMinutes
     ) {}
 
@@ -38,7 +48,8 @@ public class AiDtos {
 
     public record SuggestionCommitRequest(
             Long targetGoalId,
-            List<ProposedMission> selectedMissions
+            @Size(max = 50)
+            List<@NotNull @Valid ProposedMission> selectedMissions
     ) {}
 
     public record SuggestionCommitResponse(
@@ -63,13 +74,74 @@ public class AiDtos {
             String missionTitle,
             String goalTitle,
             Integer durationMinutes,
-            String priority
-    ) {}
+            String priority,
+            String scheduledStartTime,
+            String scheduledEndTime,
+            String energyWindow,
+            Integer originalEstimatedMinutes,
+            Double biasCorrectionFactor,
+            Boolean isRestorativeBreak,
+            Long goalId
+    ) {
+        public DailyPlanItem(Long missionId, String missionTitle, String goalTitle, Integer durationMinutes, String priority) {
+            this(missionId, missionTitle, goalTitle, durationMinutes, priority, null, null, "TACTICAL_SPRINT", durationMinutes, 1.0, false, null);
+        }
+
+        public Boolean isRestorativeBreak() {
+            return isRestorativeBreak != null ? isRestorativeBreak : false;
+        }
+    }
 
     public record DailyPlanResponse(
             String headline,
             String rationale,
-            List<DailyPlanItem> planItems
+            List<DailyPlanItem> planItems,
+            Integer totalPlannedMinutes,
+            Integer totalFocusMinutes,
+            Integer totalBreakMinutes,
+            String circadianPacingStrategy,
+            Double userEstimationBiasPct,
+            Boolean hasConflictsResolved,
+            Long suggestionId
+    ) {
+        public DailyPlanResponse(String headline, String rationale, List<DailyPlanItem> planItems) {
+            this(headline, rationale, planItems,
+                    planItems != null ? planItems.stream().mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0,
+                    planItems != null ? planItems.stream().filter(i -> !Boolean.TRUE.equals(i.isRestorativeBreak())).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0,
+                    planItems != null ? planItems.stream().filter(i -> Boolean.TRUE.equals(i.isRestorativeBreak())).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0,
+                    "BALANCED_CIRCADIAN_FLOW", 0.0, false, null);
+        }
+
+        public Boolean hasConflictsResolved() {
+            return hasConflictsResolved != null ? hasConflictsResolved : false;
+        }
+
+        public Integer totalPlannedMinutes() {
+            if (totalPlannedMinutes != null && totalPlannedMinutes > 0) return totalPlannedMinutes;
+            return planItems != null ? planItems.stream().mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0;
+        }
+
+        public Integer totalFocusMinutes() {
+            if (totalFocusMinutes != null && totalFocusMinutes > 0) return totalFocusMinutes;
+            return planItems != null ? planItems.stream().filter(i -> !i.isRestorativeBreak()).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0;
+        }
+
+        public Integer totalBreakMinutes() {
+            if (totalBreakMinutes != null && totalBreakMinutes > 0) return totalBreakMinutes;
+            return planItems != null ? planItems.stream().filter(DailyPlanItem::isRestorativeBreak).mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum() : 0;
+        }
+    }
+
+    public record CommitDailyPlanRequest(
+            Long suggestionId,
+            List<DailyPlanItem> selectedItems
+    ) {}
+
+    public record CommitDailyPlanResponse(
+            int scheduledSessionsCount,
+            int totalScheduledMinutes,
+            List<Long> createdSessionIds,
+            String statusMessage
     ) {}
 
     public record RecoveryOption(

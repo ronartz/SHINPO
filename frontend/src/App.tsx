@@ -15,6 +15,7 @@ import {
 import type { FocusSession } from './api/focusSessions'
 import {
   clearActiveConversation,
+  commitDailyPlan,
   commitSuggestion,
   decomposeGoal,
   getActiveConversation,
@@ -22,6 +23,7 @@ import {
 } from './api/ai'
 import type {
   BugReportInfo,
+  DailyPlan,
   GoalDecomposition,
   NextActionCard,
   ProposedMission,
@@ -453,6 +455,7 @@ export function App() {
       committing?: boolean
       debriefAnalysis?: SessionDebriefAnalysis | null
       sessionRecovery?: SessionRecovery | null
+      dailyPlan?: DailyPlan | null
     }[]
   >([
     {
@@ -626,10 +629,13 @@ export function App() {
       await loadData()
     } catch (err) {
       console.error('Failed to create quick mission', err)
-      setQuickMissionError(err instanceof Error ? err.message : 'Could not create mission. Please try again.')
+      setQuickMissionError('Could not create mission. Please try again.')
       if (hasHttpStatus(err, 401)) {
         clearAuthSession()
         setCurrentUser(null)
+        setIsCreatingQuickMission(false)
+        setQuickMissionTitle('')
+        setQuickMissionError(null)
       }
     } finally {
       setIsSubmittingQuickMission(false)
@@ -786,6 +792,10 @@ export function App() {
               sessionRecovery:
                 message.suggestionType === 'SESSION_RECOVERY' && message.structuredCard
                   ? (message.structuredCard as SessionRecovery)
+                  : null,
+              dailyPlan:
+                (message.suggestionType === 'PLANNER' || message.suggestionType === 'DAILY_PLAN') && message.structuredCard && 'planItems' in message.structuredCard
+                  ? (message.structuredCard as DailyPlan)
                   : null,
             })),
         )
@@ -998,6 +1008,39 @@ export function App() {
       )
     } catch (err) {
       console.error('Failed to commit suggestion', err)
+      setChatMessages((prev) =>
+        prev.map((msg, idx) =>
+          idx === msgIndex ? { ...msg, committing: false } : msg,
+        ),
+      )
+    }
+  }
+
+  const handleCommitDailyPlan = async (
+    plan: DailyPlan,
+    msgIndex: number,
+    suggestionId?: number,
+  ) => {
+    setChatMessages((prev) =>
+      prev.map((msg, idx) =>
+        idx === msgIndex ? { ...msg, committing: true } : msg,
+      ),
+    )
+    try {
+      await commitDailyPlan({
+        suggestionId: suggestionId || plan.suggestionId || undefined,
+        selectedItems: plan.planItems,
+      })
+      await loadData()
+      setChatMessages((prev) =>
+        prev.map((msg, idx) =>
+          idx === msgIndex
+            ? { ...msg, committing: false, committed: true }
+            : msg,
+        ),
+      )
+    } catch (err) {
+      console.error('Failed to commit daily plan to schedule:', err)
       setChatMessages((prev) =>
         prev.map((msg, idx) =>
           idx === msgIndex ? { ...msg, committing: false } : msg,
@@ -1278,6 +1321,10 @@ export function App() {
         res.suggestionType === 'SESSION_RECOVERY' && res.structuredCard
           ? (res.structuredCard as SessionRecovery)
           : null
+      const dailyPlan: DailyPlan | null =
+        (res.suggestionType === 'PLANNER' || res.suggestionType === 'DAILY_PLAN') && res.structuredCard && 'planItems' in (res.structuredCard as object)
+          ? (res.structuredCard as DailyPlan)
+          : null
 
       setAiLoading(false)
 
@@ -1297,6 +1344,7 @@ export function App() {
             suggestionId,
             debriefAnalysis,
             sessionRecovery,
+            dailyPlan,
           },
         ])
         if (autoFollowEnabledRef.current && aiFeedRef.current) {
@@ -1362,6 +1410,7 @@ export function App() {
                     suggestionId,
                     debriefAnalysis,
                     sessionRecovery,
+                    dailyPlan,
                   }
                     : message,
                 ),
@@ -3044,7 +3093,144 @@ export function App() {
                         </div>
                       )}
 
-                      {msg.missions && msg.missions.length > 0 && (
+                      {msg.dailyPlan && (
+                        <div className="ai-daily-agenda-card" role="region" aria-label="Circadian Daily Agenda">
+                          <div className="ai-daily-agenda-header">
+                            <div className="ai-agenda-title-row">
+                              <span className="badge-tag coral">
+                                <span className="agenda-pulse-dot" /> CIRCADIAN AGENDA
+                              </span>
+                              {msg.dailyPlan.circadianPacingStrategy && (
+                                <span className="badge-tag blue">
+                                  {msg.dailyPlan.circadianPacingStrategy.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                              {msg.dailyPlan.userEstimationBiasPct !== undefined && msg.dailyPlan.userEstimationBiasPct !== 0 && (
+                                <span className={`badge-tag ${msg.dailyPlan.userEstimationBiasPct > 0 ? 'amber' : 'green'}`}>
+                                  ⏱️ Calibrated ({msg.dailyPlan.userEstimationBiasPct > 0 ? '+' : ''}{Math.round(msg.dailyPlan.userEstimationBiasPct)}% bias)
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="ai-agenda-headline">{msg.dailyPlan.headline}</h4>
+                            <p className="ai-agenda-rationale">{msg.dailyPlan.rationale}</p>
+                          </div>
+
+                          <div className="ai-agenda-metrics-bar">
+                            <div className="agenda-metric-chip">
+                              <span className="agenda-metric-label">Total Duration</span>
+                              <span className="agenda-metric-val">
+                                {msg.dailyPlan.totalPlannedMinutes ||
+                                  msg.dailyPlan.planItems?.reduce((acc, it) => acc + (it.durationMinutes || 0), 0) ||
+                                  0}m
+                              </span>
+                            </div>
+                            <div className="agenda-metric-chip focus">
+                              <span className="agenda-metric-label">Deep Focus</span>
+                              <span className="agenda-metric-val">
+                                {msg.dailyPlan.totalFocusMinutes ||
+                                  msg.dailyPlan.planItems?.filter(it => !it.isRestorativeBreak).reduce((acc, it) => acc + (it.durationMinutes || 0), 0) ||
+                                  0}m
+                              </span>
+                            </div>
+                            <div className="agenda-metric-chip recess">
+                              <span className="agenda-metric-label">Attention Recess</span>
+                              <span className="agenda-metric-val">
+                                {msg.dailyPlan.totalBreakMinutes ||
+                                  msg.dailyPlan.planItems?.filter(it => it.isRestorativeBreak).reduce((acc, it) => acc + (it.durationMinutes || 0), 0) ||
+                                  0}m
+                              </span>
+                            </div>
+                            {msg.dailyPlan.hasConflictsResolved && (
+                              <div className="agenda-metric-chip buffer">
+                                <span className="agenda-metric-label">Conflict Guard</span>
+                                <span className="agenda-metric-val">10m Spacing Auto-Applied</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="ai-agenda-timeline">
+                            {msg.dailyPlan.planItems?.map((item, itIdx) => (
+                              <div
+                                key={itIdx}
+                                className={`ai-agenda-timeline-item ${item.isRestorativeBreak ? 'recess-block' : 'focus-block'}`}
+                              >
+                                <div className="timeline-time-badge">
+                                  <span>{item.scheduledStartTime || 'Flexible'}</span>
+                                  {item.scheduledEndTime ? (
+                                    <>
+                                      <span className="time-sep">-</span>
+                                      <span>{item.scheduledEndTime}</span>
+                                    </>
+                                  ) : null}
+                                </div>
+
+                                <div className="timeline-content-card">
+                                  <div className="timeline-card-header">
+                                    <div className="timeline-card-title-group">
+                                      {item.isRestorativeBreak ? (
+                                        <span className="badge-tag green small">🌱 RECOVERY</span>
+                                      ) : (
+                                        <span className={`badge-tag small ${
+                                          item.energyWindow === 'DEEP_FOCUS' ? 'coral' :
+                                          item.energyWindow === 'STRATEGIC_REVIEW' ? 'amber' : 'blue'
+                                        }`}>
+                                          {(item.energyWindow || 'TACTICAL_SPRINT').replace(/_/g, ' ')}
+                                        </span>
+                                      )}
+                                      <span className="timeline-mission-title">{item.missionTitle}</span>
+                                    </div>
+
+                                    <div className="timeline-duration-badge">
+                                      <span className="duration-mins">{item.durationMinutes}m</span>
+                                      {item.originalEstimatedMinutes && item.originalEstimatedMinutes !== item.durationMinutes ? (
+                                        <span className="duration-scaled" title="Calibrated for historical estimation bias">
+                                          (scaled from {item.originalEstimatedMinutes}m)
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  {item.goalTitle && !item.isRestorativeBreak && (
+                                    <div className="timeline-goal-caption">
+                                      <span>Goal: {item.goalTitle}</span>
+                                    </div>
+                                  )}
+
+                                  {!item.isRestorativeBreak && (
+                                    <div className="timeline-card-actions">
+                                      <button
+                                        className="ai-arm-sprint-btn"
+                                        onClick={() => handleArmMissionAsSession(item.missionTitle, item.durationMinutes)}
+                                        title="Arm Immediate Focus Sprint with Sentinel Shield"
+                                      >
+                                        <span>Start now</span>
+                                        <Icon name="arrow-up-right" size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="ai-agenda-footer">
+                            <button
+                              className={`btn primary ai-commit-agenda-btn ${msg.committed ? 'committed' : ''}`}
+                              disabled={msg.committing || msg.committed}
+                              onClick={() => handleCommitDailyPlan(msg.dailyPlan!, index, msg.suggestionId)}
+                              aria-label="Commit all agenda items into today's focus schedule"
+                            >
+                              {msg.committed
+                                ? '✅ Agenda Committed to Today’s Schedule'
+                                : msg.committing
+                                ? 'Scheduling Focus Sessions...'
+                                : '⚡ Commit Agenda to Today’s Schedule'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {msg.missions && msg.missions.length > 0 && !msg.dailyPlan && (
                         <div className="ai-cards-container" role="region" aria-label="Actionable AI proposal cards">
                           {msg.suggestionId && (
                             <div className="ai-card-header-bar">

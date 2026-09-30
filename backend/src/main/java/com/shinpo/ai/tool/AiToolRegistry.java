@@ -404,6 +404,7 @@ public class AiToolRegistry {
                 map.put("description", m.getDescription());
                 map.put("status", m.getStatus());
                 map.put("estimatedMinutes", m.getEstimatedMinutes());
+                map.put("goalId", m.getGoal() != null ? m.getGoal().getId() : null);
                 map.put("goalTitle", m.getGoal() != null ? m.getGoal().getTitle() : null);
                 return map;
             }).toList();
@@ -714,6 +715,15 @@ public class AiToolRegistry {
             return map;
         }
         return Map.of("hasNextMission", false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getTodaysMissions(Long userId) {
+        ToolResult res = executeTool("get_todays_missions", userId, Map.of());
+        if (res.success() && res.data() instanceof List<?> l) {
+            return (List<Map<String, Object>>) l;
+        }
+        return List.of();
     }
 
     public Map<String, Object> getProgressSummary(Long userId) {

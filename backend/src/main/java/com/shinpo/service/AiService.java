@@ -3,6 +3,8 @@ package com.shinpo.service;
 import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.dto.MissionResponse;
+import com.shinpo.dto.CreateFocusSessionRequest;
+import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.entity.*;
 import com.shinpo.repository.*;
 import tools.jackson.databind.JsonNode;
@@ -20,8 +22,10 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
@@ -42,6 +46,22 @@ public class AiService {
     private final TransactionTemplate transactionTemplate;
     private final TransactionTemplate conversationTransactionTemplate;
     private final UserExecutionProfileService userExecutionProfileService;
+    private final FocusSessionService focusSessionService;
+
+    public AiService(
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            FocusSessionRepository focusSessionRepository,
+            AiGateway aiGateway,
+            ConversationRepository conversationRepository,
+            ConversationMessageRepository conversationMessageRepository,
+            UserRepository userRepository,
+            AiSuggestionRepository aiSuggestionRepository,
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager,
+            UserExecutionProfileService userExecutionProfileService) {
+        this(goalRepository, missionRepository, focusSessionRepository, aiGateway, conversationRepository, conversationMessageRepository, userRepository, aiSuggestionRepository, objectMapper, transactionManager, userExecutionProfileService, null);
+    }
 
     @Autowired
     public AiService(
@@ -55,7 +75,8 @@ public class AiService {
             AiSuggestionRepository aiSuggestionRepository,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager,
-            UserExecutionProfileService userExecutionProfileService) {
+            UserExecutionProfileService userExecutionProfileService,
+            @Autowired(required = false) FocusSessionService focusSessionService) {
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
@@ -69,6 +90,7 @@ public class AiService {
         this.conversationTransactionTemplate = new TransactionTemplate(transactionManager);
         this.conversationTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.userExecutionProfileService = userExecutionProfileService;
+        this.focusSessionService = focusSessionService;
     }
 
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId) {
@@ -133,11 +155,21 @@ public class AiService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "suggestionId and userId are required");
         }
 
-        AiSuggestion suggestion = aiSuggestionRepository.findById(suggestionId)
+        AiSuggestion suggestion = aiSuggestionRepository.findByIdAndUser_Id(suggestionId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suggestion not found: " + suggestionId));
 
-        if (!suggestion.getUser().getId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: suggestion not owned by authenticated user");
+        if (Boolean.TRUE.equals(suggestion.getAccepted())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Suggestion has already been accepted: " + suggestionId);
+        }
+
+        if ("DAILY_PLAN".equalsIgnoreCase(suggestion.getSuggestionType())) {
+            CommitDailyPlanResponse res = commitDailyPlan(userId, new CommitDailyPlanRequest(suggestionId, null));
+            return new SuggestionCommitResponse(
+                    suggestionId,
+                    null,
+                    res.scheduledSessionsCount(),
+                    List.of()
+            );
         }
 
         // 1. Resolve Target Goal
@@ -152,13 +184,7 @@ public class AiService {
             } catch (Exception ignored) {}
         }
         if (targetGoalId == null) {
-            List<Goal> userGoals = goalRepository.findAllByUser_Id(userId);
-            if (!userGoals.isEmpty()) {
-                targetGoalId = userGoals.get(0).getId();
-            }
-        }
-        if (targetGoalId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No target goal available to attach proposed missions");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "targetGoalId is required to attach proposed missions");
         }
 
         final Long resolvedGoalId = targetGoalId;
@@ -413,6 +439,126 @@ public class AiService {
                 conv.getStatus(),
                 dtos,
                 conv.getUpdatedAt()
+        );
+    }
+
+    @Transactional
+    public CommitDailyPlanResponse commitDailyPlan(Long userId, CommitDailyPlanRequest request) {
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID is required");
+        }
+
+        List<DailyPlanItem> items = null;
+        if (request != null && request.selectedItems() != null && !request.selectedItems().isEmpty()) {
+            items = request.selectedItems();
+        } else if (request != null && request.suggestionId() != null) {
+            AiSuggestion suggestion = aiSuggestionRepository.findByIdAndUser_Id(request.suggestionId(), userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily plan suggestion not found: " + request.suggestionId()));
+            try {
+                JsonNode root = objectMapper.readTree(suggestion.getOutputPayload());
+                if (root.isArray()) {
+                    List<DailyPlanItem> parsed = new ArrayList<>();
+                    for (JsonNode it : root) {
+                        parsed.add(objectMapper.treeToValue(it, DailyPlanItem.class));
+                    }
+                    items = parsed;
+                } else if (root.has("planItems") && root.get("planItems").isArray()) {
+                    List<DailyPlanItem> parsed = new ArrayList<>();
+                    for (JsonNode it : root.get("planItems")) {
+                        parsed.add(objectMapper.treeToValue(it, DailyPlanItem.class));
+                    }
+                    items = parsed;
+                }
+                suggestion.setAccepted(true);
+                aiSuggestionRepository.save(suggestion);
+            } catch (Exception e) {
+                log.warn("Failed to parse DailyPlanItem list from suggestion payload: {}", e.getMessage());
+            }
+        }
+
+        if (items == null || items.isEmpty()) {
+            DailyPlanResponse freshPlan = aiGateway.getDailyPlan(userId);
+            items = freshPlan.planItems();
+        }
+
+        List<Long> createdSessionIds = new ArrayList<>();
+        int totalMinutes = 0;
+        LocalDate today = LocalDate.now();
+
+        for (DailyPlanItem item : items) {
+            if (item.isRestorativeBreak()) {
+                continue;
+            }
+
+            Instant scheduledAt = null;
+            if (item.scheduledStartTime() != null && item.scheduledStartTime().contains(":")) {
+                try {
+                    String[] parts = item.scheduledStartTime().split(":");
+                    int hour = Integer.parseInt(parts[0].trim());
+                    int minute = Integer.parseInt(parts[1].trim());
+                    scheduledAt = today.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant();
+                } catch (Exception ignored) {}
+            }
+            if (scheduledAt == null || scheduledAt.isBefore(Instant.now())) {
+                scheduledAt = Instant.now().plus(Duration.ofMinutes(15));
+            }
+
+            Long validGoalId = null;
+            if (item.goalId() != null) {
+                Goal g = goalRepository.findById(item.goalId()).orElse(null);
+                if (g != null && g.getUser().getId().equals(userId)) {
+                    validGoalId = g.getId();
+                }
+            }
+
+            Long validMissionId = null;
+            if (item.missionId() != null) {
+                Mission m = missionRepository.findById(item.missionId()).orElse(null);
+                if (m != null && m.getGoal() != null && m.getGoal().getUser().getId().equals(userId)) {
+                    validMissionId = m.getId();
+                    if (validGoalId == null) {
+                        validGoalId = m.getGoal().getId();
+                    }
+                }
+            }
+
+            CreateFocusSessionRequest sessionReq = new CreateFocusSessionRequest();
+            sessionReq.setUserId(userId);
+            sessionReq.setName(item.missionTitle());
+            sessionReq.setIntention(item.goalTitle() != null ? item.goalTitle() : "Tactical Sprint Execution");
+            sessionReq.setDurationMinutes(item.durationMinutes() != null ? item.durationMinutes() : 25);
+            sessionReq.setScheduledAt(scheduledAt);
+            sessionReq.setGoalId(validGoalId);
+            sessionReq.setMissionId(validMissionId);
+
+            if (focusSessionService != null) {
+                FocusSessionResponse created = focusSessionService.createSession(sessionReq);
+                createdSessionIds.add(created.getId());
+                totalMinutes += (item.durationMinutes() != null ? item.durationMinutes() : 25);
+            } else {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    FocusSession s = new FocusSession();
+                    s.setUser(user);
+                    s.setName(item.missionTitle());
+                    s.setIntention(item.goalTitle());
+                    s.setDurationMinutes(item.durationMinutes() != null ? item.durationMinutes() : 25);
+                    s.setScheduledAt(scheduledAt);
+                    s.setStatus(FocusSessionStatus.SCHEDULED);
+                    s.setAccumulatedPausedSeconds(0L);
+                    FocusSession saved = focusSessionRepository.save(s);
+                    createdSessionIds.add(saved.getId());
+                    totalMinutes += s.getDurationMinutes();
+                }
+            }
+        }
+
+        return new CommitDailyPlanResponse(
+                createdSessionIds.size(),
+                totalMinutes,
+                createdSessionIds,
+                String.format("Successfully scheduled %d focus sessions (%d focus minutes) into today's execution agenda.",
+                        createdSessionIds.size(), totalMinutes)
         );
     }
 }

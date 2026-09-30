@@ -27,6 +27,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -200,12 +204,12 @@ public class AiGateway {
                 Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
                 long remainingMins = Math.max(0, remainingSecs / 60);
                 String reply = "🛡️ **Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
-                        + "Your current session is actively ticking. To prevent planning theater and preserve momentum, complete or pause this sprint before scheduling new blocks.";
+                        + "Please complete or pause this sprint before scheduling new blocks to protect your cognitive flow.";
                 logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
                 return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
             }
             DailyPlanResponse plan = getDailyPlan(userId);
-            String reply = "📅 Tactical daily itinerary assembled (" + plan.planItems().size() + " execution blocks):";
+            String reply = "Tactical daily itinerary assembled: " + plan.headline() + ". " + plan.rationale();
             logSuggestion(userId, "PLANNER", rawMsg, reply);
             return new AiChatResponse(reply, "PLANNER", plan);
         }
@@ -399,38 +403,232 @@ public class AiGateway {
     }
 
     /**
-     * Generate daily execution plan.
+     * Generate adaptive daily execution plan with circadian energy windows,
+     * historical estimation bias calibration, conflict resolution, and restorative breaks.
      */
     public DailyPlanResponse getDailyPlan(Long userId) {
-        List<Map<String, Object>> schedule = toolRegistry.getTodaysSchedule(userId);
-        List<DailyPlanItem> items = new ArrayList<>();
+        // 1. Fetch user execution profile & estimation bias
+        Map<String, Object> profile = toolRegistry.getUserExecutionProfile(userId);
+        Double biasPct = 0.0;
+        double biasFactor = 1.0;
+        if (profile != null && Boolean.TRUE.equals(profile.get("hasSufficientData"))
+                && profile.get("estimationBiasPercentage") instanceof Number n) {
+            biasPct = n.doubleValue();
+            biasFactor = Math.max(0.6, Math.min(2.0, 1.0 + (biasPct / 100.0)));
+        }
 
-        int index = 0;
-        for (Map<String, Object> s : schedule) {
+        // 2. Fetch existing schedule for today to detect conflicts
+        List<Map<String, Object>> existingSchedule = toolRegistry.getTodaysSchedule(userId);
+        Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
+
+        // 3. Fetch active missions from backlog
+        List<Map<String, Object>> allMissions = toolRegistry.getTodaysMissions(userId);
+        List<Map<String, Object>> pendingMissions = allMissions.stream()
+                .filter(m -> !"COMPLETED".equalsIgnoreCase((String) m.get("status")))
+                .toList();
+
+        List<DailyPlanItem> items = new ArrayList<>();
+        boolean hasConflictsResolved = false;
+
+        // 4. Determine base reference time (LocalTime)
+        LocalTime now = LocalTime.now();
+        LocalTime cursor;
+        if (now.isBefore(LocalTime.of(8, 30))) {
+            cursor = LocalTime.of(9, 0);
+        } else if (now.isAfter(LocalTime.of(19, 0))) {
+            cursor = LocalTime.of(9, 0);
+        } else {
+            int rem = now.getMinute() % 15;
+            cursor = now.plusMinutes(15 - rem).withSecond(0).withNano(0);
+        }
+
+        // 5. Handle Active Session if currently running
+        if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
+                && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
+            String activeName = (String) activeSession.get("name");
+            Long remSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 1500L;
+            int remMins = Math.max(5, (int) Math.round(remSecs / 60.0));
+            LocalTime activeEnd = now.plusMinutes(remMins);
+
             items.add(new DailyPlanItem(
-                    (Long) s.get("id"),
-                    (String) s.get("name"),
-                    "Scheduled Sprint",
-                    (Integer) s.get("durationMinutes"),
-                    index++ == 0 ? "HIGH" : "NORMAL"
+                    activeSession.get("id") instanceof Number n ? n.longValue() : null,
+                    activeName != null ? activeName : "Current Active Sprint",
+                    "Active Sprint (Shield Engaged)",
+                    remMins,
+                    "HIGH",
+                    "NOW",
+                    activeEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    "DEEP_FOCUS",
+                    remMins,
+                    1.0,
+                    false,
+                    null
+            ));
+
+            cursor = activeEnd.plusMinutes(10);
+            items.add(new DailyPlanItem(
+                    null,
+                    "☕ 10m Attention Restoration Recess",
+                    "Cognitive Recovery",
+                    10,
+                    "NORMAL",
+                    activeEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    cursor.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    "COGNITIVE_RECOVERY",
+                    10,
+                    1.0,
+                    true,
+                    null
             ));
         }
 
-        if (items.isEmpty()) {
-            items.add(new DailyPlanItem(null, "Tactical Planning & Workspace Setup", "System Setup", 20, "HIGH"));
-            items.add(new DailyPlanItem(null, "Core High-Value Execution Sprint", "Deep Work", 50, "HIGH"));
-            items.add(new DailyPlanItem(null, "End-of-day Review & Retrospective", "Debrief", 20, "NORMAL"));
+        // 6. Assemble candidate tasks
+        List<Map<String, Object>> candidateTasks = new ArrayList<>();
+        if (!pendingMissions.isEmpty()) {
+            candidateTasks.addAll(pendingMissions.stream().limit(4).toList());
+        } else {
+            candidateTasks.add(Map.of(
+                    "title", "Architectural Core Execution & Bottleneck Delivery",
+                    "goalTitle", "Core Strategic Delivery",
+                    "estimatedMinutes", 45
+            ));
+            candidateTasks.add(Map.of(
+                    "title", "Module Verification & Integration Testing",
+                    "goalTitle", "Quality Assurance",
+                    "estimatedMinutes", 30
+            ));
+            candidateTasks.add(Map.of(
+                    "title", "Operational Debrief & Seed Retrospective",
+                    "goalTitle", "Continuous Calibration",
+                    "estimatedMinutes", 20
+            ));
         }
 
-        int totalMins = items.stream().mapToInt(i -> i.durationMinutes() != null ? i.durationMinutes() : 0).sum();
-        DailyPlanResponse response = new DailyPlanResponse(
-                "Structured " + items.size() + "-block execution day (" + totalMins + " min total)",
-                "Prioritizes highest-leverage missions first to maximize momentum and recovery.",
-                items
-        );
+        // 7. Schedule each candidate task into circadian windows
+        int taskIndex = items.isEmpty() ? 0 : 1;
+        for (int i = 0; i < candidateTasks.size(); i++) {
+            Map<String, Object> task = candidateTasks.get(i);
+            String title = (String) task.get("title");
+            String goalTitle = task.get("goalTitle") instanceof String s ? s : "Strategic Goal";
+            Long missionId = task.get("id") instanceof Number n ? n.longValue() : null;
+            Long goalId = task.get("goalId") instanceof Number n ? n.longValue() : null;
 
-        logSuggestion(userId, "DAILY_PLAN", "userId=" + userId, "Plan: " + items.size() + " blocks");
-        return response;
+            int origMins = task.get("estimatedMinutes") instanceof Number n ? n.intValue() : 25;
+            int calibratedMins = (int) Math.round(origMins * biasFactor);
+            int rem5 = calibratedMins % 5;
+            if (rem5 >= 3) calibratedMins += (5 - rem5);
+            else calibratedMins -= rem5;
+            calibratedMins = Math.max(15, Math.min(90, calibratedMins));
+
+            String energyWindow;
+            String priority;
+            if (taskIndex == 0) {
+                energyWindow = "DEEP_FOCUS";
+                priority = "HIGH";
+            } else if (i == candidateTasks.size() - 1) {
+                energyWindow = "STRATEGIC_REVIEW";
+                priority = "NORMAL";
+            } else {
+                energyWindow = "TACTICAL_SPRINT";
+                priority = "HIGH";
+            }
+
+            LocalTime candidateEnd = cursor.plusMinutes(calibratedMins);
+            for (Map<String, Object> existing : existingSchedule) {
+                String schedAtStr = (String) existing.get("scheduledAt");
+                if (schedAtStr != null) {
+                    try {
+                        Instant inst = Instant.parse(schedAtStr);
+                        LocalTime exStart = inst.atZone(ZoneId.systemDefault()).toLocalTime();
+                        int exDuration = existing.get("durationMinutes") instanceof Number n ? n.intValue() : 25;
+                        LocalTime exEnd = exStart.plusMinutes(exDuration);
+
+                        if (cursor.isBefore(exEnd) && candidateEnd.isAfter(exStart)) {
+                            hasConflictsResolved = true;
+                            cursor = exEnd.plusMinutes(10);
+                            candidateEnd = cursor.plusMinutes(calibratedMins);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            String startStr = cursor.format(DateTimeFormatter.ofPattern("HH:mm"));
+            String endStr = candidateEnd.format(DateTimeFormatter.ofPattern("HH:mm"));
+
+            items.add(new DailyPlanItem(
+                    missionId,
+                    title,
+                    goalTitle,
+                    calibratedMins,
+                    priority,
+                    startStr,
+                    endStr,
+                    energyWindow,
+                    origMins,
+                    biasFactor,
+                    false,
+                    goalId
+            ));
+
+            cursor = candidateEnd;
+            taskIndex++;
+
+            if (i < candidateTasks.size() - 1) {
+                int breakMins = "DEEP_FOCUS".equals(energyWindow) ? 15 : 10;
+                LocalTime breakEnd = cursor.plusMinutes(breakMins);
+                items.add(new DailyPlanItem(
+                        null,
+                        "☕ " + breakMins + "m Attention Restoration Recess",
+                        "Cognitive Recovery",
+                        breakMins,
+                        "NORMAL",
+                        cursor.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        breakEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        "COGNITIVE_RECOVERY",
+                        breakMins,
+                        1.0,
+                        true,
+                        null
+                ));
+                cursor = breakEnd;
+            }
+        }
+
+        int totalPlannedMins = items.stream().mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
+        int totalFocusMins = items.stream().filter(it -> !it.isRestorativeBreak()).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
+        int totalBreakMins = items.stream().filter(DailyPlanItem::isRestorativeBreak).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
+
+        String pacingStrategy = (biasPct != 0.0)
+                ? String.format("BIAS_CALIBRATED_ULTRADIAN_FLOW (%+.0f%% estimation calibration applied)", biasPct)
+                : "CIRCADIAN_OPTIMIZED_FLOW";
+
+        String headline = String.format("Bias-Calibrated Daily Agenda (%d Focus Blocks • %dm Focus • %dm Rest)",
+                (int) items.stream().filter(it -> !it.isRestorativeBreak()).count(), totalFocusMins, totalBreakMins);
+
+        String rationale = (biasPct != 0.0)
+                ? String.format("Sprint durations calibrated by %+.0f%% based on historical execution velocity. High-cognitive load deep work is sequenced first with mandatory non-screen cognitive recovery buffers.", biasPct)
+                : "Structured around natural ultradian focus rhythms: front-loading high-leverage deep work with dedicated restorative micro-breaks.";
+
+        String payloadJson = "{}";
+        try {
+            payloadJson = objectMapper.writeValueAsString(items);
+        } catch (Exception ignored) {}
+
+        AiSuggestion s = logSuggestion(userId, "DAILY_PLAN", "userId=" + userId, payloadJson);
+        Long suggestionId = s != null ? s.getId() : null;
+
+        return new DailyPlanResponse(
+                headline,
+                rationale,
+                items,
+                totalPlannedMins,
+                totalFocusMins,
+                totalBreakMins,
+                pacingStrategy,
+                biasPct,
+                hasConflictsResolved,
+                suggestionId
+        );
     }
 
     /**
@@ -807,11 +1005,20 @@ public class AiGateway {
     private boolean isPlanIntent(String msg) {
         String m = msg.toLowerCase(Locale.ROOT);
         if (m.contains("plan my day") || m.contains("daily plan") || m.equals("plan") || m.equals("plann")
-                || m.contains("schedule today") || m.contains("plan today") || m.contains("plan the day")) {
+                || m.contains("schedule today") || m.contains("plan today") || m.contains("plan the day")
+                || m.contains("daily agenda") || m.contains("daily schedule") || m.contains("today agenda")
+                || m.contains("organize my day") || m.contains("what should my day") || m.contains("structure my day")
+                || m.contains("scheudle") || m.contains("my agenda") || m.contains("todays agenda")) {
             return true;
         }
-        boolean hasPlanTerm = containsFuzzyWord(m, "plan") || containsFuzzyWord(m, "schedule") || containsFuzzyWord(m, "itinerary") || containsFuzzyWord(m, "routine");
-        boolean hasTimeTerm = containsFuzzyWord(m, "day") || containsFuzzyWord(m, "today") || containsFuzzyWord(m, "daily") || containsFuzzyWord(m, "tomorrow");
+        boolean hasPlanTerm = containsFuzzyWord(m, "plan") || containsFuzzyWord(m, "schedule")
+                || containsFuzzyWord(m, "scheudle") || containsFuzzyWord(m, "itinerary")
+                || containsFuzzyWord(m, "agenda") || containsFuzzyWord(m, "agends")
+                || containsFuzzyWord(m, "routine") || containsFuzzyWord(m, "calender")
+                || containsFuzzyWord(m, "calendar");
+        boolean hasTimeTerm = containsFuzzyWord(m, "day") || containsFuzzyWord(m, "today")
+                || containsFuzzyWord(m, "daily") || containsFuzzyWord(m, "tomorrow")
+                || containsFuzzyWord(m, "morning") || containsFuzzyWord(m, "afternoon");
         return hasPlanTerm && hasTimeTerm;
     }
 

@@ -116,8 +116,18 @@ public class OllamaProvider implements AIProvider {
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode responseNode = root.get("response");
                 String content = responseNode != null ? responseNode.asString() : response.getBody();
-                if (content != null && content.contains("</think>")) {
-                    content = content.substring(content.lastIndexOf("</think>") + 8).trim();
+                if (content != null) {
+                    int thinkStart = content.lastIndexOf("<think>");
+                    int thinkEnd = content.lastIndexOf("</think>");
+                    if (thinkStart > thinkEnd) {
+                        return AiProviderResponse.failure("Ollama returned an incomplete reasoning block", latencyMs, "ollama", model);
+                    }
+                    if (thinkEnd >= 0) {
+                        content = content.substring(thinkEnd + 8).trim();
+                        if (content.isEmpty()) {
+                            return AiProviderResponse.failure("Ollama returned no response content", latencyMs, "ollama", model);
+                        }
+                    }
                 }
                 return AiProviderResponse.success(content, latencyMs, "ollama", model);
             } else {

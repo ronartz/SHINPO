@@ -8,12 +8,12 @@
 - [x] Phase 1.3: Stateless JWT Authentication & Refresh Token Rotation (Flyway V8)
 - [x] Phase 1.4: Modern 2x2 Bento Cockpit Frontend (Dark luxury aesthetic, Today tasks, Calendar, Velocity pillars, Timeline)
 
-### Milestone 2: EONPAI Tactical Intelligence & Telemetry Loop (IN PROGRESS)
+### Milestone 2: EONPAI Tactical Intelligence & Telemetry Loop (COMPLETE)
 - [x] Phase 2.1: Local Ollama Provider & AI Gateway (`qwen3:4b`, fallback heuristics)
 - [x] Phase 2.2: Read-Only System Tools (`AiToolRegistry` context assembly)
 - [x] Phase 2.3: Persistent Conversation History (Flyway V10, message audit)
 - [x] Phase 2.4: Session Debrief Analysis & Cognitive Recovery Workflows
-- [ ] Phase 2.5: Adaptive Planning & Daily Agenda Scheduling
+- [x] Phase 2.5: Adaptive Planning & Daily Agenda Scheduling
 
 ### Milestone 3: Sentinel Process Hardening & OS Enforcement (PLANNED)
 - [ ] Phase 3.1: Linux eBPF / Cgroup Process Containment

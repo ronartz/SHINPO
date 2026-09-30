@@ -45,15 +45,41 @@ export type NextAction = {
 export type DailyPlanItem = {
   missionId: number
   missionTitle: string
-  goalTitle: string
+  goalTitle?: string
   durationMinutes: number
-  priority: string
+  priority?: string
+  scheduledStartTime?: string
+  scheduledEndTime?: string
+  energyWindow?: 'DEEP_FOCUS' | 'TACTICAL_SPRINT' | 'COGNITIVE_RECOVERY' | 'STRATEGIC_REVIEW' | string
+  originalEstimatedMinutes?: number
+  biasCorrectionFactor?: number
+  isRestorativeBreak?: boolean
+  goalId?: number | null
 }
 
 export type DailyPlan = {
   headline: string
   rationale: string
   planItems: DailyPlanItem[]
+  totalPlannedMinutes?: number
+  totalFocusMinutes?: number
+  totalBreakMinutes?: number
+  circadianPacingStrategy?: string
+  userEstimationBiasPct?: number
+  hasConflictsResolved?: boolean
+  suggestionId?: number | null
+}
+
+export type CommitDailyPlanRequest = {
+  suggestionId?: number
+  selectedItems?: DailyPlanItem[]
+}
+
+export type CommitDailyPlanResponse = {
+  scheduledSessionsCount: number
+  totalScheduledMinutes: number
+  createdSessionIds: number[]
+  statusMessage: string
 }
 
 export type NextActionCard = {
@@ -82,6 +108,7 @@ export type StructuredCard =
   | ProposedMission[]
   | { proposedMissions: ProposedMission[] }
   | { planItems: DailyPlanItem[] }
+  | DailyPlan
   | NextActionCard
   | SessionDebriefAnalysis
   | SessionRecovery
@@ -281,4 +308,15 @@ export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
     headers: authHeaders(),
   })
   return parseResponse<UserExecutionProfile>(res)
+}
+
+export async function commitDailyPlan(
+  request?: CommitDailyPlanRequest,
+): Promise<CommitDailyPlanResponse> {
+  const res = await fetch(`${API_BASE}/daily-plan/commit`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: request ? JSON.stringify(request) : undefined,
+  })
+  return parseResponse<CommitDailyPlanResponse>(res)
 }
