@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SHINPO Architecture & Remaining Tasks",
+    "output": "shinpo-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "db", "type": "database", "label": "PostgreSQL 17", "sublabel": "State & Auth", "pos": [450, 100], "size": [160, 70], "tag": "DONE" },
+    
+    { "id": "ui", "type": "frontend", "label": "React 19 Cockpit", "sublabel": "Dark Glassmorphism", "pos": [100, 300], "size": [160, 70], "tag": "DONE" },
+    { "id": "backend", "type": "backend", "label": "Spring Boot 4.1", "sublabel": "API & Engine", "pos": [450, 300], "size": [160, 70], "tag": "DONE" },
+    
+    { "id": "eonpai", "type": "backend", "label": "EONPAI Gateway", "sublabel": "Contextual AI", "pos": [100, 550], "size": [160, 70], "tag": "DONE" },
+    { "id": "sentinel", "type": "security", "label": "Sentinel Service", "sublabel": "JVM quarantine", "pos": [450, 550], "size": [160, 70], "tag": "PARTIAL" },
+    { "id": "nativeshield", "type": "security", "label": "Native Shield", "sublabel": "Rust/C++ (Phase 4)", "pos": [800, 550], "size": [160, 70], "tag": "REMAINING" },
+    
+    { "id": "ollama", "type": "external", "label": "Ollama qwen3:4b", "sublabel": "Local LLM", "pos": [100, 800], "size": [160, 70], "tag": "EXTERNAL" },
+    { "id": "osapi", "type": "external", "label": "OS Process APIs", "sublabel": "Linux /proc", "pos": [450, 800], "size": [160, 70], "tag": "EXTERNAL" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Host Machine Trust Boundary", "wraps": ["ui", "backend", "db", "eonpai", "sentinel", "nativeshield"] }
+  ],
+  "connections": [
+    { "id": "sprint", "from": "ui", "to": "backend", "label": "1. Starts Focus Sprint", "variant": "emphasis" },
+    { "id": "audit", "from": "backend", "to": "db", "label": "2. Locks & Audits", "variant": "emphasis" },
+    { "id": "trigger", "from": "backend", "to": "sentinel", "label": "3. Triggers Enforcer", "variant": "emphasis" },
+    { "id": "sweep", "from": "sentinel", "to": "osapi", "label": "4. Sweeps/Kills Apps", "variant": "emphasis" },
+    
+    { "id": "chat", "from": "ui", "to": "eonpai", "label": "Queries / Tools" },
+    { "id": "ai-delegate", "from": "backend", "to": "eonpai", "label": "AI Context" },
+    { "id": "prompt", "from": "eonpai", "to": "ollama", "label": "Prompts" },
+    
+    { "id": "shield-future", "from": "sentinel", "to": "nativeshield", "label": "Phase 4 Delegation", "variant": "dashed" },
+    { "id": "shield-os", "from": "nativeshield", "to": "osapi", "label": "Secure Enforcement", "variant": "dashed" }
+  ]
+}
