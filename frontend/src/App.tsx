@@ -397,6 +397,7 @@ export function App() {
   // AI Assistant Chat State
   const [chatMessages, setChatMessages] = useState<
     {
+      id?: string
       role: 'user' | 'assistant'
       text: string
       missions?: ProposedMission[]
@@ -831,7 +832,7 @@ export function App() {
       setNewGoalTitle('')
       setNewGoalDesc('')
       loadData()
-      if (isTutorialActive && tutorialStepIndex === 0) {
+      if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === 'CREATE_GOAL') {
         handleNextTutorialStep()
       }
     } catch (err) {
@@ -844,7 +845,7 @@ export function App() {
     try {
       const result = await decomposeGoal(goalId, dashboard?.user.id ?? 1)
       setAiDecompResult(result)
-      if (isTutorialActive && tutorialStepIndex === 1) {
+      if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === 'DECONSTRUCT_GOAL') {
         handleNextTutorialStep()
       }
     } catch (err) {
@@ -872,9 +873,6 @@ export function App() {
       setMissions((prev) => [...created, ...prev])
       setAiDecompResult(null)
       loadData()
-      if (isTutorialActive && tutorialStepIndex === 2) {
-        handleNextTutorialStep()
-      }
     } catch (err) {
       console.error(err)
     }
@@ -1155,9 +1153,11 @@ export function App() {
         }
       } else {
         // Create initial placeholder assistant bubble
+        const assistantMessageId = crypto.randomUUID()
         setChatMessages((prev) => [
           ...prev,
           {
+            id: assistantMessageId,
             role: 'assistant',
             text: '',
             missions: [],
@@ -1178,17 +1178,16 @@ export function App() {
               tokenIdx += 2
               currentText += chunk
 
-              setChatMessages((prev) => {
-                const updated = [...prev]
-                const lastIdx = updated.length - 1
-                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
+              setChatMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantMessageId
+                    ? {
+                    ...message,
                     text: currentText,
                   }
-                }
-                return updated
-              })
+                    : message,
+                ),
+              )
 
               if (autoFollowEnabledRef.current && aiFeedRef.current) {
                 aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
@@ -1197,20 +1196,19 @@ export function App() {
             } else {
               clearInterval(streamInterval)
               // Finalize message with cards/attachments
-              setChatMessages((prev) => {
-                const updated = [...prev]
-                const lastIdx = updated.length - 1
-                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
+              setChatMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantMessageId
+                    ? {
+                    ...message,
                     text: fullReply,
                     missions,
                     tutorial: res.tutorial,
                     bugReport: res.bugReport,
                   }
-                }
-                return updated
-              })
+                    : message,
+                ),
+              )
               if (autoFollowEnabledRef.current && aiFeedRef.current) {
                 aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
                 lastScrollTopRef.current = aiFeedRef.current.scrollTop
@@ -1580,7 +1578,7 @@ export function App() {
             { id: 'Dashboard', icon: 'dashboard' as IconName, label: 'Dashboard', tut: 'nav-dashboard' },
             { id: 'Goals & Missions', icon: 'goals' as IconName, label: 'Goals', tut: 'nav-goals' },
             { id: 'Focus Engine', icon: 'focus' as IconName, label: 'Focus', tut: 'nav-focus' },
-            { id: 'Schedule', icon: 'schedule' as IconName, label: 'Calendar', badge: scheduledCount > 0 ? `+${scheduledCount}` : '+2', tut: 'nav-schedule' },
+                    { id: 'Schedule', icon: 'schedule' as IconName, label: 'Calendar', badge: scheduledCount > 0 ? `+${scheduledCount}` : undefined, tut: 'nav-schedule' },
             { id: 'Analytics', icon: 'analytics' as IconName, label: 'Analytics', tut: 'nav-analytics' },
             { id: 'Task Manager', icon: 'apps' as IconName, label: 'Task Manager', badge: 'Live', tut: 'nav-tasks' },
             { id: 'AI Assistant', icon: 'sparkle' as IconName, label: 'EONPAI', badge: 'AI', tut: 'nav-ai' },
@@ -2723,7 +2721,7 @@ export function App() {
               >
                 <div className="ai-messages-content" ref={aiContentRef}>
                   {chatMessages.map((msg, index) => (
-                    <div key={index} className={`ai-bubble ${msg.role}`}>
+                    <div key={msg.id ?? index} className={`ai-bubble ${msg.role}`}>
                       <div>{msg.text}</div>
 
                       {msg.suggestionType === 'GREETING' && (
@@ -4099,17 +4097,19 @@ export function App() {
           onPrev={handlePrevTutorialStep}
           onExit={handleExitTutorial}
           onTargetInteract={() => {
-            if (tutorialStepIndex === 0) {
+            const stepId = SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id
+            if (stepId === 'CREATE_GOAL') {
               setIsCreatingGoal(true)
-            } else if (tutorialStepIndex === 3) {
+            } else if (stepId === 'OPEN_SCHEDULE') {
               setActiveTab('Schedule')
               handleNextTutorialStep()
-            } else if (tutorialStepIndex === 4) {
-              handleOpenBookingModal()
-            } else if (tutorialStepIndex === 5) {
+            } else if (stepId === 'FOCUS_CONTROLS') {
               setActiveTab('Focus Engine')
-            } else if (tutorialStepIndex === 7) {
+            } else if (stepId === 'VIEW_ANALYTICS') {
               setActiveTab('Analytics')
+              handleNextTutorialStep()
+            } else if (stepId === 'CHECK_PROGRESS') {
+              setActiveTab('Dashboard')
               handleCompleteTutorial()
             }
           }}

@@ -156,6 +156,7 @@ public class AiGateway {
                     You are EONPAI (also known as SHINPAI), the Personal Strategic Execution AI Companion for SHINPO (SYSTEM: ARISE).
                     Philosophy: Execution > Planning Theater. Real Data > Vanity Metrics.
                     Role: You analyze the user's current goals, missions, and schedule to provide crisp, concrete, actionable guidance.
+                    Robustness: Deduce user intent intelligently even if the user has typos, informal shorthand, or misspellings.
                     CRITICAL: You are an advisory companion. You NEVER directly modify databases or execute processes.
                     You MUST respond strictly in valid JSON matching this schema:
                     {
@@ -163,7 +164,7 @@ public class AiGateway {
                       "suggestionType": "TACTICAL_ASSISTANT" | "PLANNER" | "ARCHITECT" | "COACH",
                       "structuredCard": null
                     }
-                    Do not include Markdown backticks or any preamble before or after the JSON.
+                    Do not echo application context. Return ONLY the JSON object. Do not include Markdown code fences.
                     """;
 
             AiProviderRequest req = AiProviderRequest.of(systemPrompt, rawMsg, context);
@@ -408,55 +409,131 @@ public class AiGateway {
         return "TACTICAL_ASSISTANT";
     }
 
+    public static int levenshteinDistance(String a, String b) {
+        if (a == null || b == null) return Integer.MAX_VALUE;
+        int[] costs = new int[b.length() + 1];
+        for (int j = 0; j < costs.length; j++) costs[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            costs[0] = i;
+            int nw = i - 1;
+            for (int j = 1; j <= b.length(); j++) {
+                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]),
+                        a.charAt(i - 1) == b.charAt(j - 1) ? nw : nw + 1);
+                nw = costs[j];
+                costs[j] = cj;
+            }
+        }
+        return costs[b.length()];
+    }
+
+    public static boolean fuzzyWordMatch(String word, String target) {
+        if (word == null || target == null) return false;
+        if (word.equalsIgnoreCase(target)) return true;
+        int maxDist = target.length() <= 3 ? 1 : 2;
+        return Math.abs(word.length() - target.length()) <= maxDist
+                && levenshteinDistance(word.toLowerCase(Locale.ROOT), target.toLowerCase(Locale.ROOT)) <= maxDist;
+    }
+
+    public static boolean containsFuzzyWord(String text, String target) {
+        if (text == null || target == null) return false;
+        String[] words = text.toLowerCase(Locale.ROOT).split("[^a-zA-Z0-9]+");
+        for (String w : words) {
+            if (fuzzyWordMatch(w, target)) return true;
+        }
+        return false;
+    }
+
     private boolean isGreeting(String msg) {
-        String clean = msg.replaceAll("[!?,.]", "").trim();
-        return clean.equals("hi") || clean.equals("hello") || clean.equals("hey")
+        String clean = msg.replaceAll("[!?,.]", "").trim().toLowerCase(Locale.ROOT);
+        return clean.equals("hi") || clean.equals("hello") || clean.equals("helo")
+                || clean.equals("hey") || clean.equals("hy") || clean.equals("hlo")
                 || clean.equals("yo") || clean.equals("sup") || clean.equals("morning")
                 || clean.startsWith("good morning") || clean.startsWith("good afternoon")
-                || clean.startsWith("good evening") || clean.equals("greetings");
+                || clean.startsWith("good evening") || clean.equals("greetings")
+                || fuzzyWordMatch(clean, "hello") || fuzzyWordMatch(clean, "greetings");
     }
 
     private boolean isIdentityQuery(String msg) {
-        String clean = msg.replaceAll("[!?,.]", "").trim().toLowerCase();
-        return clean.equals("who are u") || clean.equals("who r u") || clean.equals("who are you") || clean.equals("what are you")
-                || msg.contains("who are you") || msg.contains("what are you")
-                || msg.contains("who are u") || msg.contains("who r u")
-                || msg.contains("introduce yourself") || msg.contains("what can you do")
+        String clean = msg.replaceAll("[!?,.]", "").trim().toLowerCase(Locale.ROOT);
+        if (clean.equals("who are u") || clean.equals("who r u") || clean.equals("who are you") || clean.equals("what are you")
+                || clean.equals("hu r u") || clean.equals("wat r u") || clean.equals("what r u") || clean.equals("who is this")) {
+            return true;
+        }
+        boolean hasWhoOrWhat = containsFuzzyWord(msg, "who") || containsFuzzyWord(msg, "what") || msg.contains("wat");
+        boolean hasIdentityTarget = containsFuzzyWord(msg, "you") || containsFuzzyWord(msg, "eonpai")
+                || containsFuzzyWord(msg, "shinpai") || msg.contains(" u ") || msg.endsWith(" u") || msg.contains(" r u");
+        if (hasWhoOrWhat && hasIdentityTarget) {
+            return true;
+        }
+        return containsFuzzyWord(msg, "introduce") || msg.contains("what can you do") || msg.contains("what can u do")
                 || msg.contains("what is eonpai") || msg.contains("about eonpai");
     }
 
     private boolean isTutorialIntent(String msg) {
-        return msg.contains("tutorial") || msg.contains("how do i use") || msg.contains("teach me")
-                || msg.contains("walk me through") || msg.contains("show me around") || msg.contains("guide me")
-                || msg.contains("how does shinpo work");
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (containsFuzzyWord(m, "tutorial") || containsFuzzyWord(m, "walkthrough") || containsFuzzyWord(m, "onboarding") || m.contains("walkthru")) {
+            return true;
+        }
+        boolean hasHow = m.contains("how do i") || m.contains("how to") || m.contains("how 2") || m.contains("how does") || m.contains("teach me") || m.contains("guide me") || m.contains("show me");
+        boolean hasSubject = containsFuzzyWord(m, "use") || containsFuzzyWord(m, "work") || containsFuzzyWord(m, "shinpo") || containsFuzzyWord(m, "start") || containsFuzzyWord(m, "begin");
+        return hasHow && hasSubject;
     }
 
     private boolean isEnforcementQuery(String msg) {
-        return msg.contains("why ")
-                && (msg.contains("can't i") || msg.contains("cant i")
-                || msg.contains("blocked") || msg.contains("terminated")
-                || msg.contains("closed") || msg.contains("session end")
-                || msg.contains("my session") || msg.contains("youtube"));
+        String m = msg.toLowerCase(Locale.ROOT);
+        boolean isWhy = m.contains("why") || m.startsWith("y ") || m.contains(" y ");
+        boolean isEnforceTerm = containsFuzzyWord(m, "blocked") || containsFuzzyWord(m, "block")
+                || containsFuzzyWord(m, "terminated") || containsFuzzyWord(m, "terminate")
+                || containsFuzzyWord(m, "closed") || containsFuzzyWord(m, "killed")
+                || m.contains("cant i") || m.contains("can't i") || m.contains("session end")
+                || m.contains("my session") || m.contains("youtube");
+        return isWhy && isEnforceTerm;
     }
 
     private boolean isBugReportIntent(String msg) {
-        return (msg.contains("bug") || msg.contains("error") || msg.contains("crash") || msg.contains("broken") || msg.contains("issue"))
-                && (msg.contains("found") || msg.contains("report") || msg.contains("fix") || msg.contains("there is") || msg.contains("problem"));
+        String m = msg.toLowerCase(Locale.ROOT);
+        boolean hasBugTerm = containsFuzzyWord(m, "bug") || containsFuzzyWord(m, "error") || containsFuzzyWord(m, "eror")
+                || containsFuzzyWord(m, "crash") || containsFuzzyWord(m, "crashed") || containsFuzzyWord(m, "broken") || containsFuzzyWord(m, "problem");
+        boolean hasAction = containsFuzzyWord(m, "found") || containsFuzzyWord(m, "report") || containsFuzzyWord(m, "fix")
+                || m.contains("there is") || m.contains("not working") || m.contains("is broken");
+        return hasBugTerm && hasAction;
     }
 
     private boolean isPlanIntent(String msg) {
-        return msg.contains("plan my day") || msg.contains("daily plan") || msg.equals("plan")
-                || msg.contains("schedule today") || msg.contains("plan today");
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (m.contains("plan my day") || m.contains("daily plan") || m.equals("plan") || m.equals("plann")
+                || m.contains("schedule today") || m.contains("plan today") || m.contains("plan the day")) {
+            return true;
+        }
+        boolean hasPlanTerm = containsFuzzyWord(m, "plan") || containsFuzzyWord(m, "schedule") || containsFuzzyWord(m, "itinerary") || containsFuzzyWord(m, "routine");
+        boolean hasTimeTerm = containsFuzzyWord(m, "day") || containsFuzzyWord(m, "today") || containsFuzzyWord(m, "daily") || containsFuzzyWord(m, "tomorrow");
+        return hasPlanTerm && hasTimeTerm;
     }
 
     private boolean isGoalIntent(String msg) {
-        return msg.contains("break down goal") || msg.contains("decompose goal")
-                || msg.contains("decompose") || msg.contains("partition goal");
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (m.contains("break down") || m.contains("breakdown") || m.contains("actionable steps")
+                || m.contains("decompose") || m.contains("partition goal") || m.contains("split goal") || m.contains("steps to achieve")) {
+            return true;
+        }
+        boolean hasAction = containsFuzzyWord(m, "break") || containsFuzzyWord(m, "decompose")
+                || containsFuzzyWord(m, "partition") || containsFuzzyWord(m, "split") || containsFuzzyWord(m, "steps");
+        boolean hasTarget = containsFuzzyWord(m, "goal") || containsFuzzyWord(m, "objective") || containsFuzzyWord(m, "target") || containsFuzzyWord(m, "milestone");
+        return hasAction && hasTarget;
     }
 
     private boolean isNextActionIntent(String msg) {
-        return msg.contains("what should") || msg.contains("next action")
-                || msg.contains("what to do") || msg.contains("what next");
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (m.contains("what should") || m.contains("wat should") || m.contains("what shud")
+                || m.contains("next action") || m.contains("nxt action")
+                || m.contains("what to do") || m.contains("wat to do")
+                || m.contains("what next") || m.contains("wat next") || m.contains("whats next")
+                || m.contains("what should i work on") || m.contains("highest priority") || m.contains("top priority")) {
+            return true;
+        }
+        boolean hasWhat = containsFuzzyWord(m, "what") || m.contains("wat");
+        boolean hasNext = containsFuzzyWord(m, "next") || containsFuzzyWord(m, "priority") || containsFuzzyWord(m, "action") || containsFuzzyWord(m, "work") || containsFuzzyWord(m, "focus");
+        return hasWhat && hasNext;
     }
 
     private String extractFeature(String msg) {

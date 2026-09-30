@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SHINPO Ralph Loop — Bounded Autonomous Iterative Runner
+# SHINPO Ralph — Pairing Preflight for an External Coding Agent
 # Based on Geoffrey Huntley's Ralph Wiggum iterative paradigm
 #
 # Usage:
@@ -17,8 +17,7 @@ PROMPT_FILE="$SCRIPT_DIR/PROMPT.md"
 AGENTS_FILE="$SCRIPT_DIR/AGENTS.md"
 LOG_FILE="$PROJECT_ROOT/.planning/ralph.log"
 
-DEFAULT_MAX_ITERATIONS=5
-MAX_ITERATIONS=$DEFAULT_MAX_ITERATIONS
+MAX_ITERATIONS=""
 DRY_RUN=false
 
 # ------------------------------------------------------------------------------
@@ -35,13 +34,13 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --help|-h)
-      echo "SHINPO Ralph Loop — Bounded Iterative Autonomous Execution"
+      echo "SHINPO Ralph — Pairing Preflight"
       echo ""
       echo "Usage: ./scripts/ralph/ralph.sh [options]"
       echo ""
       echo "Options:"
-      echo "  --max-iterations, -n N   Set maximum iteration limit (default: $DEFAULT_MAX_ITERATIONS, max safe: 10)"
-      echo "  --dry-run                Validate preflight checks, plan, and build tools without executing"
+      echo "  --max-iterations, -n N   Legacy option; this preflight always runs once"
+      echo "  --dry-run                Run validation gates without preparing a task handoff"
       echo "  --help, -h               Show this help message"
       exit 0
       ;;
@@ -52,21 +51,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Cap max iterations for safety (never allow unbounded runaway loops)
-if [[ "$MAX_ITERATIONS" -gt 15 ]]; then
-  echo "⚠️  Requested iterations ($MAX_ITERATIONS) exceeds safe boundary. Capping at 15."
-  MAX_ITERATIONS=15
-fi
-
 # ------------------------------------------------------------------------------
 # Preflight Verification
 # ------------------------------------------------------------------------------
 echo "================================================================="
-echo "  SHINPO RALPH LOOP: BOUNDED ITERATIVE IMPLEMENTATION ENGINE"
+echo "  SHINPO RALPH: PAIRING PREFLIGHT"
 echo "================================================================="
 echo "• Project Root:    $PROJECT_ROOT"
 echo "• Plan File:       $PLAN_FILE"
-echo "• Max Iterations:  $MAX_ITERATIONS"
+echo "• Execution:       External coding agent required"
+if [[ -n "$MAX_ITERATIONS" ]]; then
+  echo "• Legacy iteration option ignored; preflight runs once: $MAX_ITERATIONS"
+fi
 echo "• Dry Run:         $DRY_RUN"
 echo ""
 
@@ -90,9 +86,9 @@ run_validation_gates() {
   echo "  [Backpressure Gate] Validating builds and tests..."
 
   # 1. Backend Java compilation check
-  echo "  → Checking backend compilation (mvnw test-compile)..."
-  if ! (cd "$PROJECT_ROOT/backend" && ./mvnw test-compile -q); then
-    echo "  ❌ Backend compilation failed! Backpressure triggered." >&2
+  echo "  → Running backend tests (mvnw test)..."
+  if ! (cd "$PROJECT_ROOT/backend" && ./mvnw test -q); then
+    echo "  ❌ Backend tests failed! Backpressure triggered." >&2
     return 1
   fi
 
@@ -117,49 +113,28 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
-echo "Starting Ralph Loop execution (Budget: $MAX_ITERATIONS iterations)..."
+echo "Starting one-pass pairing preflight..."
 echo "Started at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$LOG_FILE"
 
-COMPLETED_TASKS=0
+PENDING_COUNT=$(grep -c "^\s*- \[ \]" "$PLAN_FILE" || true)
+if [[ "$PENDING_COUNT" -eq 0 ]]; then
+  echo "🎉 All planned tasks in $PLAN_FILE are marked completed."
+  exit 0
+fi
 
-for ((i = 1; i <= MAX_ITERATIONS; i++)); do
-  echo ""
-  echo "-----------------------------------------------------------------"
-  echo "  Iteration $i of $MAX_ITERATIONS"
-  echo "-----------------------------------------------------------------"
+echo "• Pending tasks remaining: $PENDING_COUNT"
+NEXT_TASK=$(grep "^\s*- \[ \]" "$PLAN_FILE" | head -n 1)
+echo "• Target task: $NEXT_TASK"
+echo "[Pairing preflight] Targeting: $NEXT_TASK" >> "$LOG_FILE"
 
-  # Check if all tasks in plan are complete
-  PENDING_COUNT=$(grep -c "^\s*- \[ \]" "$PLAN_FILE" || true)
-  if [[ "$PENDING_COUNT" -eq 0 ]]; then
-    echo "🎉 All planned tasks in $PLAN_FILE are marked completed!"
-    echo "Ralph Loop terminating cleanly on iteration $i."
-    break
-  fi
-
-  echo "• Pending tasks remaining: $PENDING_COUNT"
-  NEXT_TASK=$(grep "^\s*- \[ \]" "$PLAN_FILE" | head -n 1)
-  echo "• Target task: $NEXT_TASK"
-
-  # Record step in log
-  echo "[Iteration $i] Targeting: $NEXT_TASK" >> "$LOG_FILE"
-
-  # Run Backpressure Check
-  if ! run_validation_gates; then
-    echo "⚠️  Pre-existing build/test failure detected. Fix before proceeding." >&2
-    exit 2
-  fi
-
-  echo "  → Iteration $i validated. Ready for agent execution step."
-  COMPLETED_TASKS=$((COMPLETED_TASKS + 1))
-
-  # Note: In active pairing, Antigravity or Roo Code executes the discrete code task
-  # then updates the checkbox in IMPLEMENTATION_PLAN.md
-  break
-done
+if ! run_validation_gates; then
+  echo "⚠️  Pre-existing build/test failure detected. Fix before proceeding." >&2
+  exit 2
+fi
 
 echo ""
 echo "================================================================="
-echo "  RALPH LOOP RUN COMPLETE"
-echo "  • Iterations executed: $i"
-echo "  • Status: Bounded, validated, safe."
+echo "  RALPH PAIRING PREFLIGHT COMPLETE"
+echo "  • Status: Gates passed; task not executed."
+echo "  • Handoff: External agent must implement, validate, and update the plan."
 echo "================================================================="

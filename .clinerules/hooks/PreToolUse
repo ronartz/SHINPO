@@ -13,6 +13,7 @@ process.stdin.on('end', () => {
   try { input = JSON.parse(raw || '{}'); } catch { return allow(); }
   try {
     const tool = String(
+      (input.preToolUse && input.preToolUse.toolName) ||
       input.toolName || input.tool_name || input.tool ||
       (input.toolInput && input.toolInput.name) || (input.tool_input && input.tool_input.name) || ''
     ).toLowerCase();

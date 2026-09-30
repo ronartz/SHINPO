@@ -74,8 +74,6 @@ class AiArchitectureTests {
                 properties.getOllama().setModel("missing-model");
                 RestTemplate restTemplate = mock(RestTemplate.class);
                 RestTemplate healthRestTemplate = mock(RestTemplate.class);
-                when(healthRestTemplate.getForEntity(anyString(), eq(String.class)))
-                                .thenReturn(ResponseEntity.ok("{\"models\":[{\"name\":\"installed-model\"}]}"));
                 when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))
                                 .thenReturn(ResponseEntity.ok("{\"response\":\"ok\"}"));
 
@@ -83,6 +81,7 @@ class AiArchitectureTests {
                 AiProviderResponse response = provider.generate(AiProviderRequest.of("system", "user"));
 
                 assertEquals("missing-model", response.model());
+                verifyNoInteractions(healthRestTemplate);
         }
 
     @Test
@@ -165,9 +164,59 @@ class AiArchitectureTests {
         AiChatResponse r2 = gateway.processChat(new AiChatRequest(1L, "who r u", null, null, null));
         AiChatResponse r3 = gateway.processChat(new AiChatRequest(1L, "Who are you?", null, null, null));
 
-        assertTrue(r1.reply().contains("EONPAI"));
-        assertTrue(r2.reply().contains("EONPAI"));
-        assertTrue(r3.reply().contains("EONPAI"));
+        assertEquals("IDENTITY", r1.suggestionType());
+        assertEquals("IDENTITY", r2.suggestionType());
+        assertEquals("IDENTITY", r3.suggestionType());
+
+        AiChatResponse supportQuery = gateway.processChat(
+                new AiChatRequest(1L, "Who are u? My scheduled sessions are missing.", null, null, null)
+        );
+        assertEquals("TACTICAL_ASSISTANT", supportQuery.suggestionType());
+    }
+
+    @Test
+    void typoToleranceAndFuzzyMatchingRecognizesIntents() {
+        AiGateway gateway = new AiGateway(
+                List.of(),
+                properties,
+                toolRegistry,
+                suggestionRepository,
+                userRepository,
+                objectMapper
+        );
+
+        when(toolRegistry.getCurrentGoal(any(), any()))
+                .thenReturn(Map.of("id", 1L, "title", "Launch SHINPO 1.0"));
+        when(toolRegistry.getNextMission(any()))
+                .thenReturn(Map.of("id", 101L, "title", "Ship Distributed Shield", "estimatedMinutes", 45));
+        when(toolRegistry.getTodaysSchedule(any()))
+                .thenReturn(List.of());
+
+        // Goal decomposition intent with UI preset and typos
+        AiChatResponse goal1 = gateway.processChat(new AiChatRequest(1L, "Break down my top goal into actionable steps", null, null, null));
+        AiChatResponse goal2 = gateway.processChat(new AiChatRequest(1L, "brek down my top gola", null, null, null));
+        AiChatResponse goal3 = gateway.processChat(new AiChatRequest(1L, "actionable steps for goal", null, null, null));
+        assertEquals("ARCHITECT", goal1.suggestionType());
+        assertEquals("ARCHITECT", goal2.suggestionType());
+        assertEquals("ARCHITECT", goal3.suggestionType());
+
+        // Daily plan with typos
+        AiChatResponse plan1 = gateway.processChat(new AiChatRequest(1L, "plann my day", null, null, null));
+        AiChatResponse plan2 = gateway.processChat(new AiChatRequest(1L, "shedule today", null, null, null));
+        assertEquals("PLANNER", plan1.suggestionType());
+        assertEquals("PLANNER", plan2.suggestionType());
+
+        // Next action with typos
+        AiChatResponse next1 = gateway.processChat(new AiChatRequest(1L, "wat should i do now", null, null, null));
+        AiChatResponse next2 = gateway.processChat(new AiChatRequest(1L, "what next", null, null, null));
+        assertEquals("NEXT_ACTION", next1.suggestionType());
+        assertEquals("NEXT_ACTION", next2.suggestionType());
+
+        // Greeting with typos
+        AiChatResponse greet1 = gateway.processChat(new AiChatRequest(1L, "helo", null, null, null));
+        AiChatResponse greet2 = gateway.processChat(new AiChatRequest(1L, "hy", null, null, null));
+        assertEquals("GREETING", greet1.suggestionType());
+        assertEquals("GREETING", greet2.suggestionType());
     }
 
     @Test

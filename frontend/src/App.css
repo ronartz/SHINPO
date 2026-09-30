@@ -1556,7 +1556,7 @@ html[data-theme='dark'] .sidebar-shield-card {
   }
 }
 
-.bento-card {
+.bento-2x2-grid .bento-card {
   background: rgba(18, 22, 30, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
