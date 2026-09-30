@@ -148,8 +148,27 @@ public class ContextEngine {
             }
         }
 
+        // Execution Profile
+        Object rawProf = fullContext.get("executionProfile");
+        Map<?, ?> profMap = (rawProf instanceof Map<?, ?> m) ? m : (toolRegistry != null ? toolRegistry.getUserExecutionProfile(userId) : null);
+        ExecutionProfileSummary executionProfile = null;
+        if (profMap != null) {
+            executionProfile = new ExecutionProfileSummary(
+                    Boolean.TRUE.equals(profMap.get("hasSufficientData")),
+                    (profMap.get("completedSessionsCount") instanceof Number n) ? n.intValue() : 0,
+                    (profMap.get("totalMissionsCompleted") instanceof Number n) ? n.intValue() : 0,
+                    (profMap.get("totalFocusMinutes") instanceof Number n) ? n.longValue() : 0L,
+                    (profMap.get("averageFocusMinutes") instanceof Number n) ? n.doubleValue() : null,
+                    (profMap.get("estimationBiasPercentage") instanceof Number n) ? n.doubleValue() : null,
+                    (profMap.get("estimationAccuracyCategory") instanceof String s) ? s : "INSUFFICIENT_DATA",
+                    (profMap.get("confidenceLevel") instanceof String s) ? s : "NONE",
+                    (profMap.get("completionVelocityPerDay") instanceof Number n) ? n.doubleValue() : null,
+                    (profMap.get("statusMessage") instanceof String s) ? s : "Insufficient data"
+            );
+        }
+
         return new ExecutionIntelligenceContext(
-                user, goal, mission, session, progress, enforcement, device, schedule, cleanHistory
+                user, goal, mission, session, progress, enforcement, device, schedule, cleanHistory, executionProfile
         );
     }
 
@@ -192,6 +211,25 @@ public class ContextEngine {
             }
             if (context.device() != null) {
                 sb.append("DEVICE TELEMETRY: OS=").append(context.device().os()).append(", ActiveProcesses=").append(context.device().activeProcessCount()).append("\n");
+            }
+            if (context.executionProfile() != null) {
+                if (context.executionProfile().hasSufficientData()) {
+                    sb.append("USER EXECUTION PROFILE: Calibrated on ")
+                            .append(context.executionProfile().completedSessionsCount())
+                            .append(" completed sessions. Average sprint: ")
+                            .append(context.executionProfile().averageFocusMinutes())
+                            .append(" min. Estimation bias: ")
+                            .append(String.format("%+.1f", context.executionProfile().estimationBiasPercentage()))
+                            .append("% (")
+                            .append(context.executionProfile().estimationAccuracyCategory())
+                            .append("). Velocity: ")
+                            .append(context.executionProfile().completionVelocityPerDay())
+                            .append(" sessions/day. Calibrate recommendations to user's real velocity.\n");
+                } else {
+                    sb.append("USER EXECUTION PROFILE: Insufficient historical data (")
+                            .append(context.executionProfile().completedSessionsCount())
+                            .append("/3 completed sessions). Do not fabricate completion statistics or velocity.\n");
+                }
             }
         }
         sb.append("</context>\n\n");
@@ -248,6 +286,20 @@ public class ContextEngine {
             ));
         } else {
             map.put("activeSession", Map.of("hasActiveSession", false, "silenceMode", false));
+        }
+        if (context.executionProfile() != null) {
+            Map<String, Object> prof = new LinkedHashMap<>();
+            prof.put("hasSufficientData", context.executionProfile().hasSufficientData());
+            prof.put("completedSessionsCount", context.executionProfile().completedSessionsCount());
+            prof.put("totalMissionsCompleted", context.executionProfile().totalMissionsCompleted());
+            prof.put("totalFocusMinutes", context.executionProfile().totalFocusMinutes());
+            prof.put("averageFocusMinutes", context.executionProfile().averageFocusMinutes());
+            prof.put("estimationBiasPercentage", context.executionProfile().estimationBiasPercentage());
+            prof.put("estimationAccuracyCategory", context.executionProfile().estimationAccuracyCategory());
+            prof.put("confidenceLevel", context.executionProfile().confidenceLevel());
+            prof.put("completionVelocityPerDay", context.executionProfile().completionVelocityPerDay());
+            prof.put("statusMessage", context.executionProfile().statusMessage());
+            map.put("executionProfile", prof);
         }
         return map;
     }

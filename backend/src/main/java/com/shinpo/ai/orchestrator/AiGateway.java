@@ -140,6 +140,15 @@ public class AiGateway {
             return buildBugReportResponse(userId, rawMsg);
         }
 
+        // 5.5 EXECUTION PROFILE INTENT
+        if (isProfileIntent(msgLower)) {
+            Map<String, Object> prof = toolRegistry.getUserExecutionProfile(userId);
+            String statusMsg = prof.get("statusMessage") instanceof String s ? s : "Personal execution profile unavailable.";
+            String reply = "📊 **Personal Execution Profile:**\n\n" + statusMsg;
+            logSuggestion(userId, "PROFILE", rawMsg, reply);
+            return new AiChatResponse(reply, "PROFILE", prof);
+        }
+
         // 6. EXPLICIT PLANNING / GOALS / NEXT ACTION INTENTS
         if (isPlanIntent(msgLower)) {
             Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
@@ -592,6 +601,19 @@ public class AiGateway {
                 || containsFuzzyWord(m, "partition") || containsFuzzyWord(m, "split") || containsFuzzyWord(m, "steps");
         boolean hasTarget = containsFuzzyWord(m, "goal") || containsFuzzyWord(m, "objective") || containsFuzzyWord(m, "target") || containsFuzzyWord(m, "milestone");
         return hasAction && hasTarget;
+    }
+
+    private boolean isProfileIntent(String msg) {
+        String m = msg.toLowerCase(Locale.ROOT);
+        return m.contains("execution profile")
+                || m.contains("my profile")
+                || m.contains("my velocity")
+                || m.contains("estimation bias")
+                || m.contains("estimation accuracy")
+                || m.contains("how is my velocity")
+                || m.contains("am i estimating well")
+                || m.contains("show my stats")
+                || m.contains("my stats");
     }
 
     private boolean isNextActionIntent(String msg) {

@@ -139,6 +139,16 @@ public class AiController {
         return ResponseEntity.ok(aiService.commitSuggestion(suggestionId, principal.getUserId(), request));
     }
 
+    @GetMapping("/profile")
+    public ResponseEntity<UserExecutionProfileDto> getUserExecutionProfile(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.getUserExecutionProfile(principal.getUserId()));
+    }
+
     @GetMapping("/tools")
     public ResponseEntity<List<ToolDefinition>> getAvailableTools(
             @AuthenticationPrincipal UserPrincipal principal

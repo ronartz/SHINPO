@@ -87,6 +87,20 @@ public class AiDtos {
             List<RecoveryOption> recoveryOptions
     ) {}
 
+    public record UserExecutionProfileDto(
+            Long userId,
+            boolean hasSufficientData,
+            int completedSessionsCount,
+            int totalMissionsCompleted,
+            long totalFocusMinutes,
+            Double averageFocusMinutes,
+            Double estimationBiasPercentage,
+            String estimationAccuracyCategory,
+            String confidenceLevel,
+            Double completionVelocityPerDay,
+            String statusMessage
+    ) {}
+
     public record TutorialStep(
             String tutorialId,
             int stepId,

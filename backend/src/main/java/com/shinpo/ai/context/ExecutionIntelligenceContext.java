@@ -12,8 +12,23 @@ public record ExecutionIntelligenceContext(
         EnforcementSummary enforcement,
         DeviceSummary device,
         List<ScheduleItem> todaysSchedule,
-        List<Map<String, String>> conversationHistory
+        List<Map<String, String>> conversationHistory,
+        ExecutionProfileSummary executionProfile
 ) {
+    public ExecutionIntelligenceContext(
+            UserSummary user,
+            GoalSummary currentGoal,
+            MissionSummary nextMission,
+            SessionSummary activeSession,
+            ProgressSummary progress,
+            EnforcementSummary enforcement,
+            DeviceSummary device,
+            List<ScheduleItem> todaysSchedule,
+            List<Map<String, String>> conversationHistory
+    ) {
+        this(user, currentGoal, nextMission, activeSession, progress, enforcement, device, todaysSchedule, conversationHistory, null);
+    }
+
     public record UserSummary(Long userId, String username, String email) {}
 
     public record GoalSummary(Long id, String title, String description, String status, String targetDate) {}
@@ -37,4 +52,17 @@ public record ExecutionIntelligenceContext(
     public record DeviceSummary(String os, String totalMemoryGB, String freeMemoryGB, int activeProcessCount) {}
 
     public record ScheduleItem(Long id, String name, Integer durationMinutes, String priority) {}
+
+    public record ExecutionProfileSummary(
+            boolean hasSufficientData,
+            int completedSessionsCount,
+            int totalMissionsCompleted,
+            long totalFocusMinutes,
+            Double averageFocusMinutes,
+            Double estimationBiasPercentage,
+            String estimationAccuracyCategory,
+            String confidenceLevel,
+            Double completionVelocityPerDay,
+            String statusMessage
+    ) {}
 }
