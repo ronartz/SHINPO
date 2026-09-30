@@ -3,6 +3,7 @@ package com.shinpo.ai.orchestrator;
 import tools.jackson.databind.ObjectMapper;
 import com.shinpo.ai.config.AiProperties;
 import com.shinpo.ai.provider.AIProvider;
+import com.shinpo.ai.provider.AIProviderRegistry;
 import com.shinpo.ai.provider.AiProviderRequest;
 import com.shinpo.ai.provider.AiProviderResponse;
 import com.shinpo.ai.tool.AiToolRegistry;
@@ -25,7 +26,7 @@ public class AiGateway {
 
     private static final Logger log = LoggerFactory.getLogger(AiGateway.class);
 
-    private final List<AIProvider> providers;
+    private final AIProviderRegistry providerRegistry;
     private final AiProperties aiProperties;
     private final AiToolRegistry toolRegistry;
     private final AiSuggestionRepository aiSuggestionRepository;
@@ -35,7 +36,7 @@ public class AiGateway {
 
     @Autowired
     public AiGateway(
-            List<AIProvider> providers,
+            AIProviderRegistry providerRegistry,
             AiProperties aiProperties,
             AiToolRegistry toolRegistry,
             AiSuggestionRepository aiSuggestionRepository,
@@ -43,7 +44,7 @@ public class AiGateway {
             ObjectMapper objectMapper,
             @Autowired(required = false) BugReportRepository bugReportRepository
     ) {
-        this.providers = providers;
+        this.providerRegistry = providerRegistry;
         this.aiProperties = aiProperties;
         this.toolRegistry = toolRegistry;
         this.aiSuggestionRepository = aiSuggestionRepository;
@@ -58,17 +59,25 @@ public class AiGateway {
             AiToolRegistry toolRegistry,
             AiSuggestionRepository aiSuggestionRepository,
             UserRepository userRepository,
+            ObjectMapper objectMapper,
+            BugReportRepository bugReportRepository
+    ) {
+        this(new AIProviderRegistry(providers, aiProperties), aiProperties, toolRegistry, aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
+    }
+
+    public AiGateway(
+            List<AIProvider> providers,
+            AiProperties aiProperties,
+            AiToolRegistry toolRegistry,
+            AiSuggestionRepository aiSuggestionRepository,
+            UserRepository userRepository,
             ObjectMapper objectMapper
     ) {
         this(providers, aiProperties, toolRegistry, aiSuggestionRepository, userRepository, objectMapper, null);
     }
 
     public AIProvider getActiveProvider() {
-        String target = aiProperties.getProvider();
-        return providers.stream()
-                .filter(p -> p.getProviderName().equalsIgnoreCase(target))
-                .findFirst()
-                .orElse(providers.isEmpty() ? null : providers.get(0));
+        return providerRegistry != null ? providerRegistry.getActiveProvider() : null;
     }
 
     /**
