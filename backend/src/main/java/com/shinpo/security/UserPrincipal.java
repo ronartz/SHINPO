@@ -70,7 +70,7 @@ public class UserPrincipal implements UserDetails {
     public String getRole() {
         return authorities.stream()
                 .findFirst()
-                .map(GrantedAuthority::getAuthority)
+                .map(authority -> authority.getAuthority())
                 .orElse("ROLE_USER");
     }
 

@@ -1,7 +1,6 @@
 package com.shinpo.security;
 
 import com.shinpo.dto.AuthDtos.LoginRequest;
-import com.shinpo.dto.AuthDtos.RefreshTokenRequest;
 import com.shinpo.entity.RefreshToken;
 import com.shinpo.entity.User;
 import com.shinpo.repository.RefreshTokenRepository;
@@ -13,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.env.MockEnvironment;

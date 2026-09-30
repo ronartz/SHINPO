@@ -12,7 +12,7 @@
 - [x] Phase 2.1: Local Ollama Provider & AI Gateway (`qwen3:4b`, fallback heuristics)
 - [x] Phase 2.2: Read-Only System Tools (`AiToolRegistry` context assembly)
 - [x] Phase 2.3: Persistent Conversation History (Flyway V10, message audit)
-- [ ] Phase 2.4: Session Debrief Analysis & Cognitive Recovery Workflows
+- [x] Phase 2.4: Session Debrief Analysis & Cognitive Recovery Workflows
 - [ ] Phase 2.5: Adaptive Planning & Daily Agenda Scheduling
 
 ### Milestone 3: Sentinel Process Hardening & OS Enforcement (PLANNED)

@@ -87,6 +87,21 @@ public class AiDtos {
             List<RecoveryOption> recoveryOptions
     ) {}
 
+    public record SessionDebriefAnalysisResponse(
+            Long sessionId,
+            String sessionName,
+            String accomplishment,
+            String reflectionNote,
+            String completionQuality,
+            Integer plannedMinutes,
+            Long actualMinutes,
+            Double estimationAccuracyPct,
+            String velocityAssessment,
+            String tacticalCritique,
+            String nextSprintRecommendation,
+            List<RecoveryOption> suggestedNextSteps
+    ) {}
+
     public record UserExecutionProfileDto(
             Long userId,
             boolean hasSufficientData,

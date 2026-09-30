@@ -15,6 +15,10 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, Long
 
     List<FocusSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
 
+    Optional<FocusSession> findFirstByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, FocusSessionStatus status);
+
+    Optional<FocusSession> findFirstByUser_IdOrderByCreatedAtDesc(Long userId);
+
     Optional<FocusSession> findByIdAndUser_Id(Long id, Long userId);
 
     boolean existsByUser_IdAndStatusIn(Long userId, Collection<FocusSessionStatus> statuses);

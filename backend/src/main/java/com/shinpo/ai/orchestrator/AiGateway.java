@@ -1,5 +1,6 @@
 package com.shinpo.ai.orchestrator;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shinpo.ai.config.AiProperties;
 import com.shinpo.ai.context.ContextEngine;
@@ -12,15 +13,20 @@ import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.entity.AiSuggestion;
 import com.shinpo.entity.BugReport;
+import com.shinpo.entity.FocusSession;
+import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.User;
 import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.BugReportRepository;
+import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -36,6 +42,7 @@ public class AiGateway {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final BugReportRepository bugReportRepository;
+    private final FocusSessionRepository focusSessionRepository;
 
     @Autowired
     public AiGateway(
@@ -46,7 +53,8 @@ public class AiGateway {
             AiSuggestionRepository aiSuggestionRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper,
-            @Autowired(required = false) BugReportRepository bugReportRepository
+            @Autowired(required = false) BugReportRepository bugReportRepository,
+            @Autowired(required = false) FocusSessionRepository focusSessionRepository
     ) {
         this.providerRegistry = providerRegistry;
         this.aiProperties = aiProperties;
@@ -56,6 +64,20 @@ public class AiGateway {
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.bugReportRepository = bugReportRepository;
+        this.focusSessionRepository = focusSessionRepository;
+    }
+
+    public AiGateway(
+            AIProviderRegistry providerRegistry,
+            AiProperties aiProperties,
+            AiToolRegistry toolRegistry,
+            ContextEngine contextEngine,
+            AiSuggestionRepository aiSuggestionRepository,
+            UserRepository userRepository,
+            ObjectMapper objectMapper,
+            BugReportRepository bugReportRepository
+    ) {
+        this(providerRegistry, aiProperties, toolRegistry, contextEngine, aiSuggestionRepository, userRepository, objectMapper, bugReportRepository, null);
     }
 
     public AiGateway(
@@ -67,7 +89,7 @@ public class AiGateway {
             ObjectMapper objectMapper,
             BugReportRepository bugReportRepository
     ) {
-        this(providerRegistry, aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
+        this(providerRegistry, aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository, null);
     }
 
     public AiGateway(
@@ -79,7 +101,7 @@ public class AiGateway {
             ObjectMapper objectMapper,
             BugReportRepository bugReportRepository
     ) {
-        this(new AIProviderRegistry(providers, aiProperties), aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository);
+        this(new AIProviderRegistry(providers, aiProperties), aiProperties, toolRegistry, new ContextEngine(toolRegistry), aiSuggestionRepository, userRepository, objectMapper, bugReportRepository, null);
     }
 
     public AiGateway(
@@ -147,6 +169,26 @@ public class AiGateway {
             String reply = "📊 **Personal Execution Profile:**\n\n" + statusMsg;
             logSuggestion(userId, "PROFILE", rawMsg, reply);
             return new AiChatResponse(reply, "PROFILE", prof);
+        }
+
+        // 5.6 SESSION DEBRIEF ANALYSIS INTENT
+        if (isDebriefIntent(msgLower)) {
+            SessionDebriefAnalysisResponse debrief = analyzeSessionDebrief(request.contextualSessionId(), userId);
+            String reply = "📊 **Sprint Debrief Analysis:** " + debrief.sessionName() + " (" + debrief.velocityAssessment() + ")\n\n"
+                    + debrief.tacticalCritique() + "\n\n"
+                    + "⚡ **Next Recommendation:** " + debrief.nextSprintRecommendation();
+            logSuggestion(userId, "DEBRIEF_ANALYSIS", rawMsg, reply);
+            return new AiChatResponse(reply, "DEBRIEF_ANALYSIS", debrief);
+        }
+
+        // 5.7 COGNITIVE RECOVERY WORKFLOW INTENT
+        if (isRecoveryIntent(msgLower)) {
+            RecoveryResponse recovery = getSessionRecovery(request.contextualSessionId(), userId, null, null, null);
+            String reply = "🧘 **Cognitive Recovery Protocol:**\n\n"
+                    + recovery.diagnosticMessage() + "\n\n"
+                    + "Select a recovery strategy below to recharge your cognitive reserves without losing momentum.";
+            logSuggestion(userId, "SESSION_RECOVERY", rawMsg, reply);
+            return new AiChatResponse(reply, "SESSION_RECOVERY", recovery);
         }
 
         // 6. EXPLICIT PLANNING / GOALS / NEXT ACTION INTENTS
@@ -392,29 +434,211 @@ public class AiGateway {
     }
 
     /**
+     * Analyze a focus session's debrief and generate tactical critique & next sprint recommendation.
+     */
+    public SessionDebriefAnalysisResponse analyzeSessionDebrief(Long sessionId, Long userId) {
+        FocusSession session = null;
+        if (focusSessionRepository != null) {
+            if (sessionId != null && sessionId > 0) {
+                session = focusSessionRepository.findByIdAndUser_Id(sessionId, userId).orElse(null);
+            }
+            if (session == null) {
+                session = focusSessionRepository.findFirstByUser_IdAndStatusOrderByCreatedAtDesc(userId, FocusSessionStatus.COMPLETED)
+                        .orElseGet(() -> focusSessionRepository.findFirstByUser_IdOrderByCreatedAtDesc(userId).orElse(null));
+            }
+        }
+
+        List<RecoveryOption> defaultSteps = List.of(
+                new RecoveryOption("RECESS_RESTORE", "5m Cognitive Recess", "Step away from screens and stretch to restore attention capacity."),
+                new RecoveryOption("NEXT_MISSION", "Arm Next Mission", "Proceed immediately to the next scheduled backlog item."),
+                new RecoveryOption("CALIBRATE_SCOPE", "Scope Calibration", "Adjust future sprint estimation based on observed time variance.")
+        );
+
+        if (session == null) {
+            return new SessionDebriefAnalysisResponse(
+                    null,
+                    "No Recorded Sessions",
+                    "No completed focus sessions found in database.",
+                    "Complete a focus sprint and log your reflection to generate deep performance analytics.",
+                    "INITIALIZING",
+                    25,
+                    0L,
+                    0.0,
+                    "CALIBRATION_BASELINE",
+                    "No past session debriefs are available yet. To begin the behavioral execution loop, start a 25-minute sprint on your top priority mission.",
+                    "Arm your first tactical mission and run an uninterrupted focus block with the Sentinel shield.",
+                    defaultSteps
+            );
+        }
+
+        String sessionName = session.getName() != null ? session.getName() : "Focus Sprint";
+        String accomplishment = session.getAccomplishment() != null ? session.getAccomplishment() : "No accomplishment logged";
+        String reflectionNote = session.getReflectionNote() != null ? session.getReflectionNote() : "No reflection notes logged";
+        String quality = session.getCompletionQuality() != null ? String.valueOf(session.getCompletionQuality()) : "NORMAL";
+        int plannedMins = session.getDurationMinutes() != null && session.getDurationMinutes() > 0 ? session.getDurationMinutes() : 25;
+
+        long actualMins = session.calculateActiveSeconds(Instant.now()) / 60;
+        if (actualMins <= 0 && session.getStartedAt() != null && session.getEndedAt() != null) {
+            actualMins = Math.max(1, Duration.between(session.getStartedAt(), session.getEndedAt()).toMinutes());
+        } else if (actualMins <= 0) {
+            actualMins = plannedMins;
+        }
+
+        double diff = (double) (actualMins - plannedMins);
+        double accuracyPct = (diff / plannedMins) * 100.0;
+        accuracyPct = Math.round(accuracyPct * 10.0) / 10.0;
+
+        String velocityAssessment;
+        if ("DISTRACTED".equalsIgnoreCase(quality) || "LOW".equalsIgnoreCase(quality)) {
+            velocityAssessment = "COGNITIVE_RECOVERY_REQUIRED";
+        } else if (accuracyPct > 25.0) {
+            velocityAssessment = "PACING_CALIBRATION_NEEDED";
+        } else if (Math.abs(accuracyPct) <= 15.0) {
+            velocityAssessment = "PEAK_EXECUTION_FLOW";
+        } else {
+            velocityAssessment = "STABLE_MOMENTUM";
+        }
+
+        AIProvider provider = getActiveProvider();
+        if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
+            try {
+                String systemPrompt = """
+                        You are EONPAI, Strategic Execution Companion for SHINPO.
+                        Analyze the user's completed focus sprint debrief.
+                        Provide a crisp, constructive tactical critique and actionable recommendation for their next sprint.
+                        Philosophy: Execution > Planning Theater. Radical Honesty + Behavioral Encouragement.
+                        Respond strictly in valid JSON matching:
+                        {
+                          "tacticalCritique": "<2 sentences evaluating accomplishment, cognitive effort, and time discipline>",
+                          "nextSprintRecommendation": "<1 actionable, concrete sentence guiding the user's immediate next step>"
+                        }
+                        """;
+
+                String userPrompt = String.format(
+                        "Session: %s\nPlanned: %d min | Actual: %d min (Variance: %+.1f%%)\nQuality: %s\nAccomplishment: %s\nReflection: %s",
+                        sessionName, plannedMins, actualMins, accuracyPct, quality, accomplishment, reflectionNote
+                );
+
+                AiProviderRequest req = AiProviderRequest.of(systemPrompt, userPrompt);
+                AiProviderResponse res = provider.generate(req);
+
+                if (res.successful() && res.content() != null) {
+                    JsonNode node = objectMapper.readTree(cleanJson(res.content()));
+                    String critique = node.has("tacticalCritique") ? node.get("tacticalCritique").asString() : null;
+                    String nextRec = node.has("nextSprintRecommendation") ? node.get("nextSprintRecommendation").asString() : null;
+                    if (critique != null && !critique.isBlank()) {
+                        SessionDebriefAnalysisResponse result = new SessionDebriefAnalysisResponse(
+                                session.getId(),
+                                sessionName,
+                                accomplishment,
+                                reflectionNote,
+                                quality,
+                                plannedMins,
+                                actualMins,
+                                accuracyPct,
+                                velocityAssessment,
+                                critique,
+                                nextRec != null ? nextRec : "Take a brief cognitive recess before engaging the next sprint.",
+                                defaultSteps
+                        );
+                        logSuggestion(userId, "DEBRIEF_ANALYSIS", "sessionId=" + session.getId(), critique);
+                        return result;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("LLM debrief analysis failed, falling back to deterministic critique: {}", e.getMessage());
+            }
+        }
+
+        // Deterministic behavioral analysis
+        String critique;
+        String nextRec;
+        if (accuracyPct > 25.0) {
+            critique = String.format(
+                    "Sprint completed in %dm against planned %dm (+%.0f%% overrun). While '%s' was captured, the task required more cognitive bandwidth than estimated.",
+                    actualMins, plannedMins, accuracyPct, accomplishment
+            );
+            nextRec = "For your next sprint, decompose the remaining backlog into smaller 15-20 minute micro-slices to prevent estimation drift.";
+        } else if (accuracyPct < -20.0) {
+            critique = String.format(
+                    "Sprint wrapped up swiftly in %dm (planned %dm, finished %.0f%% ahead of schedule). You achieved rapid convergence on '%s'.",
+                    actualMins, plannedMins, Math.abs(accuracyPct), accomplishment
+            );
+            nextRec = "Channel this high momentum immediately into your next queued mission or take a proactive 5-minute break.";
+        } else {
+            critique = String.format(
+                    "High-precision execution: finished in %dm close to your %dm plan. Delivered '%s' with balanced cognitive pacing and zero derailment.",
+                    actualMins, plannedMins, accomplishment
+            );
+            nextRec = "Maintain this rhythm. Hydrate, take a 5-minute non-screen breather, then lock in your next mission.";
+        }
+
+        SessionDebriefAnalysisResponse result = new SessionDebriefAnalysisResponse(
+                session.getId(),
+                sessionName,
+                accomplishment,
+                reflectionNote,
+                quality,
+                plannedMins,
+                actualMins,
+                accuracyPct,
+                velocityAssessment,
+                critique,
+                nextRec,
+                defaultSteps
+        );
+        logSuggestion(userId, "DEBRIEF_ANALYSIS", "sessionId=" + session.getId(), critique);
+        return result;
+    }
+
+    /**
      * Provide session recovery options.
      */
     public RecoveryResponse getSessionRecovery(Long sessionId, Long userId, String sessionName, Integer plannedMinutes, Long actualMinutes) {
+        String resolvedName = sessionName;
+        Integer resolvedPlanned = plannedMinutes;
+        Long resolvedActual = actualMinutes;
+        Long resolvedSessionId = sessionId;
+
+        if (resolvedName == null && focusSessionRepository != null) {
+            FocusSession s = null;
+            if (sessionId != null && sessionId > 0) {
+                s = focusSessionRepository.findByIdAndUser_Id(sessionId, userId).orElse(null);
+            }
+            if (s == null) {
+                s = focusSessionRepository.findFirstByUser_IdOrderByCreatedAtDesc(userId).orElse(null);
+            }
+            if (s != null) {
+                resolvedSessionId = s.getId();
+                resolvedName = s.getName();
+                resolvedPlanned = s.getDurationMinutes();
+                resolvedActual = s.calculateActiveSeconds(Instant.now()) / 60;
+            }
+        }
+        if (resolvedName == null) resolvedName = "Tactical Focus Sprint";
+        if (resolvedPlanned == null) resolvedPlanned = 25;
+        if (resolvedActual == null) resolvedActual = 15L;
+
         List<RecoveryOption> options = List.of(
-                new RecoveryOption("MICRO_RECOVERY", "15m Micro-Sprint", "Resume with a lightweight 15-minute re-entry block."),
-                new RecoveryOption("RECESS_RESTORE", "Step Away & Recess", "Take a restorative 10-minute break away from screens."),
-                new RecoveryOption("SPLIT_MISSION", "Divide Intention", "Split remaining tasks into 2 sub-components.")
+                new RecoveryOption("MICRO_RECOVERY", "15m Micro-Sprint", "Resume with a lightweight 15-minute re-entry block to lower cognitive resistance."),
+                new RecoveryOption("RECESS_RESTORE", "10m Non-Screen Recess", "Step away from screens and stretch to replenish working memory capacity."),
+                new RecoveryOption("SPLIT_MISSION", "Divide Intention", "Deconstruct your current task into two bite-sized 10-minute micro-steps.")
         );
 
         RecoveryResponse response = new RecoveryResponse(
-                sessionId,
-                sessionName,
-                plannedMinutes,
-                actualMinutes,
-                "Sprint was interrupted before full completion. Select an intentional recovery strategy to maintain momentum without shame.",
+                resolvedSessionId,
+                resolvedName,
+                resolvedPlanned,
+                resolvedActual,
+                "Cognitive recovery protocol engaged for [" + resolvedName + "]. Pacing interruptions are normal biological friction points—choose a gentle re-entry strategy to restore momentum without guilt.",
                 options
         );
 
-        logSuggestion(userId, "SESSION_RECOVERY", "sessionId=" + sessionId, "Recovery suggested for " + sessionName);
+        logSuggestion(userId, "SESSION_RECOVERY", "sessionId=" + resolvedSessionId, "Recovery suggested for " + resolvedName);
         return response;
     }
     
-        public void acceptSuggestion(Long suggestionId, Long userId) {
+    public void acceptSuggestion(Long suggestionId, Long userId) {
         aiSuggestionRepository.findById(suggestionId).ifPresent(s -> {
             if (s.getUser().getId().equals(userId)) {
                 s.setAccepted(true);
@@ -466,7 +690,7 @@ public class AiGateway {
 
         String trimmed = raw.trim();
         // If the model echoed raw context JSON without a reply field, present a clean companion response
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        if (trimmed.contains("\"userId\":") || trimmed.contains("\"username\":") || trimmed.contains("USER PRODUCTIVITY STATUS:") || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
             return "I am EONPAI, your Personal Strategic Execution AI Companion. I am tracking your active goals and missions. How can I help you execute right now?";
         }
         return raw;
@@ -614,6 +838,28 @@ public class AiGateway {
                 || m.contains("am i estimating well")
                 || m.contains("show my stats")
                 || m.contains("my stats");
+    }
+
+    private boolean isDebriefIntent(String msg) {
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (m.contains("debrief") || m.contains("debreif") || m.contains("de-brief") || m.contains("retrospective") || m.contains("retro")) {
+            return true;
+        }
+        boolean hasReview = containsFuzzyWord(m, "review") || containsFuzzyWord(m, "analyze") || containsFuzzyWord(m, "how") || containsFuzzyWord(m, "reflect") || containsFuzzyWord(m, "evaluate");
+        boolean hasTarget = containsFuzzyWord(m, "session") || containsFuzzyWord(m, "sprint") || containsFuzzyWord(m, "focus") || m.contains("did i do") || m.contains("was my") || m.contains("performance");
+        return hasReview && hasTarget;
+    }
+
+    private boolean isRecoveryIntent(String msg) {
+        String m = msg.toLowerCase(Locale.ROOT);
+        if (containsFuzzyWord(m, "recovery") || containsFuzzyWord(m, "recover") || containsFuzzyWord(m, "recess")
+                || containsFuzzyWord(m, "burnout") || containsFuzzyWord(m, "fatigue")) {
+            return true;
+        }
+        boolean hasFatigue = m.contains("tired") || m.contains("exhausted") || m.contains("stuck") || m.contains("overwhelmed")
+                || m.contains("need a break") || m.contains("take a break") || m.contains("cant focus") || m.contains("can't focus")
+                || m.contains("lost focus") || m.contains("distracted");
+        return hasFatigue;
     }
 
     private boolean isNextActionIntent(String msg) {

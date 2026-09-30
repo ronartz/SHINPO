@@ -90,12 +90,30 @@ public class AiService {
         return aiGateway.getDailyPlan(userId);
     }
 
-    public RecoveryResponse getSessionRecovery(Long sessionId, Long userId) {
-        FocusSession session = focusSessionRepository.findByIdAndUser_Id(sessionId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found or unauthorized: " + sessionId));
+    public SessionDebriefAnalysisResponse analyzeSessionDebrief(Long sessionId, Long userId) {
+        if (sessionId != null && sessionId > 0) {
+            focusSessionRepository.findByIdAndUser_Id(sessionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Focus session not found: " + sessionId));
+        }
+        return aiGateway.analyzeSessionDebrief(sessionId, userId);
+    }
 
-        long actualMins = session.calculateActiveSeconds(Instant.now()) / 60;
-        return aiGateway.getSessionRecovery(sessionId, userId, session.getName(), session.getDurationMinutes(), actualMins);
+    public SessionDebriefAnalysisResponse analyzeLatestSessionDebrief(Long userId) {
+        return aiGateway.analyzeSessionDebrief(null, userId);
+    }
+
+    public RecoveryResponse getSessionRecovery(Long sessionId, Long userId) {
+        if (sessionId != null && sessionId > 0) {
+            FocusSession session = focusSessionRepository.findByIdAndUser_Id(sessionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found or unauthorized: " + sessionId));
+            long actualMins = session.calculateActiveSeconds(Instant.now()) / 60;
+            return aiGateway.getSessionRecovery(sessionId, userId, session.getName(), session.getDurationMinutes(), actualMins);
+        }
+        return aiGateway.getSessionRecovery(null, userId, null, null, null);
+    }
+
+    public RecoveryResponse getLatestSessionRecovery(Long userId) {
+        return aiGateway.getSessionRecovery(null, userId, null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -159,16 +177,16 @@ public class AiService {
                     if (node.has("proposedMissions") && node.get("proposedMissions").isArray()) {
                         for (JsonNode mNode : node.get("proposedMissions")) {
                             missionsToCommit.add(new ProposedMission(
-                                    mNode.has("title") ? mNode.get("title").asText() : "Tactical Mission",
-                                    mNode.has("description") ? mNode.get("description").asText() : "",
+                                    mNode.has("title") ? mNode.get("title").asString() : "Tactical Mission",
+                                    mNode.has("description") ? mNode.get("description").asString() : "",
                                     mNode.has("estimatedMinutes") ? mNode.get("estimatedMinutes").asInt() : 30
                             ));
                         }
                     } else if (node.isArray()) {
                         for (JsonNode mNode : node) {
                             missionsToCommit.add(new ProposedMission(
-                                    mNode.has("title") ? mNode.get("title").asText() : "Tactical Mission",
-                                    mNode.has("description") ? mNode.get("description").asText() : "",
+                                    mNode.has("title") ? mNode.get("title").asString() : "Tactical Mission",
+                                    mNode.has("description") ? mNode.get("description").asString() : "",
                                     mNode.has("estimatedMinutes") ? mNode.get("estimatedMinutes").asInt() : 30
                             ));
                         }

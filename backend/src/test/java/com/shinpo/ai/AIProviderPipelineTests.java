@@ -1,6 +1,5 @@
 package com.shinpo.ai;
 
-import tools.jackson.databind.ObjectMapper;
 import com.shinpo.ai.config.AiProperties;
 import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.ai.provider.AIProvider;
@@ -8,12 +7,10 @@ import com.shinpo.ai.provider.AIProviderRegistry;
 import com.shinpo.ai.provider.AiProviderRequest;
 import com.shinpo.ai.provider.AiProviderResponse;
 import com.shinpo.ai.provider.MockAIProvider;
-import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
 import com.shinpo.dto.AiDtos.GoalDecompositionResponse;
 import com.shinpo.entity.User;
-import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +20,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,15 +44,6 @@ class AIProviderPipelineTests {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private AiToolRegistry toolRegistry;
-
-    @Autowired
-    private AiSuggestionRepository aiSuggestionRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     private User testUser;
 

@@ -6,7 +6,6 @@ import com.shinpo.ai.context.ExecutionIntelligenceContext;
 import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.ai.provider.AiProviderRequest;
 import com.shinpo.ai.provider.MockAIProvider;
-import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.dto.AiDtos.AiChatRequest;
 import com.shinpo.dto.AiDtos.AiChatResponse;
 import com.shinpo.entity.Goal;
