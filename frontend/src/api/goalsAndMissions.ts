@@ -116,7 +116,9 @@ export async function deleteGoal(goalId: number): Promise<void> {
     } catch {
       // ignore JSON parse error, fallback to status
     }
-    throw new Error(msg)
+    const error = new Error(msg) as Error & { status: number }
+    error.status = res.status
+    throw error
   }
 }
 
@@ -133,6 +135,8 @@ export async function deleteMission(missionId: number): Promise<void> {
     } catch {
       // ignore JSON parse error, fallback to status
     }
-    throw new Error(msg)
+    const error = new Error(msg) as Error & { status: number }
+    error.status = res.status
+    throw error
   }
 }

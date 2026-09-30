@@ -17,8 +17,10 @@ import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -197,6 +199,13 @@ public class FocusSessionService {
             throw new IllegalStateException(
                     "Focus session can only be started from SCHEDULED"
             );
+        }
+
+        if (focusSessionRepository.existsByUser_IdAndStatusIn(
+            userId,
+            List.of(FocusSessionStatus.ACTIVE, FocusSessionStatus.PAUSED)
+        )) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already has an active focus session");
         }
 
         session.setStatus(FocusSessionStatus.ACTIVE);

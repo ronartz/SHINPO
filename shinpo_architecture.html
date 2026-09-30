@@ -23,6 +23,7 @@
     .comp-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
     .comp-node {
       flex: 1; min-width: 140px;
+      appearance: none;
       background: var(--card);
       border: 1.5px solid var(--border);
       border-radius: 10px;
@@ -31,8 +32,12 @@
       transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
       position: relative;
       user-select: none;
+      color: inherit;
+      font: inherit;
+      text-align: left;
     }
     .comp-node:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .comp-node:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
     .comp-node.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
     .comp-node.primary-path { border-color: #10b981; }
     .comp-icon { font-size: 20px; margin-bottom: 4px; }
@@ -139,110 +144,110 @@
     <div class="trust-zone zone-unauth">
       <div class="trust-zone-label" style="color:#6366f1;">Unauthenticated Zone</div>
       <div class="comp-row">
-        <div class="comp-node primary-path" onclick="selectComp('auth')" id="node-auth">
+        <button type="button" class="comp-node primary-path" onclick="selectComp('auth')" id="node-auth">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">🔐</div>
           <div class="comp-name">Auth Gateway</div>
           <div class="comp-tag">JWT + Refresh Token</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('user')" id="node-user">
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('user')" id="node-user">
           <div class="comp-status status-partial"></div>
           <div class="comp-icon">👤</div>
           <div class="comp-name">User / Identity</div>
           <div class="comp-tag">Register · Login · Profile</div>
-        </div>
+        </button>
       </div>
     </div>
 
     <div class="trust-zone zone-jwt" style="margin-top:10px;">
       <div class="trust-zone-label" style="color:#10b981;">JWT Protected Zone</div>
       <div class="comp-row" style="margin-bottom:10px;">
-        <div class="comp-node primary-path" onclick="selectComp('dashboard')" id="node-dashboard">
+        <button type="button" class="comp-node primary-path" onclick="selectComp('dashboard')" id="node-dashboard">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">🏠</div>
           <div class="comp-name">Dashboard</div>
           <div class="comp-tag">Bento · Today · Calendar</div>
-        </div>
-        <div class="comp-node primary-path" onclick="selectComp('goals')" id="node-goals">
+        </button>
+        <button type="button" class="comp-node primary-path" onclick="selectComp('goals')" id="node-goals">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">🎯</div>
           <div class="comp-name">Goals &amp; Missions</div>
           <div class="comp-tag">CRUD · Completion · Delete</div>
-        </div>
-        <div class="comp-node primary-path" onclick="selectComp('focus')" id="node-focus">
+        </button>
+        <button type="button" class="comp-node primary-path" onclick="selectComp('focus')" id="node-focus">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">&#9203;</div>
           <div class="comp-name">Focus Engine</div>
           <div class="comp-tag">Sessions · Intervals · Debrief</div>
-        </div>
+        </button>
       </div>
       <div class="comp-row">
-        <div class="comp-node primary-path" onclick="selectComp('eonpai')" id="node-eonpai">
+        <button type="button" class="comp-node primary-path" onclick="selectComp('eonpai')" id="node-eonpai">
           <div class="comp-status status-partial"></div>
           <div class="comp-icon">🤖</div>
           <div class="comp-name">EONPAI / AI</div>
           <div class="comp-tag">Chat · Decompose · Tools</div>
-        </div>
-        <div class="comp-node primary-path" onclick="selectComp('analytics')" id="node-analytics">
+        </button>
+        <button type="button" class="comp-node primary-path" onclick="selectComp('analytics')" id="node-analytics">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">📊</div>
           <div class="comp-name">Analytics</div>
           <div class="comp-tag">Velocity · Debriefs · History</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('progress')" id="node-progress">
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('progress')" id="node-progress">
           <div class="comp-status status-partial"></div>
           <div class="comp-icon">⭐</div>
           <div class="comp-name">Progress / XP</div>
           <div class="comp-tag">XP Events · Levels</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('sentinel')" id="node-sentinel">
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('sentinel')" id="node-sentinel">
           <div class="comp-status status-partial"></div>
           <div class="comp-icon">🛡️</div>
           <div class="comp-name">Sentinel / Device</div>
           <div class="comp-tag">Process · Task Manager</div>
-        </div>
+        </button>
       </div>
     </div>
 
     <div class="trust-zone zone-os" style="margin-top:10px;">
       <div class="trust-zone-label" style="color:#f59e0b;">OS Boundary (Privileged)</div>
       <div class="comp-row">
-        <div class="comp-node" onclick="selectComp('taskmanager')" id="node-taskmanager">
+        <button type="button" class="comp-node" onclick="selectComp('taskmanager')" id="node-taskmanager">
           <div class="comp-status status-partial"></div>
           <div class="comp-icon">🖥️</div>
           <div class="comp-name">Task Manager</div>
           <div class="comp-tag">/proc · ps · kill</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('daemon')" id="node-daemon">
-          <div class="comp-status status-missing"></div>
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('daemon')" id="node-daemon">
+          <div class="comp-status status-partial"></div>
           <div class="comp-icon">👻</div>
           <div class="comp-name">Sentinel Daemon</div>
-          <div class="comp-tag">Desktop enforcement (MISSING)</div>
-        </div>
+          <div class="comp-tag">Pairing + decoupled enforcement (GAPS)</div>
+        </button>
       </div>
     </div>
 
     <div class="trust-zone zone-ext" style="margin-top:10px;">
       <div class="trust-zone-label" style="color:#64748b;">External Dependencies</div>
       <div class="comp-row">
-        <div class="comp-node" onclick="selectComp('postgres')" id="node-postgres">
+        <button type="button" class="comp-node" onclick="selectComp('postgres')" id="node-postgres">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">🐘</div>
           <div class="comp-name">PostgreSQL 17</div>
           <div class="comp-tag">Docker · V1–V10 Flyway</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('ollama')" id="node-ollama">
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('ollama')" id="node-ollama">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">🦙</div>
           <div class="comp-name">Ollama / LLM</div>
           <div class="comp-tag">Local · qwen3:4b · Port 11434</div>
-        </div>
-        <div class="comp-node" onclick="selectComp('vite')" id="node-vite">
+        </button>
+        <button type="button" class="comp-node" onclick="selectComp('vite')" id="node-vite">
           <div class="comp-status status-done"></div>
           <div class="comp-icon">⚡</div>
           <div class="comp-name">Vite / React SPA</div>
           <div class="comp-tag">React 19 · TypeScript 6 · Port 5173</div>
-        </div>
+        </button>
       </div>
     </div>
 
@@ -441,11 +446,11 @@
     },
     daemon: {
       name: '👻 Sentinel Desktop Daemon',
-      status: 'missing',
-      built: 'Nothing built. Only referenced in TRD.md, .clinerules, and EONPAI text as "Sentinel Shield".',
-      gaps: 'Entire component is missing. No daemon binary. No pairing protocol. No platform-specific blocking (iptables on Linux, WFP on Windows, FamilyControls on iOS/macOS). No IPC channel to backend.',
-      files: 'Not built. TRD.md describes the intended architecture.',
-      next: 'Phase 3: Design pairing protocol. Build per-platform daemon. Linux first: systemd user service + iptables rules for domain blocking.'
+      status: 'partial',
+      built: 'Rust and Python Sentinel daemon implementations exist in the repository.',
+      gaps: 'Authenticated device pairing and decoupled desktop enforcement are not implemented.',
+      files: 'crates/shinpo-shield/src/main.rs · daemon/shinpo_shield.py · TRD.md',
+      next: 'Implement authenticated pairing and move enforcement into the desktop daemon.'
     },
     postgres: {
       name: '🐘 PostgreSQL 17',

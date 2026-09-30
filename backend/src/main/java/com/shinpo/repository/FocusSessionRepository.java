@@ -1,6 +1,7 @@
 package com.shinpo.repository;
 
 import com.shinpo.entity.FocusSession;
+import com.shinpo.entity.FocusSessionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,12 +9,15 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface FocusSessionRepository extends JpaRepository<FocusSession, Long> {
 
     List<FocusSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
 
     Optional<FocusSession> findByIdAndUser_Id(Long id, Long userId);
+
+    boolean existsByUser_IdAndStatusIn(Long userId, Collection<FocusSessionStatus> statuses);
 
     @Query("""
         SELECT s FROM FocusSession s

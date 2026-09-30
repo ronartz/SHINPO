@@ -43,12 +43,13 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
     if (!el) {
       // Fallback center of screen if element is not yet found
       const fallbackW = Math.min(420, window.innerWidth - 40)
-      setRect(null)
-      setCoachmarkPos({
+      setRect((previous) => previous === null ? previous : null)
+      const fallbackPos = {
         top: Math.max(40, window.innerHeight / 2 - 120),
         left: Math.max(20, (window.innerWidth - fallbackW) / 2),
-      })
-      return
+      }
+      setCoachmarkPos((previous) => previous.top === fallbackPos.top && previous.left === fallbackPos.left ? previous : fallbackPos)
+      return false
     }
 
     const r = el.getBoundingClientRect()
@@ -60,7 +61,15 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
       bottom: r.bottom,
       right: r.right,
     }
-    setRect(targetRect)
+    setRect((previous) => previous
+      && previous.top === targetRect.top
+      && previous.left === targetRect.left
+      && previous.width === targetRect.width
+      && previous.height === targetRect.height
+      && previous.bottom === targetRect.bottom
+      && previous.right === targetRect.right
+      ? previous
+      : targetRect)
 
     // Calculate coachmark position
     const boxW = coachmarkRef.current ? coachmarkRef.current.offsetWidth : 360
@@ -103,21 +112,21 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
     left = Math.max(16, Math.min(window.innerWidth - boxW - 16, left))
     top = Math.max(16, Math.min(window.innerHeight - boxH - 16, top))
 
-    setCoachmarkPos({ top, left })
+    const nextPos = { top, left }
+    setCoachmarkPos((previous) => previous.top === nextPos.top && previous.left === nextPos.left ? previous : nextPos)
+    return true
   }, [step])
 
   // Track DOM element & listen for scroll/resize
   useEffect(() => {
-    const handleScrollOrResize = () => {
-      window.requestAnimationFrame(updatePosition)
+    const updateAndStopRetry = () => {
+      if (updatePosition()) window.clearInterval(timer)
     }
-
-    const frameId = window.requestAnimationFrame(updatePosition)
+    const handleScrollOrResize = () => window.requestAnimationFrame(updateAndStopRetry)
 
     // Retry checking if element mounts shortly after tab switch
-    const timer = setInterval(() => {
-      updatePosition()
-    }, 120)
+    const timer = window.setInterval(updateAndStopRetry, 120)
+    const frameId = window.requestAnimationFrame(updateAndStopRetry)
 
     window.addEventListener('resize', handleScrollOrResize, { passive: true })
     window.addEventListener('scroll', handleScrollOrResize, { passive: true })

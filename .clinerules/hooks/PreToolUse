@@ -17,7 +17,29 @@ process.stdin.on('end', () => {
       input.toolName || input.tool_name || input.tool ||
       (input.toolInput && input.toolInput.name) || (input.tool_input && input.tool_input.name) || ''
     ).toLowerCase();
-    const isWrite = /write|edit|replace|create|delete|remove|append|apply|patch|insert|mkdir/.test(tool);
+    const isExecuteCommand = tool === 'execute_command';
+    const toolInput = input.toolInput || input.tool_input || {};
+    const command = typeof toolInput.command === 'string'
+      ? toolInput.command
+      : typeof input.command === 'string' ? input.command : '';
+    const isReadOnlyPlanningCommand = (value) => {
+      if (!value || /(?:^|\s)(?:\d*>>?|\|&?\s*tee\b)|\$\(|`/.test(value)) return false;
+      const segments = value.split(/&&|\|\||[;|]/).map((part) => part.trim()).filter(Boolean);
+      if (!segments.length) return false;
+      return segments.every((part) => {
+        const tokens = part.match(/[^\s"']+|"[^"]*"|'[^']*'/g) || [];
+        const executable = (tokens[0] || '').replace(/^.*\//, '');
+        if (['cat', 'head', 'tail', 'grep', 'rg', 'find', 'ls', 'stat', 'wc', 'file', 'test'].includes(executable)) return true;
+        if (executable === 'sed') return !tokens.some((token) => /^-[^-]*i|^-i/.test(token));
+        return executable === 'git' && ['diff', 'status', 'log', 'show'].includes(tokens.find((token) => !token.startsWith('-') && token !== 'git'));
+      });
+    };
+    const commandTargetsPlanning = isExecuteCommand
+      && /(^|[^A-Za-z0-9_.-])\.planning(?=$|[\\/\s"';&|])/.test(command);
+    const commandIsWrite = commandTargetsPlanning && !isReadOnlyPlanningCommand(command);
+    const isWrite = /write|edit|replace|create|delete|remove|append|apply|patch|insert|mkdir/.test(tool) || commandIsWrite;
+    // This value is set by the trusted workflow runner, never inferred from tool input.
+    const trustedGsdWorkflow = process.env.GSD_WORKFLOW_AUTHORIZED === '1';
     // Collect only PATH-bearing field values (not free-form content), so a doc
     // that merely mentions ".planning/" in its body is never falsely blocked.
     const paths = [];
@@ -35,11 +57,11 @@ process.stdin.on('end', () => {
     };
     walk(input, 0);
     const isPlanningPath = (s) => /(^|[\\/])\.planning([\\/]|$)/.test(s);
-    if (isWrite && paths.some(isPlanningPath)) {
+    if (isWrite && (paths.some(isPlanningPath) || commandTargetsPlanning) && !trustedGsdWorkflow) {
       return process.stdout.write(JSON.stringify({
         cancel: true,
         errorMessage:
-          'GSD: .planning/ artifacts are managed by GSD workflows. Edit them only through a /gsd-* command, not directly.',
+          'GSD: .planning/ artifacts require authorization from the trusted GSD workflow runner.',
       }));
     }
   } catch { /* fall through to allow */ }
