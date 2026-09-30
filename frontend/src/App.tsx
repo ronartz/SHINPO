@@ -13,8 +13,8 @@ import {
 } from './api/focusSessions'
 
 import type { FocusSession } from './api/focusSessions'
-import { clearActiveConversation, decomposeGoal, getActiveConversation, sendAiChat } from './api/ai'
-import type { BugReportInfo, GoalDecomposition, ProposedMission, TutorialStep } from './api/ai'
+import { clearActiveConversation, commitSuggestion, decomposeGoal, getActiveConversation, sendAiChat } from './api/ai'
+import type { BugReportInfo, GoalDecomposition, ProposedMission, StructuredCard, TutorialStep } from './api/ai'
 import {
   completeMission,
   createGoal,
@@ -64,6 +64,31 @@ type Dashboard = {
     title: string
     status: string
   }[]
+}
+
+function mapStructuredCard(card: StructuredCard | null | undefined, suggestionType?: string): ProposedMission[] {
+  if (!card) return []
+  if (Array.isArray(card)) return card
+  if ('proposedMissions' in card) return card.proposedMissions
+  if ('planItems' in card) {
+    return card.planItems.map((item) => ({
+      title: item.missionTitle,
+      description: `${item.goalTitle} • Priority: ${item.priority}`,
+      estimatedMinutes: item.durationMinutes,
+    }))
+  }
+  if (suggestionType === 'NEXT_ACTION') {
+    return [{
+      title: card.missionTitle,
+      description: card.recommendedAction ?? card.rationale ?? '',
+      estimatedMinutes: card.estimatedMinutes ?? 25,
+    }]
+  }
+  return []
+}
+
+function hasHttpStatus(error: unknown, status: number): boolean {
+  return typeof error === 'object' && error !== null && 'status' in error && error.status === status
 }
 
 type IconName =
@@ -404,6 +429,9 @@ export function App() {
       tutorial?: TutorialStep | null
       bugReport?: BugReportInfo | null
       suggestionType?: string
+      suggestionId?: number
+      committed?: boolean
+      committing?: boolean
     }[]
   >([
     {
@@ -539,6 +567,8 @@ export function App() {
   const [tmLoading, setTmLoading] = useState(false)
   const [tmSearch, setTmSearch] = useState('')
   const [tmPolicy, setTmPolicy] = useState('ALL')
+  const [tmRefreshKey, setTmRefreshKey] = useState(0)
+  const tmPolicyRef = useRef(tmPolicy)
   const [tmToast, setTmToast] = useState<string | null>(null)
 
   // Operational Velocity & Telemetry State (C-003)
@@ -546,13 +576,13 @@ export function App() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
   // Interactive Dashboard States (C-BENTO)
-  const [inspectingMission, setInspectingMission] = useState<any | null>(null)
+  const [inspectingMission, setInspectingMission] = useState<Mission | null>(null)
   const [activeTaskMenuId, setActiveTaskMenuId] = useState<number | null>(null)
   const [deletingMissionId, setDeletingMissionId] = useState<number | null>(null)
   const [selectedCalDay, setSelectedCalDay] = useState<number>(4)
   const [calMonth, setCalMonth] = useState('October 2026')
   const [hoveredPillar, setHoveredPillar] = useState<{ day: number; label: string; boost: string } | null>(null)
-  const [activeTimelineBlock, setActiveTimelineBlock] = useState<string | null>(null)
+  const [activeTimelineBlock, setActiveTimelineBlock] = useState<{ sessionId: number | null; name: string } | null>(null)
 
   const nextActionMission = useMemo(() => {
     return missions.find((m) => m.status !== 'COMPLETED') || null
@@ -646,7 +676,7 @@ export function App() {
     }
   }, [activeTaskMenuId])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard', { headers: authHeaders() })
       if (res.ok) {
@@ -676,50 +706,49 @@ export function App() {
       // Keep empty if backend offline
     }
 
+  }, [])
+
+  const loadActiveConversation = useCallback(async () => {
     try {
       const conv = await getActiveConversation()
-      if (conv) {
-        setConversationId(conv.conversationId)
-        if (conv.messages && conv.messages.length > 0) {
-          setChatMessages(
-            conv.messages.map((m) => {
-              let missions: ProposedMission[] = []
-              if (Array.isArray(m.structuredCard)) {
-                missions = m.structuredCard
-              } else if (m.structuredCard?.proposedMissions) {
-                missions = m.structuredCard.proposedMissions
-              } else if (m.structuredCard?.planItems) {
-                missions = m.structuredCard.planItems.map((item: { missionTitle: string; goalTitle: string; priority: string; durationMinutes: number }) => ({
-                  title: item.missionTitle,
-                  description: `${item.goalTitle} • Priority: ${item.priority}`,
-                  estimatedMinutes: item.durationMinutes,
-                }))
-              }
-              return {
-                role: m.role.toLowerCase() as 'user' | 'assistant',
-                text: m.content,
-                suggestionType: m.suggestionType,
-                missions,
-                tutorial: m.tutorial,
-                bugReport: m.bugReport,
-              }
-            })
-          )
-        }
+      if (!conv) return
+      setConversationId(conv.conversationId)
+      if (conv.messages?.length) {
+        setChatMessages(
+          conv.messages
+            .filter((message) => message.role === 'USER' || message.role === 'ASSISTANT')
+            .map((message) => ({
+              role: message.role === 'USER' ? 'user' as const : 'assistant' as const,
+              text: message.content,
+              suggestionType: message.suggestionType,
+              suggestionId: message.structuredCard && typeof message.structuredCard === 'object' && 'suggestionId' in message.structuredCard
+                ? (message.structuredCard as { suggestionId?: number }).suggestionId
+                : undefined,
+              missions: mapStructuredCard(message.structuredCard, message.suggestionType),
+              tutorial: message.tutorial,
+              bugReport: message.bugReport,
+            })),
+        )
       }
     } catch {
       // Keep initial chat
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchCurrentUser().then((user) => {
-      if (user) {
-        setCurrentUser(user)
-        loadData()
-      }
+      if (user) setCurrentUser(user)
     })
   }, [])
+
+  useEffect(() => {
+    if (!currentUser) return
+    const timer = setTimeout(() => {
+      void loadData()
+      void loadActiveConversation()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [currentUser, loadData, loadActiveConversation])
 
   const loadDeviceProcesses = useCallback(async (search = tmSearch, policy = tmPolicy) => {
     setTmLoading(true)
@@ -751,7 +780,7 @@ export function App() {
       const res = await terminateProcess(proc.pid, true)
       if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
         setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
-        loadDeviceProcesses(tmSearch, tmPolicy)
+        setTmRefreshKey((key) => key + 1)
       } else {
         setTmToast(`Notice: ${res.message}`)
       }
@@ -765,9 +794,11 @@ export function App() {
   useEffect(() => {
     if (!currentUser) return
     if (activeTab === 'Task Manager') {
+      const policyChanged = tmPolicyRef.current !== tmPolicy
+      tmPolicyRef.current = tmPolicy
       const timer = setTimeout(() => {
         void loadDeviceProcesses(tmSearch, tmPolicy)
-      }, 0)
+      }, policyChanged ? 0 : 300)
       return () => clearTimeout(timer)
     } else if (activeTab === 'Analytics') {
       const timer = setTimeout(() => {
@@ -775,7 +806,7 @@ export function App() {
       }, 0)
       return () => clearTimeout(timer)
     }
-  }, [activeTab, currentUser, loadDeviceProcesses, loadAnalytics, tmSearch, tmPolicy])
+  }, [activeTab, currentUser, loadDeviceProcesses, loadAnalytics, tmSearch, tmPolicy, tmRefreshKey])
 
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -792,7 +823,6 @@ export function App() {
       setAuthIdentifier('')
       setAuthEmail('')
       setAuthPassword('')
-      await loadData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed'
       setAuthError(msg)
@@ -858,23 +888,61 @@ export function App() {
   const handleCommitAiMissions = async () => {
     if (!aiDecompResult) return
     try {
-      const today = new Date().toISOString().split('T')[0]
-      const created = await Promise.all(
-        aiDecompResult.proposedMissions.map((pm) =>
-          createMission({
-            goalId: aiDecompResult.goalId,
-            title: pm.title,
-            description: pm.description,
-            scheduledDate: today,
-            estimatedMinutes: pm.estimatedMinutes,
-          }),
-        ),
-      )
-      setMissions((prev) => [...created, ...prev])
+      if (aiDecompResult.suggestionId) {
+        await commitSuggestion(aiDecompResult.suggestionId, { targetGoalId: aiDecompResult.goalId })
+      } else {
+        const today = new Date().toISOString().split('T')[0]
+        const created = await Promise.all(
+          aiDecompResult.proposedMissions.map((pm) =>
+            createMission({
+              goalId: aiDecompResult.goalId,
+              title: pm.title,
+              description: pm.description,
+              scheduledDate: today,
+              estimatedMinutes: pm.estimatedMinutes,
+            }),
+          ),
+        )
+        setMissions((prev) => [...created, ...prev])
+      }
       setAiDecompResult(null)
       loadData()
     } catch (err) {
-      console.error(err)
+      console.error('Failed to commit AI decomposition missions', err)
+    }
+  }
+
+  const handleCommitChatSuggestion = async (
+    suggestionId: number,
+    msgIndex: number,
+    specificMission?: ProposedMission,
+  ) => {
+    setChatMessages((prev) =>
+      prev.map((msg, idx) =>
+        idx === msgIndex ? { ...msg, committing: true } : msg,
+      ),
+    )
+    try {
+      const activeGoalId = goals.length > 0 ? goals[0].id : undefined
+      await commitSuggestion(suggestionId, {
+        targetGoalId: activeGoalId,
+        selectedMissions: specificMission ? [specificMission] : undefined,
+      })
+      await loadData()
+      setChatMessages((prev) =>
+        prev.map((msg, idx) =>
+          idx === msgIndex
+            ? { ...msg, committing: false, committed: specificMission ? msg.committed : true }
+            : msg,
+        ),
+      )
+    } catch (err) {
+      console.error('Failed to commit suggestion', err)
+      setChatMessages((prev) =>
+        prev.map((msg, idx) =>
+          idx === msgIndex ? { ...msg, committing: false } : msg,
+        ),
+      )
     }
   }
 
@@ -919,12 +987,8 @@ export function App() {
       }
       setActiveTaskMenuId(null)
       await loadData()
-    } catch (err: any) {
-      if (
-        err?.message &&
-        (err.message.includes('404') ||
-          err.message.toLowerCase().includes('not found'))
-      ) {
+    } catch (err: unknown) {
+      if (hasHttpStatus(err, 404)) {
         // Concurrency / already deleted on server: safely synchronize state
         setMissions((prev) => prev.filter((m) => m.id !== missionId))
         if (inspectingMission?.id === missionId) {
@@ -934,7 +998,7 @@ export function App() {
         await loadData()
       } else {
         console.error('Failed to delete task:', err)
-        alert(`Could not delete task: ${err?.message || 'Server error'}`)
+        alert(`Could not delete task: ${err instanceof Error ? err.message : 'Server error'}`)
       }
     } finally {
       setDeletingMissionId(null)
@@ -1023,7 +1087,11 @@ export function App() {
     }
   }
    
-    const handleArmMissionAsSession = async (missionTitle: string, estimatedMinutes?: number) => {
+  const handleArmMissionAsSession = async (missionTitle: string, estimatedMinutes?: number) => {
+    if (sessions.some((session) => session.status === 'ACTIVE' || session.status === 'PAUSED')) {
+      setActiveTab('Focus Engine')
+      return
+    }
     const userId = dashboard?.user.id ?? 1
     const mins = estimatedMinutes || 25
     try {
@@ -1110,25 +1178,10 @@ export function App() {
         setConversationId(res.conversationId)
       }
       let missions: ProposedMission[] = []
-      if (Array.isArray(res.structuredCard)) {
-        missions = res.structuredCard
-      } else if (res.structuredCard?.proposedMissions) {
-        missions = res.structuredCard.proposedMissions
-      } else if (res.structuredCard?.planItems) {
-        missions = res.structuredCard.planItems.map((item: { missionTitle: string; goalTitle: string; priority: string; durationMinutes: number }) => ({
-          title: item.missionTitle,
-          description: `${item.goalTitle} • Priority: ${item.priority}`,
-          estimatedMinutes: item.durationMinutes,
-        }))
-      } else if (res.structuredCard?.missionTitle && res.suggestionType === 'NEXT_ACTION') {
-        missions = [
-          {
-            title: res.structuredCard.missionTitle,
-            description: res.structuredCard.recommendedAction ?? res.structuredCard.rationale ?? '',
-            estimatedMinutes: res.structuredCard.estimatedMinutes ?? 25,
-          },
-        ]
-      }
+      missions = mapStructuredCard(res.structuredCard, res.suggestionType)
+      const suggestionId = res.structuredCard && typeof res.structuredCard === 'object' && 'suggestionId' in res.structuredCard
+        ? (res.structuredCard as { suggestionId?: number }).suggestionId
+        : undefined
 
       setAiLoading(false)
 
@@ -1145,6 +1198,7 @@ export function App() {
             tutorial: res.tutorial,
             bugReport: res.bugReport,
             suggestionType: res.suggestionType,
+            suggestionId,
           },
         ])
         if (autoFollowEnabledRef.current && aiFeedRef.current) {
@@ -1205,6 +1259,7 @@ export function App() {
                     missions,
                     tutorial: res.tutorial,
                     bugReport: res.bugReport,
+                    suggestionId,
                   }
                     : message,
                 ),
@@ -1225,8 +1280,7 @@ export function App() {
     } catch (err: unknown) {
       console.error('EONPAI chat error:', err)
       setAiLoading(false)
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      if (errorMsg.includes('401')) {
+      if (hasHttpStatus(err, 401)) {
         clearAuthSession()
         setCurrentUser(null)
         return
@@ -1920,16 +1974,15 @@ export function App() {
                             </div>
                             <div className="task-av-plus">+{idx + 1}</div>
                           </div>
-                          <span className="bento-task-pct">{task.status === 'COMPLETED' ? '100%' : idx === 0 ? '65%' : '80%'}</span>
+                          {task.status === 'COMPLETED' && <span className="bento-task-pct">100%</span>}
                         </div>
 
                         {/* Full-width Horizontal Progress Bar */}
-                        <div className="bento-task-progress-track" style={{ marginTop: 6 }}>
-                          <div
-                            className={`bento-task-progress-fill ${idx === 0 ? 'orange-fill' : 'green-fill'}`}
-                            style={{ width: task.status === 'COMPLETED' ? '100%' : idx === 0 ? '65%' : '80%' }}
-                          />
-                        </div>
+                        {task.status === 'COMPLETED' && (
+                          <div className="bento-task-progress-track" style={{ marginTop: 6 }}>
+                            <div className="bento-task-progress-fill green-fill" style={{ width: '100%' }} />
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -2153,7 +2206,9 @@ export function App() {
                     <div
                       className="bento-tl-capsule capsule-interview"
                       style={{ left: '0%', width: '44%' }}
-                      onClick={() => setActiveTimelineBlock(sessions[0]?.name || 'Interview')}
+                      onClick={() => setActiveTimelineBlock(sessions[0]
+                        ? { sessionId: sessions[0].id, name: sessions[0].name }
+                        : { sessionId: null, name: 'Interview' })}
                       title={`Inspect ${sessions[0]?.name || 'Interview'}`}
                     >
                       <span className="capsule-text">
@@ -2171,7 +2226,9 @@ export function App() {
                     <div
                       className="bento-tl-capsule capsule-wireframe"
                       style={{ left: '16%', width: '38%', zIndex: 2 }}
-                      onClick={() => setActiveTimelineBlock(sessions[1]?.name || 'Wireframe')}
+                      onClick={() => setActiveTimelineBlock(sessions[1]
+                        ? { sessionId: sessions[1].id, name: sessions[1].name }
+                        : { sessionId: null, name: 'Wireframe' })}
                       title={`Inspect ${sessions[1]?.name || 'Wireframe'}`}
                     >
                       <span className="capsule-text">
@@ -2193,7 +2250,9 @@ export function App() {
                     <div
                       className="bento-tl-capsule capsule-ideas"
                       style={{ left: '28%', width: '30%' }}
-                      onClick={() => setActiveTimelineBlock(sessions[2]?.name || 'Ideas')}
+                      onClick={() => setActiveTimelineBlock(sessions[2]
+                        ? { sessionId: sessions[2].id, name: sessions[2].name }
+                        : { sessionId: null, name: 'Ideas' })}
                       title={`Inspect ${sessions[2]?.name || 'Ideas'}`}
                     >
                       <span className="capsule-text">
@@ -2215,7 +2274,9 @@ export function App() {
                     <div
                       className="bento-tl-capsule capsule-evaluate"
                       style={{ left: '0%', width: '28%', zIndex: 2 }}
-                      onClick={() => setActiveTimelineBlock(sessions[3]?.name || 'Evaluate')}
+                      onClick={() => setActiveTimelineBlock(sessions[3]
+                        ? { sessionId: sessions[3].id, name: sessions[3].name }
+                        : { sessionId: null, name: 'Evaluate' })}
                       title={`Inspect ${sessions[3]?.name || 'Evaluate'}`}
                     >
                       <span className="capsule-text">
@@ -2242,10 +2303,11 @@ export function App() {
                   {/* Interactive Block Trigger Bar */}
                   {activeTimelineBlock && (
                     <div className="bento-timeline-interactive-bar">
-                      <span><strong>Active Block:</strong> {activeTimelineBlock}</span>
+                      <span><strong>Active Block:</strong> {activeTimelineBlock.name}</span>
                       <button
                         className="tl-arm-btn"
-                        onClick={() => handleArmMissionAsSession(activeTimelineBlock, 35)}
+                        onClick={() => activeTimelineBlock.sessionId !== null && handleStartFromSchedule(activeTimelineBlock.sessionId)}
+                        disabled={activeTimelineBlock.sessionId === null}
                       >
                         Start focus
                       </button>
@@ -2293,7 +2355,7 @@ export function App() {
                     <button
                       className="modal-btn-arm-sprint"
                       onClick={() => {
-                        handleArmMissionAsSession(inspectingMission.title, inspectingMission.estimatedMinutes)
+                        handleArmMissionAsSession(inspectingMission.title, inspectingMission.estimatedMinutes ?? undefined)
                         setInspectingMission(null)
                       }}
                     >
@@ -2773,27 +2835,64 @@ export function App() {
                       )}
 
                       {msg.missions && msg.missions.length > 0 && (
-                        <div className="ai-cards-row">
-                          {msg.missions.map((m, mIdx) => (
-                            <div key={mIdx} className="ai-mission-card">
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, marginRight: 12 }}>
-                                <span style={{ fontWeight: 600 }}>{m.title}</span>
-                                {m.description && (
-                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{m.description}</span>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span className="badge-tag blue">{m.estimatedMinutes}m</span>
+                        <div className="ai-cards-container" role="region" aria-label="Actionable AI proposal cards">
+                          {msg.suggestionId && (
+                            <div className="ai-card-header-bar">
+                              <span className="ai-card-header-title">
+                                🎯 Action Proposal • {msg.missions.length} tactical missions
+                              </span>
+                              {msg.committed ? (
+                                <span className="badge-tag green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  ✓ Added to Backlog
+                                </span>
+                              ) : (
                                 <button
-                                  className="ai-arm-sprint-btn"
-                                  onClick={() => handleArmMissionAsSession(m.title, m.estimatedMinutes)}
-                                  title="Arm Focus Session with Shield"
+                                  className="btn primary small ai-commit-all-btn"
+                                  disabled={msg.committing}
+                                  onClick={() => handleCommitChatSuggestion(msg.suggestionId!, index)}
+                                  aria-label="Approve and commit all proposed missions into goal backlog"
+                                  title="Atomically approve and save all proposed missions into your goal backlog"
                                 >
-                                  <span>Start focus</span>
+                                  {msg.committing ? 'Saving to Database...' : '⚡ Approve & Add All to Backlog'}
                                 </button>
-                              </div>
+                              )}
                             </div>
-                          ))}
+                          )}
+
+                          <div className="ai-cards-row">
+                            {msg.missions.map((m, mIdx) => (
+                              <div key={mIdx} className="ai-mission-card" role="group" aria-label={`Mission: ${m.title}`}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, marginRight: 12 }}>
+                                  <span style={{ fontWeight: 600 }}>{m.title}</span>
+                                  {m.description && (
+                                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{m.description}</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                  <span className="badge-tag blue">{m.estimatedMinutes}m</span>
+                                  {msg.suggestionId && !msg.committed && (
+                                    <button
+                                      className="btn ghost small ai-commit-single-btn"
+                                      disabled={msg.committing}
+                                      onClick={() => handleCommitChatSuggestion(msg.suggestionId!, index, m)}
+                                      title="Add this mission to backlog"
+                                      aria-label={`Add ${m.title} to goal backlog`}
+                                    >
+                                      + Backlog
+                                    </button>
+                                  )}
+                                  <button
+                                    className="ai-arm-sprint-btn"
+                                    onClick={() => handleArmMissionAsSession(m.title, m.estimatedMinutes)}
+                                    title="Arm Focus Session with Shield"
+                                    aria-label={`Start focus sprint for ${m.title}`}
+                                  >
+                                    <span>Start focus</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3473,7 +3572,6 @@ export function App() {
                   value={tmSearch}
                   onChange={(e) => {
                     setTmSearch(e.target.value)
-                    loadDeviceProcesses(e.target.value, tmPolicy)
                   }}
                 />
               </div>
@@ -3486,7 +3584,6 @@ export function App() {
                     className={`tm-filter-chip ${tmPolicy === pol ? 'active' : ''}`}
                     onClick={() => {
                       setTmPolicy(pol)
-                      loadDeviceProcesses(tmSearch, pol)
                     }}
                   >
                     {pol}
@@ -3497,7 +3594,7 @@ export function App() {
               <button
                 type="button"
                 className="tm-refresh-btn btn-spring"
-                onClick={() => loadDeviceProcesses(tmSearch, tmPolicy)}
+                onClick={() => setTmRefreshKey((key) => key + 1)}
                 disabled={tmLoading}
               >
                 <Icon name="refresh" size={14} />

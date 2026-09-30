@@ -5673,11 +5673,112 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   }
 }
 
+.ai-cards-container {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.ai-card-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.ai-card-header-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.02em;
+}
+
+.ai-commit-all-btn {
+  background: linear-gradient(135deg, #35E36F 0%, #27C95C 100%);
+  color: #06080A;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(53, 227, 111, 0.25);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.ai-commit-all-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(53, 227, 111, 0.4);
+  filter: brightness(1.08);
+}
+
+.ai-commit-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ai-commit-single-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ai-commit-single-btn:hover:not(:disabled) {
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+  background: var(--primary-green-subtle);
+}
+
+.ai-commit-single-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-cards-container:focus-within {
+  border-color: var(--border-strong);
+}
+
+.ai-commit-all-btn:focus-visible,
+.ai-commit-single-btn:focus-visible,
+.ai-arm-sprint-btn:focus-visible {
+  outline: 2px solid var(--primary-green);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-cards-container,
+  .ai-commit-all-btn,
+  .ai-commit-single-btn,
+  .ai-arm-sprint-btn {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
 .ai-cards-row {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .ai-mission-card {
@@ -6951,6 +7052,66 @@ html[data-theme='light'] .daily-quote-card,
   background: radial-gradient(ellipse at top right, rgba(255, 92, 53, 0.05) 0%, #FFFFFF 75%), #FFFFFF !important;
   border: 1px solid rgba(255, 92, 53, 0.2);
   box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme='light'] .btn-timer.secondary {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+html[data-theme='light'] .btn-timer.secondary:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+html[data-theme='light'] .filter-chip.active {
+  background: var(--primary-green-subtle);
+  border-color: var(--primary-green-border);
+  color: var(--primary-green);
+  box-shadow: none;
+}
+
+html[data-theme='light'] .ai-bubble.user {
+  background: var(--primary-green-subtle);
+  border-color: var(--primary-green-border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+html[data-theme='light'] .action-btn-circle {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text-2);
+}
+
+html[data-theme='light'] .action-btn-circle:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+}
+
+html[data-theme='light'] .ai-cards-container {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme='light'] .ai-commit-single-btn {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
+  border-color: var(--primary-green);
+  background: var(--primary-green-subtle);
+  color: var(--primary-green);
+}
+
+.custom-cursor-active .app-shell,
+.custom-cursor-active .app-shell * {
+  cursor: none !important;
 }
 
 @keyframes quoteSlideIn {

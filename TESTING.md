@@ -192,4 +192,15 @@ Before declaring any frontend change complete:
 | **03** | `testCrossTenantCommitRejectedWithForbidden` | User A attempting to commit User B's suggestion is rejected with HTTP 403 Forbidden; suggestion remains unaccepted | PASS |
 | **04** | `testCommitSpecificSelectedMissions` | Selective commit supports choosing a specific subset of proposed missions to persist into the database | PASS |
 | **05** | `testCommitSuggestionViaRestEndpoint` | `POST /api/ai/suggestions/{id}/commit` requires bearer auth, mutates database records transactionally, and rejects cross-tenant commits | PASS |
-
+---
+ 
+ ## 11. Phase 2 Slice AI.5 Frontend Conversational UX & Action Cards Verification
+ 
+ | Verification Item | Test / Verification Method | User Experience & Resilience Guarantee | Status |
+ | :--- | :--- | :--- | :--- |
+ | **01** | `commitSuggestion` API Contract | Typed request and response DTOs in `api/ai.ts` with error propagation and JWT authorization | PASS |
+ | **02** | Batch Action Card Commit | "⚡ Approve & Add All to Backlog" commits all proposed missions to the active goal's backlog and flags as committed | PASS |
+ | **03** | Granular Mission Commit | "+ Backlog" button commits single mission and updates UI without re-submitting other missions | PASS |
+ | **04** | Sprint Arming Integration | "Start focus" button arms focus session sprint with mission title and estimated duration | PASS |
+ | **05** | Accessibility & Motion Standards | Region and group ARIA roles, `:focus-visible` emerald rings, and `@media (prefers-reduced-motion: reduce)` compliance | PASS |
+ | **06** | Light & Dark Theme Parity | Surface card tokens, button backgrounds, borders, and contrast ratios verified across dark and light modes | PASS |
