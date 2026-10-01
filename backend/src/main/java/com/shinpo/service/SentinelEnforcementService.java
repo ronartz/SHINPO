@@ -543,6 +543,59 @@ public class SentinelEnforcementService {
         return SentinelQuarantineItem.from(saved);
     }
 
+    @Transactional
+    public BatchQuarantineResponse recordBatchQuarantines(Long userId, BatchQuarantineRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        if (request == null || request.records() == null || request.records().isEmpty()) {
+            return new BatchQuarantineResponse(0, 0, "No records provided in batch payload", Instant.now());
+        }
+
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+        String defaultMode = getEnforcementMode(userId);
+
+        List<SentinelQuarantineRecord> toSave = new ArrayList<>();
+        int processedCount = 0;
+
+        for (RecordQuarantineRequest item : request.records()) {
+            if (item == null || item.processName() == null || item.processName().isBlank()) {
+                continue;
+            }
+            processedCount++;
+
+            String mode = item.enforcementMode() != null && !item.enforcementMode().isBlank()
+                    ? item.enforcementMode()
+                    : defaultMode;
+
+            SentinelQuarantineRecord record = new SentinelQuarantineRecord(
+                    user,
+                    activeSession,
+                    item.pid(),
+                    item.processName(),
+                    item.commandLine(),
+                    item.policyAction() != null ? item.policyAction() : "TERMINATED",
+                    mode,
+                    item.reason() != null && !item.reason().isBlank()
+                            ? item.reason()
+                            : "Enforced by native Rust shield daemon (offline batch sync)"
+            );
+            toSave.add(record);
+        }
+
+        List<SentinelQuarantineRecord> saved = quarantineRepository.saveAll(toSave);
+        log.warn("NATIVE_SHIELD_BATCH_QUARANTINE_RECORDED: user={} processed={} saved={}",
+                userId, processedCount, saved.size());
+
+        return new BatchQuarantineResponse(
+                processedCount,
+                saved.size(),
+                String.format("Successfully synchronized %d quarantine records from offline spool", saved.size()),
+                Instant.now()
+        );
+    }
+
     @Transactional(readOnly = true)
     public SentinelDaemonSyncResponse getDaemonSyncState(Long userId) {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);

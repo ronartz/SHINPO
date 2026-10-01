@@ -350,4 +350,48 @@ public class SentinelEnforcementTests {
         assertTrue(sync.protectedProcesses().contains("systemd"));
         assertTrue(sync.protectedProcesses().contains("shinpo"));
     }
+
+    @Test
+    @DisplayName("Native Shield: batch quarantine empty request returns zero counts gracefully")
+    void testBatchQuarantine_emptyRequest() {
+        BatchQuarantineResponse respNull = sentinelService.recordBatchQuarantines(testUser.getId(), null);
+        assertNotNull(respNull);
+        assertEquals(0, respNull.processedCount());
+        assertEquals(0, respNull.savedCount());
+
+        BatchQuarantineResponse respEmpty = sentinelService.recordBatchQuarantines(testUser.getId(), new BatchQuarantineRequest(List.of()));
+        assertNotNull(respEmpty);
+        assertEquals(0, respEmpty.processedCount());
+        assertEquals(0, respEmpty.savedCount());
+    }
+
+    @Test
+    @DisplayName("Native Shield: offline spool batch sync correlates with active session and persists all records")
+    void testBatchQuarantine_populatedBatch() {
+        FocusSession session = new FocusSession();
+        session.setUser(testUser);
+        session.setName("Batch Spool Focus Session");
+        session.setStatus(FocusSessionStatus.ACTIVE);
+        session.setStartedAt(Instant.now());
+        session.setDurationMinutes(60);
+        session = sessionRepository.save(session);
+
+        List<RecordQuarantineRequest> items = List.of(
+                new RecordQuarantineRequest(1001L, "spotify", "/bin/spotify", "TERMINATED", "STRICT", "Offline spool item 1"),
+                new RecordQuarantineRequest(1002L, "telegram", "/bin/telegram", "TERMINATED", "STRICT", "Offline spool item 2"),
+                new RecordQuarantineRequest(1003L, "steam", "/usr/games/steam", "TERMINATED", "STRICT", "Offline spool item 3")
+        );
+
+        BatchQuarantineResponse response = sentinelService.recordBatchQuarantines(testUser.getId(), new BatchQuarantineRequest(items));
+        assertNotNull(response);
+        assertEquals(3, response.processedCount());
+        assertEquals(3, response.savedCount());
+        assertTrue(response.message().contains("3"));
+
+        List<SentinelQuarantineItem> sessionItems = sentinelService.getQuarantinesForSession(testUser.getId(), session.getId());
+        assertEquals(3, sessionItems.size());
+        assertTrue(sessionItems.stream().anyMatch(q -> q.processName().equals("spotify")));
+        assertTrue(sessionItems.stream().anyMatch(q -> q.processName().equals("telegram")));
+        assertTrue(sessionItems.stream().anyMatch(q -> q.processName().equals("steam")));
+    }
 }

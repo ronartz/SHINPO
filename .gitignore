@@ -41,3 +41,8 @@ scripts/lib/
 
 # Repomix
 repomix-output.xml
+
+# Daemon binaries and spool
+daemon/shinpo-shield
+daemon/quarantine_spool.jsonl
+*.jsonl

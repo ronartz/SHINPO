@@ -1,6 +1,8 @@
 mod client;
 mod config;
 mod enforcer;
+pub mod platform;
+pub mod spooler;
 
 use std::thread::sleep;
 use std::time::Duration;
@@ -8,16 +10,21 @@ use std::time::Duration;
 use client::SentinelClient;
 use config::{load_config, CliOptions, ShieldCommand};
 use enforcer::{send_desktop_notification, ShieldEnforcer};
+use platform::create_platform_interceptor;
+use spooler::OfflineSpooler;
 
 fn main() {
     let opts = CliOptions::parse();
     let config = load_config(&opts);
 
     let client = SentinelClient::new(config.api_url.clone(), config.auth_token.clone());
+    let platform = create_platform_interceptor();
 
     println!("=================================================================");
     println!("  進歩 (SHINPO) RUST FOCUS ENFORCEMENT SHIELD DAEMON");
     println!("  Engine: Native Rust 1.98 • Zero-Overhead Process Sentinel");
+    println!("  Platform: {} (Elevated/Root: {})", platform.os_name(), platform.is_privileged());
+    println!("  Kernel Interceptor: {}", platform.network_filtering_status());
     println!("  Target API: {}", config.api_url);
     println!("  Authentication: {}", if config.auth_token.is_some() { "BEARER JWT CONFIGURED" } else { "ANONYMOUS / FALLBACK" });
     println!("  Execution Mode: {}", if opts.dry_run { "AUDIT-ONLY (DRY-RUN)" } else { "DYNAMIC AUTONOMOUS (BACKEND DRIVEN)" });
@@ -26,12 +33,16 @@ fn main() {
     match opts.command {
         ShieldCommand::Status => handle_status(&client),
         ShieldCommand::Sweep => handle_sweep(&client, &config, opts.dry_run),
+        ShieldCommand::Spool => handle_spool(&client, opts.flush_spool),
         ShieldCommand::Run => handle_run(&client, &config, opts.dry_run),
     }
 }
 
 fn handle_status(client: &SentinelClient) {
     println!("📡 Probing Sentinel Daemon Sync endpoint...\n");
+    let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
+    println!("📦 Offline Spool Buffer: {} pending record(s) in {:?}", spooler.len(), spooler.path());
+
     match client.sync() {
         Ok(sync) => {
             println!("✅ Sentinel Backend Connection: OPERATIONAL");
@@ -69,25 +80,80 @@ fn handle_status(client: &SentinelClient) {
     }
 }
 
+fn handle_spool(client: &SentinelClient, flush: bool) {
+    let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
+    println!("📦 Offline Telemetry Spooler Status:");
+    println!("  Spool Path: {:?}", spooler.path());
+    let count = spooler.len();
+    println!("  Queued Records: {}", count);
+
+    if count > 0 {
+        match spooler.peek_all() {
+            Ok(records) => {
+                println!("\n--- Queued Quarantine Records ---");
+                for (idx, r) in records.iter().enumerate() {
+                    println!(
+                        "  [{}] PID {} ({}) -> [{}] Mode: {} | Reason: {}",
+                        idx + 1, r.pid, r.process_name, r.policy_action, r.enforcement_mode, r.reason
+                    );
+                }
+            }
+            Err(e) => eprintln!("⚠️ Error inspecting spool records: {}", e),
+        }
+
+        if flush {
+            println!("\n🔄 Flushing spool records to Sentinel API batch endpoint...");
+            match spooler.flush_to_client(client) {
+                Ok(synced) => {
+                    println!("✅ Successfully flushed and synchronized {} quarantine records. Spool cleared.", synced);
+                }
+                Err(e) => {
+                    eprintln!("❌ Batch flush failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            println!("\n💡 Run `shinpo-shield spool --flush` to synchronize these records immediately.");
+        }
+    } else {
+        println!("✨ Spool is empty. No offline telemetry queued.");
+    }
+}
+
 fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run: bool) {
     println!("🔍 Performing one-shot Sentinel process sweep...\n");
     let mut enforcer = ShieldEnforcer::new();
+    let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
 
-    let sync = client.sync().unwrap_or_else(|err| {
-        eprintln!("⚠️ Sync failed ({}), using fallback configuration.", err);
-        client::SentinelDaemonSyncResponse {
-            has_active_session: true,
-            active_session_id: None,
-            active_session_name: Some("Manual Sweep".to_string()),
-            duration_minutes: None,
-            intention: None,
-            enforcement_mode: "STRICT".to_string(),
-            is_policy_locked: false,
-            blocked_patterns: config.fallback_blacklist.clone(),
-            allowed_patterns: Vec::new(),
-            protected_processes: Vec::new(),
+    let sync_result = client.sync();
+    let sync = match sync_result {
+        Ok(sync) => {
+            // Check if there are offline buffered records to flush
+            if !spooler.is_empty() {
+                println!("🔄 Found {} offline buffered quarantine event(s). Flushing in batch...", spooler.len());
+                match spooler.flush_to_client(client) {
+                    Ok(synced) => println!("✅ Synchronized {} buffered offline records to Sentinel API.", synced),
+                    Err(e) => eprintln!("⚠️ Spool synchronization warning: {}", e),
+                }
+            }
+            sync
         }
-    });
+        Err(err) => {
+            eprintln!("⚠️ Sync failed ({}), using fallback configuration.", err);
+            client::SentinelDaemonSyncResponse {
+                has_active_session: true,
+                active_session_id: None,
+                active_session_name: Some("Manual Sweep".to_string()),
+                duration_minutes: None,
+                intention: None,
+                enforcement_mode: "STRICT".to_string(),
+                is_policy_locked: false,
+                blocked_patterns: config.fallback_blacklist.clone(),
+                allowed_patterns: Vec::new(),
+                protected_processes: Vec::new(),
+            }
+        }
+    };
 
     let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, dry_run);
 
@@ -101,10 +167,15 @@ fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run:
                 p.pid, p.name, p.policy_action, p.reason
             );
 
-            // Report telemetry to backend
+            // Report telemetry to backend, fallback to local spooler if offline
             let req = ShieldEnforcer::to_quarantine_request(p);
             if let Err(e) = client.report_quarantine(&req) {
-                eprintln!("    (Telemetry reporting warning: {})", e);
+                eprintln!("    ⚠️ Direct telemetry reporting failed: {}. Buffering offline...", e);
+                if let Err(spool_err) = spooler.append(&req) {
+                    eprintln!("    ❌ Failed to buffer to offline spool: {}", spool_err);
+                } else {
+                    println!("    📦 Buffered to offline spool file ({} queued)", spooler.len());
+                }
             }
         }
     }
@@ -114,11 +185,24 @@ fn handle_run(client: &SentinelClient, config: &config::ShieldConfig, dry_run: b
     println!("🛡️  Shield daemon monitoring loop active (polling every {}s). Press Ctrl+C to stop.\n", config.poll_interval_seconds);
 
     let mut enforcer = ShieldEnforcer::new();
+    let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
     let mut in_lockdown = false;
 
     loop {
         match client.sync() {
             Ok(sync) => {
+                // If we have spooled offline records and backend is now responsive, flush in batch
+                if !spooler.is_empty() {
+                    match spooler.flush_to_client(client) {
+                        Ok(synced) => {
+                            println!("🔄 [SPOOL SYNC] Synchronized {} queued offline quarantine records to backend", synced);
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️ [SPOOL SYNC] Failed to flush offline spool: {}", e);
+                        }
+                    }
+                }
+
                 if sync.has_active_session {
                     let sprint_name = sync.active_session_name.as_deref().unwrap_or("Focus Sprint");
                     let duration = sync.duration_minutes.unwrap_or(25);
@@ -149,10 +233,15 @@ fn handle_run(client: &SentinelClient, config: &config::ShieldConfig, dry_run: b
                             p.policy_action, p.pid, p.name, p.reason
                         );
 
-                        // Forward telemetry to Spring Boot database
+                        // Forward telemetry to Spring Boot database, spool locally on network failure
                         let req = ShieldEnforcer::to_quarantine_request(p);
                         if let Err(e) = client.report_quarantine(&req) {
-                            eprintln!("     ⚠️ Telemetry reporting failed: {}", e);
+                            eprintln!("     ⚠️ Telemetry reporting failed: {}. Buffering offline...", e);
+                            if let Err(spool_err) = spooler.append(&req) {
+                                eprintln!("     ❌ Failed to write to local spool: {}", spool_err);
+                            } else {
+                                println!("     📦 Buffered event to offline spool ({} queued)", spooler.len());
+                            }
                         }
                     }
 

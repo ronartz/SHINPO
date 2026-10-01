@@ -150,4 +150,15 @@ public class SentinelDtos {
             List<String> protectedProcesses,
             Instant serverTime
     ) {}
+
+    public record BatchQuarantineRequest(
+            List<RecordQuarantineRequest> records
+    ) {}
+
+    public record BatchQuarantineResponse(
+            int processedCount,
+            int savedCount,
+            String message,
+            Instant timestamp
+    ) {}
 }
