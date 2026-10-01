@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "CodeRabbit.coderabbit-vscode",
-    "rooveterinaryinc.roo-cline"
+    "rooveterinaryinc.roo-cline",
+    "fhgffy.antigravity-auto-accept"
   ]
 }

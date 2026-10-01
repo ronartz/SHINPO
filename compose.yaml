@@ -35,7 +35,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shinpo}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-shinpo_dev}
       SHINPO_AI_OLLAMA_BASE_URL: ${SHINPO_AI_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      SHINPO_AUTH_JWT_SECRET: ${SHINPO_AUTH_JWT_SECRET:-shinpo_default_super_secure_production_secret_key_2026}
+      SHINPO_JWT_SECRET: ${SHINPO_JWT_SECRET:-shinpo_default_super_secure_production_secret_key_2026}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

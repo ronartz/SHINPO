@@ -9,33 +9,36 @@
 ## 1. Implementation Phasing & Status Overview
 
 ```
-[ Phase 0: Baseline & Documentation Governance ] ──────────────► COMPLETED
+[ Milestone 1: Core Foundation & Domain Lifecycle ] ────────► COMPLETED (100%)
                       │
                       ▼
-[ Phase 1: Authentication, Identity & RBAC Hardening (P0) ] ───► NEXT
+[ Milestone 2: Authentication, Security & RBAC Hardening ] ──► COMPLETED (100%)
                       │
                       ▼
-[ Phase 2: EONPAI Execution Intelligence Layer ]
+[ Milestone 3: EONPAI Execution Intelligence Layer ] ────────► COMPLETED (100%)
        ├── AI.0: Architecture Audit ──────────────────────────► COMPLETED
-       ├── AI.1: Provider Abstraction & Resilient Pipeline ────► READY TO BUILD
-       ├── AI.2: Centralized Context Engine
-       ├── AI.3: Controlled Tool Layer
-       ├── AI.4: Structured Suggestions & Approval Engine
-       ├── AI.5: Conversational UX & Action Cards
-       ├── AI.6: Contextual Execution AI & Silence Rules
-       ├── AI.7: User Execution Profile Engine
-       ├── AI.8: Recovery Intelligence
-       ├── AI.9: Command Center Summarization
-       ├── AI.10: Safe Device & Policy Intelligence
-       ├── AI.11: Deterministic Tutorial Integration
-       ├── AI.12 & AI.13: Security & Privacy Hardening
-       └── AI.14: Production Acceptance
+       ├── AI.1: Provider Abstraction & Resilient Pipeline ────► COMPLETED
+       ├── AI.2: Centralized Context Engine ──────────────────► COMPLETED
+       ├── AI.3: Controlled Tool Layer ───────────────────────► COMPLETED
+       ├── AI.4: Structured Suggestions & Approval Engine ────► COMPLETED
+       ├── AI.5: Conversational UX & Action Cards ────────────► COMPLETED
+       ├── AI.6: Contextual Execution AI & Silence Rules ─────► COMPLETED
+       ├── AI.7: User Execution Profile Engine ───────────────► COMPLETED
+       ├── AI.8: Recovery Intelligence ───────────────────────► COMPLETED
+       ├── AI.9: Command Center Summarization ────────────────► COMPLETED
+       ├── AI.10: Safe Device & Policy Intelligence ──────────► COMPLETED
+       ├── AI.11: Deterministic Tutorial Integration ─────────► COMPLETED
+       └── AI.12 & AI.13: Security & Privacy Hardening ───────► COMPLETED
                       │
                       ▼
-[ Phase 3: Sentinel & Host Process Decoupling (P0) ]
+[ Milestone 4: Sentinel OS Host Decoupling & Rust Shield ] ──► COMPLETED (100%)
                       │
                       ▼
-[ Phase 4: Production Packaging & Containerization ]
+[ Milestone 5: Expansion & Desktop Distribution ] ───────────► IN PROGRESS
+       ├── Phase 5.1: Real-Time WebSocket Telemetry Stream ───► COMPLETED (100%)
+       ├── Phase 5.2: Tauri v2 Desktop Shell & Packaging ─────► NEXT
+       ├── Phase 5.3: Prometheus & Grafana Observability ─────► QUEUED
+       └── Phase 5.4: Offline-First PWA Capabilities ─────────► QUEUED
 ```
 
 ---
