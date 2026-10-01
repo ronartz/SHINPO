@@ -20,7 +20,10 @@
 - [x] Phase 3.2: Automated Distraction App Quarantining during Active Sprints (Periodic sweep daemon, custom blacklist/whitelist policy rules, EONPAI tool telemetry)
 - [x] Phase 3.3: Task Manager Permission Boundary & Administrative Policy Gate
 
-### Milestone 4: Native Shield & Cross-Platform Distribution (IN PROGRESS)
+### Milestone 4: Native Shield, Lifecycle Management & Production Readiness (IN PROGRESS)
 - [x] Phase 4.1: Native Rust Shield Daemon Integration (`crates/shinpo-shield`)
-- [ ] Phase 4.2: Windows WFP / macOS Endpoint Security Layer
-- [ ] Phase 4.3: Local-First Offline Telemetry Synchronization
+- [x] Phase 4.2: Full Goals & Missions Lifecycle CRUD & UI Controls (`PUT /api/goals/{id}`, `PUT /api/missions/{id}`, Edit modals)
+- [x] Phase 4.3: AI.9 Command Center Executive Briefing / Tactical Synthesis (`GET /api/ai/briefing`, Flight Deck executive card)
+- [x] Phase 4.4: Production Containerization & Full-Stack Orchestration (Spring Boot 25 Dockerfile, Nginx React Dockerfile, `compose.yaml`)
+- [ ] Phase 4.5: Windows WFP / macOS Endpoint Security Layer
+- [ ] Phase 4.6: Local-First Offline Telemetry Synchronization

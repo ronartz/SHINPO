@@ -255,4 +255,19 @@ public class AiDtos {
             return new AiChatResponse(reply, suggestionType, structuredCard, tutorial, bugReport, conversationId);
         }
     }
+
+    public record ExecutiveBriefingResponse(
+            String executiveHeadline,
+            String tacticalSummary,
+            String primaryRecommendation,
+            int activeGoalsCount,
+            int pendingMissionsCount,
+            int completedMissionsCount,
+            long focusMinutesToday,
+            double goalProgressAveragePct,
+            String sentinelThreatPosture,
+            int quarantinedDistractionsToday,
+            List<String> keyActionItems,
+            Instant generatedAt
+    ) {}
 }

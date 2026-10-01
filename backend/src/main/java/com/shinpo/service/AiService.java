@@ -47,6 +47,8 @@ public class AiService {
     private final TransactionTemplate conversationTransactionTemplate;
     private final UserExecutionProfileService userExecutionProfileService;
     private final FocusSessionService focusSessionService;
+    private final SentinelQuarantineRepository sentinelQuarantineRepository;
+    private final SentinelTamperEventRepository sentinelTamperEventRepository;
 
     public AiService(
             GoalRepository goalRepository,
@@ -60,7 +62,7 @@ public class AiService {
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager,
             UserExecutionProfileService userExecutionProfileService) {
-        this(goalRepository, missionRepository, focusSessionRepository, aiGateway, conversationRepository, conversationMessageRepository, userRepository, aiSuggestionRepository, objectMapper, transactionManager, userExecutionProfileService, null);
+        this(goalRepository, missionRepository, focusSessionRepository, aiGateway, conversationRepository, conversationMessageRepository, userRepository, aiSuggestionRepository, objectMapper, transactionManager, userExecutionProfileService, null, null, null);
     }
 
     @Autowired
@@ -76,7 +78,9 @@ public class AiService {
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager,
             UserExecutionProfileService userExecutionProfileService,
-            @Autowired(required = false) FocusSessionService focusSessionService) {
+            @Autowired(required = false) FocusSessionService focusSessionService,
+            @Autowired(required = false) SentinelQuarantineRepository sentinelQuarantineRepository,
+            @Autowired(required = false) SentinelTamperEventRepository sentinelTamperEventRepository) {
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.focusSessionRepository = focusSessionRepository;
@@ -91,6 +95,8 @@ public class AiService {
         this.conversationTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.userExecutionProfileService = userExecutionProfileService;
         this.focusSessionService = focusSessionService;
+        this.sentinelQuarantineRepository = sentinelQuarantineRepository;
+        this.sentinelTamperEventRepository = sentinelTamperEventRepository;
     }
 
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId) {
@@ -559,6 +565,122 @@ public class AiService {
                 createdSessionIds,
                 String.format("Successfully scheduled %d focus sessions (%d focus minutes) into today's execution agenda.",
                         createdSessionIds.size(), totalMinutes)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public ExecutiveBriefingResponse generateExecutiveBriefing(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<Goal> goals = goalRepository.findAllByUser_Id(userId);
+        int activeGoalsCount = (int) goals.stream().filter(g -> "ACTIVE".equalsIgnoreCase(g.getStatus())).count();
+
+        List<Mission> missions = missionRepository.findAllByGoal_User_Id(userId);
+        int completedMissionsCount = (int) missions.stream().filter(m -> "COMPLETED".equalsIgnoreCase(m.getStatus())).count();
+        int pendingMissionsCount = (int) missions.stream().filter(m -> !"COMPLETED".equalsIgnoreCase(m.getStatus()) && !"CANCELLED".equalsIgnoreCase(m.getStatus())).count();
+
+        // Calculate average goal progress %
+        double totalGoalProgress = 0.0;
+        int evaluatedGoals = 0;
+        for (Goal g : goals) {
+            List<Mission> goalMissions = missions.stream().filter(m -> m.getGoal().getId().equals(g.getId())).toList();
+            if (!goalMissions.isEmpty()) {
+                long done = goalMissions.stream().filter(m -> "COMPLETED".equalsIgnoreCase(m.getStatus())).count();
+                totalGoalProgress += ((double) done / goalMissions.size()) * 100.0;
+                evaluatedGoals++;
+            }
+        }
+        double avgGoalProgress = evaluatedGoals > 0 ? Math.round(totalGoalProgress / evaluatedGoals) : 0.0;
+
+        // Focus minutes today
+        LocalDate today = LocalDate.now();
+        Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        List<FocusSession> sessions = focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
+        long focusMinutesToday = sessions.stream()
+                .filter(s -> s.getStartedAt() != null && s.getStartedAt().isAfter(startOfDay))
+                .filter(s -> s.getStatus() == FocusSessionStatus.COMPLETED || s.getStatus() == FocusSessionStatus.ACTIVE)
+                .mapToLong(s -> s.getDurationMinutes() != null ? s.getDurationMinutes() : 0)
+                .sum();
+
+        // Sentinel metrics
+        int quarantinedToday = 0;
+        if (sentinelQuarantineRepository != null) {
+            quarantinedToday = (int) sentinelQuarantineRepository.countByUser_IdAndDetectedAtAfter(userId, startOfDay);
+        }
+        long tamperCount = 0;
+        if (sentinelTamperEventRepository != null) {
+            tamperCount = sentinelTamperEventRepository.countByUser_Id(userId);
+        }
+
+        String threatPosture;
+        if (tamperCount > 0 || quarantinedToday > 5) {
+            threatPosture = "ELEVATED";
+        } else if (quarantinedToday > 0) {
+            threatPosture = "CONTAINED";
+        } else {
+            threatPosture = "SECURE";
+        }
+
+        // Formulate Key Action Items & Recommendations
+        List<String> keyActions = new ArrayList<>();
+        Optional<Mission> nextMission = missions.stream()
+                .filter(m -> !"COMPLETED".equalsIgnoreCase(m.getStatus()) && !"CANCELLED".equalsIgnoreCase(m.getStatus()))
+                .findFirst();
+
+        String primaryRecommendation;
+        if (nextMission.isPresent()) {
+            primaryRecommendation = "Execute sprint on \"" + nextMission.get().getTitle() + "\" (" + (nextMission.get().getEstimatedMinutes() != null ? nextMission.get().getEstimatedMinutes() : 25) + "m)";
+            keyActions.add(primaryRecommendation);
+        } else if (activeGoalsCount > 0) {
+            primaryRecommendation = "Deconstruct active goals into concrete tactical missions";
+            keyActions.add(primaryRecommendation);
+        } else {
+            primaryRecommendation = "Define your strategic objectives to initialize the execution loop";
+            keyActions.add(primaryRecommendation);
+        }
+
+        if (quarantinedToday > 0) {
+            keyActions.add("Sentinel intercepted " + quarantinedToday + " distraction event(s) today — strict focus policy active");
+        } else {
+            keyActions.add("Sentinel perimeter intact — zero unauthorized background process interruptions");
+        }
+
+        if (completedMissionsCount > 0) {
+            keyActions.add("Review velocity and debrief insights for " + completedMissionsCount + " completed mission(s)");
+        } else {
+            keyActions.add("Schedule high-impact deep work sprint during prime morning circadian window");
+        }
+
+        String headline;
+        String summary;
+        if (focusMinutesToday >= 90) {
+            headline = "Executive Velocity: Deep Flow Horizon";
+            summary = String.format("You have sustained %d minutes of high-focus execution today with %d completed mission(s). %d tactical mission(s) remain pending.",
+                    focusMinutesToday, completedMissionsCount, pendingMissionsCount);
+        } else if (focusMinutesToday > 0) {
+            headline = "Executive Velocity: Tactical Momentum Building";
+            summary = String.format("Active momentum with %d minutes logged today across %d objective(s). %d mission(s) primed for execution.",
+                    focusMinutesToday, activeGoalsCount, pendingMissionsCount);
+        } else {
+            headline = "Executive Velocity: Pre-Flight Operational Readiness";
+            summary = String.format("System standing by with %d active goal(s) and %d queued mission(s). Engage Sentinel and begin sprint.",
+                    activeGoalsCount, pendingMissionsCount);
+        }
+
+        return new ExecutiveBriefingResponse(
+                headline,
+                summary,
+                primaryRecommendation,
+                activeGoalsCount,
+                pendingMissionsCount,
+                completedMissionsCount,
+                focusMinutesToday,
+                avgGoalProgress,
+                threatPosture,
+                quarantinedToday,
+                keyActions,
+                Instant.now()
         );
     }
 }
