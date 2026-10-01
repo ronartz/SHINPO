@@ -70,15 +70,30 @@ import {
   emergencyOverride,
   fetchSentinelTamperEvents,
 } from './api/device'
-import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule, SentinelTamperEventItem } from './api/device'
+import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule, SentinelTamperEventItem, SentinelQuarantineItem } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { CustomCursor } from './components/CustomCursor'
 import { SHINPO_ONBOARDING_STEPS } from './tutorial/tutorialSteps'
+import { wsClient } from './api/websocket'
+import type {
+  SentinelQuarantineEvent,
+  SentinelStatusEvent,
+  FocusSessionEvent,
+} from './api/websocket'
 
 import './App.css'
+
+export interface LiveAlertItem {
+  id: string
+  type: 'quarantine' | 'focus' | 'sentinel'
+  title: string
+  badge?: string
+  description?: string
+  timestamp: string
+}
 
 type Dashboard = {
   user: {
@@ -468,6 +483,11 @@ export function App() {
   })
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [selectedPomodoroPlan, setSelectedPomodoroPlan] = useState<string | null>(null)
+  const [liveAlerts, setLiveAlerts] = useState<LiveAlertItem[]>([])
+  const [toastAlerts, setToastAlerts] = useState<LiveAlertItem[]>([])
+  const [isAlertsDrawerOpen, setIsAlertsDrawerOpen] = useState(false)
+  const [isWsConnected, setIsWsConnected] = useState(false)
+  const [unreadAlertCount, setUnreadAlertCount] = useState(0)
 
   // Cursor glow tracker
   const [mousePos, setMousePos] = useState({ x: -500, y: -500 })
@@ -918,6 +938,117 @@ export function App() {
     return () => clearTimeout(timer)
   }, [currentUser, loadData, loadActiveConversation])
 
+  const addLiveAlert = useCallback((alert: LiveAlertItem) => {
+    setLiveAlerts((prev) => [alert, ...prev].slice(0, 50))
+    setToastAlerts((prev) => [alert, ...prev].slice(0, 4))
+    setUnreadAlertCount((prev) => prev + 1)
+    setTimeout(() => {
+      setToastAlerts((prev) => prev.filter((item) => item.id !== alert.id))
+    }, 6500)
+  }, [])
+
+  useEffect(() => {
+    return wsClient.onConnectionChange((connected) => {
+      setIsWsConnected(connected)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!currentUser) {
+      wsClient.disconnect()
+      return
+    }
+
+    wsClient.connect(currentUser.id)
+
+    const unsubQuarantine = wsClient.onQuarantine((event: SentinelQuarantineEvent) => {
+      addLiveAlert({
+        id: `quarantine-${event.id}-${Date.now()}`,
+        type: 'quarantine',
+        title: `🛡️ Sentinel Neutralized: ${event.processName}`,
+        badge: `PID ${event.pid} • ${event.enforcementAction || 'TERMINATED'}`,
+        description: event.reason,
+        timestamp: event.timestamp || new Date().toISOString(),
+      })
+
+      setSentinelStatus((prev) => {
+        if (!prev) return prev
+        const newItem: SentinelQuarantineItem = {
+          id: event.id,
+          focusSessionId: event.focusSessionId,
+          pid: event.pid,
+          processName: event.processName,
+          commandLine: null,
+          policyAction: event.enforcementAction,
+          enforcementMode: event.enforcementAction,
+          reason: event.reason,
+          detectedAt: event.timestamp || new Date().toISOString(),
+        }
+        return {
+          ...prev,
+          totalInterceptedToday: (prev.totalInterceptedToday || 0) + 1,
+          lastSweepAt: event.timestamp || new Date().toISOString(),
+          recentQuarantines: [newItem, ...prev.recentQuarantines.filter((q) => q.id !== event.id)].slice(0, 50),
+        }
+      })
+    })
+
+    const unsubStatus = wsClient.onSentinelStatus((event: SentinelStatusEvent) => {
+      setSentinelStatus((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          enforcementMode: event.mode,
+          isPolicyLocked: event.isLocked,
+          activePolicyRulesCount: event.blockedCount + event.allowedCount,
+        }
+      })
+      addLiveAlert({
+        id: `status-${Date.now()}`,
+        type: 'sentinel',
+        title: `🔒 Sentinel Policy: ${event.mode}`,
+        badge: event.isLocked ? 'STRICT LOCKED' : 'PERMISSIVE',
+        description: `${event.blockedCount} blocked rules actively guarded.`,
+        timestamp: event.timestamp || new Date().toISOString(),
+      })
+    })
+
+    const unsubSession = wsClient.onFocusSession((event: FocusSessionEvent) => {
+      void getFocusSessions().then((updatedSessions) => {
+        setSessions(updatedSessions)
+      }).catch(() => {})
+
+      const statusLabel =
+        event.status === 'ACTIVE'
+          ? 'Engaged (Lockdown Active)'
+          : event.status === 'PAUSED'
+            ? 'Paused'
+            : event.status === 'COMPLETED'
+              ? 'Completed'
+              : event.status === 'CANCELLED'
+                ? 'Aborted'
+                : event.status
+
+      addLiveAlert({
+        id: `session-${event.id}-${Date.now()}`,
+        type: 'focus',
+        title: `⚡ Focus Sprint ${statusLabel}`,
+        badge: `Sprint #${event.id} • ${event.plannedDurationMinutes}m`,
+        description:
+          event.status === 'ACTIVE'
+            ? 'Processes guarded by Sentinel Shield. All tabs synchronized.'
+            : event.debriefNotes || `Focus sprint transitioned to ${event.status}.`,
+        timestamp: event.timestamp || new Date().toISOString(),
+      })
+    })
+
+    return () => {
+      unsubQuarantine()
+      unsubStatus()
+      unsubSession()
+    }
+  }, [currentUser, addLiveAlert])
+
   const loadSentinelTamperEvents = useCallback(async () => {
     setTamperEventsLoading(true)
     try {
@@ -1129,6 +1260,11 @@ export function App() {
 
   const handleLogout = async () => {
     await logout()
+    wsClient.disconnect()
+    setIsWsConnected(false)
+    setLiveAlerts([])
+    setToastAlerts([])
+    setUnreadAlertCount(0)
     setCurrentUser(null)
     setDashboard(null)
     setSessions([])
@@ -2188,9 +2324,16 @@ export function App() {
           </div>
 
           <div className="top-bar-actions">
-            <button className="action-btn-circle has-badge" title="Notifications">
+            <button
+              className={`action-btn-circle ${unreadAlertCount > 0 ? 'has-badge' : ''}`}
+              title="Real-Time Telemetry & Notifications"
+              onClick={() => {
+                setIsAlertsDrawerOpen(!isAlertsDrawerOpen)
+                setUnreadAlertCount(0)
+              }}
+            >
               <Icon name="bell" size={16} />
-              <span className="bell-red-dot" />
+              {unreadAlertCount > 0 && <span className="bell-red-dot" />}
             </button>
             <button
               className="action-btn-circle"
@@ -6018,6 +6161,122 @@ export function App() {
           }}
         />
       )}
+
+      {/* Real-Time Telemetry & Notifications Flyout */}
+      {isAlertsDrawerOpen && (
+        <div className="telemetry-drawer-backdrop" onClick={() => setIsAlertsDrawerOpen(false)}>
+          <div className="telemetry-drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="telemetry-drawer-header">
+              <div className="telemetry-drawer-title-wrap">
+                <span className={`telemetry-live-dot ${isWsConnected ? 'connected' : ''}`} />
+                <span className="telemetry-drawer-title">Real-Time Telemetry Feed</span>
+              </div>
+              <div className="telemetry-drawer-header-actions">
+                {liveAlerts.length > 0 && (
+                  <button
+                    className="telemetry-clear-btn"
+                    onClick={() => setLiveAlerts([])}
+                  >
+                    Clear History
+                  </button>
+                )}
+                <button
+                  className="telemetry-close-btn"
+                  onClick={() => setIsAlertsDrawerOpen(false)}
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            </div>
+            <div className="telemetry-drawer-list">
+              {liveAlerts.length === 0 ? (
+                <div className="telemetry-empty-state">
+                  <Icon name="shield" size={24} />
+                  <span>No telemetry events recorded yet. Distraction intercepts & sprint state changes stream here live via STOMP WebSocket.</span>
+                </div>
+              ) : (
+                liveAlerts.map((item) => (
+                  <div key={item.id} className={`telemetry-item item-${item.type}`}>
+                    <div className="telemetry-item-icon">
+                      <Icon
+                        name={item.type === 'quarantine' ? 'shield' : item.type === 'focus' ? 'zap' : 'sparkle'}
+                        size={16}
+                      />
+                    </div>
+                    <div className="telemetry-item-body">
+                      <div className="telemetry-item-top">
+                        <span className="telemetry-item-title">{item.title}</span>
+                        {item.badge && <span className="telemetry-item-badge">{item.badge}</span>}
+                      </div>
+                      {item.description && <div className="telemetry-item-desc">{item.description}</div>}
+                      <span className="telemetry-item-time">
+                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Floating Toasts Portal */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div className="shinpo-toast-container" aria-live="polite">
+            {toastAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`shinpo-toast-item toast-${alert.type}`}
+                role="alert"
+              >
+                <div className="shinpo-toast-icon">
+                  <Icon
+                    name={
+                      alert.type === 'quarantine'
+                        ? 'shield'
+                        : alert.type === 'focus'
+                          ? 'zap'
+                          : 'sparkle'
+                    }
+                    size={18}
+                  />
+                </div>
+                <div className="shinpo-toast-content">
+                  <div className="shinpo-toast-header">
+                    <span className="shinpo-toast-title">{alert.title}</span>
+                    {alert.badge && (
+                      <span className="shinpo-toast-badge">{alert.badge}</span>
+                    )}
+                  </div>
+                  {alert.description && (
+                    <div className="shinpo-toast-desc">{alert.description}</div>
+                  )}
+                  <div className="shinpo-toast-time">
+                    {new Date(alert.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
+                  </div>
+                </div>
+                <button
+                  className="shinpo-toast-dismiss"
+                  onClick={() =>
+                    setToastAlerts((prev) =>
+                      prev.filter((item) => item.id !== alert.id),
+                    )
+                  }
+                  title="Dismiss"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
 
       {/* SHINPO Interactive Custom Cursor */}
       <CustomCursor />

@@ -38,19 +38,22 @@ public class FocusSessionService {
     private final GoalRepository goalRepository;
     private final MissionRepository missionRepository;
     private final SessionPlanRepository sessionPlanRepository;
+    private final WebSocketEventService webSocketEventService;
 
     public FocusSessionService(
             FocusSessionRepository focusSessionRepository,
             UserRepository userRepository,
             GoalRepository goalRepository,
             MissionRepository missionRepository,
-            SessionPlanRepository sessionPlanRepository
+            SessionPlanRepository sessionPlanRepository,
+            WebSocketEventService webSocketEventService
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.sessionPlanRepository = sessionPlanRepository;
+        this.webSocketEventService = webSocketEventService;
     }
 
     @Transactional
@@ -123,6 +126,7 @@ public class FocusSessionService {
         session.setAccumulatedPausedSeconds(0L);
 
         FocusSession savedSession = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(user.getId(), savedSession);
 
         return FocusSessionResponse.from(savedSession);
     }
@@ -212,9 +216,10 @@ public class FocusSessionService {
         session.setStartedAt(Instant.now());
         session.setPausedAt(null);
 
-        return FocusSessionResponse.from(
-                focusSessionRepository.save(session)
-        );
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional
@@ -230,9 +235,10 @@ public class FocusSessionService {
         session.setStatus(FocusSessionStatus.PAUSED);
         session.setPausedAt(Instant.now());
 
-        return FocusSessionResponse.from(
-                focusSessionRepository.save(session)
-        );
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional
@@ -256,9 +262,10 @@ public class FocusSessionService {
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setPausedAt(null);
 
-        return FocusSessionResponse.from(
-                focusSessionRepository.save(session)
-        );
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional
@@ -294,9 +301,10 @@ public class FocusSessionService {
             session.setAccomplishment(request.accomplishment());
         }
 
-        return FocusSessionResponse.from(
-                focusSessionRepository.save(session)
-        );
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional
@@ -313,9 +321,10 @@ public class FocusSessionService {
         session.setEndedAt(Instant.now());
         session.setPausedAt(null);
 
-        return FocusSessionResponse.from(
-                focusSessionRepository.save(session)
-        );
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional

@@ -28,7 +28,8 @@
 - [x] Phase 4.5: Cross-Platform Native Shield Abstraction (`PlatformInterceptor`, Linux/Windows/macOS process control & notifications)
 - [x] Phase 4.6: Local-First Offline Telemetry Spooling (`OfflineSpooler`, `daemon/quarantine_spool.jsonl`, batch synchronization)
 
-### Milestone 5: Production Packaging, Desktop Shell & Advanced Observability (NEXT)
-- [ ] Phase 5.1: Tauri v2 Desktop Shell with Embedded Shield Daemon & System Tray
-- [ ] Phase 5.2: Production Telemetry & Prometheus/Grafana Observability Stack
-- [ ] Phase 5.3: Offline Service Worker & PWA Caching Layer
+### Milestone 5: Real-Time Telemetry, Desktop Shell & Advanced Observability (IN PROGRESS)
+- [x] Phase 5.1: Real-Time WebSocket STOMP Stream (Spring Boot message broker, JWT channel interceptor, instant live quarantine alerts, synchronized sprint lockdown across browser tabs)
+- [ ] Phase 5.2: Tauri v2 Desktop Shell with Embedded Shield Daemon & System Tray
+- [ ] Phase 5.3: Production Telemetry & Prometheus/Grafana Observability Stack
+- [ ] Phase 5.4: Offline Service Worker & PWA Caching Layer
