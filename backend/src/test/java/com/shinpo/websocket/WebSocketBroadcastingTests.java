@@ -9,7 +9,6 @@ import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.SentinelQuarantineRepository;
 import com.shinpo.repository.UserRepository;
-import com.shinpo.service.FocusSessionService;
 import com.shinpo.service.SentinelEnforcementService;
 import com.shinpo.service.WebSocketEventService;
 import org.junit.jupiter.api.AfterEach;
@@ -24,7 +23,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
@@ -39,9 +37,6 @@ class WebSocketBroadcastingTests {
 
     @Autowired
     private SentinelEnforcementService sentinelService;
-
-    @Autowired
-    private FocusSessionService sessionService;
 
     @Autowired
     private UserRepository userRepository;
