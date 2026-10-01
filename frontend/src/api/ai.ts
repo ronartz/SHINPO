@@ -173,8 +173,9 @@ export type AiChatResponse = {
 }
 
 import { authHeaders } from './auth'
+import { getBackendBaseUrl } from './config'
 
-const API_BASE = '/api/ai'
+const API_BASE = `${getBackendBaseUrl()}/api/ai`
 
 async function parseResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {

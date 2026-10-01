@@ -61,7 +61,9 @@ export function authHeaders(customHeaders: Record<string, string> = {}): Record<
   return headers
 }
 
-const API_BASE = '/api'
+import { getBackendBaseUrl } from './config'
+
+const API_BASE = `${getBackendBaseUrl()}/api`
 
 export async function login(usernameOrEmail: string, password: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {

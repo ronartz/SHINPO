@@ -35,7 +35,9 @@ export interface AnalyticsDashboardResponse {
   recentDebriefs: RecentDebrief[]
 }
 
-const API_BASE = '/api/analytics'
+import { getBackendBaseUrl } from './config'
+
+const API_BASE = `${getBackendBaseUrl()}/api/analytics`
 
 export async function fetchAnalyticsDashboard(): Promise<AnalyticsDashboardResponse> {
   const res = await fetch(`${API_BASE}/dashboard`, {

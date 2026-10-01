@@ -1,5 +1,6 @@
 import { Client } from '@stomp/stompjs'
 import { getAuthToken } from './auth'
+import { getWsBaseUrl } from './config'
 
 export interface SentinelQuarantineEvent {
   id: number
@@ -60,8 +61,7 @@ class ShinpoWebSocketClient {
     this.isConnecting = true
 
     const token = getAuthToken() || ''
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const brokerUrl = `${protocol}//${window.location.host}/ws`
+    const brokerUrl = getWsBaseUrl()
 
     this.client = new Client({
       brokerURL: brokerUrl,
