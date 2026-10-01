@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "b395e519-6641-4f33-baf8-7e791e5218e0",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/home/eonx/Projects/SHINPO/.planning/WORKFLOW_CANDIDATE.json",
+  "output": "/home/eonx/Projects/SHINPO/.planning/WORKFLOW_REMAINING_ARCHIFY.html",
+  "specification": {
+    "sha256": "4f187859b0472ce1ca7ab59feaa308f0ac09ea6ac793f47cd54a11512636910d",
+    "bytes": 3648
+  },
+  "artifact": {
+    "sha256": "8c606952bb2da81c576e2819dfd391b03cf781a05d207357a4e0c691fd674214",
+    "bytes": 762015
+  }
+}

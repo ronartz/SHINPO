@@ -39,5 +39,5 @@ scripts/*.cjs
 scripts/changeset/
 scripts/lib/
 
-
-
+# Repomix
+repomix-output.xml

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -129,7 +130,8 @@ public class SentinelEnforcementTests {
     }
 
     @Test
-    @DisplayName("Administrative Policy Gate: blocks mode downgrade during active STRICT sprint and logs tamper attempt")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Administrative Policy Gate: mode-change audit survives transaction rollback")
     void testPolicyGateBlocksModeDowngradeDuringActiveStrictSession() {
         FocusSession session = new FocusSession();
         session.setUser(testUser);
@@ -137,22 +139,31 @@ public class SentinelEnforcementTests {
         session.setDurationMinutes(30);
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setStartedAt(Instant.now());
-        sessionRepository.save(session);
+        session = sessionRepository.save(session);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
-            sentinelService.setEnforcementMode(testUser.getId(), "AUDIT_ONLY");
-        });
-        assertTrue(ex.getMessage().contains("Administrative Policy Gate"));
+        Long userId = testUser.getId();
+        Long sessionId = session.getId();
+        try {
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                    sentinelService.setEnforcementMode(userId, "AUDIT_ONLY")
+            );
+            assertTrue(ex.getMessage().contains("Administrative Policy Gate"));
 
-        // Verify tamper audit event was logged
-        List<SentinelTamperEvent> tamperEvents = tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(testUser.getId());
-        assertFalse(tamperEvents.isEmpty());
-        assertEquals("UNAUTHORIZED_MODE_CHANGE_ATTEMPT", tamperEvents.get(0).getEventType());
-        assertEquals("HIGH", tamperEvents.get(0).getSeverity());
+            List<SentinelTamperEvent> tamperEvents = tamperEventRepository.findTop20ByUser_IdOrderByCreatedAtDesc(userId);
+            assertTrue(tamperEvents.stream().anyMatch(event ->
+                    "UNAUTHORIZED_MODE_CHANGE_ATTEMPT".equals(event.getEventType())
+                            && "HIGH".equals(event.getSeverity())
+            ));
+        } finally {
+            tamperEventRepository.deleteAll(tamperEventRepository.findTop20ByUser_IdOrderByCreatedAtDesc(userId));
+            sessionRepository.deleteById(sessionId);
+            userRepository.deleteById(userId);
+        }
     }
 
     @Test
-    @DisplayName("Administrative Policy Gate: blocks rule deletion during active STRICT sprint and logs tamper attempt")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Administrative Policy Gate: blocked rule deletion audit persists")
     void testPolicyGateBlocksRuleDeletionDuringActiveStrictSession() {
         AddPolicyRuleRequest addReq = new AddPolicyRuleRequest("procrastination_app", "BLOCKED");
         PolicyRuleResponse rule = sentinelService.addPolicyRule(testUser.getId(), addReq);
@@ -163,17 +174,26 @@ public class SentinelEnforcementTests {
         session.setDurationMinutes(40);
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setStartedAt(Instant.now());
-        sessionRepository.save(session);
+        session = sessionRepository.save(session);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
-            sentinelService.deletePolicyRule(testUser.getId(), rule.id());
-        });
-        assertTrue(ex.getMessage().contains("Administrative Policy Gate"));
+        Long userId = testUser.getId();
+        Long sessionId = session.getId();
+        try {
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                    sentinelService.deletePolicyRule(userId, rule.id())
+            );
+            assertTrue(ex.getMessage().contains("Administrative Policy Gate"));
 
-        // Verify tamper audit event was logged
-        List<SentinelTamperEvent> tamperEvents = tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(testUser.getId());
-        assertFalse(tamperEvents.isEmpty());
-        assertEquals("UNAUTHORIZED_RULE_DELETION_ATTEMPT", tamperEvents.get(0).getEventType());
+            List<SentinelTamperEvent> tamperEvents = tamperEventRepository.findTop20ByUser_IdOrderByCreatedAtDesc(userId);
+            assertTrue(tamperEvents.stream().anyMatch(event ->
+                    "UNAUTHORIZED_RULE_DELETION_ATTEMPT".equals(event.getEventType())
+            ));
+        } finally {
+            tamperEventRepository.deleteAll(tamperEventRepository.findTop20ByUser_IdOrderByCreatedAtDesc(userId));
+            sessionRepository.deleteById(sessionId);
+            sentinelService.deletePolicyRule(userId, rule.id());
+            userRepository.deleteById(userId);
+        }
     }
 
     @Test

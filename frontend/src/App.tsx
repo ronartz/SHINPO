@@ -4524,8 +4524,6 @@ export function App() {
               <div className="sentinel-tamper-section">
                 <div
                   className="sentinel-tamper-header"
-                  onClick={() => setTamperEventsExpanded((prev) => !prev)}
-                  title="Click to toggle administrative tamper audit events"
                 >
                   <div className="sentinel-tamper-title">
                     <Icon name="shield" size={15} />
@@ -4542,6 +4540,9 @@ export function App() {
                   </div>
                   <button
                     type="button"
+                    aria-expanded={tamperEventsExpanded}
+                    onClick={() => setTamperEventsExpanded((prev) => !prev)}
+                    title="Toggle administrative tamper audit events"
                     style={{
                       background: 'none',
                       border: 'none',
