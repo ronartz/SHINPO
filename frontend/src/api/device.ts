@@ -41,7 +41,9 @@ export interface ProcessSnapshot {
   timestamp: string
 }
 
-const API_BASE = '/api/device'
+import { getBackendBaseUrl } from './config'
+
+const API_BASE = `${getBackendBaseUrl()}/api/device`
 
 export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
   const res = await fetch(`${API_BASE}/system-info`, {

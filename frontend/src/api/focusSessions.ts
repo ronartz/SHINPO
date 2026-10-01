@@ -56,8 +56,9 @@ export type CreateFocusSessionRequest = {
 }
 
 import { authHeaders } from './auth'
+import { getBackendBaseUrl } from './config'
 
-const API_BASE = '/api/focus-sessions'
+const API_BASE = `${getBackendBaseUrl()}/api/focus-sessions`
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

@@ -1,0 +1,21 @@
+[package]
+name = "shinpo-desktop"
+version = "1.0.0"
+description = "SHINPO Personal Execution Operating System"
+authors = ["SHINPO Team"]
+edition = "2021"
+
+[lib]
+name = "shinpo_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.1" }
+tauri-plugin-log = "2"
+shinpo-shield = { path = "../../crates/shinpo-shield" }

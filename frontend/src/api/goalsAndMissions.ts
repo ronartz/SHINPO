@@ -59,8 +59,9 @@ export type MissionCompletionResponse = {
 }
 
 import { authHeaders } from './auth'
+import { getBackendBaseUrl } from './config'
 
-const API_BASE = '/api'
+const API_BASE = `${getBackendBaseUrl()}/api`
 
 async function parseResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
