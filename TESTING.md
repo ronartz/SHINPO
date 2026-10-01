@@ -35,21 +35,39 @@ $$\text{UI Component} \longrightarrow \text{Client State} \longrightarrow \text{
 
 ## 2. Automated Test Suite Baseline
 
-### Current Automated Backend Tests
-- **`com.shinpo.ShinpoApplicationTests`** (29 tests):
-  - User registration, login, token refresh, and logout workflows.
-  - Goal creation, retrieval, and deletion with user isolation.
-  - Mission creation, status transitions, and completion.
-  - Focus session lifecycle (`start`, `pause`, `resume`, `complete`, `cancel`).
-  - Active time accounting and debrief persistence.
-  - Task Manager process snapshot and system info retrieval.
-- **`com.shinpo.ai.AiArchitectureTests`** (4 tests):
-  - `ollamaProviderHandlesOfflineGracefully`: Verifies offline Ollama produces a clean failure response without throwing.
-  - `aiGatewayFallsBackGracefullyWhenProviderFails`: Verifies fallback to deterministic responses.
-  - `aiGatewayParsesStructuredJsonOutputFromModel`: Verifies valid JSON parsing from LLM output.
-  - `goalDecompositionProducesSuggestionWithoutMutatingGoal`: Verifies goal decomposition creates audit suggestions without mutating the database.
+### Current Automated Backend Tests (116 Tests / 100% Pass)
+The test suite has expanded across all 5 milestones to cover the complete system:
+- **`ShinpoApplicationTests`** (33 tests): Context loads, Flyway migration sanity, end-to-end user journeys.
+- **`GoalAndMissionLifecycleTests`** (12 tests): Goal & Mission creation, XP progression, and user isolation.
+- **`Phase1SecurityHardeningTests`** (16 tests): Password hashing, JWT creation/refresh/rotation, and token tampering defense.
+- **`SentinelEnforcementTests`** (15 tests): Policy locking, sweeps, process quarantine, and emergency overrides.
+- **`AdaptivePlanningTests`** (8 tests): AI adaptive daily plan generation and mission commitment.
+- **`AIProviderPipelineTests`** (6 tests): Multi-tier provider fallback (Ollama -> Heuristics).
+- **`AiArchitectureTests`** (4 tests): LLM offline handling and structured JSON output.
+- **`ContextEngineTests`** (5 tests): Dynamic prompt context assembly.
+- **`ControlledToolLayerTests`** (4 tests): Security boundaries around AI tool execution.
+- **`ExecutiveBriefingTests`** (3 tests): Daily executive status synthesis.
+- **`SessionDebriefAndRecoveryTests`** (4 tests): Post-session debrief and momentum recovery analysis.
+- **`SilenceEngineTests`** (3 tests): Contextual AI silence during deep focus.
+- **`StructuredSuggestionApprovalTests`** (2 tests): Approval workflows for AI adjustments.
+- **`UserExecutionProfileTests`** (2 tests): Behavioral metrics tracking.
+- **`WebSocketBroadcastingTests`** (4 tests): Real-time STOMP event dispatch for quarantines & sprints.
 
-**Total Automated Baseline:** **33 tests, 0 failures, 0 errors, 0 skipped** (`./mvnw test`).
+**Total Automated Backend Baseline:** **116 tests, 0 failures, 0 errors, 0 skipped** (`./mvnw test`).
+
+### Current Automated Native Shield Tests (8 Tests / 100% Pass)
+Located in `crates/shinpo-shield`:
+- `test_platform_interceptor_instantiation`: Verifies OS platform interceptor binds correctly.
+- `test_spooler_lifecycle`: Verifies append, peek, and batch flush of offline JSONL buffer.
+- `test_protected_process_immunity`: Ensures system processes cannot be terminated.
+- `test_short_pattern_false_positive_immunity`: Prevents short string false positives.
+- `test_jvm_internal_threads_ignored`: Confirms Java/JVM processes are safely ignored.
+- `test_enforcer_interceptor_binding`: Checks interceptor hook invocation.
+- `test_distraction_detection_positive`: Confirms blacklisted apps (e.g. Discord, Steam) are caught.
+- `test_user_whitelist_overrides_blacklist`: Proves whitelist precedence over blacklist.
+
+**Total Automated Shield Baseline:** **8 tests, 0 failures, 0 errors, 0 skipped** (`cargo test`).
+**Combined Automated Test Baseline:** **124 tests passing.**
 
 ---
 
