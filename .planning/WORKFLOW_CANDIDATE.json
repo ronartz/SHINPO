@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "SHINPO: Full System Workflow & Remaining Tasks",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "shinpo-workflow.html"
+  },
+  "lanes": [
+    { "id": "ui", "label": "React 19 UI (Frontend)" },
+    { "id": "core", "label": "Spring Boot (Backend)" },
+    { "id": "sentinel", "label": "OS Enforcement (Sentinel)", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "plan", "label": "Plan", "fromCol": 0, "toCol": 1 },
+    { "id": "execute", "label": "Execute", "fromCol": 2, "toCol": 3 },
+    { "id": "analyze", "label": "Analyze", "fromCol": 4, "toCol": 5 }
+  ],
+  "mainPath": ["goal", "ai_plan", "schedule", "sentinel_lock", "execute", "debrief", "analytics"],
+  "nodes": [
+    { "id": "goal", "lane": "ui", "col": 0, "type": "frontend", "label": "Set Goal", "sublabel": "User Input", "width": 140, "tag": "DONE" },
+    { "id": "ai_plan", "lane": "core", "col": 0, "type": "backend", "label": "EONPAI Decompose", "sublabel": "Auto-Missions", "width": 140, "tag": "DONE" },
+    { "id": "schedule", "lane": "ui", "col": 1, "type": "frontend", "label": "Schedule Sprint", "sublabel": "Timebox Task", "width": 140, "tag": "REMAINING" },
+    { "id": "sentinel_lock", "lane": "sentinel", "col": 2, "type": "security", "label": "Policy Gate", "sublabel": "Quarantine OS", "width": 140, "tag": "PARTIAL" },
+    { "id": "execute", "lane": "ui", "col": 3, "type": "frontend", "label": "Focus Execution", "sublabel": "Deep Work Loop", "width": 140, "tag": "DONE" },
+    { "id": "native", "lane": "sentinel", "col": 3, "type": "security", "label": "Native Shield", "sublabel": "Rust Daemon", "width": 140, "tag": "REMAINING" },
+    { "id": "debrief", "lane": "core", "col": 4, "type": "database", "label": "Session Debrief", "sublabel": "Save Result", "width": 140, "tag": "DONE" },
+    { "id": "analytics", "lane": "ui", "col": 5, "type": "frontend", "label": "Velocity Analytics", "sublabel": "Bias Correction", "width": 140, "tag": "REMAINING" },
+    { "id": "recovery", "lane": "core", "col": 5, "type": "backend", "label": "AI Recovery Plan", "sublabel": "If failed", "width": 140, "tag": "REMAINING" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "goal", "to": "ai_plan", "label": "Suggests" },
+    { "id": "e2", "from": "ai_plan", "to": "schedule", "label": "Approves" },
+    { "id": "e3", "from": "schedule", "to": "sentinel_lock", "label": "Arms Timer" },
+    { "id": "e4", "from": "sentinel_lock", "to": "execute", "label": "Locks In" },
+    { "id": "e5", "from": "execute", "to": "debrief", "label": "Completes" },
+    { "id": "e6", "from": "debrief", "to": "analytics", "label": "Logs" },
+    { "id": "e7", "from": "debrief", "to": "recovery", "label": "Failure", "variant": "dashed", "role": "branch" },
+    { "id": "e8", "from": "sentinel_lock", "to": "native", "label": "Ph 4 OS Hook", "variant": "dashed", "role": "branch" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Completed Work (DONE)",
+      "items": [
+        "Core DB Schema, Entities, Auth",
+        "EONPAI qwen3:4b tool integration",
+        "Focus session DB logic & timer core",
+        "React UI dashboard (glassmorphism)",
+        "Phase 3.3 Task Manager Permission Gate"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Remaining Implementation (Phase 4+)",
+      "items": [
+        "Native Rust Shield Daemon (OS Hook)",
+        "Schedule Builder (Drag & Drop UI)",
+        "Advanced Analytics & ML Time Estimation",
+        "AI Recovery Plan (Execution vs Plan failure)",
+        "Gamification & External API sync"
+      ]
+    }
+  ]
+}
