@@ -113,7 +113,7 @@ public class SentinelEnforcementService {
                         null,
                         "Attempted mode downgrade from STRICT to " + upper + " during active sprint: " + activeSession.getName()
                 );
-                tamperEventRepository.save(tamper);
+                persistTamperEventInNewTransaction(tamper);
             }
             log.warn("SENTINEL_POLICY_GATE_BLOCKED: user={} activeSession={} attemptedMode={}",
                     userId, activeSession.getId(), upper);
@@ -147,7 +147,7 @@ public class SentinelEnforcementService {
 
         long tamperEventsCount = (activeSession != null)
                 ? tamperEventRepository.countByUser_IdAndFocusSession_Id(userId, activeSession.getId())
-                : tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(userId).size();
+            : tamperEventRepository.countByUser_Id(userId);
 
         boolean isPolicyLocked = activeSession != null && "STRICT".equals(getEnforcementMode(userId));
 
@@ -426,7 +426,7 @@ public class SentinelEnforcementService {
                         null,
                         "Attempted deletion of blocked rule '" + rule.getProcessNamePattern() + "' during active sprint: " + activeSession.getName()
                 );
-                tamperEventRepository.save(tamper);
+                persistTamperEventInNewTransaction(tamper);
             }
             log.warn("SENTINEL_RULE_DELETION_BLOCKED: user={} activeSession={} ruleId={} pattern={}",
                     userId, activeSession.getId(), ruleId, rule.getProcessNamePattern());
@@ -494,9 +494,21 @@ public class SentinelEnforcementService {
 
     @Transactional(readOnly = true)
     public List<SentinelTamperEventItem> listTamperEvents(Long userId) {
-        return tamperEventRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
+        return listTamperEvents(userId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SentinelTamperEventItem> listTamperEvents(Long userId, Long sessionId) {
+        List<SentinelTamperEvent> events = sessionId == null
+                ? tamperEventRepository.findTop20ByUser_IdOrderByCreatedAtDesc(userId)
+                : tamperEventRepository.findTop20ByUser_IdAndFocusSession_IdOrderByCreatedAtDesc(userId, sessionId);
+        return events
                 .stream()
                 .map(SentinelTamperEventItem::from)
                 .toList();
+    }
+
+    private void persistTamperEventInNewTransaction(SentinelTamperEvent event) {
+        auditTransactionTemplate.executeWithoutResult(status -> tamperEventRepository.save(event));
     }
 }
