@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SHINPO: Full Project Understanding",
+    "output": "shinpo-full-project-understanding.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "ui", "type": "frontend", "label": "React 19 Cockpit", "sublabel": "Dark Glassmorphism", "pos": [100, 300], "size": [160, 70], "tag": "User Interface" },
+    { "id": "backend", "type": "backend", "label": "Spring Boot 4.1", "sublabel": "API & Core Engine", "pos": [450, 300], "size": [160, 70], "tag": "Orchestrator" },
+    { "id": "db", "type": "database", "label": "PostgreSQL 17", "sublabel": "State & Auth", "pos": [450, 100], "size": [160, 70], "tag": "Database" },
+    { "id": "eonpai", "type": "backend", "label": "EONPAI AI Gateway", "sublabel": "Contextual Intel", "pos": [100, 550], "size": [160, 70], "tag": "Intelligence" },
+    { "id": "ollama", "type": "external", "label": "Ollama qwen3:4b", "sublabel": "Local LLM", "pos": [100, 800], "size": [160, 70], "tag": "LLM Provider" },
+    { "id": "sentinel", "type": "security", "label": "Sentinel Service", "sublabel": "JVM quarantine", "pos": [450, 550], "size": [160, 70], "tag": "Enforcement" },
+    { "id": "nativeshield", "type": "security", "label": "Native Shield", "sublabel": "Rust OS Hook", "pos": [800, 550], "size": [160, 70], "tag": "System Hooks" },
+    { "id": "osapi", "type": "external", "label": "OS Process APIs", "sublabel": "Linux /proc", "pos": [450, 800], "size": [160, 70], "tag": "Host OS" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Host Machine Trust Boundary (Fully Local)", "wraps": ["ui", "backend", "db", "eonpai", "sentinel", "nativeshield"] }
+  ],
+  "connections": [
+    { "id": "req", "from": "ui", "to": "backend", "label": "1. Manage Tasks & Sprints", "variant": "emphasis" },
+    { "id": "persist", "from": "backend", "to": "db", "label": "2. Persist State", "variant": "emphasis" },
+    { "id": "lock", "from": "backend", "to": "sentinel", "label": "3. Enforce Focus", "variant": "emphasis" },
+    { "id": "kill", "from": "sentinel", "to": "osapi", "label": "4. Quarantine Distractions", "variant": "emphasis" },
+    
+    { "id": "chat", "from": "ui", "to": "eonpai", "label": "Chat / Tools" },
+    { "id": "ai_ctx", "from": "backend", "to": "eonpai", "label": "Provide Context" },
+    { "id": "llm", "from": "eonpai", "to": "ollama", "label": "Generate Responses" },
+    
+    { "id": "delegate", "from": "sentinel", "to": "nativeshield", "label": "Delegates (Phase 4)", "variant": "dashed" },
+    { "id": "native_os", "from": "nativeshield", "to": "osapi", "label": "Secure Actions", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What is SHINPO?",
+      "items": [
+        "A Personal Execution Operating System.",
+        "Unlike regular to-do apps, it links macro goals to micro missions.",
+        "It enforces focus at the OS level (killing distractions)."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "The Core Execution Loop",
+      "items": [
+        "GOAL → MISSION → SCHEDULE",
+        "FOCUS SESSION → ENFORCEMENT (Sentinel) → EXECUTION",
+        "RESULT → DEBRIEF → PROGRESS → NEXT ACTION"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Privacy & Trust (Local-First)",
+      "items": [
+        "Zero Cloud Telemetry: Everything runs on the host machine.",
+        "AI Intelligence (EONPAI) runs locally via Ollama.",
+        "Safe AI Boundaries: AI cannot mutate state or kill processes unprompted."
+      ]
+    }
+  ]
+}
