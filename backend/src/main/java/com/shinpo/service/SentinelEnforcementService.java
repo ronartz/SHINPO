@@ -55,6 +55,7 @@ public class SentinelEnforcementService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate auditTransactionTemplate;
+    private final WebSocketEventService webSocketEventService;
 
     // Per-user enforcement mode (default STRICT)
     private final Map<Long, String> userEnforcementModes = new ConcurrentHashMap<>();
@@ -71,7 +72,8 @@ public class SentinelEnforcementService {
             SentinelTamperEventRepository tamperEventRepository,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            PlatformTransactionManager transactionManager
+            PlatformTransactionManager transactionManager,
+            WebSocketEventService webSocketEventService
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
@@ -81,6 +83,7 @@ public class SentinelEnforcementService {
         this.passwordEncoder = passwordEncoder;
         this.auditTransactionTemplate = new TransactionTemplate(transactionManager);
         this.auditTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.webSocketEventService = webSocketEventService;
     }
 
     public String getEnforcementMode(Long userId) {
@@ -122,6 +125,7 @@ public class SentinelEnforcementService {
 
         userEnforcementModes.put(userId, upper);
         log.info("SENTINEL_MODE_UPDATED: user={} mode={}", userId, upper);
+        webSocketEventService.broadcastSentinelStatus(userId, upper, activeSession != null && "STRICT".equals(upper), 0, 0);
     }
 
     @Transactional(readOnly = true)
@@ -334,6 +338,7 @@ public class SentinelEnforcementService {
                         reason
                 );
                 quarantineRepository.save(record);
+                webSocketEventService.broadcastQuarantine(userId, record);
                 log.warn("SENTINEL_INTERCEPTION: user={} pid={} name={} action={} mode={}",
                         userId, pid, name, actionTaken, mode);
             }
@@ -483,6 +488,7 @@ public class SentinelEnforcementService {
         userEnforcementModes.put(userId, targetMode);
         log.warn("SENTINEL_EMERGENCY_OVERRIDE_EXECUTED: user={} session={} targetMode={} reason={}",
                 userId, activeSession != null ? activeSession.getId() : null, targetMode, request.reason());
+        webSocketEventService.broadcastSentinelStatus(userId, targetMode, false, 0, 0);
 
         return new EmergencyOverrideResponse(
                 true,
@@ -538,6 +544,8 @@ public class SentinelEnforcementService {
         );
 
         SentinelQuarantineRecord saved = quarantineRepository.save(record);
+        webSocketEventService.broadcastQuarantine(userId, saved);
+
         log.warn("NATIVE_SHIELD_QUARANTINE_RECORDED: user={} pid={} process={} action={} mode={}",
                 userId, request.pid(), request.processName(), request.policyAction(), mode);
         return SentinelQuarantineItem.from(saved);
@@ -585,6 +593,8 @@ public class SentinelEnforcementService {
         }
 
         List<SentinelQuarantineRecord> saved = quarantineRepository.saveAll(toSave);
+        webSocketEventService.broadcastQuarantines(userId, saved);
+
         log.warn("NATIVE_SHIELD_BATCH_QUARANTINE_RECORDED: user={} processed={} saved={}",
                 userId, processedCount, saved.size());
 
