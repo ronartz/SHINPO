@@ -511,4 +511,71 @@ public class SentinelEnforcementService {
     private void persistTamperEventInNewTransaction(SentinelTamperEvent event) {
         auditTransactionTemplate.executeWithoutResult(status -> tamperEventRepository.save(event));
     }
+
+    @Transactional
+    public SentinelQuarantineItem recordExternalQuarantine(Long userId, RecordQuarantineRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+
+        String mode = request.enforcementMode() != null && !request.enforcementMode().isBlank()
+                ? request.enforcementMode()
+                : getEnforcementMode(userId);
+
+        SentinelQuarantineRecord record = new SentinelQuarantineRecord(
+                user,
+                activeSession,
+                request.pid(),
+                request.processName(),
+                request.commandLine(),
+                request.policyAction(),
+                mode,
+                request.reason() != null && !request.reason().isBlank()
+                        ? request.reason()
+                        : "Enforced by native Rust shield daemon"
+        );
+
+        SentinelQuarantineRecord saved = quarantineRepository.save(record);
+        log.warn("NATIVE_SHIELD_QUARANTINE_RECORDED: user={} pid={} process={} action={} mode={}",
+                userId, request.pid(), request.processName(), request.policyAction(), mode);
+        return SentinelQuarantineItem.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public SentinelDaemonSyncResponse getDaemonSyncState(Long userId) {
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+
+        String mode = getEnforcementMode(userId);
+        boolean isLocked = activeSession != null && "STRICT".equals(mode);
+
+        Set<String> blockedPatterns = new HashSet<>(DEFAULT_DISTRACTIONS);
+        Set<String> allowedPatterns = new HashSet<>();
+
+        List<SentinelPolicyRule> userRules = policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
+        for (SentinelPolicyRule rule : userRules) {
+            String pat = rule.getProcessNamePattern().toLowerCase().trim();
+            if ("BLOCKED".equalsIgnoreCase(rule.getPolicyType())) {
+                blockedPatterns.add(pat);
+            } else if ("ALLOWED".equalsIgnoreCase(rule.getPolicyType())) {
+                allowedPatterns.add(pat);
+            }
+        }
+
+        return new SentinelDaemonSyncResponse(
+                activeSession != null,
+                activeSession != null ? activeSession.getId() : null,
+                activeSession != null ? (activeSession.getName() != null && !activeSession.getName().isBlank() ? activeSession.getName() : "Focus Sprint") : null,
+                activeSession != null ? activeSession.getDurationMinutes() : null,
+                activeSession != null ? activeSession.getIntention() : null,
+                mode,
+                isLocked,
+                new ArrayList<>(blockedPatterns),
+                new ArrayList<>(allowedPatterns),
+                new ArrayList<>(PROTECTED_PROCESSES),
+                Instant.now()
+        );
+    }
 }

@@ -4,6 +4,7 @@ import com.shinpo.dto.SentinelDtos.*;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.SentinelEnforcementService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -92,5 +93,22 @@ public class SentinelController {
             @RequestParam(value = "sessionId", required = false) Long sessionId
     ) {
         return ResponseEntity.ok(sentinelService.listTamperEvents(principal.getUserId(), sessionId));
+    }
+
+    @PostMapping("/quarantines")
+    public ResponseEntity<SentinelQuarantineItem> recordQuarantine(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody RecordQuarantineRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                sentinelService.recordExternalQuarantine(principal.getUserId(), request)
+        );
+    }
+
+    @GetMapping("/sync")
+    public ResponseEntity<SentinelDaemonSyncResponse> getDaemonSync(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(sentinelService.getDaemonSyncState(principal.getUserId()));
     }
 }

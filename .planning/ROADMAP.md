@@ -20,7 +20,7 @@
 - [x] Phase 3.2: Automated Distraction App Quarantining during Active Sprints (Periodic sweep daemon, custom blacklist/whitelist policy rules, EONPAI tool telemetry)
 - [x] Phase 3.3: Task Manager Permission Boundary & Administrative Policy Gate
 
-### Milestone 4: Native Shield & Cross-Platform Distribution (PLANNED)
-- [ ] Phase 4.1: Native Rust Shield Daemon Integration (`crates/shinpo-shield`)
+### Milestone 4: Native Shield & Cross-Platform Distribution (IN PROGRESS)
+- [x] Phase 4.1: Native Rust Shield Daemon Integration (`crates/shinpo-shield`)
 - [ ] Phase 4.2: Windows WFP / macOS Endpoint Security Layer
 - [ ] Phase 4.3: Local-First Offline Telemetry Synchronization
