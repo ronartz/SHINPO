@@ -2,14 +2,76 @@ services:
   postgres:
     image: postgres:17
     container_name: shinpo-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-shinpo}
+      POSTGRES_USER: ${POSTGRES_USER:-shinpo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shinpo_dev}
     ports:
       - "5432:5432"
     volumes:
       - shinpo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shinpo} -d ${POSTGRES_DB:-shinpo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - shinpo-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shinpo-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-shinpo}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shinpo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-shinpo_dev}
+      SHINPO_AI_OLLAMA_BASE_URL: ${SHINPO_AI_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      SHINPO_AUTH_JWT_SECRET: ${SHINPO_AUTH_JWT_SECRET:-shinpo_default_super_secure_production_secret_key_2026}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - shinpo-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: shinpo-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - shinpo-net
 
 volumes:
   shinpo-postgres-data:
+
+networks:
+  shinpo-net:
+    driver: bridge

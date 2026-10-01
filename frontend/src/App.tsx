@@ -20,11 +20,13 @@ import {
   commitSuggestion,
   decomposeGoal,
   getActiveConversation,
+  getExecutiveBriefing,
   sendAiChat,
 } from './api/ai'
 import type {
   BugReportInfo,
   DailyPlan,
+  ExecutiveBriefing,
   GoalDecomposition,
   NextActionCard,
   ProposedMission,
@@ -42,6 +44,8 @@ import {
   deleteMission,
   getGoals,
   getMissions,
+  updateGoal,
+  updateMission,
 } from './api/goalsAndMissions'
 import type { Goal, Mission } from './api/goalsAndMissions'
 import {
@@ -154,6 +158,7 @@ type IconName =
   | 'arrow-up-right'
   | 'power'
   | 'trash'
+  | 'edit'
   | 'zap'
   | 'search'
   | 'shield'
@@ -405,6 +410,12 @@ function Icon({
           <line x1="14" y1="11" x2="14" y2="17" />
         </svg>
       )
+    case 'edit':
+      return (
+        <svg {...common}>
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        </svg>
+      )
     case 'search':
       return (
         <svg {...common}>
@@ -598,6 +609,21 @@ export function App() {
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
   const [topSearchQuery, setTopSearchQuery] = useState('')
 
+  // Edit Goal & Mission State
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const [editGoalTitle, setEditGoalTitle] = useState('')
+  const [editGoalDesc, setEditGoalDesc] = useState('')
+  const [editGoalTargetDate, setEditGoalTargetDate] = useState('')
+  const [editGoalStatus, setEditGoalStatus] = useState('ACTIVE')
+
+  const [editingMission, setEditingMission] = useState<Mission | null>(null)
+  const [editMissionTitle, setEditMissionTitle] = useState('')
+  const [editMissionDesc, setEditMissionDesc] = useState('')
+  const [editMissionGoalId, setEditMissionGoalId] = useState<number | null>(null)
+  const [editMissionDate, setEditMissionDate] = useState('')
+  const [editMissionMinutes, setEditMissionMinutes] = useState(25)
+  const [editMissionStatus, setEditMissionStatus] = useState('PENDING')
+
   // Schedule Deck State (C-002)
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>(() => {
     return new URLSearchParams(window.location.search).get('date') || new Date().toISOString().split('T')[0]
@@ -643,6 +669,11 @@ export function App() {
   // Operational Velocity & Telemetry State (C-003)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // Executive Briefing (AI.9) State
+  const [executiveBriefing, setExecutiveBriefing] = useState<ExecutiveBriefing | null>(null)
+  const [isBriefingExpanded, setIsBriefingExpanded] = useState<boolean>(true)
+  const [briefingLoading, setBriefingLoading] = useState<boolean>(false)
 
   // Interactive Dashboard / Flight Deck States
   const [inspectingMission, setInspectingMission] = useState<Mission | null>(null)
@@ -801,23 +832,37 @@ export function App() {
     }
 
     try {
-      const [g, m, s, analytics, sentStatus] = await Promise.all([
+      const [g, m, s, analytics, sentStatus, briefing] = await Promise.all([
         getGoals(),
         getMissions(),
         getFocusSessions(),
         fetchAnalyticsDashboard().catch(() => null),
         fetchSentinelStatus().catch(() => null),
+        getExecutiveBriefing().catch(() => null),
       ])
       setGoals(g)
       setMissions(m)
       setSessions(s)
       if (analytics) setAnalyticsData(analytics)
       if (sentStatus) setSentinelStatus(sentStatus)
+      if (briefing) setExecutiveBriefing(briefing)
     } catch {
       // Keep empty if backend offline
     }
 
   }, [])
+
+  const refreshBriefing = async () => {
+    setBriefingLoading(true)
+    try {
+      const b = await getExecutiveBriefing()
+      setExecutiveBriefing(b)
+    } catch (err) {
+      console.error('Failed to refresh executive briefing', err)
+    } finally {
+      setBriefingLoading(false)
+    }
+  }
 
   const loadActiveConversation = useCallback(async () => {
     try {
@@ -1118,6 +1163,65 @@ export function App() {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const openEditGoalModal = (g: Goal) => {
+    setEditingGoal(g)
+    setEditGoalTitle(g.title)
+    setEditGoalDesc(g.description || '')
+    setEditGoalTargetDate(g.targetDate || '')
+    setEditGoalStatus(g.status || 'ACTIVE')
+  }
+
+  const handleUpdateGoalSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editingGoal || !editGoalTitle.trim()) return
+    try {
+      const updated = await updateGoal(editingGoal.id, {
+        title: editGoalTitle.trim(),
+        description: editGoalDesc.trim() || null,
+        startDate: editingGoal.startDate,
+        targetDate: editGoalTargetDate || null,
+        status: editGoalStatus,
+      })
+      setGoals((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
+      setEditingGoal(null)
+      loadData()
+    } catch (err) {
+      console.error('Failed to update goal', err)
+      alert('Could not update goal. Please try again.')
+    }
+  }
+
+  const openEditMissionModal = (m: Mission) => {
+    setEditingMission(m)
+    setEditMissionTitle(m.title)
+    setEditMissionDesc(m.description || '')
+    setEditMissionGoalId(m.goalId)
+    setEditMissionDate(m.scheduledDate)
+    setEditMissionMinutes(m.estimatedMinutes || 25)
+    setEditMissionStatus(m.status || 'PENDING')
+  }
+
+  const handleUpdateMissionSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editingMission || !editMissionTitle.trim()) return
+    try {
+      const updated = await updateMission(editingMission.id, {
+        goalId: editMissionGoalId ?? editingMission.goalId,
+        title: editMissionTitle.trim(),
+        description: editMissionDesc.trim() || null,
+        scheduledDate: editMissionDate,
+        estimatedMinutes: editMissionMinutes,
+        status: editMissionStatus,
+      })
+      setMissions((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+      setEditingMission(null)
+      loadData()
+    } catch (err) {
+      console.error('Failed to update mission', err)
+      alert('Could not update mission. Please try again.')
     }
   }
 
@@ -2327,6 +2431,239 @@ export function App() {
                   )
                 })(),
                 document.body
+              )}
+
+              {/* AI.9: Executive Command Briefing Card */}
+              {executiveBriefing && (
+                <section
+                  className="executive-briefing-banner"
+                  aria-label="Executive Intelligence Briefing"
+                  style={{
+                    marginBottom: 20,
+                    padding: '18px 24px',
+                    borderRadius: 'var(--radius-lg, 16px)',
+                    background: 'linear-gradient(135deg, rgba(255, 77, 94, 0.08) 0%, rgba(20, 22, 28, 0.95) 100%)',
+                    border: '1px solid rgba(255, 77, 94, 0.22)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          background: 'linear-gradient(135deg, var(--accent-coral, #FF4D5E), #D92B3E)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          boxShadow: '0 0 16px rgba(255, 77, 94, 0.35)',
+                        }}
+                      >
+                        <Icon name="sparkle" size={18} />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1, #fff)' }}>
+                            {executiveBriefing.executiveHeadline}
+                          </span>
+                          <span
+                            className={`badge-tag ${
+                              executiveBriefing.sentinelThreatPosture === 'SECURE'
+                                ? 'green'
+                                : executiveBriefing.sentinelThreatPosture === 'CONTAINED'
+                                ? 'blue'
+                                : 'coral'
+                            }`}
+                            style={{ fontSize: 11, padding: '2px 8px', fontWeight: 700 }}
+                          >
+                            SHIELD: {executiveBriefing.sentinelThreatPosture}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 12, color: 'var(--text-3, #8E929E)' }}>
+                          EONPAI Executive Briefing • Generated {new Date(executiveBriefing.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        className="btn-timer secondary"
+                        style={{ padding: '6px 12px', fontSize: 12 }}
+                        onClick={refreshBriefing}
+                        disabled={briefingLoading}
+                        title="Re-synthesize Executive Briefing"
+                      >
+                        <Icon name="refresh" size={12} />
+                        <span>{briefingLoading ? 'Synthesizing...' : 'Re-synthesize'}</span>
+                      </button>
+                      <button
+                        className="sidebar-toggle-btn"
+                        onClick={() => setIsBriefingExpanded((prev) => !prev)}
+                        title={isBriefingExpanded ? 'Collapse Briefing' : 'Expand Briefing'}
+                      >
+                        <Icon name={isBriefingExpanded ? 'chevron' : 'chevron-right'} size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {isBriefingExpanded && (
+                    <div style={{ marginTop: 14 }}>
+                      <p style={{ fontSize: 14, color: 'var(--text-2, #C5C8D4)', lineHeight: 1.55, margin: '0 0 14px' }}>
+                        {executiveBriefing.tacticalSummary}
+                      </p>
+
+                      {/* Executive Vital Metrics */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: 10,
+                          marginBottom: 16,
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Active Goals
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1, #fff)', marginTop: 2 }}>
+                            {executiveBriefing.activeGoalsCount}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Queued Missions
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: '#38bdf8', marginTop: 2 }}>
+                            {executiveBriefing.pendingMissionsCount}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Focus Logged
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80', marginTop: 2 }}>
+                            {executiveBriefing.focusMinutesToday}m
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Goal Velocity
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: '#a78bfa', marginTop: 2 }}>
+                            {executiveBriefing.goalProgressAveragePct}%
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Interceptions
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: executiveBriefing.quarantinedDistractionsToday > 0 ? '#fb7185' : 'var(--text-2, #C5C8D4)', marginTop: 2 }}>
+                            {executiveBriefing.quarantinedDistractionsToday}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Primary Recommendation Banner */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          background: 'rgba(255, 77, 94, 0.06)',
+                          border: '1px solid rgba(255, 77, 94, 0.16)',
+                          borderRadius: 10,
+                          marginBottom: 14,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Icon name="target" size={16} />
+                          <span style={{ fontSize: 13, color: 'var(--text-1, #fff)' }}>
+                            <strong style={{ color: 'var(--accent-coral, #FF4D5E)' }}>Priority Action:</strong> {executiveBriefing.primaryRecommendation}
+                          </span>
+                        </div>
+                        <button
+                          className="btn-timer primary"
+                          style={{ padding: '6px 14px', fontSize: 12 }}
+                          onClick={() => {
+                            if (executiveBriefing.pendingMissionsCount > 0) {
+                              setActiveTab('Focus Engine')
+                            } else {
+                              setActiveTab('Goals & Missions')
+                            }
+                          }}
+                        >
+                          <Icon name="play" size={12} />
+                          <span>Engage</span>
+                        </button>
+                      </div>
+
+                      {/* Key Action Items */}
+                      {executiveBriefing.keyActionItems.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {executiveBriefing.keyActionItems.map((item, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                fontSize: 12,
+                                color: 'var(--text-3, #8E929E)',
+                              }}
+                            >
+                              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent-coral, #FF4D5E)' }} />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
               )}
 
               {/* Top Tier: Multi-Column Kanban Work Board */}
@@ -3823,9 +4160,16 @@ export function App() {
                       <div className="goal-top-row">
                         <span className="goal-item-title">{g.title}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`badge-tag ${g.status === 'ACTIVE' ? 'green' : 'blue'}`}>
+                          <span className={`badge-tag ${g.status === 'ACTIVE' ? 'green' : g.status === 'COMPLETED' ? 'purple' : 'blue'}`}>
                             {g.status}
                           </span>
+                          <button
+                            className="btn-icon-edit"
+                            title="Edit Strategic Goal"
+                            onClick={() => openEditGoalModal(g)}
+                          >
+                            <Icon name="edit" size={13} />
+                          </button>
                           <button
                             className="btn-icon-delete"
                             title="Delete Strategic Goal"
@@ -3888,16 +4232,35 @@ export function App() {
                 <Icon name="target" size={18} />
                 <span>Missions</span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    className={`filter-chip ${missionsFilter === filter ? 'active' : ''}`}
-                    onClick={() => setMissionsFilter(filter)}
-                  >
-                    {filter}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  className="btn-timer secondary"
+                  style={{ padding: '6px 12px', fontSize: 13 }}
+                  onClick={() => {
+                    if (goals.length === 0) {
+                      alert('Please create a Strategic Goal first before adding a Mission.')
+                      return
+                    }
+                    if (!quickMissionGoalId && goals.length > 0) {
+                      setQuickMissionGoalId(goals[0].id)
+                    }
+                    setIsCreatingQuickMission(true)
+                  }}
+                >
+                  <Icon name="plus" size={13} />
+                  <span>New Mission</span>
+                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      className={`filter-chip ${missionsFilter === filter ? 'active' : ''}`}
+                      onClick={() => setMissionsFilter(filter)}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -3936,6 +4299,9 @@ export function App() {
                             {parentGoal && <span>Target: {parentGoal.title}</span>}
                             <span>• {m.estimatedMinutes || 25}m estimated</span>
                             <span>• {m.scheduledDate}</span>
+                            <span className={`badge-tag ${isDone ? 'purple' : m.status === 'IN_PROGRESS' ? 'green' : 'blue'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
+                              {m.status}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -3955,6 +4321,13 @@ export function App() {
                             <span>Start focus</span>
                           </button>
                         )}
+                        <button
+                          className="btn-icon-edit"
+                          title="Edit Tactical Mission"
+                          onClick={() => openEditMissionModal(m)}
+                        >
+                          <Icon name="edit" size={14} />
+                        </button>
                         <button
                           className="btn-icon-delete"
                           title="Delete Tactical Mission"
@@ -5244,6 +5617,211 @@ export function App() {
                 <button type="submit" className="btn-timer primary">
                   <Icon name="plus" size={14} />
                   <span>Establish Objective</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Goal Modal */}
+      {editingGoal && (
+        <div className="modal-overlay" onClick={() => setEditingGoal(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Edit Strategic Objective</h3>
+            <p className="modal-sub">
+              Modify the objective boundary, target horizon date, or lifecycle status.
+            </p>
+
+            <form onSubmit={handleUpdateGoalSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Goal Title
+                </label>
+                <input
+                  type="text"
+                  value={editGoalTitle}
+                  onChange={(e) => setEditGoalTitle(e.target.value)}
+                  className="modal-field"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Outcome Definition / Boundary
+                </label>
+                <textarea
+                  value={editGoalDesc}
+                  onChange={(e) => setEditGoalDesc(e.target.value)}
+                  className="modal-field"
+                  rows={3}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Target Horizon Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editGoalTargetDate}
+                    onChange={(e) => setEditGoalTargetDate(e.target.value)}
+                    className="modal-field"
+                    style={{ marginBottom: 0 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Lifecycle Status
+                  </label>
+                  <select
+                    className="modal-field"
+                    style={{ marginBottom: 0 }}
+                    value={editGoalStatus}
+                    onChange={(e) => setEditGoalStatus(e.target.value)}
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="PAUSED">PAUSED</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-timer secondary"
+                  onClick={() => setEditingGoal(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-timer primary">
+                  <Icon name="check" size={14} />
+                  <span>Update Objective</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Mission Modal */}
+      {editingMission && (
+        <div className="modal-overlay" onClick={() => setEditingMission(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Edit Tactical Mission</h3>
+            <p className="modal-sub">
+              Update task scope, parent strategic goal, execution estimate, or state.
+            </p>
+
+            <form onSubmit={handleUpdateMissionSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Target Strategic Goal
+                </label>
+                <select
+                  className="modal-field"
+                  style={{ marginBottom: 0 }}
+                  value={editMissionGoalId ?? ''}
+                  onChange={(e) => setEditMissionGoalId(Number(e.target.value))}
+                  required
+                >
+                  {goals.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Mission Title
+                </label>
+                <input
+                  type="text"
+                  value={editMissionTitle}
+                  onChange={(e) => setEditMissionTitle(e.target.value)}
+                  className="modal-field"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                  Mission Notes / Scope
+                </label>
+                <textarea
+                  value={editMissionDesc}
+                  onChange={(e) => setEditMissionDesc(e.target.value)}
+                  className="modal-field"
+                  rows={2}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Scheduled Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editMissionDate}
+                    onChange={(e) => setEditMissionDate(e.target.value)}
+                    className="modal-field"
+                    style={{ marginBottom: 0 }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Est. Minutes
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={480}
+                    value={editMissionMinutes}
+                    onChange={(e) => setEditMissionMinutes(Number(e.target.value))}
+                    className="modal-field"
+                    style={{ marginBottom: 0 }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+                    Status
+                  </label>
+                  <select
+                    className="modal-field"
+                    style={{ marginBottom: 0 }}
+                    value={editMissionStatus}
+                    onChange={(e) => setEditMissionStatus(e.target.value)}
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="IN_PROGRESS">IN PROGRESS</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-timer secondary"
+                  onClick={() => setEditingMission(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-timer primary">
+                  <Icon name="check" size={14} />
+                  <span>Save Changes</span>
                 </button>
               </div>
             </form>

@@ -85,7 +85,49 @@ public class Mission {
     public Goal getGoal() {
         return goal;
     }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setScheduledDate(LocalDate scheduledDate) {
+        this.scheduledDate = scheduledDate;
+    }
+
+    public void setEstimatedMinutes(Integer estimatedMinutes) {
+        this.estimatedMinutes = estimatedMinutes;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setGoal(Goal goal) {
+        this.goal = goal;
+    }
+
     public void markCompleted() {
-    this.status = "COMPLETED";
-     }
+        this.status = "COMPLETED";
+    }
+
+    public void update(String title, String description, LocalDate scheduledDate, Integer estimatedMinutes, String status, Goal goal) {
+        if (title != null && !title.isBlank()) {
+            this.title = title;
+        }
+        this.description = description;
+        if (scheduledDate != null) {
+            this.scheduledDate = scheduledDate;
+        }
+        this.estimatedMinutes = estimatedMinutes;
+        if (status != null && !status.isBlank()) {
+            this.status = status.toUpperCase();
+        }
+        if (goal != null) {
+            this.goal = goal;
+        }
+    }
 }

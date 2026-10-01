@@ -82,6 +82,40 @@ public class Goal {
         return createdAt;
     }
     public User getUser() {
-    return user;
-}
+        return user;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setTargetDate(LocalDate targetDate) {
+        this.targetDate = targetDate;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void update(String title, String description, LocalDate startDate, LocalDate targetDate, String status) {
+        if (title != null && !title.isBlank()) {
+            this.title = title;
+        }
+        this.description = description;
+        if (startDate != null) {
+            this.startDate = startDate;
+        }
+        this.targetDate = targetDate;
+        if (status != null && !status.isBlank()) {
+            this.status = status.toUpperCase();
+        }
+    }
 }

@@ -16,6 +16,14 @@ export type CreateGoalPayload = {
   targetDate?: string
 }
 
+export type UpdateGoalPayload = {
+  title: string
+  description?: string | null
+  startDate: string
+  targetDate?: string | null
+  status?: string
+}
+
 export type Mission = {
   id: number
   goalId: number
@@ -33,6 +41,15 @@ export type CreateMissionPayload = {
   description?: string
   scheduledDate: string
   estimatedMinutes?: number
+}
+
+export type UpdateMissionPayload = {
+  goalId?: number
+  title: string
+  description?: string | null
+  scheduledDate: string
+  estimatedMinutes?: number | null
+  status?: string
 }
 
 export type MissionCompletionResponse = {
@@ -105,6 +122,15 @@ export async function completeMission(
   return parseResponse<MissionCompletionResponse>(res)
 }
 
+export async function updateGoal(goalId: number, payload: UpdateGoalPayload): Promise<Goal> {
+  const res = await fetch(`${API_BASE}/goals/${goalId}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<Goal>(res)
+}
+
 export async function deleteGoal(goalId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/goals/${goalId}`, {
     method: 'DELETE',
@@ -122,6 +148,15 @@ export async function deleteGoal(goalId: number): Promise<void> {
     error.status = res.status
     throw error
   }
+}
+
+export async function updateMission(missionId: number, payload: UpdateMissionPayload): Promise<Mission> {
+  const res = await fetch(`${API_BASE}/missions/${missionId}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<Mission>(res)
 }
 
 export async function deleteMission(missionId: number): Promise<void> {

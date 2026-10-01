@@ -320,3 +320,25 @@ export async function commitDailyPlan(
   })
   return parseResponse<CommitDailyPlanResponse>(res)
 }
+
+export type ExecutiveBriefing = {
+  executiveHeadline: string
+  tacticalSummary: string
+  primaryRecommendation: string
+  activeGoalsCount: number
+  pendingMissionsCount: number
+  completedMissionsCount: number
+  focusMinutesToday: number
+  goalProgressAveragePct: number
+  sentinelThreatPosture: 'SECURE' | 'CONTAINED' | 'ELEVATED' | string
+  quarantinedDistractionsToday: number
+  keyActionItems: string[]
+  generatedAt: string
+}
+
+export async function getExecutiveBriefing(): Promise<ExecutiveBriefing> {
+  const res = await fetch(`${API_BASE}/ai/briefing`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<ExecutiveBriefing>(res)
+}

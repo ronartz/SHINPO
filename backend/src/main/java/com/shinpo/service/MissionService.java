@@ -2,6 +2,7 @@ package com.shinpo.service;
 
 import com.shinpo.dto.CreateMissionRequest;
 import com.shinpo.dto.MissionResponse;
+import com.shinpo.dto.UpdateMissionRequest;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.Mission;
 import com.shinpo.repository.GoalRepository;
@@ -36,6 +37,18 @@ public class MissionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public MissionResponse getMission(Long id, Long userId) {
+        Mission mission = missionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + id));
+
+        if (!mission.getGoal().getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + id);
+        }
+
+        return toResponse(mission);
+    }
+
     public MissionResponse createMission(Long userId, CreateMissionRequest request) {
         Goal goal = goalRepository.findById(request.goalId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + request.goalId()));
@@ -49,6 +62,36 @@ public class MissionService {
                 request.description(),
                 request.scheduledDate(),
                 request.estimatedMinutes(),
+                goal
+        );
+
+        Mission savedMission = missionRepository.save(mission);
+        return toResponse(savedMission);
+    }
+
+    public MissionResponse updateMission(Long id, Long userId, UpdateMissionRequest request) {
+        Mission mission = missionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + id));
+
+        if (!mission.getGoal().getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found: " + id);
+        }
+
+        Goal goal = mission.getGoal();
+        if (request.goalId() != null && !request.goalId().equals(goal.getId())) {
+            goal = goalRepository.findById(request.goalId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + request.goalId()));
+            if (!goal.getUser().getId().equals(userId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + request.goalId());
+            }
+        }
+
+        mission.update(
+                request.title(),
+                request.description(),
+                request.scheduledDate(),
+                request.estimatedMinutes(),
+                request.status(),
                 goal
         );
 

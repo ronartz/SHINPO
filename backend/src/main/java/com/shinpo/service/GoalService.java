@@ -2,6 +2,7 @@ package com.shinpo.service;
 
 import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.GoalResponse;
+import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.User;
 import com.shinpo.repository.GoalRepository;
@@ -36,6 +37,18 @@ public class GoalService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public GoalResponse getGoal(Long id, Long userId) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id));
+
+        if (!goal.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id);
+        }
+
+        return toResponse(goal);
+    }
+
     public GoalResponse createGoal(Long userId, CreateGoalRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -46,6 +59,26 @@ public class GoalService {
                 request.startDate(),
                 request.targetDate(),
                 user
+        );
+
+        Goal savedGoal = goalRepository.save(goal);
+        return toResponse(savedGoal);
+    }
+
+    public GoalResponse updateGoal(Long id, Long userId, UpdateGoalRequest request) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id));
+
+        if (!goal.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id);
+        }
+
+        goal.update(
+                request.title(),
+                request.description(),
+                request.startDate(),
+                request.targetDate(),
+                request.status()
         );
 
         Goal savedGoal = goalRepository.save(goal);

@@ -85,6 +85,16 @@ public class AiController {
         return ResponseEntity.ok(aiService.decomposeGoal(goalId, principal.getUserId()));
     }
 
+    @GetMapping("/briefing")
+    public ResponseEntity<ExecutiveBriefingResponse> getExecutiveBriefing(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.generateExecutiveBriefing(principal.getUserId()));
+    }
+
     @GetMapping("/next-action")
     public ResponseEntity<NextActionResponse> getNextAction(
             @AuthenticationPrincipal UserPrincipal principal

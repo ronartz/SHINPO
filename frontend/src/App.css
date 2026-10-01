@@ -5548,6 +5548,26 @@ html[data-theme='light'] .category-badge.core,
   transform: scale(1.08);
 }
 
+.btn-icon-edit {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  padding: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon-edit:hover {
+  background: rgba(255, 77, 94, 0.12);
+  border-color: rgba(255, 77, 94, 0.3);
+  color: var(--accent-coral, #FF4D5E);
+  transform: scale(1.08);
+}
+
 .card-session-history {
   grid-column: span 12;
 }
