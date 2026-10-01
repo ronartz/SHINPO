@@ -105,6 +105,10 @@
   <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-webmvc/4.1.1/spring-boot-webmvc-4.1.1.jar"/>
   <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-servlet/4.1.1/spring-boot-servlet-4.1.1.jar"/>
   <classpathentry kind="var" path="M2_REPO/org/springframework/spring-webmvc/7.0.9/spring-webmvc-7.0.9.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-starter-websocket/4.1.1/spring-boot-starter-websocket-4.1.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-websocket/4.1.1/spring-boot-websocket-4.1.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/springframework/spring-messaging/7.0.9/spring-messaging-7.0.9.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/springframework/spring-websocket/7.0.9/spring-websocket-7.0.9.jar"/>
   <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-starter-restclient/4.1.1/spring-boot-starter-restclient-4.1.1.jar"/>
   <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-restclient/4.1.1/spring-boot-restclient-4.1.1.jar"/>
   <classpathentry kind="var" path="M2_REPO/org/springframework/boot/spring-boot-http-client/4.1.1/spring-boot-http-client-4.1.1.jar"/>
