@@ -1,0 +1,19 @@
+[Unit]
+Description=SHINPO Native Focus Enforcement Shield Daemon
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Projects/SHINPO
+ExecStart=%h/Projects/SHINPO/crates/shinpo-shield/target/release/shinpo-shield run
+Restart=on-failure
+RestartSec=5s
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+
+# Sandboxing & security boundaries
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=%h/Projects/SHINPO/daemon
+
+[Install]
+WantedBy=default.target

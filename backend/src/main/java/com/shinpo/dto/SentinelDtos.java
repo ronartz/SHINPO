@@ -125,4 +125,29 @@ public class SentinelDtos {
             String newMode,
             Instant timestamp
     ) {}
+
+    public record RecordQuarantineRequest(
+            Long pid,
+            @NotBlank
+            String processName,
+            String commandLine,
+            @NotBlank
+            String policyAction,
+            String enforcementMode,
+            String reason
+    ) {}
+
+    public record SentinelDaemonSyncResponse(
+            boolean hasActiveSession,
+            Long activeSessionId,
+            String activeSessionName,
+            Integer durationMinutes,
+            String intention,
+            String enforcementMode,
+            boolean isPolicyLocked,
+            List<String> blockedPatterns,
+            List<String> allowedPatterns,
+            List<String> protectedProcesses,
+            Instant serverTime
+    ) {}
 }

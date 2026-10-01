@@ -1,7 +1,7 @@
 {
-  "api_url": "http://localhost:8080/api/focus-sessions?userId=1",
+  "api_url": "http://localhost:8080",
   "poll_interval_seconds": 2,
-  "blacklist": [
+  "fallback_blacklist": [
     "discord",
     "steam",
     "spotify",

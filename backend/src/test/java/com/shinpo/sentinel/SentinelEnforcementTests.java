@@ -284,4 +284,70 @@ public class SentinelEnforcementTests {
         assertNotNull(items);
         assertTrue(items.isEmpty());
     }
+
+    @Test
+    @DisplayName("Native Shield: external daemon quarantine reporting records to database and telemetry")
+    void testRecordExternalQuarantine() {
+        FocusSession session = new FocusSession();
+        session.setUser(testUser);
+        session.setName("Native Shield Sprint");
+        session.setStatus(FocusSessionStatus.ACTIVE);
+        session.setStartedAt(Instant.now());
+        session.setDurationMinutes(25);
+        session = sessionRepository.save(session);
+
+        RecordQuarantineRequest req = new RecordQuarantineRequest(
+                88442L,
+                "discord",
+                "/usr/share/discord/Discord",
+                "TERMINATED",
+                "STRICT",
+                "Terminated by native Rust shield daemon"
+        );
+
+        SentinelQuarantineItem item = sentinelService.recordExternalQuarantine(testUser.getId(), req);
+
+        assertNotNull(item);
+        assertNotNull(item.id());
+        assertEquals(88442L, item.pid());
+        assertEquals("discord", item.processName());
+        assertEquals("TERMINATED", item.policyAction());
+        assertEquals("STRICT", item.enforcementMode());
+        assertEquals("Terminated by native Rust shield daemon", item.reason());
+        assertEquals(session.getId(), item.focusSessionId());
+
+        List<SentinelQuarantineItem> sessionItems = sentinelService.getQuarantinesForSession(testUser.getId(), session.getId());
+        assertEquals(1, sessionItems.size());
+        assertEquals(88442L, sessionItems.get(0).pid());
+    }
+
+    @Test
+    @DisplayName("Native Shield: daemon sync state returns active sprint, dynamic rules, and protected system set")
+    void testDaemonSyncState() {
+        FocusSession session = new FocusSession();
+        session.setUser(testUser);
+        session.setName("Sync Target Session");
+        session.setIntention("Zero Distraction Code Sprint");
+        session.setStatus(FocusSessionStatus.ACTIVE);
+        session.setStartedAt(Instant.now());
+        session.setDurationMinutes(45);
+        session = sessionRepository.save(session);
+
+        sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("steam", "BLOCKED"));
+        sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("slack", "ALLOWED"));
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(testUser.getId());
+
+        assertNotNull(sync);
+        assertTrue(sync.hasActiveSession());
+        assertEquals(session.getId(), sync.activeSessionId());
+        assertEquals("Sync Target Session", sync.activeSessionName());
+        assertEquals("Zero Distraction Code Sprint", sync.intention());
+        assertEquals(45, sync.durationMinutes());
+        assertTrue(sync.blockedPatterns().contains("steam"));
+        assertTrue(sync.blockedPatterns().contains("discord")); // Default
+        assertTrue(sync.allowedPatterns().contains("slack"));
+        assertTrue(sync.protectedProcesses().contains("systemd"));
+        assertTrue(sync.protectedProcesses().contains("shinpo"));
+    }
 }

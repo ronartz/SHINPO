@@ -1,237 +1,183 @@
-use std::env;
-use std::fs;
-use std::path::Path;
-use std::process::Command;
+mod client;
+mod config;
+mod enforcer;
+
 use std::thread::sleep;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use sysinfo::{ProcessesToUpdate, System};
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ShieldConfig {
-    #[serde(default = "default_api_url")]
-    api_url: String,
-
-    #[serde(default = "default_poll_seconds")]
-    poll_interval_seconds: u64,
-
-    #[serde(default = "default_blacklist")]
-    blacklist: Vec<String>,
-
-    #[serde(default)]
-    auth_token: Option<String>,
-
-    #[serde(default = "default_true")]
-    auto_kill: bool,
-
-    #[serde(default = "default_true")]
-    notify_desktop: bool,
-}
-
-fn default_api_url() -> String {
-    "http://localhost:8080/api/focus-sessions".to_string()
-}
-fn default_poll_seconds() -> u64 {
-    2
-}
-fn default_true() -> bool {
-    true
-}
-fn default_blacklist() -> Vec<String> {
-    vec![
-        "discord".to_string(),
-        "steam".to_string(),
-        "spotify".to_string(),
-        "telegram-desktop".to_string(),
-        "vlc".to_string(),
-        "obs".to_string(),
-        "epicgameslauncher".to_string(),
-        "riotclientux".to_string(),
-        "battlenet".to_string(),
-    ]
-}
-
-impl Default for ShieldConfig {
-    fn default() -> Self {
-        Self {
-            api_url: default_api_url(),
-            auth_token: None,
-            poll_interval_seconds: default_poll_seconds(),
-            blacklist: default_blacklist(),
-            auto_kill: true,
-            notify_desktop: true,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct FocusSession {
-    id: i64,
-    #[serde(default)]
-    name: String,
-    status: String,
-    #[serde(rename = "durationMinutes")]
-    duration_minutes: Option<i32>,
-    intention: Option<String>,
-}
-
-fn send_desktop_notification(title: &str, message: &str) {
-    let _ = Command::new("notify-send")
-        .args(["-u", "critical", "-a", "SHINPO Shield (Rust)", title, message])
-        .output();
-}
-
-fn load_config() -> ShieldConfig {
-    let candidates = [
-        "daemon/shield_config.json",
-        "shield_config.json",
-        "../daemon/shield_config.json",
-        "/etc/shinpo/shield_config.json",
-    ];
-
-    for candidate in &candidates {
-        if Path::new(candidate).exists() {
-            if let Ok(content) = fs::read_to_string(candidate) {
-                if let Ok(cfg) = serde_json::from_str::<ShieldConfig>(&content) {
-                    println!("  [CONFIG] Loaded configuration from: {}", candidate);
-                    return cfg;
-                }
-            }
-        }
-    }
-
-    println!("  [CONFIG] Using compiled default configuration.");
-    ShieldConfig::default()
-}
-
-fn fetch_active_session(api_url: &str, auth_token: Option<&str>) -> Option<FocusSession> {
-    let mut req = ureq::get(api_url).timeout(Duration::from_secs(3));
-    if let Some(token) = auth_token {
-        req = req.set("Authorization", &format!("Bearer {}", token));
-    }
-    match req.call() {
-        Ok(response) => {
-            if let Ok(sessions) = response.into_json::<Vec<FocusSession>>() {
-                return sessions.into_iter().find(|s| s.status == "ACTIVE");
-            }
-        }
-        Err(_) => {
-            // Spring Boot backend offline, busy, or unauthenticated
-        }
-    }
-    None
-}
+use client::SentinelClient;
+use config::{load_config, CliOptions, ShieldCommand};
+use enforcer::{send_desktop_notification, ShieldEnforcer};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let dry_run = args.iter().any(|a| a == "--dry-run");
+    let opts = CliOptions::parse();
+    let config = load_config(&opts);
+
+    let client = SentinelClient::new(config.api_url.clone(), config.auth_token.clone());
 
     println!("=================================================================");
-    println!("  進歩 (SHINPO) RUST FOCUS ENFORCEMENT SHIELD ONLINE");
+    println!("  進歩 (SHINPO) RUST FOCUS ENFORCEMENT SHIELD DAEMON");
     println!("  Engine: Native Rust 1.98 • Zero-Overhead Process Sentinel");
-    println!("  Mode: {}", if dry_run { "DRY-RUN (audit only)" } else { "ACTIVE ENFORCEMENT (SIGKILL)" });
-
-    let config = load_config();
-    let token_from_env = env::var("SHINPO_AUTH_TOKEN").ok();
-    let effective_token = config.auth_token.as_deref().or(token_from_env.as_deref());
-
-    println!("  Monitoring API: {}", config.api_url);
-    println!("  Auth Token: {}", if effective_token.is_some() { "CONFIGURED" } else { "NONE (ANONYMOUS)" });
-    println!("  Blacklist: {}", config.blacklist.join(", "));
+    println!("  Target API: {}", config.api_url);
+    println!("  Authentication: {}", if config.auth_token.is_some() { "BEARER JWT CONFIGURED" } else { "ANONYMOUS / FALLBACK" });
+    println!("  Execution Mode: {}", if opts.dry_run { "AUDIT-ONLY (DRY-RUN)" } else { "DYNAMIC AUTONOMOUS (BACKEND DRIVEN)" });
     println!("=================================================================\n");
 
-    let mut sys = System::new_all();
+    match opts.command {
+        ShieldCommand::Status => handle_status(&client),
+        ShieldCommand::Sweep => handle_sweep(&client, &config, opts.dry_run),
+        ShieldCommand::Run => handle_run(&client, &config, opts.dry_run),
+    }
+}
+
+fn handle_status(client: &SentinelClient) {
+    println!("📡 Probing Sentinel Daemon Sync endpoint...\n");
+    match client.sync() {
+        Ok(sync) => {
+            println!("✅ Sentinel Backend Connection: OPERATIONAL");
+            println!("  Active Focus Session: {}", if sync.has_active_session {
+                format!(
+                    "\"{}\" ({}m) [ID: {}]",
+                    sync.active_session_name.as_deref().unwrap_or("Focus Sprint"),
+                    sync.duration_minutes.unwrap_or(25),
+                    sync.active_session_id.unwrap_or(0)
+                )
+            } else {
+                "NONE (Standby)".to_string()
+            });
+            if let Some(intention) = sync.intention {
+                println!("  Intention: {}", intention);
+            }
+            println!("  Enforcement Mode: {}", sync.enforcement_mode);
+            println!("  Policy Gate Locked: {}", if sync.is_policy_locked { "YES (🔒 NON-NEGOTIABLE)" } else { "NO (UNRESTRICTED)" });
+            println!("\n🛡️ Active Policy Blacklist ({} rules):", sync.blocked_patterns.len());
+            for b in &sync.blocked_patterns {
+                println!("  - [BLOCKED] {}", b);
+            }
+            println!("\n✨ Active Policy Whitelist ({} rules):", sync.allowed_patterns.len());
+            for a in &sync.allowed_patterns {
+                println!("  - [ALLOWED] {}", a);
+            }
+            println!("\n🛡️ Protected Core Systems ({} entries):", sync.protected_processes.len());
+            let preview = sync.protected_processes.iter().take(8).cloned().collect::<Vec<_>>().join(", ");
+            println!("  {}", preview);
+        }
+        Err(err) => {
+            eprintln!("❌ Failed to sync with Sentinel API: {}", err);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run: bool) {
+    println!("🔍 Performing one-shot Sentinel process sweep...\n");
+    let mut enforcer = ShieldEnforcer::new();
+
+    let sync = client.sync().unwrap_or_else(|err| {
+        eprintln!("⚠️ Sync failed ({}), using fallback configuration.", err);
+        client::SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: None,
+            active_session_name: Some("Manual Sweep".to_string()),
+            duration_minutes: None,
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: false,
+            blocked_patterns: config.fallback_blacklist.clone(),
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+        }
+    });
+
+    let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, dry_run);
+
+    if intercepted.is_empty() {
+        println!("✨ Sentinel sweep clean: No distracting processes detected.");
+    } else {
+        println!("🚫 Intercepted {} distraction process(es):", intercepted.len());
+        for p in &intercepted {
+            println!(
+                "  - PID {}: {} -> [{}] ({})",
+                p.pid, p.name, p.policy_action, p.reason
+            );
+
+            // Report telemetry to backend
+            let req = ShieldEnforcer::to_quarantine_request(p);
+            if let Err(e) = client.report_quarantine(&req) {
+                eprintln!("    (Telemetry reporting warning: {})", e);
+            }
+        }
+    }
+}
+
+fn handle_run(client: &SentinelClient, config: &config::ShieldConfig, dry_run: bool) {
+    println!("🛡️  Shield daemon monitoring loop active (polling every {}s). Press Ctrl+C to stop.\n", config.poll_interval_seconds);
+
+    let mut enforcer = ShieldEnforcer::new();
     let mut in_lockdown = false;
 
     loop {
-        if let Some(session) = fetch_active_session(&config.api_url, effective_token) {
-            let session_name = if session.name.is_empty() {
-                "Focus Sprint".to_string()
-            } else {
-                session.name
-            };
-            let duration = session.duration_minutes.unwrap_or(25);
-            let intention = session.intention.unwrap_or_else(|| "Deep Flow Sprint".to_string());
+        match client.sync() {
+            Ok(sync) => {
+                if sync.has_active_session {
+                    let sprint_name = sync.active_session_name.as_deref().unwrap_or("Focus Sprint");
+                    let duration = sync.duration_minutes.unwrap_or(25);
+                    let intention = sync.intention.as_deref().unwrap_or("Deep Work Sprint");
 
-            if !in_lockdown {
-                in_lockdown = true;
-                println!(
-                    "\n🛡️  [LOCKDOWN ENGAGED] Active Sprint: '{}' ({}m)",
-                    session_name, duration
-                );
-                println!("    Intention: {}", intention);
-                if config.notify_desktop {
-                    send_desktop_notification(
-                        "🛡️ SHINPO Focus Shield Engaged",
-                        &format!("Lockdown active for {}m: {}", duration, intention),
-                    );
-                }
-            }
-
-            // Refresh processes
-            sys.refresh_processes(ProcessesToUpdate::All, true);
-
-            let my_pid = std::process::id();
-            let mut terminated_count = 0;
-
-            for (pid, process) in sys.processes() {
-                if pid.as_u32() == my_pid {
-                    continue;
-                }
-
-                let proc_name = process.name().to_string_lossy().to_lowercase();
-                
-                // Match against blacklist
-                let is_blacklisted = config.blacklist.iter().any(|b| {
-                    let b_clean = b.trim().to_lowercase();
-                    !b_clean.is_empty() && proc_name.contains(&b_clean)
-                });
-
-                if is_blacklisted {
-                    if dry_run {
+                    if !in_lockdown {
+                        in_lockdown = true;
                         println!(
-                            "  [DRY-RUN] Would terminate: PID {} ({})",
-                            pid,
-                            process.name().to_string_lossy()
+                            "\n🔒 [LOCKDOWN ENGAGED] Active Sprint: '{}' ({}m)",
+                            sprint_name, duration
                         );
-                        terminated_count += 1;
-                    } else if config.auto_kill {
-                        if process.kill() {
-                            println!(
-                                "  🚫 [ENFORCED] Terminated: PID {} ({})",
-                                pid,
-                                process.name().to_string_lossy()
-                            );
-                            terminated_count += 1;
-                        } else {
-                            println!(
-                                "  ⚠️ [PERMISSION REQUIRED] Failed to kill PID {} ({}). Try running with 'sudo'.",
-                                pid,
-                                process.name().to_string_lossy()
+                        println!("   Intention: {}", intention);
+                        println!("   Enforcement Mode: {} (Locked: {})", sync.enforcement_mode, sync.is_policy_locked);
+                        if config.notify_desktop {
+                            send_desktop_notification(
+                                "🛡️ SHINPO Focus Shield Engaged",
+                                &format!("Lockdown active for {}m: {}", duration, intention),
                             );
                         }
                     }
+
+                    // Enforce processes
+                    let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, dry_run);
+
+                    for p in &intercepted {
+                        println!(
+                            "  🚫 [{}] PID {} ({}) - {}",
+                            p.policy_action, p.pid, p.name, p.reason
+                        );
+
+                        // Forward telemetry to Spring Boot database
+                        let req = ShieldEnforcer::to_quarantine_request(p);
+                        if let Err(e) = client.report_quarantine(&req) {
+                            eprintln!("     ⚠️ Telemetry reporting failed: {}", e);
+                        }
+                    }
+
+                    if !intercepted.is_empty() && config.notify_desktop && !dry_run {
+                        send_desktop_notification(
+                            "🚫 Distraction Neutralized",
+                            &format!("SHINPO Shield intercepted {} distracting process(es).", intercepted.len()),
+                        );
+                    }
+                } else if in_lockdown {
+                    in_lockdown = false;
+                    println!(
+                        "\n🔓 [LOCKDOWN RELEASED] Focus sprint ended. Normal OS access restored."
+                    );
+                    if config.notify_desktop {
+                        send_desktop_notification(
+                            "✅ SHINPO Focus Session Concluded",
+                            "Distraction enforcement released. High-velocity session recorded.",
+                        );
+                    }
                 }
             }
-
-            if terminated_count > 0 && config.notify_desktop && !dry_run {
-                send_desktop_notification(
-                    "🚫 Distraction Neutralized",
-                    &format!("SHINPO Shield eliminated {} distracting process(es).", terminated_count),
-                );
-            }
-        } else if in_lockdown {
-            in_lockdown = false;
-            println!(
-                "\n✅  [LOCKDOWN RELEASED] Focus session concluded. Normal OS access restored."
-            );
-            if config.notify_desktop {
-                send_desktop_notification(
-                    "✅ SHINPO Focus Session Concluded",
-                    "Distraction enforcement released. High-velocity session recorded.",
-                );
+            Err(e) => {
+                // Backend offline or error, wait and retry
+                eprintln!("  [SHIELD SYNC] {}", e);
             }
         }
 
