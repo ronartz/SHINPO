@@ -105,6 +105,16 @@ public class SentinelController {
         );
     }
 
+    @PostMapping("/quarantines/batch")
+    public ResponseEntity<BatchQuarantineResponse> recordBatchQuarantines(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody BatchQuarantineRequest request
+    ) {
+        return ResponseEntity.ok(
+                sentinelService.recordBatchQuarantines(principal.getUserId(), request)
+        );
+    }
+
     @GetMapping("/sync")
     public ResponseEntity<SentinelDaemonSyncResponse> getDaemonSync(
             @AuthenticationPrincipal UserPrincipal principal

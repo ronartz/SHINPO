@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use sysinfo::{ProcessesToUpdate, System};
 
 use crate::client::{RecordQuarantineRequest, SentinelDaemonSyncResponse};
+use crate::platform::{create_platform_interceptor, PlatformInterceptor};
 
 pub struct InterceptedProcess {
     pub pid: u32,
@@ -19,10 +19,16 @@ pub struct ShieldEnforcer {
     sys: System,
     debounce_map: HashMap<u32, Instant>,
     protected_system_names: HashSet<String>,
+    interceptor: Box<dyn PlatformInterceptor>,
 }
 
 impl ShieldEnforcer {
     pub fn new() -> Self {
+        Self::with_interceptor(create_platform_interceptor())
+    }
+
+    #[allow(dead_code)]
+    pub fn with_interceptor(interceptor: Box<dyn PlatformInterceptor>) -> Self {
         let mut protected = HashSet::new();
         for name in [
             "systemd", "init", "kernel", "kthreadd", "dbus", "sshd",
@@ -41,7 +47,13 @@ impl ShieldEnforcer {
             sys: System::new_all(),
             debounce_map: HashMap::new(),
             protected_system_names: protected,
+            interceptor,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn interceptor(&self) -> &dyn PlatformInterceptor {
+        self.interceptor.as_ref()
     }
 
     /// Scans the running OS processes against the active policy rules and executes containment.
@@ -111,34 +123,38 @@ impl ShieldEnforcer {
             self.debounce_map.insert(pid, now);
 
             // 5. Enforce according to mode
+            let os_name = self.interceptor.os_name();
             let (action, reason) = if dry_run || mode == "AUDIT_ONLY" {
                 (
                     "WARNED".to_string(),
-                    "Native Shield audit: distraction active during focus sprint (dry-run)".to_string(),
+                    format!("Native Shield ({}) audit: distraction active during focus sprint (dry-run)", os_name),
                 )
             } else if mode == "CONTAINMENT" {
-                if process.kill() {
+                // Graceful containment
+                let killed = self.interceptor.terminate_process(pid, false).is_ok() || process.kill();
+                if killed {
                     (
                         "CONTAINED".to_string(),
-                        "Native Shield: process gracefully stopped via SIGTERM".to_string(),
+                        format!("Native Shield ({}): process gracefully stopped", os_name),
                     )
                 } else {
                     (
                         "PERMISSION_DENIED".to_string(),
-                        "Native Shield: insufficient privileges to terminate target process".to_string(),
+                        format!("Native Shield ({}): insufficient privileges to terminate target process", os_name),
                     )
                 }
             } else {
                 // STRICT MODE: forced kill
-                if process.kill() {
+                let killed = self.interceptor.terminate_process(pid, true).is_ok() || process.kill();
+                if killed {
                     (
                         "TERMINATED".to_string(),
-                        "Native Shield: zero-tolerance distraction forcibly terminated (SIGKILL)".to_string(),
+                        format!("Native Shield ({}): zero-tolerance distraction forcibly terminated", os_name),
                     )
                 } else {
                     (
                         "PERMISSION_DENIED".to_string(),
-                        "Native Shield: process termination denied by OS security policy".to_string(),
+                        format!("Native Shield ({}): process termination denied by OS security policy", os_name),
                     )
                 }
             };
@@ -233,9 +249,8 @@ impl ShieldEnforcer {
 }
 
 pub fn send_desktop_notification(title: &str, message: &str) {
-    let _ = Command::new("notify-send")
-        .args(["-u", "critical", "-a", "SHINPO Shield (Rust)", title, message])
-        .output();
+    let interceptor = create_platform_interceptor();
+    interceptor.notify_user(title, message);
 }
 
 #[cfg(test)]
@@ -327,6 +342,13 @@ mod tests {
         assert!(!ShieldEnforcer::is_distraction_process(
             "catalina-utility-1", "", &blacklist, &allowed, &enforcer.protected_system_names
         ));
+    }
+
+    #[test]
+    fn test_enforcer_interceptor_binding() {
+        let enforcer = ShieldEnforcer::new();
+        assert!(!enforcer.interceptor().os_name().is_empty());
+        assert!(enforcer.interceptor().network_filtering_supported());
     }
 }
 

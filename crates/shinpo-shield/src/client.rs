@@ -33,7 +33,7 @@ pub struct SentinelDaemonSyncResponse {
     pub protected_processes: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RecordQuarantineRequest {
     pub pid: u32,
     #[serde(rename = "processName")]
@@ -45,6 +45,20 @@ pub struct RecordQuarantineRequest {
     #[serde(rename = "enforcementMode")]
     pub enforcement_mode: String,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchQuarantineRequest {
+    pub records: Vec<RecordQuarantineRequest>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BatchQuarantineResponse {
+    #[serde(rename = "processedCount")]
+    pub processed_count: i32,
+    #[serde(rename = "savedCount")]
+    pub saved_count: i32,
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -157,6 +171,39 @@ impl SentinelClient {
                 Err(format!("Server returned HTTP {}: {}", code, err_msg))
             }
             Err(e) => Err(format!("Failed to send quarantine telemetry: {}", e)),
+        }
+    }
+
+    /// Reports a batch of quarantine events (flushed from offline spool) in a single HTTP request.
+    pub fn report_quarantines_batch(&self, records: &[RecordQuarantineRequest]) -> Result<BatchQuarantineResponse, String> {
+        if records.is_empty() {
+            return Ok(BatchQuarantineResponse {
+                processed_count: 0,
+                saved_count: 0,
+                message: "No records to synchronize".to_string(),
+            });
+        }
+
+        let batch_url = format!("{}/api/device/sentinel/quarantines/batch", self.base_url);
+        let mut req = ureq::post(&batch_url).timeout(Duration::from_secs(5));
+        if let Some(token) = &self.auth_token {
+            req = req.set("Authorization", &format!("Bearer {}", token));
+        }
+
+        let payload = BatchQuarantineRequest {
+            records: records.to_vec(),
+        };
+
+        match req.send_json(&payload) {
+            Ok(resp) => {
+                resp.into_json::<BatchQuarantineResponse>()
+                    .map_err(|e| format!("Failed to parse batch quarantine response: {}", e))
+            }
+            Err(ureq::Error::Status(code, resp)) => {
+                let err_msg = resp.into_string().unwrap_or_default();
+                Err(format!("Server returned HTTP {}: {}", code, err_msg))
+            }
+            Err(e) => Err(format!("Failed to send batch quarantine telemetry: {}", e)),
         }
     }
 }

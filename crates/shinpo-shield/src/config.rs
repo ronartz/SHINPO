@@ -68,12 +68,14 @@ pub enum ShieldCommand {
     Run,
     Status,
     Sweep,
+    Spool,
 }
 
 #[derive(Debug)]
 pub struct CliOptions {
     pub command: ShieldCommand,
     pub dry_run: bool,
+    pub flush_spool: bool,
     pub custom_url: Option<String>,
     pub custom_token: Option<String>,
     pub custom_interval: Option<u64>,
@@ -84,6 +86,7 @@ impl CliOptions {
         let args: Vec<String> = env::args().collect();
         let mut command = ShieldCommand::Run;
         let mut dry_run = false;
+        let mut flush_spool = false;
         let mut custom_url = None;
         let mut custom_token = None;
         let mut custom_interval = None;
@@ -93,8 +96,10 @@ impl CliOptions {
             match args[i].as_str() {
                 "status" => command = ShieldCommand::Status,
                 "sweep" => command = ShieldCommand::Sweep,
+                "spool" => command = ShieldCommand::Spool,
                 "run" | "--daemon" => command = ShieldCommand::Run,
                 "--dry-run" | "-d" => dry_run = true,
+                "--flush" => flush_spool = true,
                 "--url" if i + 1 < args.len() => {
                     i += 1;
                     custom_url = Some(args[i].clone());
@@ -119,6 +124,7 @@ impl CliOptions {
         Self {
             command,
             dry_run,
+            flush_spool,
             custom_url,
             custom_token,
             custom_interval,
@@ -137,9 +143,11 @@ COMMANDS:
     run            Start the persistent enforcement loop (default)
     status         Query Sentinel API, check active sprint, and display policy rules
     sweep          Perform a single one-shot scan and quarantine, then exit
+    spool          Inspect or flush local offline quarantine spool records
 
 OPTIONS:
     -d, --dry-run          Audit-only mode (logs matches but does not terminate processes)
+    --flush                Flush buffered offline telemetry to Sentinel API immediately
     --url <URL>            Spring Boot base URL (default: http://localhost:8080)
     --token <JWT>          Bearer token for authenticated API requests
     --interval <SECONDS>   Polling interval in seconds (default: 2)

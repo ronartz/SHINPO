@@ -20,10 +20,15 @@
 - [x] Phase 3.2: Automated Distraction App Quarantining during Active Sprints (Periodic sweep daemon, custom blacklist/whitelist policy rules, EONPAI tool telemetry)
 - [x] Phase 3.3: Task Manager Permission Boundary & Administrative Policy Gate
 
-### Milestone 4: Native Shield, Lifecycle Management & Production Readiness (IN PROGRESS)
+### Milestone 4: Native Shield, Lifecycle Management & Production Readiness (COMPLETE)
 - [x] Phase 4.1: Native Rust Shield Daemon Integration (`crates/shinpo-shield`)
 - [x] Phase 4.2: Full Goals & Missions Lifecycle CRUD & UI Controls (`PUT /api/goals/{id}`, `PUT /api/missions/{id}`, Edit modals)
 - [x] Phase 4.3: AI.9 Command Center Executive Briefing / Tactical Synthesis (`GET /api/ai/briefing`, Flight Deck executive card)
 - [x] Phase 4.4: Production Containerization & Full-Stack Orchestration (Spring Boot 25 Dockerfile, Nginx React Dockerfile, `compose.yaml`)
-- [ ] Phase 4.5: Windows WFP / macOS Endpoint Security Layer
-- [ ] Phase 4.6: Local-First Offline Telemetry Synchronization
+- [x] Phase 4.5: Cross-Platform Native Shield Abstraction (`PlatformInterceptor`, Linux/Windows/macOS process control & notifications)
+- [x] Phase 4.6: Local-First Offline Telemetry Spooling (`OfflineSpooler`, `daemon/quarantine_spool.jsonl`, batch synchronization)
+
+### Milestone 5: Production Packaging, Desktop Shell & Advanced Observability (NEXT)
+- [ ] Phase 5.1: Tauri v2 Desktop Shell with Embedded Shield Daemon & System Tray
+- [ ] Phase 5.2: Production Telemetry & Prometheus/Grafana Observability Stack
+- [ ] Phase 5.3: Offline Service Worker & PWA Caching Layer
