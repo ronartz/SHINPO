@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "fe824c37-be57-42a5-b8f8-f95c67e6661f",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/eonx/Projects/SHINPO/.planning/FULL_PROJECT_UNDERSTANDING.json",
+  "output": "/home/eonx/Projects/SHINPO/.planning/FULL_PROJECT_UNDERSTANDING.html",
+  "specification": {
+    "sha256": "d0a5b1f105758515d10130cfee874ebd379d9dc17cb3b2ab24f8b69cf2dc0740",
+    "bytes": 3569
+  },
+  "artifact": {
+    "sha256": "840c232165be4a2a86320a29d6357be82681d43e1b4b451ec7cca2da93480aeb",
+    "bytes": 763131
+  }
+}
