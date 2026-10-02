@@ -120,40 +120,38 @@ fn handle_spool(client: &SentinelClient, flush: bool) {
     }
 }
 
+fn confirmed_active_sync(
+    sync_result: Result<client::SentinelDaemonSyncResponse, String>,
+) -> Option<client::SentinelDaemonSyncResponse> {
+    sync_result.ok().filter(|sync| sync.has_active_session)
+}
+
 fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run: bool) {
     println!("🔍 Performing one-shot Sentinel process sweep...\n");
     let mut enforcer = ShieldEnforcer::new();
     let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
 
     let sync_result = client.sync();
-    let sync = match sync_result {
-        Ok(sync) => {
-            // Check if there are offline buffered records to flush
-            if !spooler.is_empty() {
-                println!("🔄 Found {} offline buffered quarantine event(s). Flushing in batch...", spooler.len());
-                match spooler.flush_to_client(client) {
-                    Ok(synced) => println!("✅ Synchronized {} buffered offline records to Sentinel API.", synced),
-                    Err(e) => eprintln!("⚠️ Spool synchronization warning: {}", e),
-                }
+    let sync_error = sync_result.as_ref().err().cloned();
+    if let Ok(sync) = &sync_result {
+        if !spooler.is_empty() {
+            println!("🔄 Found {} offline buffered quarantine event(s). Flushing in batch...", spooler.len());
+            match spooler.flush_to_client(client) {
+                Ok(synced) => println!("✅ Synchronized {} buffered offline records to Sentinel API.", synced),
+                Err(e) => eprintln!("⚠️ Spool synchronization warning: {}", e),
             }
-            sync
         }
-        Err(err) => {
-            eprintln!("⚠️ Sync failed ({}), using fallback configuration.", err);
-            client::SentinelDaemonSyncResponse {
-                has_active_session: true,
-                active_session_id: None,
-                active_session_name: Some("Manual Sweep".to_string()),
-                duration_minutes: None,
-                intention: None,
-                enforcement_mode: "STRICT".to_string(),
-                is_policy_locked: false,
-                blocked_patterns: config.fallback_blacklist.clone(),
-                allowed_patterns: Vec::new(),
-                protected_processes: Vec::new(),
-                current_mission_id: None,
-                current_goal_id: None,
-            }
+        if !sync.has_active_session {
+            println!("No active Focus Session confirmed; skipping process enforcement.");
+            return;
+        }
+    }
+
+    let sync = match confirmed_active_sync(sync_result) {
+        Some(sync) => sync,
+        None => {
+            eprintln!("⚠️ Sync failed ({}); skipping process enforcement.", sync_error.unwrap_or_default());
+            return;
         }
     };
 
@@ -169,7 +167,7 @@ fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run:
                 p.pid, p.name, p.policy_action, p.reason
             );
 
-            // Report telemetry to backend, fallback to local spooler if offline
+            // Report telemetry to the backend, fallback to local spool on network failure
             let req = ShieldEnforcer::to_quarantine_request(p);
             if let Err(e) = client.report_quarantine(&req) {
                 eprintln!("    ⚠️ Direct telemetry reporting failed: {}. Buffering offline...", e);
@@ -180,6 +178,40 @@ fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run:
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::confirmed_active_sync;
+    use crate::client::SentinelDaemonSyncResponse;
+
+    fn sync_state(has_active_session: bool) -> SentinelDaemonSyncResponse {
+        SentinelDaemonSyncResponse {
+            has_active_session,
+            active_session_id: has_active_session.then_some(42),
+            active_session_name: has_active_session.then(|| "Focus Session".to_string()),
+            duration_minutes: has_active_session.then_some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: has_active_session,
+            blocked_patterns: vec!["discord".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            current_mission_id: None,
+            current_goal_id: None,
+        }
+    }
+
+    #[test]
+    fn manual_sweep_requires_successful_sync_with_active_session() {
+        assert!(confirmed_active_sync(Err("backend unavailable".to_string())).is_none());
+        assert!(confirmed_active_sync(Ok(sync_state(false))).is_none());
+
+        let active_sync = confirmed_active_sync(Ok(sync_state(true))).unwrap();
+        assert!(active_sync.has_active_session);
+        assert_eq!(active_sync.enforcement_mode, "STRICT");
+        assert_eq!(active_sync.blocked_patterns, vec!["discord"]);
     }
 }
 

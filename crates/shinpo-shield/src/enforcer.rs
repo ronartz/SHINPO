@@ -63,6 +63,10 @@ impl ShieldEnforcer {
         fallback_blacklist: &[String],
         dry_run: bool,
     ) -> Vec<InterceptedProcess> {
+        if !sync_state.has_active_session {
+            return Vec::new();
+        }
+
         self.sys.refresh_processes(ProcessesToUpdate::All, true);
 
         let my_pid = std::process::id();
@@ -89,11 +93,7 @@ impl ShieldEnforcer {
             }
         }
 
-        let mode = if dry_run {
-            "AUDIT_ONLY"
-        } else {
-            sync_state.enforcement_mode.as_str()
-        };
+        let mode = Self::effective_enforcement_mode(sync_state, dry_run);
 
         let mut intercepted = Vec::new();
 
@@ -175,6 +175,17 @@ impl ShieldEnforcer {
         }
 
         intercepted
+    }
+
+    fn effective_enforcement_mode(sync_state: &SentinelDaemonSyncResponse, dry_run: bool) -> &str {
+        if dry_run
+            || sync_state.enforcement_mode == "AUDIT_ONLY"
+            || sync_state.blocked_patterns.is_empty()
+        {
+            "AUDIT_ONLY"
+        } else {
+            sync_state.enforcement_mode.as_str()
+        }
     }
 
     pub fn is_distraction_process(
@@ -275,6 +286,67 @@ mod tests {
         assert!(ShieldEnforcer::is_distraction_process(
             "obs-studio", "/usr/bin/obs-studio", &blacklist, &allowed, &enforcer.protected_system_names
         ));
+    }
+
+    #[test]
+    fn test_no_active_focus_session_skips_process_scan() {
+        let mut enforcer = ShieldEnforcer::new();
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: false,
+            active_session_id: None,
+            active_session_name: None,
+            duration_minutes: None,
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: false,
+            blocked_patterns: vec!["discord".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            current_mission_id: None,
+            current_goal_id: None,
+        };
+
+        assert!(enforcer.scan_and_enforce(&sync, &[], false).is_empty());
+    }
+
+    #[test]
+    fn test_missing_synced_policy_forces_audit_only_mode() {
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: Some(1),
+            active_session_name: Some("Focus Session".to_string()),
+            duration_minutes: Some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: true,
+            blocked_patterns: Vec::new(),
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            current_mission_id: None,
+            current_goal_id: None,
+        };
+
+        assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "AUDIT_ONLY");
+    }
+
+    #[test]
+    fn test_active_session_with_synced_policy_preserves_enforcement_mode() {
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: Some(1),
+            active_session_name: Some("Focus Session".to_string()),
+            duration_minutes: Some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: true,
+            blocked_patterns: vec!["discord".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            current_mission_id: None,
+            current_goal_id: None,
+        };
+
+        assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "STRICT");
     }
 
     #[test]
