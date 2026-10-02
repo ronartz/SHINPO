@@ -27,6 +27,7 @@
 | Java Sentinel | PARTIAL / SAFETY-BLOCKED | Scheduled/manual scans, default rules, allow patterns, enforcement modes, quarantine/tamper records. | Scans backend-host processes; defaults include common apps; force termination exists. Not a safe paired-device product model. |
 | Task Manager | PARTIAL | API exposes process snapshots/termination and UI lists/actions. | Reads backend host; per-process CPU/memory numbers are estimates; administrative actions are primary UI. |
 | Protected processes | PARTIAL / DEFECT | Fixed protected-name exclusions exist in Rust/Java. | Not identity-based; `obs` is in fallback patterns; reported recording interruption is P0. |
+| Actual OS-level enforcement | PARTIAL | Rust and Java process termination paths and platform adapters exist. | Preserve as a product requirement; current name-based target selection, incomplete contextual ordering, and missing outcome verification are unsafe/incomplete. Migration is to safe contextual enforcement, not removal. |
 | Warning and 20-minute grace | PLANNED | No complete warning overlay or bounded user grace flow found. | Required target behavior. |
 | Browser enforcement | PLANNED | No browser agent/site classifier found. | Process scan cannot classify browser tabs. |
 | Emergency override/tamper | PARTIAL | Sentinel modes, override endpoint/password check, tamper events. | Product/device scope and safe end-to-end UX need verification. |
@@ -86,4 +87,4 @@ The preceding available verification reports `./mvnw test -Dtest=ShinpoApplicati
 
 ## Recommended First Engineering Slice
 
-P0 safety: disable or contain automatic process termination behind a disabled-by-default gate; remove OBS and other non-categorical defaults from automatic kill policy; define paired-device and target identity validation; add explicit explained decisions and protected-process evaluation; verify original process identity and outcome before recording success. Test OBS/recording protection, PID reuse, name spoofing, exceptions, stale policy, no active session, and offline behavior. Only then proceed to contextual browser activity or grace-warning UX.
+P0 safety: replace name-only automatic action with the required contextual sequence: detect; validate activity identity; evaluate current focus and objective/task; apply user policy and exceptions; respect break/recovery; check safety/protected processes; warn; optionally allow grace up to 20 minutes; perform OS-level enforcement when authorized; verify the target outcome; audit it. Do not remove actual OS-level enforcement from the target architecture. Test OBS/recording protection, PID reuse, name spoofing, legitimate Spotify/Discord/YouTube/Reddit/VLC/browser work, exceptions, stale policy, no active session, and offline behavior.

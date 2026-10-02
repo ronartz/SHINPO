@@ -64,17 +64,13 @@ Backend STOMP/WebSocket configuration and event service distribute focus-session
 
 ## Target Focus Protection Architecture
 
-Target decision pipeline:
+Required target decision and enforcement pipeline:
 
-`ACTIVITY IDENTITY -> ACTIVE SESSION -> OBJECTIVE -> TASK -> USER POLICY -> EXCEPTIONS -> BREAK/RECOVERY -> SAFETY EXCLUSIONS -> DECISION + EXPLANATION`
+`ACTIVITY DETECTED -> ACTIVITY IDENTITY VALIDATED -> CURRENT FOCUS CONTEXT -> OBJECTIVE/TASK CONTEXT -> USER POLICY -> EXCEPTIONS -> BREAK/RECOVERY STATE -> SAFETY/PROTECTED PROCESS CHECK -> WARNING -> OPTIONAL GRACE PERIOD (MAX 20 MINUTES) -> OS-LEVEL ENFORCEMENT -> VERIFICATION -> AUDIT`
 
-The same app/site may be useful or distracting depending on task context. Browser signals must be first-class but privacy-bounded. No automatic termination may be based solely on a process name.
+The same app/site may be useful or distracting depending on task context. Spotify, Discord, YouTube, Reddit, VLC, and browser activity are not inherently distracting. Browser signals must be first-class but privacy-bounded. A process-name match alone cannot authorize enforcement.
 
-Target intervention sequence:
-
-`DETECT -> IDENTIFY -> EVALUATE CONTEXT -> APPLY POLICY/EXCEPTIONS -> WARN -> OPTIONAL GRACE (<= 20 MIN) -> ACT -> VERIFY OUTCOME -> AUDIT`
-
-A future Tauri/native warning window owns explanation, countdown, current session/task, user actions, keyboard/focus management, reduced motion, and safe fallback. Browser integration, grace UX, and action verification are migration requirements.
+The warning must be a professional SHINPO desktop experience, implemented through the Tauri/native surface where appropriate. It explains the activity, decision, current session/task, grace countdown, and actions; supports keyboard access, focus trapping, reduced motion, and safe fallback. Browser/web enforcement, warning UX, bounded grace, process identity validation, OS-level action verification, and audit are migration requirements. The target retains actual OS-level enforcement when the validated contextual decision and user policy require it; safe contextual enforcement is not replaced with removal of enforcement.
 
 ## Session and Time Architecture
 
@@ -106,7 +102,7 @@ Collect only data required for an execution/protection feature. Document purpose
 
 ## Migration Boundaries
 
-1. **P0 safety:** disable/contain unsafe automatic termination; separate activity identity from policy; validate target identity; define protected decisions and verified outcomes.
+1. **P0 safety:** replace unsafe name-only termination with validated contextual OS-level enforcement; keep enforcement available when policy authorizes it; require protected-process checks, warning/optional grace, verified outcomes, and audit.
 2. **P1 correctness:** align analytics metrics; fix pause-aware timer and local scheduling; add live clock/date policy; verify persistence/reload.
 3. **P1 UX:** professional terminology, scheduling form, daily quote lifecycle, contextual protection explanation, reusable date picker.
 4. **P2 platform:** define paired-device/browser-agent contracts, policy synchronization, offline lease/conflict handling, and OS verification before claiming cross-device support.
