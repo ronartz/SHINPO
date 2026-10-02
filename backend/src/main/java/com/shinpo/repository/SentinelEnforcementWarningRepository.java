@@ -38,6 +38,8 @@ public interface SentinelEnforcementWarningRepository extends JpaRepository<Sent
             Collection<SentinelWarningStatus> statuses
     );
 
+    List<SentinelEnforcementWarning> findAllByFocusSession_IdAndStatus(Long focusSessionId, SentinelWarningStatus status);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE SentinelEnforcementWarning w SET w.status = :newStatus, w.updatedAt = :now " +
            "WHERE w.status = 'ISSUED' AND w.decisionDeadline <= :now")

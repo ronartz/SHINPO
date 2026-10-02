@@ -1,5 +1,7 @@
 package com.shinpo.service;
 
+import com.shinpo.dto.SentinelDtos.ActiveGraceWindowItem;
+import com.shinpo.dto.SentinelDtos.ActiveWarningItem;
 import com.shinpo.dto.SentinelWarningDtos.*;
 import com.shinpo.entity.*;
 import com.shinpo.repository.FocusSessionRepository;
@@ -31,17 +33,20 @@ public class SentinelWarningService {
     private final SentinelGraceWindowRepository graceWindowRepository;
     private final FocusSessionRepository focusSessionRepository;
     private final UserRepository userRepository;
+    private final ContextualEnforcementDecisionService contextualDecisionService;
 
     public SentinelWarningService(
             SentinelEnforcementWarningRepository warningRepository,
             SentinelGraceWindowRepository graceWindowRepository,
             FocusSessionRepository focusSessionRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ContextualEnforcementDecisionService contextualDecisionService
     ) {
         this.warningRepository = warningRepository;
         this.graceWindowRepository = graceWindowRepository;
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
+        this.contextualDecisionService = contextualDecisionService;
     }
 
     @Transactional
@@ -291,5 +296,128 @@ public class SentinelWarningService {
         Instant now = Instant.now();
         warningRepository.expireStaleWarnings(SentinelWarningStatus.EXPIRED, now);
         graceWindowRepository.expireStaleGraceWindows(SentinelGraceStatus.EXPIRED, now);
+    }
+
+    @Transactional
+    public List<ActiveWarningItem> getActiveWarningsForSession(Long sessionId) {
+        if (sessionId == null) {
+            return List.of();
+        }
+        expireStaleItems();
+        Instant now = Instant.now();
+        return warningRepository.findAllByFocusSession_IdAndStatus(sessionId, SentinelWarningStatus.ISSUED)
+                .stream()
+                .filter(w -> w.getDecisionDeadline().isAfter(now))
+                .map(w -> new ActiveWarningItem(w.getWarningId(), w.getProcessName(), w.getDecisionDeadline(), w.getStatus().name()))
+                .toList();
+    }
+
+    @Transactional
+    public List<ActiveGraceWindowItem> getActiveGraceWindowsForSession(Long sessionId) {
+        if (sessionId == null) {
+            return List.of();
+        }
+        expireStaleItems();
+        Instant now = Instant.now();
+        return graceWindowRepository.findAllByFocusSession_IdAndStatus(sessionId, SentinelGraceStatus.ACTIVE)
+                .stream()
+                .filter(g -> g.getExpiresAt().isAfter(now))
+                .map(g -> new ActiveGraceWindowItem(g.getWarningId(), g.getProcessName(), g.getExpiresAt()))
+                .toList();
+    }
+
+    @Transactional
+    public CandidateProcessResponse evaluateCandidate(Long userId, CandidateProcessRequest request) {
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User authentication required");
+        }
+        if (request == null || request.processName() == null || request.processName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Process name cannot be empty");
+        }
+
+        String canonical = request.processName().trim().toLowerCase();
+
+        // 1. Contextual policy check (protected processes, session exceptions, user allowed/blocked rules)
+        ContextualEnforcementDecisionService.PolicyDecision policyDecision =
+                contextualDecisionService.evaluateProcess(userId, canonical);
+        if (policyDecision == ContextualEnforcementDecisionService.PolicyDecision.ALLOW) {
+            return new CandidateProcessResponse("ALLOW", null, null, null, "Process permitted by contextual policy");
+        }
+
+        // 2. Active FocusSession resolution (scoped strictly to authenticated user)
+        List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
+        if (activeSessions.isEmpty()) {
+            // Fail-closed: no active focus session means no destructive enforcement
+            return new CandidateProcessResponse("ALLOW", null, null, null, "No active focus session");
+        }
+        FocusSession session = activeSessions.get(0);
+
+        // 3. Expire stale warnings and grace windows
+        expireStaleItems();
+        Instant now = Instant.now();
+
+        // 4. Check for active unexpired grace window
+        Optional<SentinelGraceWindow> activeGrace = graceWindowRepository
+                .findByFocusSession_IdAndProcessNameAndStatus(session.getId(), canonical, SentinelGraceStatus.ACTIVE);
+        if (activeGrace.isPresent() && activeGrace.get().getExpiresAt().isAfter(now)) {
+            SentinelGraceWindow grace = activeGrace.get();
+            return new CandidateProcessResponse(
+                    "DEFER_GRACE",
+                    grace.getWarningId(),
+                    null,
+                    grace.getExpiresAt(),
+                    "Active grace window in effect"
+            );
+        }
+
+        // 5. Check for active unexpired warning
+        Optional<SentinelEnforcementWarning> activeWarning = warningRepository
+                .findByFocusSession_IdAndProcessNameAndStatusIn(
+                        session.getId(),
+                        canonical,
+                        List.of(SentinelWarningStatus.ISSUED)
+                );
+        if (activeWarning.isPresent() && activeWarning.get().getDecisionDeadline().isAfter(now)) {
+            SentinelEnforcementWarning w = activeWarning.get();
+            return new CandidateProcessResponse(
+                    "DEFER_WARNING",
+                    w.getWarningId(),
+                    w.getDecisionDeadline(),
+                    null,
+                    "Active warning awaiting user decision"
+            );
+        }
+
+        // 6. Check if grace was already consumed or if warning has expired / been commanded to terminate
+        boolean graceConsumedOrExpired = graceWindowRepository.existsByFocusSession_IdAndProcessNameAndStatusIn(
+                session.getId(),
+                canonical,
+                List.of(SentinelGraceStatus.ACTIVE, SentinelGraceStatus.EXPIRED, SentinelGraceStatus.CONSUMED)
+        );
+        boolean warningExpiredOrTerminated = warningRepository.existsByFocusSession_IdAndProcessNameAndStatusIn(
+                session.getId(),
+                canonical,
+                List.of(SentinelWarningStatus.EXPIRED, SentinelWarningStatus.TERMINATE_NOW)
+        );
+
+        if (graceConsumedOrExpired || warningExpiredOrTerminated) {
+            return new CandidateProcessResponse(
+                    "ENFORCE_TERMINATE",
+                    null,
+                    null,
+                    null,
+                    "Warning decision deadline or grace window has expired; enforcement authorized"
+            );
+        }
+
+        // 7. No prior warning or grace: issue warning on first detection
+        SentinelWarningResponse issued = issueWarning(userId, new IssueWarningRequest(session.getId(), canonical, request.commandLine()));
+        return new CandidateProcessResponse(
+                "DEFER_WARNING",
+                issued.warningId(),
+                issued.decisionDeadline(),
+                null,
+                "New warning issued on candidate detection; enforcement deferred"
+        );
     }
 }

@@ -53,4 +53,19 @@ public class SentinelWarningDtos {
             );
         }
     }
+
+    public record CandidateProcessRequest(
+            @NotBlank
+            String processName,
+            String commandLine,
+            Long pid
+    ) {}
+
+    public record CandidateProcessResponse(
+            String decision,
+            UUID warningId,
+            Instant decisionDeadline,
+            Instant graceExpiresAt,
+            String reason
+    ) {}
 }
