@@ -60,6 +60,7 @@ public class SentinelEnforcementService {
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate auditTransactionTemplate;
     private final WebSocketEventService webSocketEventService;
+    private final FocusSessionEnforcementExceptionService exceptionService;
 
     // Per-user enforcement mode (default STRICT)
     private final Map<Long, String> userEnforcementModes = new ConcurrentHashMap<>();
@@ -77,7 +78,8 @@ public class SentinelEnforcementService {
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             PlatformTransactionManager transactionManager,
-            WebSocketEventService webSocketEventService
+            WebSocketEventService webSocketEventService,
+            FocusSessionEnforcementExceptionService exceptionService
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
@@ -88,6 +90,7 @@ public class SentinelEnforcementService {
         this.auditTransactionTemplate = new TransactionTemplate(transactionManager);
         this.auditTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.webSocketEventService = webSocketEventService;
+        this.exceptionService = exceptionService;
     }
 
     public String getEnforcementMode(Long userId) {
@@ -223,6 +226,11 @@ public class SentinelEnforcementService {
 
         Set<String> blockedPatterns = new HashSet<>(DEFAULT_DISTRACTIONS);
         Set<String> allowedPatterns = new HashSet<>();
+
+        // Contextual policy: if there is an active session, its session exceptions take precedence over blocked rules
+        if (activeSession != null) {
+            allowedPatterns.addAll(exceptionService.getActiveProcessExceptionsForUser(userId));
+        }
 
         List<SentinelPolicyRule> userRules = policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
         for (SentinelPolicyRule rule : userRules) {
@@ -672,6 +680,11 @@ public class SentinelEnforcementService {
 
         Set<String> blockedPatterns = new HashSet<>(DEFAULT_DISTRACTIONS);
         Set<String> allowedPatterns = new HashSet<>();
+
+        // Contextual policy: if there is an active session, its session exceptions are added to allowedPatterns
+        if (activeSession != null) {
+            allowedPatterns.addAll(exceptionService.getActiveProcessExceptionsForUser(userId));
+        }
 
         List<SentinelPolicyRule> userRules = policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
         for (SentinelPolicyRule rule : userRules) {
