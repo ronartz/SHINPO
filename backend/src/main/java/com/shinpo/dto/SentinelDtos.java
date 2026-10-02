@@ -148,7 +148,9 @@ public class SentinelDtos {
             List<String> blockedPatterns,
             List<String> allowedPatterns,
             List<String> protectedProcesses,
-            Instant serverTime
+            Instant serverTime,
+            Long currentMissionId,
+            Long currentGoalId
     ) {}
 
     public record BatchQuarantineRequest(

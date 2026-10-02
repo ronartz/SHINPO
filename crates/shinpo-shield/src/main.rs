@@ -151,6 +151,8 @@ fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run:
                 blocked_patterns: config.fallback_blacklist.clone(),
                 allowed_patterns: Vec::new(),
                 protected_processes: Vec::new(),
+                current_mission_id: None,
+                current_goal_id: None,
             }
         }
     };

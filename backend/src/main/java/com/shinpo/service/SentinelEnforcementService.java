@@ -3,6 +3,7 @@ package com.shinpo.service;
 import com.shinpo.dto.SentinelDtos.*;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
+import com.shinpo.entity.Mission;
 import com.shinpo.entity.SentinelPolicyRule;
 import com.shinpo.entity.SentinelQuarantineRecord;
 import com.shinpo.entity.SentinelTamperEvent;
@@ -611,6 +612,14 @@ public class SentinelEnforcementService {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 
+        Mission currentMission = activeSession != null ? activeSession.getMission() : null;
+        Long currentMissionId = currentMission != null ? currentMission.getId() : null;
+        Long currentGoalId = currentMission != null
+            ? currentMission.getGoal().getId()
+            : activeSession != null && activeSession.getGoal() != null
+                ? activeSession.getGoal().getId()
+                : null;
+
         String mode = getEnforcementMode(userId);
         boolean isLocked = activeSession != null && "STRICT".equals(mode);
 
@@ -638,7 +647,9 @@ public class SentinelEnforcementService {
                 new ArrayList<>(blockedPatterns),
                 new ArrayList<>(allowedPatterns),
                 new ArrayList<>(PROTECTED_PROCESSES),
-                Instant.now()
+                Instant.now(),
+                currentMissionId,
+                currentGoalId
         );
     }
 }

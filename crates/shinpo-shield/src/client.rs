@@ -31,6 +31,12 @@ pub struct SentinelDaemonSyncResponse {
 
     #[serde(rename = "protectedProcesses", default)]
     pub protected_processes: Vec<String>,
+
+    #[serde(rename = "currentMissionId", default)]
+    pub current_mission_id: Option<i64>,
+
+    #[serde(rename = "currentGoalId", default)]
+    pub current_goal_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -136,6 +142,8 @@ impl SentinelClient {
                             blocked_patterns: Vec::new(),
                             allowed_patterns: Vec::new(),
                             protected_processes: Vec::new(),
+                            current_mission_id: None,
+                            current_goal_id: None,
                         });
                     }
                 }
@@ -150,6 +158,8 @@ impl SentinelClient {
                     blocked_patterns: Vec::new(),
                     allowed_patterns: Vec::new(),
                     protected_processes: Vec::new(),
+                    current_mission_id: None,
+                    current_goal_id: None,
                 })
             }
             Err(e) => Err(format!("Backend unreachable at {}: {}", self.base_url, e)),
@@ -205,5 +215,83 @@ impl SentinelClient {
             }
             Err(e) => Err(format!("Failed to send batch quarantine telemetry: {}", e)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SentinelDaemonSyncResponse;
+
+    #[test]
+    fn sync_response_deserializes_context_ids_when_present() {
+        let payload = r#"{
+            "hasActiveSession": true,
+            "activeSessionId": 42,
+            "activeSessionName": "Focus Session",
+            "durationMinutes": 25,
+            "intention": "Complete the linked task",
+            "enforcementMode": "STRICT",
+            "isPolicyLocked": true,
+            "blockedPatterns": ["discord"],
+            "allowedPatterns": ["slack"],
+            "protectedProcesses": ["shinpo"],
+            "serverTime": "2026-10-02T10:00:00Z",
+            "currentMissionId": 7,
+            "currentGoalId": 3
+        }"#;
+
+        let sync: SentinelDaemonSyncResponse = serde_json::from_str(payload).unwrap();
+
+        assert!(sync.has_active_session);
+        assert_eq!(sync.blocked_patterns, vec!["discord"]);
+        assert_eq!(sync.allowed_patterns, vec!["slack"]);
+        assert_eq!(sync.current_mission_id, Some(7));
+        assert_eq!(sync.current_goal_id, Some(3));
+    }
+
+    #[test]
+    fn sync_response_defaults_missing_context_ids_to_none() {
+        let payload = r#"{
+            "hasActiveSession": true,
+            "activeSessionId": 42,
+            "activeSessionName": "Legacy Focus Session",
+            "durationMinutes": 25,
+            "intention": null,
+            "enforcementMode": "STRICT",
+            "isPolicyLocked": true,
+            "blockedPatterns": [],
+            "allowedPatterns": [],
+            "protectedProcesses": []
+        }"#;
+
+        let sync: SentinelDaemonSyncResponse = serde_json::from_str(payload).unwrap();
+
+        assert!(sync.has_active_session);
+        assert_eq!(sync.current_mission_id, None);
+        assert_eq!(sync.current_goal_id, None);
+    }
+
+    #[test]
+    fn sync_response_accepts_null_context_ids() {
+        let payload = r#"{
+            "hasActiveSession": true,
+            "activeSessionId": 42,
+            "activeSessionName": "Unlinked Focus Session",
+            "durationMinutes": 25,
+            "intention": null,
+            "enforcementMode": "STRICT",
+            "isPolicyLocked": true,
+            "blockedPatterns": [],
+            "allowedPatterns": [],
+            "protectedProcesses": [],
+            "currentMissionId": null,
+            "currentGoalId": null
+        }"#;
+
+        let sync: SentinelDaemonSyncResponse = serde_json::from_str(payload).unwrap();
+
+        assert!(sync.has_active_session);
+        assert_eq!(sync.current_mission_id, None);
+        assert_eq!(sync.current_goal_id, None);
     }
 }
