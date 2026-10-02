@@ -31,10 +31,23 @@ export function getStoredUser(): AuthUser | null {
   const userJson = localStorage.getItem(USER_KEY)
   if (!userJson) return null
   try {
-    return JSON.parse(userJson) as AuthUser
+    const user = JSON.parse(userJson) as AuthUser
+    if (user && typeof user.id === 'number' && !isNaN(user.id)) {
+      return user
+    }
+    return null
   } catch {
     return null
   }
+}
+
+export function getAuthenticatedUser(): AuthUser | null {
+  return getStoredUser()
+}
+
+export function getAuthenticatedUserId(): number | null {
+  const user = getStoredUser()
+  return user?.id ?? null
 }
 
 export function setAuthSession(response: AuthResponse) {

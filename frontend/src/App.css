@@ -2553,6 +2553,154 @@ html[data-theme='dark'] .sidebar-shield-card {
   padding: 20px;
 }
 
+/* Sentinel Task Manager Modals (Block App + Emergency Override) */
+.quick-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  padding: 20px;
+}
+
+.quick-modal-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  padding: 24px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: tmModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tmModalPop {
+  from { opacity: 0; transform: scale(0.93) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.quick-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quick-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-form-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+}
+
+.quick-form-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.quick-form-input:focus {
+  border-color: var(--primary-coral, #FF4D5E);
+}
+
+.quick-form-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.quick-btn-cancel {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 18px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.quick-btn-cancel:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.quick-btn-submit {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 18px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.quick-btn-submit:not(:disabled) {
+  background: linear-gradient(135deg, #FF4D5E 0%, #D92B3E 100%);
+  border-color: #FF4D5E;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255, 77, 94, 0.35);
+}
+
+.quick-btn-submit:not(:disabled):hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 77, 94, 0.45);
+}
+
+.quick-btn-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.theme-light .quick-modal-card,
+html[data-theme='light'] .quick-modal-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .quick-form-input,
+html[data-theme='light'] .quick-form-input {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.14);
+  color: #0F172A;
+}
+
+.theme-light .quick-form-input:focus,
+html[data-theme='light'] .quick-form-input:focus {
+  border-color: #FF4D5E;
+}
+
+.theme-light .quick-btn-cancel,
+html[data-theme='light'] .quick-btn-cancel {
+  background: #F1F5F9;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #334155;
+}
+
 .flight-deck-quick-modal-card {
   background: var(--surface-card);
   border: 1px solid var(--border-strong);
@@ -5452,6 +5600,47 @@ html[data-theme='light'] .category-badge.core,
   color: var(--text);
   text-align: center;
   margin: 10px 0 16px;
+  transition: color 0.3s;
+}
+
+.timer-digits-display.timer-paused {
+  color: var(--accent-yellow, #F59E0B);
+  opacity: 0.75;
+}
+
+.timer-ended-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 24px;
+  background: rgba(255, 77, 94, 0.12);
+  border: 1px solid rgba(255, 77, 94, 0.35);
+  border-radius: 12px;
+  margin: 10px 0 16px;
+  animation: timerEndedPulse 1.5s ease-in-out infinite;
+}
+
+.timer-ended-icon {
+  font-size: 22px;
+}
+
+.timer-ended-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent-coral, #FF4D5E);
+  letter-spacing: 0.2px;
+}
+
+@keyframes timerEndedPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Hero cockpit paused state */
+.hero-timer-display.timer-paused {
+  color: var(--accent-yellow, #F59E0B);
+  opacity: 0.75;
 }
 
 .timer-progress-track {

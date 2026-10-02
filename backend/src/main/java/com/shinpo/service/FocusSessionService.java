@@ -341,18 +341,18 @@ public class FocusSessionService {
     }
 
     /**
-     * Automatic periodic sweep to expire abandoned SCHEDULED and ACTIVE sessions.
-     * Runs every 60 seconds in the background.
+     * Automatic periodic sweep to expire abandoned SCHEDULED, ACTIVE, and PAUSED sessions.
+     * Uses an indexed status-filter query instead of a full table scan.
+     * Runs every 60 seconds.
      */
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void sweepExpiredSessions() {
         Instant now = Instant.now();
-        List<FocusSession> activeOrScheduled = focusSessionRepository.findAll().stream()
-                .filter(s -> s.getStatus() == FocusSessionStatus.SCHEDULED || s.getStatus() == FocusSessionStatus.ACTIVE)
-                .toList();
-
-        for (FocusSession session : activeOrScheduled) {
+        List<FocusSession> candidates = focusSessionRepository.findAllByStatusIn(
+                List.of(FocusSessionStatus.SCHEDULED, FocusSessionStatus.ACTIVE, FocusSessionStatus.PAUSED)
+        );
+        for (FocusSession session : candidates) {
             checkAndApplyExpiration(session, now);
         }
     }
@@ -379,6 +379,25 @@ public class FocusSessionService {
                 session.setEndedAt(now);
                 focusSessionRepository.save(session);
                 return true;
+            }
+        } else if (session.getStatus() == FocusSessionStatus.PAUSED) {
+            // Abandon paused sessions that have been paused for more than 4× the session duration
+            // (i.e., the user clearly forgot about them).
+            if (session.getPausedAt() != null) {
+                long pausedForSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
+                long abandonThresholdSeconds = (long) session.getDurationMinutes() * 60L * 4L;
+                if (pausedForSeconds > abandonThresholdSeconds) {
+                    log.info("SESSION_EXPIRED: Paused focus session {} abandoned — paused for {}s.", session.getId(), pausedForSeconds);
+                    // Accumulate the pause time up to the threshold so activeSeconds is still sane
+                    session.setAccumulatedPausedSeconds(
+                            session.getAccumulatedPausedSeconds() + pausedForSeconds
+                    );
+                    session.setPausedAt(null);
+                    session.setStatus(FocusSessionStatus.EXPIRED);
+                    session.setEndedAt(now);
+                    focusSessionRepository.save(session);
+                    return true;
+                }
             }
         }
         return false;

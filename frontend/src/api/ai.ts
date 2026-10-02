@@ -172,7 +172,7 @@ export type AiChatResponse = {
   conversationId?: string
 }
 
-import { authHeaders } from './auth'
+import { authHeaders, getAuthenticatedUserId } from './auth'
 import { getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api/ai`
@@ -209,18 +209,19 @@ export async function clearActiveConversation(): Promise<Conversation> {
 }
 
 export async function sendAiChat(
-  userId: number,
-  message: string,
+  userId?: number,
+  message: string = '',
   contextualGoalId?: number,
   contextualMissionId?: number,
   contextualSessionId?: number,
   conversationId?: string,
 ): Promise<AiChatResponse> {
+  const effectiveUserId = userId ?? getAuthenticatedUserId() ?? 0
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({
-      userId,
+      userId: effectiveUserId,
       message,
       contextualGoalId,
       contextualMissionId,

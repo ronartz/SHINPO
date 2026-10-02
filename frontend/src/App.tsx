@@ -54,6 +54,7 @@ import {
   authHeaders,
   clearAuthSession,
   fetchCurrentUser,
+  getAuthenticatedUserId,
   getStoredUser,
   login,
   logout,
@@ -474,7 +475,7 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
 
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
+  const [_dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
   const scheduledCount = sessions.filter((s) => s.status === 'SCHEDULED' || Boolean(s.scheduledAt && s.status !== 'COMPLETED')).length
   const [selectedDuration, setSelectedDuration] = useState(30)
@@ -845,6 +846,22 @@ export function App() {
       window.removeEventListener('scroll', handleScroll, true)
     }
   }, [activeTaskMenu])
+
+  // Close Sentinel modals on Escape (mutual exclusion – only one can be open at a time)
+  useEffect(() => {
+    const anyOpen = showAddRuleModal || showOverrideModal
+    if (!anyOpen) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!overrideLoading) {
+          setShowAddRuleModal(false)
+          setShowOverrideModal(false)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [showAddRuleModal, showOverrideModal, overrideLoading])
 
   const loadData = useCallback(async () => {
     try {
@@ -1290,10 +1307,10 @@ export function App() {
 
   const handleCreateGoal = async (e: FormEvent) => {
     e.preventDefault()
-    if (!newGoalTitle.trim()) return
+    if (!currentUser || !newGoalTitle.trim()) return
     try {
       const created = await createGoal({
-        userId: dashboard?.user.id ?? 1,
+        userId: currentUser.id,
         title: newGoalTitle.trim(),
         description: newGoalDesc.trim() || undefined,
         startDate: new Date().toISOString().split('T')[0],
@@ -1372,9 +1389,10 @@ export function App() {
   }
 
   const handleDeconstructGoal = async (goalId: number) => {
+    if (!currentUser) return
     setDecomposingGoalId(goalId)
     try {
-      const result = await decomposeGoal(goalId, dashboard?.user.id ?? 1)
+      const result = await decomposeGoal(goalId, currentUser.id)
       setAiDecompResult(result)
       if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === 'DECONSTRUCT_GOAL') {
         handleNextTutorialStep()
@@ -1577,11 +1595,12 @@ export function App() {
   }
 
   const handleDeleteSession = async (sessionId: number) => {
+    if (!currentUser) return
     if (!window.confirm(`Delete focus session #${sessionId}?`)) {
       return
     }
     try {
-      await deleteFocusSession(sessionId, dashboard?.user.id ?? 1)
+      await deleteFocusSession(sessionId, currentUser.id)
       setSessions((prev) => prev.filter((s) => s.id !== sessionId))
     } catch (err) {
       console.error('Failed to delete focus session:', err)
@@ -1604,13 +1623,22 @@ export function App() {
 
   const timerSeconds = useMemo(() => {
     if (!activeSession) return selectedDuration * 60
+
     const totalSec = (activeSession.durationMinutes || 25) * 60
-    if (activeSession.status === 'ACTIVE' && activeSession.startedAt) {
-      const elapsed = Math.floor(
-        (timerNow - new Date(activeSession.startedAt).getTime()) / 1000,
-      )
-      return Math.max(0, totalSec - elapsed)
+
+    if (activeSession.status === 'PAUSED') {
+      // Frozen at remaining seconds as calculated by server at pause time
+      return Math.max(0, activeSession.remainingSeconds ?? 0)
     }
+
+    if (activeSession.status === 'ACTIVE' && activeSession.startedAt && activeSession.serverTime) {
+      // Use server-provided remainingSeconds + serverTime as anchor to correct for clock drift
+      const serverAnchorMs = new Date(activeSession.serverTime).getTime()
+      const elapsedSinceServerMs = timerNow - serverAnchorMs
+      const elapsedSinceSec = Math.max(0, Math.floor(elapsedSinceServerMs / 1000))
+      return Math.max(0, (activeSession.remainingSeconds ?? totalSec) - elapsedSinceSec)
+    }
+
     return totalSec
   }, [activeSession, timerNow, selectedDuration])
 
@@ -1621,7 +1649,8 @@ export function App() {
   }
 
   const handleStartSession = async () => {
-    const userId = dashboard?.user.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     try {
       const created = await createFocusSession({
         userId,
@@ -1638,8 +1667,8 @@ export function App() {
   }
 
   const handleEngageNextAction = async () => {
-    if (!nextActionMission) return
-    const userId = dashboard?.user.id ?? 1
+    if (!currentUser || !nextActionMission) return
+    const userId = currentUser.id
     const mins = nextActionMission.estimatedMinutes || 25
     try {
       const created = await createFocusSession({
@@ -1658,11 +1687,12 @@ export function App() {
   }
    
   const handleArmMissionAsSession = async (missionTitle: string, estimatedMinutes?: number) => {
+    if (!currentUser) return
     if (sessions.some((session) => session.status === 'ACTIVE' || session.status === 'PAUSED')) {
       setActiveTab('Focus Engine')
       return
     }
-    const userId = dashboard?.user.id ?? 1
+    const userId = currentUser.id
     const mins = estimatedMinutes || 25
     try {
       const created = await createFocusSession({
@@ -1682,7 +1712,8 @@ export function App() {
   }
 
   const handlePause = async (id: number) => {
-    const userId = dashboard?.user.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     try {
       const p = await pauseFocusSession(id, userId)
       setSessions((prev) => prev.map((s) => (s.id === id ? p : s)))
@@ -1692,7 +1723,8 @@ export function App() {
   }
 
   const handleResume = async (id: number) => {
-    const userId = dashboard?.user.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     try {
       const r = await resumeFocusSession(id, userId)
       setSessions((prev) => prev.map((s) => (s.id === id ? r : s)))
@@ -1703,9 +1735,9 @@ export function App() {
 
   const handleCompleteSubmit = async (e: FormEvent, debriefWithAi: boolean = false) => {
     e.preventDefault()
-    if (!completingSessionId) return
+    if (!currentUser || !completingSessionId) return
     const targetSessionId = completingSessionId
-    const userId = dashboard?.user.id ?? 1
+    const userId = currentUser.id
     try {
       const res = await completeFocusSession(
         targetSessionId,
@@ -1770,7 +1802,7 @@ export function App() {
     }
 
     try {
-      const userId = dashboard?.user.id ?? 1
+      const userId = currentUser?.id ?? getAuthenticatedUserId() ?? undefined
       const res = await sendAiChat(userId, prompt, undefined, undefined, contextualSessionId, conversationId || undefined)
       if (res.conversationId) {
         setConversationId(res.conversationId)
@@ -2051,7 +2083,8 @@ export function App() {
 
   const handleConfirmBookSession = async (e: FormEvent) => {
     e.preventDefault()
-    const userId = currentUser?.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     const mission = missions.find((m) => m.id === bookMissionId)
     const sessionTitle = bookName.trim() || mission?.title || `${bookDuration}m Focus Sprint`
     const intention = bookIntention.trim() || mission?.title || 'Execution block'
@@ -2082,7 +2115,8 @@ export function App() {
   }
 
   const handleStartFromSchedule = async (sessionId: number) => {
-    const userId = currentUser?.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     try {
       const started = await startFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? started : s)))
@@ -2093,7 +2127,8 @@ export function App() {
   }
 
   const handleCancelFromSchedule = async (sessionId: number) => {
-    const userId = currentUser?.id ?? 1
+    if (!currentUser) return
+    const userId = currentUser.id
     try {
       const cancelled = await cancelFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? cancelled : s)))
@@ -2992,7 +3027,15 @@ export function App() {
                       {activeSession.intention && (
                         <div className="hero-session-intention">{activeSession.intention}</div>
                       )}
-                      <div className="hero-timer-display">{formatTimerDigits(timerSeconds)}</div>
+                      {activeSession.status === 'ACTIVE' && timerSeconds === 0 ? (
+                        <div className="hero-timer-display" style={{ fontSize: 13, color: 'var(--accent-coral, #FF4D5E)' }}>
+                          ⏰ Time's Up!
+                        </div>
+                      ) : (
+                        <div className={`hero-timer-display${activeSession.status === 'PAUSED' ? ' timer-paused' : ''}`}>
+                          {formatTimerDigits(timerSeconds)}
+                        </div>
+                      )}
                       <div className="hero-progress-track">
                         <div
                           className="hero-progress-bar"
@@ -3001,9 +3044,7 @@ export function App() {
                               0,
                               Math.min(
                                 100,
-                                ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
-                                  ((activeSession.durationMinutes || 25) * 60)) *
-                                  100),
+                                (1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60)) * 100,
                               ),
                             )}%`,
                           }}
@@ -3418,7 +3459,26 @@ export function App() {
                 <Icon name="clock" size={20} />
               </div>
 
-              <div className="timer-digits-display">{formatTimerDigits(timerSeconds)}</div>
+              {activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
+                <div className="timer-ended-banner">
+                  <span className="timer-ended-icon">⏰</span>
+                  <span className="timer-ended-text">Session Complete — Debrief!</span>
+                </div>
+              ) : (
+                <div
+                  className={`timer-digits-display${activeSession?.status === 'PAUSED' ? ' timer-paused' : ''}`}
+                >
+                  {formatTimerDigits(timerSeconds)}
+                </div>
+              )}
+
+              {activeSession?.status === 'PAUSED' && (
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11 }}>
+                    ⏸ PAUSED — time frozen
+                  </span>
+                </div>
+              )}
 
               {(activeSession?.intention || sessionIntention) && (
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -3437,9 +3497,7 @@ export function App() {
                           0,
                           Math.min(
                             100,
-                            ((((activeSession.durationMinutes || 25) * 60 - timerSeconds) /
-                              ((activeSession.durationMinutes || 25) * 60)) *
-                              100),
+                            (1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60)) * 100,
                           ),
                         )}%`
                       : '0%',
@@ -4967,6 +5025,7 @@ export function App() {
                 onClick={() => {
                   setOverrideError(null)
                   setShowOverrideModal(true)
+                  setShowAddRuleModal(false)
                 }}
                 title="Open Administrative Policy Gate to authorize emergency enforcement override"
               >
@@ -4993,7 +5052,10 @@ export function App() {
               <button
                 type="button"
                 className="tm-refresh-btn btn-spring"
-                onClick={() => setShowAddRuleModal(true)}
+                onClick={() => {
+                  setShowAddRuleModal(true)
+                  setShowOverrideModal(false)
+                }}
                 title="Add new distraction application to quarantine blacklist"
               >
                 <Icon name="plus" size={14} />
