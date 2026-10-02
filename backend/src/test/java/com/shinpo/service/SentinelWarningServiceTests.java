@@ -1,7 +1,9 @@
 package com.shinpo.service;
 
 import com.shinpo.dto.FocusSessionExceptionDtos.CreateFocusSessionExceptionRequest;
+import com.shinpo.dto.SentinelDtos.RecordQuarantineRequest;
 import com.shinpo.dto.SentinelDtos.SentinelDaemonSyncResponse;
+import com.shinpo.dto.SentinelDtos.SentinelQuarantineItem;
 import com.shinpo.dto.SentinelWarningDtos.*;
 import com.shinpo.entity.*;
 import com.shinpo.repository.FocusSessionRepository;
@@ -595,5 +597,173 @@ public class SentinelWarningServiceTests {
 
         CandidateProcessResponse afterExpiry = warningService.evaluateCandidate(user1.getId(), req);
         assertEquals("ENFORCE_TERMINATE", afterExpiry.decision());
+    }
+
+    @Test
+    @DisplayName("32. Warning with expired grace transitions to terminal state (EXPIRED)")
+    void testWarning_GraceActiveTransitionsToTerminalWhenGraceExpires() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "discord", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 5);
+        SentinelWarningResponse resp = warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+        assertEquals("GRACE_ACTIVE", resp.status());
+
+        // Simulate grace window expiration by moving expiresAt into the past
+        SentinelGraceWindow grace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+        grace.setExpiresAt(Instant.now().minus(Duration.ofSeconds(10)));
+        graceWindowRepository.save(grace);
+
+        // Run expiry sweep
+        warningService.expireStaleItems();
+
+        SentinelEnforcementWarning updatedWarning = warningRepository.findByWarningId(w.warningId()).orElseThrow();
+        SentinelGraceWindow updatedGrace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+
+        assertEquals(SentinelWarningStatus.EXPIRED, updatedWarning.getStatus(), "Warning must transition from GRACE_ACTIVE to EXPIRED");
+        assertEquals(SentinelGraceStatus.EXPIRED, updatedGrace.getStatus(), "Grace must transition from ACTIVE to EXPIRED");
+    }
+
+    @Test
+    @DisplayName("33. Valid GRACE_ACTIVE remains active")
+    void testWarning_ValidGraceActiveRemainsActive() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "steam", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 10);
+        SentinelWarningResponse resp = warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+        assertEquals("GRACE_ACTIVE", resp.status());
+
+        // Run expiry sweep while grace is still well in the future
+        warningService.expireStaleItems();
+
+        SentinelEnforcementWarning updatedWarning = warningRepository.findByWarningId(w.warningId()).orElseThrow();
+        SentinelGraceWindow updatedGrace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+
+        assertEquals(SentinelWarningStatus.GRACE_ACTIVE, updatedWarning.getStatus(), "Valid grace-active warning must remain GRACE_ACTIVE");
+        assertEquals(SentinelGraceStatus.ACTIVE, updatedGrace.getStatus(), "Valid grace window must remain ACTIVE");
+    }
+
+    @Test
+    @DisplayName("34. Grace becomes CONSUMED after actual enforcement")
+    void testGrace_TransitionsToConsumedOnTermination() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "slack", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 5);
+        warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+
+        // Actual enforcement occurs via sentinelService.recordExternalQuarantine
+        sentinelService.recordExternalQuarantine(user1.getId(), new RecordQuarantineRequest(
+                5555L,
+                "slack",
+                "/usr/bin/slack",
+                "TERMINATED",
+                "STRICT",
+                "Forced exit"
+        ));
+
+        SentinelGraceWindow grace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+        assertEquals(SentinelGraceStatus.CONSUMED, grace.getStatus(), "Grace must transition to CONSUMED upon actual enforcement");
+    }
+
+    @Test
+    @DisplayName("35. Natural process exit does NOT consume grace")
+    void testGrace_NaturalExitDoesNotConsumeGrace() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "telegram", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 5);
+        warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+
+        // Process exits naturally - no recordExternalQuarantine is called.
+        // Even if expireStaleItems runs:
+        warningService.expireStaleItems();
+
+        SentinelGraceWindow grace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+        assertNotEquals(SentinelGraceStatus.CONSUMED, grace.getStatus(), "Natural process exit must not mark grace as CONSUMED");
+        assertEquals(SentinelGraceStatus.ACTIVE, grace.getStatus());
+    }
+
+    @Test
+    @DisplayName("36. Expired focus session rejects grace request")
+    void testGrantGrace_ExpiredSessionRejected() {
+        // Create an active session whose duration has already elapsed
+        FocusSession expiredSession = new FocusSession();
+        expiredSession.setUser(user1);
+        expiredSession.setName("Overdue Sprint");
+        expiredSession.setDurationMinutes(10);
+        expiredSession.setStatus(FocusSessionStatus.ACTIVE);
+        expiredSession.setStartedAt(Instant.now().minus(Duration.ofMinutes(15)));
+        FocusSession savedSession = sessionRepository.save(expiredSession);
+
+        IssueWarningRequest req = new IssueWarningRequest(savedSession.getId(), "obs", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 5);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                warningService.respondToWarning(user1.getId(), w.warningId(), respondReq)
+        );
+        assertEquals(409, ex.getStatusCode().value());
+        assertTrue(ex.getReason().contains("expired"), "Exception message should indicate expired duration: " + ex.getReason());
+    }
+
+    @Test
+    @DisplayName("37. Active warning API excludes stale GRACE_ACTIVE warnings")
+    void testGetActiveWarningsForUser_ExcludesStaleGraceActive() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "calculator", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 5);
+        warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+
+        // Simulate expired grace window
+        SentinelGraceWindow grace = graceWindowRepository.findByWarningId(w.warningId()).orElseThrow();
+        grace.setExpiresAt(Instant.now().minus(Duration.ofSeconds(10)));
+        graceWindowRepository.save(grace);
+
+        // Active warnings query should exclude this stale item
+        var activeWarnings = warningService.getActiveWarningsForUser(user1.getId());
+        boolean containsCalculator = activeWarnings.stream().anyMatch(item -> "calculator".equals(item.processName()));
+        assertFalse(containsCalculator, "Stale grace-active warning must be excluded from active warnings API");
+    }
+
+    @Test
+    @DisplayName("38. Quarantine audit reason contains WARNING_EXPIRED or GRACE_EXPIRED when applicable")
+    void testQuarantineRecord_IncludesLifecycleAuditTrail() {
+        // A) Process with expired warning
+        IssueWarningRequest req1 = new IssueWarningRequest(activeSessionUser1.getId(), "zoom", null);
+        SentinelWarningResponse w1 = warningService.issueWarning(user1.getId(), req1);
+        SentinelEnforcementWarning warning1 = warningRepository.findByWarningId(w1.warningId()).orElseThrow();
+        warning1.setStatus(SentinelWarningStatus.EXPIRED);
+        warningRepository.save(warning1);
+
+        SentinelQuarantineItem qItem1 = sentinelService.recordExternalQuarantine(user1.getId(), new RecordQuarantineRequest(
+                1111L,
+                "zoom",
+                null,
+                "TERMINATED",
+                "STRICT",
+                "Forced exit confirmed"
+        ));
+        assertTrue(qItem1.reason().contains("WARNING_EXPIRED"), "Reason should include [WARNING_EXPIRED]: " + qItem1.reason());
+
+        // B) Process with expired grace
+        IssueWarningRequest req2 = new IssueWarningRequest(activeSessionUser1.getId(), "spotify", null);
+        SentinelWarningResponse w2 = warningService.issueWarning(user1.getId(), req2);
+        warningService.respondToWarning(user1.getId(), w2.warningId(), new RespondWarningRequest("GRANT_GRACE", 5));
+        SentinelGraceWindow grace2 = graceWindowRepository.findByWarningId(w2.warningId()).orElseThrow();
+        grace2.setExpiresAt(Instant.now().minus(Duration.ofSeconds(5)));
+        graceWindowRepository.save(grace2);
+
+        SentinelQuarantineItem qItem2 = sentinelService.recordExternalQuarantine(user1.getId(), new RecordQuarantineRequest(
+                2222L,
+                "spotify",
+                null,
+                "TERMINATED",
+                "STRICT",
+                "Forced exit confirmed"
+        ));
+        assertTrue(qItem2.reason().contains("GRACE_EXPIRED"), "Reason should include [GRACE_EXPIRED]: " + qItem2.reason());
     }
 }

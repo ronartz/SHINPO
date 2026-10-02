@@ -33,6 +33,12 @@ public interface SentinelGraceWindowRepository extends JpaRepository<SentinelGra
             Collection<SentinelGraceStatus> statuses
     );
 
+    Optional<SentinelGraceWindow> findByFocusSession_IdAndProcessNameAndStatusIn(
+            Long focusSessionId,
+            String processName,
+            Collection<SentinelGraceStatus> statuses
+    );
+
     List<SentinelGraceWindow> findAllByUser_IdAndFocusSession_IdAndStatus(
             Long userId,
             Long focusSessionId,

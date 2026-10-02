@@ -344,6 +344,12 @@ public class SentinelEnforcementService {
 
             if (shouldRecord) {
                 debounceMap.put(debounceKey, now);
+                if (activeSession != null) {
+                    String lifecycleAudit = warningService.handleQuarantineRecorded(activeSession.getId(), name);
+                    if (lifecycleAudit != null && !reason.contains(lifecycleAudit)) {
+                        reason = reason + " [" + lifecycleAudit + "]";
+                    }
+                }
                 SentinelQuarantineRecord record = new SentinelQuarantineRecord(
                         user,
                         activeSession,
@@ -585,6 +591,17 @@ public class SentinelEnforcementService {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 
+        String reason = request.reason() != null && !request.reason().isBlank()
+                ? request.reason()
+                : "Enforced by native Rust shield daemon";
+
+        if (activeSession != null && request.processName() != null) {
+            String lifecycleAudit = warningService.handleQuarantineRecorded(activeSession.getId(), request.processName());
+            if (lifecycleAudit != null && !reason.contains(lifecycleAudit)) {
+                reason = reason + " [" + lifecycleAudit + "]";
+            }
+        }
+
         String mode = request.enforcementMode() != null && !request.enforcementMode().isBlank()
                 ? request.enforcementMode()
                 : getEnforcementMode(userId);
@@ -597,9 +614,7 @@ public class SentinelEnforcementService {
                 request.commandLine(),
                 request.policyAction(),
                 mode,
-                request.reason() != null && !request.reason().isBlank()
-                        ? request.reason()
-                        : "Enforced by native Rust shield daemon"
+                reason
         );
 
         SentinelQuarantineRecord saved = quarantineRepository.save(record);
@@ -636,6 +651,17 @@ public class SentinelEnforcementService {
                     ? item.enforcementMode()
                     : defaultMode;
 
+            String reason = item.reason() != null && !item.reason().isBlank()
+                    ? item.reason()
+                    : "Enforced by native Rust shield daemon (offline batch sync)";
+
+            if (activeSession != null) {
+                String lifecycleAudit = warningService.handleQuarantineRecorded(activeSession.getId(), item.processName());
+                if (lifecycleAudit != null && !reason.contains(lifecycleAudit)) {
+                    reason = reason + " [" + lifecycleAudit + "]";
+                }
+            }
+
             SentinelQuarantineRecord record = new SentinelQuarantineRecord(
                     user,
                     activeSession,
@@ -644,9 +670,7 @@ public class SentinelEnforcementService {
                     item.commandLine(),
                     item.policyAction() != null ? item.policyAction() : "TERMINATED",
                     mode,
-                    item.reason() != null && !item.reason().isBlank()
-                            ? item.reason()
-                            : "Enforced by native Rust shield daemon (offline batch sync)"
+                    reason
             );
             toSave.add(record);
         }
