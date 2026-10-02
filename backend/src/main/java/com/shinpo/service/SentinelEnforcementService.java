@@ -29,6 +29,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -297,17 +300,19 @@ public class SentinelEnforcementService {
                 }
             } else {
                 try {
-                    if ("STRICT".equals(mode) && activeSession != null) {
-                        boolean terminated = handle.destroy();
-                        if (!terminated) {
-                            terminated = handle.destroyForcibly();
+                    if (activeSession != null) {
+                        actionTaken = enforceProcess(handle, mode);
+                        if ("TERMINATED".equals(actionTaken)) {
+                            reason = "Autonomous sprint enforcement: process exit confirmed after forced termination";
+                        } else if ("TERMINATE_ATTEMPTED".equals(actionTaken)) {
+                            reason = "Autonomous sprint enforcement: process remained alive after forced termination request";
+                        } else if ("CONTAINED".equals(actionTaken)) {
+                            reason = "Autonomous sprint containment: process exit confirmed";
+                        } else if ("CONTAINMENT_FAILED".equals(actionTaken)) {
+                            reason = "Autonomous sprint containment: process remained alive after termination escalation";
+                        } else {
+                            reason = "Sentinel audit: distraction detected during focus window";
                         }
-                        actionTaken = terminated ? "TERMINATED" : "TERMINATE_ATTEMPTED";
-                        reason = "Autonomous sprint enforcement: process terminated forcibly";
-                    } else if ("CONTAINMENT".equals(mode) && activeSession != null) {
-                        boolean destroyed = handle.destroy();
-                        actionTaken = destroyed ? "CONTAINED" : "CONTAINMENT_FAILED";
-                        reason = "Autonomous sprint containment: process quarantined";
                     } else {
                         actionTaken = "WARNED";
                         reason = "Sentinel audit: distraction detected during focus window";
@@ -361,6 +366,48 @@ public class SentinelEnforcementService {
                 msg,
                 now
         );
+    }
+
+    static String enforceProcess(ProcessHandle handle, String mode) {
+        if ("STRICT".equals(mode)) {
+            return requestTerminationAndVerify(handle, true);
+        }
+        if ("CONTAINMENT".equals(mode)) {
+            String gracefulResult = requestTerminationAndVerify(handle, false);
+            if ("CONTAINED".equals(gracefulResult)) {
+                return gracefulResult;
+            }
+
+            String forcedResult = requestTerminationAndVerify(handle, true);
+            return "TERMINATED".equals(forcedResult) ? "CONTAINED" : "CONTAINMENT_FAILED";
+        }
+        return "WARNED";
+    }
+
+    static String requestTerminationAndVerify(ProcessHandle handle, boolean force) {
+        if (force) {
+            handle.destroyForcibly();
+        } else {
+            handle.destroy();
+        }
+
+        boolean exited;
+        try {
+            handle.onExit().get(100, TimeUnit.MILLISECONDS);
+            exited = true;
+        } catch (TimeoutException e) {
+            exited = !handle.isAlive();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            exited = !handle.isAlive();
+        } catch (ExecutionException e) {
+            exited = !handle.isAlive();
+        }
+
+        if (force) {
+            return exited ? "TERMINATED" : "TERMINATE_ATTEMPTED";
+        }
+        return exited ? "CONTAINED" : "CONTAINMENT_FAILED";
     }
 
     @Transactional(readOnly = true)
