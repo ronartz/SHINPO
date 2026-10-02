@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use sysinfo::{ProcessesToUpdate, System};
+use sysinfo::{Pid, ProcessesToUpdate, System};
 
 use crate::client::{RecordQuarantineRequest, SentinelDaemonSyncResponse};
 use crate::platform::{create_platform_interceptor, PlatformInterceptor};
@@ -95,20 +95,28 @@ impl ShieldEnforcer {
 
         let mode = Self::effective_enforcement_mode(sync_state, dry_run);
 
+        let process_snapshot: Vec<(Pid, String, String)> = self.sys.processes()
+            .iter()
+            .map(|(pid, process)| {
+                let process_name = process.name().to_string_lossy().to_string();
+                let raw_cmd = process.cmd()
+                    .iter()
+                    .map(|part| part.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                (*pid, process_name, raw_cmd)
+            })
+            .collect();
+
         let mut intercepted = Vec::new();
 
-        for (pid_obj, process) in self.sys.processes() {
+        for (pid_obj, process_name, raw_cmd) in process_snapshot {
             let pid = pid_obj.as_u32();
             if pid == my_pid || pid <= 1 {
                 continue;
             }
 
-            let proc_name = process.name().to_string_lossy().to_lowercase();
-            let raw_cmd = process.cmd()
-                .iter()
-                .map(|s| s.to_string_lossy().to_string())
-                .collect::<Vec<_>>()
-                .join(" ");
+            let proc_name = process_name.to_lowercase();
 
             if !Self::is_distraction_process(&proc_name, &raw_cmd, &active_blacklist, &allowed, &protected) {
                 continue;
@@ -122,48 +130,60 @@ impl ShieldEnforcer {
             }
             self.debounce_map.insert(pid, now);
 
-            // 5. Enforce according to mode
+            let expected_name = process_name.clone();
+            let interceptor = self.interceptor.as_ref();
+            let system = &mut self.sys;
+            let mut request_and_verify = |force: bool| {
+                if interceptor.terminate_process(pid, force).is_err() {
+                    if let Some(process) = system.process(pid_obj) {
+                        let _ = process.kill();
+                    }
+                }
+
+                verify_target_exit(|| {
+                    system.refresh_processes(ProcessesToUpdate::All, true);
+                    system.process(pid_obj).is_some_and(|process| {
+                        same_process_name(&expected_name, &process.name().to_string_lossy())
+                    })
+                })
+            };
+
             let os_name = self.interceptor.os_name();
-            let (action, reason) = if dry_run || mode == "AUDIT_ONLY" {
-                (
-                    "WARNED".to_string(),
-                    format!("Native Shield ({}) audit: distraction active during focus sprint (dry-run)", os_name),
-                )
-            } else if mode == "CONTAINMENT" {
-                // Graceful containment
-                let killed = self.interceptor.terminate_process(pid, false).is_ok() || process.kill();
-                if killed {
-                    (
-                        "CONTAINED".to_string(),
-                        format!("Native Shield ({}): process gracefully stopped", os_name),
-                    )
-                } else {
-                    (
-                        "PERMISSION_DENIED".to_string(),
-                        format!("Native Shield ({}): insufficient privileges to terminate target process", os_name),
-                    )
-                }
-            } else {
-                // STRICT MODE: forced kill
-                let killed = self.interceptor.terminate_process(pid, true).is_ok() || process.kill();
-                if killed {
-                    (
-                        "TERMINATED".to_string(),
-                        format!("Native Shield ({}): zero-tolerance distraction forcibly terminated", os_name),
-                    )
-                } else {
-                    (
-                        "PERMISSION_DENIED".to_string(),
-                        format!("Native Shield ({}): process termination denied by OS security policy", os_name),
-                    )
-                }
+            let (action, confirmed, escalated) =
+                Self::enforcement_outcome(mode, &mut request_and_verify);
+            let reason = match action {
+                "WARNED" => format!(
+                    "Native Shield ({}) audit: distraction active during focus sprint (dry-run)",
+                    os_name
+                ),
+                "TERMINATED" => format!(
+                    "Native Shield ({}): forced termination exit confirmed",
+                    os_name
+                ),
+                "CONTAINED" if escalated => format!(
+                    "Native Shield ({}): process exit confirmed after forced escalation",
+                    os_name
+                ),
+                "CONTAINED" => format!(
+                    "Native Shield ({}): process exit confirmed after graceful stop",
+                    os_name
+                ),
+                _ if !confirmed && mode == "CONTAINMENT" => format!(
+                    "Native Shield ({}): process remained alive after graceful and forced termination requests",
+                    os_name
+                ),
+                _ if !confirmed => format!(
+                    "Native Shield ({}): process remained alive after forced termination request",
+                    os_name
+                ),
+                _ => format!("Native Shield ({}): permission denied", os_name),
             };
 
             intercepted.push(InterceptedProcess {
                 pid,
-                name: process.name().to_string_lossy().to_string(),
+                name: process_name,
                 cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
-                policy_action: action,
+                policy_action: action.to_string(),
                 enforcement_mode: mode.to_string(),
                 reason,
             });
@@ -185,6 +205,26 @@ impl ShieldEnforcer {
             "AUDIT_ONLY"
         } else {
             sync_state.enforcement_mode.as_str()
+        }
+    }
+
+    fn enforcement_outcome<F>(mode: &str, mut request_and_verify: F) -> (&'static str, bool, bool)
+    where
+        F: FnMut(bool) -> bool,
+    {
+        if mode == "AUDIT_ONLY" {
+            ("WARNED", false, false)
+        } else if mode == "CONTAINMENT" {
+            if request_and_verify(false) {
+                ("CONTAINED", true, false)
+            } else if request_and_verify(true) {
+                ("CONTAINED", true, true)
+            } else {
+                ("CONTAINMENT_FAILED", false, true)
+            }
+        } else {
+            let confirmed = request_and_verify(true);
+            (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, false)
         }
     }
 
@@ -257,6 +297,28 @@ impl ShieldEnforcer {
             reason: item.reason.clone(),
         }
     }
+}
+
+fn verify_target_exit<F>(mut target_is_running: F) -> bool
+where
+    F: FnMut() -> bool,
+{
+    if !target_is_running() {
+        return true;
+    }
+
+    for delay in [50, 50] {
+        std::thread::sleep(Duration::from_millis(delay));
+        if !target_is_running() {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn same_process_name(expected: &str, observed: &str) -> bool {
+    expected.eq_ignore_ascii_case(observed)
 }
 
 pub fn send_desktop_notification(title: &str, message: &str) {
@@ -347,6 +409,108 @@ mod tests {
         };
 
         assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "STRICT");
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            assert!(force);
+            true
+        });
+        assert_eq!(action, "TERMINATED");
+        assert!(confirmed);
+        assert!(!escalated);
+    }
+
+    #[test]
+    fn test_audit_only_warns_without_requesting_or_verifying_termination() {
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", |_| panic!("must not enforce"));
+
+        assert_eq!(action, "WARNED");
+        assert!(!confirmed);
+        assert!(!escalated);
+    }
+
+    #[test]
+    fn test_successful_force_request_is_reported_only_after_exit_confirmation() {
+        let request_accepted = true;
+        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            assert!(force);
+            assert!(request_accepted);
+            verify_target_exit(|| false)
+        });
+
+        assert_eq!(action, "TERMINATED");
+        assert!(confirmed);
+    }
+
+    #[test]
+    fn test_successful_force_request_with_live_process_is_not_confirmed() {
+        let request_accepted = true;
+        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            assert!(force);
+            assert!(request_accepted);
+            verify_target_exit(|| true)
+        });
+
+        assert_eq!(action, "TERMINATE_ATTEMPTED");
+        assert!(!confirmed);
+    }
+
+    #[test]
+    fn test_containment_stops_after_verified_graceful_exit() {
+        let mut requests = Vec::new();
+        let mut results = [true].into_iter();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
+            requests.push(force);
+            results.next().unwrap()
+        });
+
+        assert_eq!(requests, vec![false]);
+        assert_eq!(action, "CONTAINED");
+        assert!(confirmed);
+        assert!(!escalated);
+    }
+
+    #[test]
+    fn test_containment_escalates_and_confirms_forced_exit() {
+        let mut requested_forces = Vec::new();
+        let mut verification_results = [false, true].into_iter();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
+            requested_forces.push(force);
+            verification_results.next().unwrap()
+        });
+
+        assert_eq!(requested_forces, vec![false, true]);
+        assert_eq!(action, "CONTAINED");
+        assert!(confirmed);
+        assert!(escalated);
+    }
+
+    #[test]
+    fn test_containment_still_alive_after_escalation_is_not_confirmed() {
+        let mut requested_forces = Vec::new();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
+            requested_forces.push(force);
+            false
+        });
+
+        assert_eq!(requested_forces, vec![false, true]);
+        assert_eq!(action, "CONTAINMENT_FAILED");
+        assert!(!confirmed);
+        assert!(escalated);
+    }
+
+    #[test]
+    fn test_process_gone_before_verification_is_confirmed() {
+        assert!(verify_target_exit(|| false));
+    }
+
+    #[test]
+    fn test_pid_reused_for_different_process_name_counts_as_original_gone() {
+        let expected_process_name = "discord";
+        let process_now_at_pid = "editor";
+
+        assert!(verify_target_exit(|| {
+            same_process_name(expected_process_name, process_now_at_pid)
+        }));
     }
 
     #[test]
