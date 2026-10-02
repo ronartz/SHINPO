@@ -322,7 +322,7 @@ public class SentinelEnforcementTests {
     }
 
     @Test
-    @DisplayName("Native Shield: daemon sync state returns active sprint, dynamic rules, and protected system set")
+    @DisplayName("Native Shield: neutral media defaults stay user-blockable in daemon sync")
     void testDaemonSyncState() {
         FocusSession session = new FocusSession();
         session.setUser(testUser);
@@ -333,7 +333,13 @@ public class SentinelEnforcementTests {
         session.setDurationMinutes(45);
         session = sessionRepository.save(session);
 
+        SentinelDaemonSyncResponse defaultsOnly = sentinelService.getDaemonSyncState(testUser.getId());
+        assertFalse(defaultsOnly.blockedPatterns().contains("spotify"));
+        assertFalse(defaultsOnly.blockedPatterns().contains("vlc"));
+
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("steam", "BLOCKED"));
+        sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("spotify", "BLOCKED"));
+        sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("vlc", "BLOCKED"));
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("slack", "ALLOWED"));
 
         SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(testUser.getId());
@@ -346,6 +352,8 @@ public class SentinelEnforcementTests {
         assertEquals(45, sync.durationMinutes());
         assertTrue(sync.blockedPatterns().contains("steam"));
         assertTrue(sync.blockedPatterns().contains("discord")); // Default
+        assertTrue(sync.blockedPatterns().contains("spotify")); // Explicit user BLOCKED rule
+        assertTrue(sync.blockedPatterns().contains("vlc")); // Explicit user BLOCKED rule
         assertTrue(sync.allowedPatterns().contains("slack"));
         assertTrue(sync.protectedProcesses().contains("systemd"));
         assertTrue(sync.protectedProcesses().contains("shinpo"));

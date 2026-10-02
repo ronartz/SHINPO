@@ -40,9 +40,7 @@ fn default_blacklist() -> Vec<String> {
     vec![
         "discord".to_string(),
         "steam".to_string(),
-        "spotify".to_string(),
         "telegram-desktop".to_string(),
-        "vlc".to_string(),
         "obs".to_string(),
         "epicgameslauncher".to_string(),
         "riotclientux".to_string(),

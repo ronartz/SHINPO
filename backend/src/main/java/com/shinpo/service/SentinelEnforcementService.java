@@ -43,7 +43,7 @@ public class SentinelEnforcementService {
     );
 
     public static final Set<String> DEFAULT_DISTRACTIONS = Set.of(
-            "discord", "steam", "spotify", "telegram-desktop", "vlc", "obs",
+            "discord", "steam", "telegram-desktop", "obs",
             "game", "lutris", "heroic", "battlenet", "riotclientservices", "epicgameslauncher",
             "tiktok", "netflix", "youtube"
     );

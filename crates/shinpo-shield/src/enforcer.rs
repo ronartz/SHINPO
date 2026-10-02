@@ -278,6 +278,24 @@ mod tests {
     }
 
     #[test]
+    fn test_spotify_and_vlc_are_not_distractions_by_default() {
+        let enforcer = ShieldEnforcer::new();
+        let config = crate::config::ShieldConfig::default();
+        let allowed = HashSet::new();
+
+        for process_name in ["spotify", "vlc"] {
+            assert!(!config.fallback_blacklist.contains(&process_name.to_string()));
+            assert!(!ShieldEnforcer::is_distraction_process(
+                process_name,
+                &format!("/usr/bin/{process_name}"),
+                &config.fallback_blacklist,
+                &allowed,
+                &enforcer.protected_system_names
+            ));
+        }
+    }
+
+    #[test]
     fn test_short_pattern_false_positive_immunity() {
         let enforcer = ShieldEnforcer::new();
         let blacklist = vec!["obs".to_string(), "vlc".to_string()];
