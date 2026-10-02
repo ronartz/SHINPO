@@ -1,12 +1,12 @@
-# SHINPO (進歩) — System Architecture Documentation
+# SHINPO Architecture Diagram Archive
 
-This directory contains the authoritative, source-backed architecture and security documentation for **SHINPO** (Personal Strategic Execution Operating System). All architectural representations, component boundaries, data flows, and security profiles are derived directly from the code, dependencies, database migrations, and runtime configurations in this repository.
+> **STATUS: GENERATED REFERENCE / NOT AUTHORITATIVE.** These visualizations and the descriptions below are preserved for orientation. They contain stale or unsupported claims about process termination, AI tool permissions, token lifetime, platform behavior, and verification. Read [SHINPO_ARCHITECTURE.md](../../SHINPO_ARCHITECTURE.md) and [SHINPO_IMPLEMENTATION_STATUS.md](../../SHINPO_IMPLEMENTATION_STATUS.md) for current source-backed truth. The supplied product screenshots/video were not available for visual verification in this audit.
 
 ---
 
-## Interactive Architecture Visualizations (Archify)
+## Generated Architecture Visualizations (Archify)
 
-The following interactive visualizations have been compiled and validated using the Archify engine (`v3.0.1`). Each diagram includes interactive node inspection, real-browser tested geometry, dark/light theme support, and inline repository source evidence:
+The following artifacts were generated using Archify. Their browser-check metadata does not provide screenshots in this workspace; visual validation and current code alignment are unknown:
 
 1. **[System Architecture Overview](file:///home/eonx/Projects/SHINPO/docs/architecture/system-architecture.html)** (`system-architecture.html`)
    - Primary end-to-end component topology: Browser SPA, Security Gateway, Spring Boot API, PostgreSQL 17, EONPAI AI Gateway, Ollama LLM, Native OS Shield Daemon, and Linux Process Management.

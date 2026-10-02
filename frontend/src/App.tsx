@@ -40,6 +40,8 @@ import {
   completeMission,
   createGoal,
   createMission,
+  deleteAllGoals,
+  deleteAllMissions,
   deleteGoal,
   deleteMission,
   getGoals,
@@ -1505,6 +1507,25 @@ export function App() {
     }
   }
 
+  const handleDeleteAllGoals = async () => {
+    if (goals.length === 0) return
+    const totalMissions = missions.filter((mission) => goals.some((goal) => goal.id === mission.goalId)).length
+    const confirmed = window.confirm(
+      `Delete all ${goals.length} goal(s) and ${totalMissions} linked mission(s)?\n\nThis action is irreversible and only affects your current account.`,
+    )
+    if (!confirmed) return
+
+    try {
+      await deleteAllGoals()
+      setGoals([])
+      setMissions((prev) => prev.filter((mission) => !goals.some((goal) => goal.id === mission.goalId)))
+      await loadData()
+    } catch (err) {
+      console.error('Failed to delete all goals:', err)
+      alert('Could not delete all goals. Please check server logs.')
+    }
+  }
+
   const handleDeleteMission = async (missionId: number, missionTitle: string) => {
     if (deletingMissionId === missionId) return
     if (!window.confirm(`Delete task "${missionTitle}"?\n\nThis will remove it from your tactical execution queue.`)) {
@@ -1537,6 +1558,23 @@ export function App() {
     }
   }
 
+
+  const handleDeleteMissionBulk = async () => {
+    if (missions.length === 0) return
+    const confirmed = window.confirm(
+      `Clear all ${missions.length} mission(s)?\n\nThis removes every mission in your current account scope and keeps your goals intact. This action is irreversible.`,
+    )
+    if (!confirmed) return
+
+    try {
+      await deleteAllMissions()
+      setMissions([])
+      await loadData()
+    } catch (err) {
+      console.error('Failed to clear all missions:', err)
+      alert('Could not clear all missions. Please check server logs.')
+    }
+  }
 
   const handleDeleteSession = async (sessionId: number) => {
     if (!window.confirm(`Delete focus session #${sessionId}?`)) {
@@ -4258,6 +4296,25 @@ export function App() {
             )}
 
             {/* Goals Cards Grid */}
+            <div className="deck-section-header" style={{ marginBottom: 12 }}>
+              <div className="deck-section-title">
+                <Icon name="target" size={18} />
+                <span>Goals</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="btn-timer primary" onClick={() => setIsCreatingGoal(true)}>
+                  <Icon name="plus" size={14} />
+                  <span>New Goal</span>
+                </button>
+                {goals.length > 0 && (
+                  <button className="btn-timer danger" onClick={handleDeleteAllGoals}>
+                    <Icon name="trash" size={13} />
+                    <span>Delete All Goals</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="goals-grid">
               {goals.length === 0 ? (
                 <div
@@ -4344,7 +4401,7 @@ export function App() {
                         >
                           <Icon name="sparkle" size={13} />
                           <span>
-                            {decomposingGoalId === g.id ? 'Deconstructing...' : 'Eonpai Deconstruct'}
+                            {decomposingGoalId === g.id ? 'Planning Objective...' : 'Plan Objective'}
                           </span>
                         </button>
                       </div>
@@ -4360,7 +4417,7 @@ export function App() {
                 <Icon name="target" size={18} />
                 <span>Missions</span>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                   className="btn-timer secondary"
                   style={{ padding: '6px 12px', fontSize: 13 }}
@@ -4378,6 +4435,17 @@ export function App() {
                   <Icon name="plus" size={13} />
                   <span>New Mission</span>
                 </button>
+                {missions.length > 0 && (
+                  <button
+                    className="btn-timer danger"
+                    style={{ padding: '6px 12px', fontSize: 13 }}
+                    onClick={handleDeleteMissionBulk}
+                    title="Clear all missions for your current account scope"
+                  >
+                    <Icon name="trash" size={13} />
+                    <span>Clear All Missions</span>
+                  </button>
+                )}
                 <div style={{ display: 'flex', gap: 6 }}>
                   {(['ALL', 'PENDING', 'COMPLETED'] as const).map((filter) => (
                     <button
@@ -6160,7 +6228,15 @@ export function App() {
                 {liveAlerts.length > 0 && (
                   <button
                     className="telemetry-clear-btn"
-                    onClick={() => setLiveAlerts([])}
+                    onClick={() => {
+                      if (liveAlerts.length === 0) return
+                      const confirmed = window.confirm(
+                        `Clear ${liveAlerts.length} telemetry event(s)?\n\nThis removes the current user's local notification history from this view. This action is irreversible.`,
+                      )
+                      if (confirmed) {
+                        setLiveAlerts([])
+                      }
+                    }}
                   >
                     Clear History
                   </button>

@@ -69,4 +69,10 @@ public class MissionController {
     ) {
         missionService.deleteMission(id, principal.getUserId());
     }
+
+    @DeleteMapping("/all")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAllMissions(@AuthenticationPrincipal UserPrincipal principal) {
+        missionService.deleteAllMissionsForUser(principal.getUserId());
+    }
 }

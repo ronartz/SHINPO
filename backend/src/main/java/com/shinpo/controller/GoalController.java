@@ -69,4 +69,10 @@ public class GoalController {
     ) {
         goalService.deleteGoal(id, principal.getUserId());
     }
+
+    @DeleteMapping("/all")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAllGoals(@AuthenticationPrincipal UserPrincipal principal) {
+        goalService.deleteAllGoalsForUser(principal.getUserId());
+    }
 }

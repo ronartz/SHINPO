@@ -5,7 +5,9 @@ import com.shinpo.dto.GoalResponse;
 import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.User;
+import com.shinpo.entity.Mission;
 import com.shinpo.repository.GoalRepository;
+import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,16 @@ import java.util.List;
 public class GoalService {
 
     private final GoalRepository goalRepository;
+    private final MissionRepository missionRepository;
     private final UserRepository userRepository;
 
     public GoalService(
             GoalRepository goalRepository,
+            MissionRepository missionRepository,
             UserRepository userRepository
     ) {
         this.goalRepository = goalRepository;
+        this.missionRepository = missionRepository;
         this.userRepository = userRepository;
     }
 
@@ -93,7 +98,30 @@ public class GoalService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id);
         }
 
+        List<Mission> relatedMissions = missionRepository.findAllByGoal_User_Id(userId)
+                .stream()
+                .filter(mission -> mission.getGoal().getId().equals(id))
+                .toList();
+
+        if (!relatedMissions.isEmpty()) {
+            missionRepository.deleteAll(relatedMissions);
+        }
+
         goalRepository.delete(goal);
+    }
+
+    public void deleteAllGoalsForUser(Long userId) {
+        List<Goal> goals = goalRepository.findAllByUser_Id(userId);
+        if (goals.isEmpty()) {
+            return;
+        }
+
+        List<Mission> missions = missionRepository.findAllByGoal_User_Id(userId);
+        if (!missions.isEmpty()) {
+            missionRepository.deleteAll(missions);
+        }
+
+        goalRepository.deleteAll(goals);
     }
 
     private GoalResponse toResponse(Goal goal) {
