@@ -84,6 +84,9 @@ import type {
   FocusSessionEvent,
 } from './api/websocket'
 
+import { getInitialShinpoMessage, getNextShinpoMessage } from './utils/shinpoMessages'
+import type { ShinpoMessage } from './utils/shinpoMessages'
+
 import './App.css'
 
 export interface LiveAlertItem {
@@ -488,6 +491,11 @@ export function App() {
   const [isAlertsDrawerOpen, setIsAlertsDrawerOpen] = useState(false)
   const [isWsConnected, setIsWsConnected] = useState(false)
   const [unreadAlertCount, setUnreadAlertCount] = useState(0)
+  const [shinpoMessage, setShinpoMessage] = useState<ShinpoMessage>(() => getInitialShinpoMessage())
+
+  const handleRefreshShinpoMessage = useCallback(() => {
+    setShinpoMessage((prev) => getNextShinpoMessage(prev.id))
+  }, [])
 
   // Cursor glow tracker
   const [mousePos, setMousePos] = useState({ x: -500, y: -500 })
@@ -2232,46 +2240,23 @@ export function App() {
         </nav>
 
         {sidebarExpanded && (
-          <>
-            {/* EONPAI Tactical Companion Card */}
-            <div className="sidebar-eonpai-companion">
-              <div className="eonpai-comp-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="eonpai-comp-name">EONPAI</span>
-                  <span className="eonpai-online-dot" />
-                </div>
-                <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600 }}>TACTICAL</span>
-              </div>
-              <div className="eonpai-bubble-row">
-                <div className="eonpai-speech-bubble bubble-short">
-                  <span>Ready to focus</span>
-                </div>
-                <span className="bubble-time-ext">12.49</span>
-              </div>
-              <div className="eonpai-bubble-row" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div className="eonpai-speech-bubble bubble-wide">
-                  <span>
-                    {missions.length > 0
-                      ? `Today we will move on to "${missions[0].title.slice(0, 24)}..."`
-                      : "Today we will establish your primary execution objectives."}
-                  </span>
-                </div>
-                <span className="bubble-time-ext" style={{ alignSelf: 'flex-end', marginTop: 2 }}>12.50</span>
-              </div>
+          <div className="sidebar-quote-card" role="region" aria-label="SHINPO Dynamic Message">
+            <div className="sidebar-quote-top">
+              <span className="sidebar-quote-tag">SHINPO</span>
               <button
-                className="eonpai-comp-action-btn"
-                onClick={() => {
-                  if (missions.length > 0 && !activeSession) {
-                    handleArmMissionAsSession(missions[0].title, missions[0].estimatedMinutes || 25)
-                  } else {
-                    setActiveTab('AI Assistant')
-                  }
-                }}
+                type="button"
+                className="sidebar-quote-refresh-btn"
+                onClick={handleRefreshShinpoMessage}
+                title="Next message"
+                aria-label="Cycle dynamic message"
               >
-                {activeSession ? 'Inspect Sprint' : missions.length > 0 ? 'Ok EONPAI' : 'Ask EONPAI'}
+                <Icon name="refresh" size={12} />
               </button>
             </div>
-          </>
+            <p className="sidebar-quote-text">
+              "{shinpoMessage.text}"
+            </p>
+          </div>
         )}
 
         <div className="sidebar-footer">
