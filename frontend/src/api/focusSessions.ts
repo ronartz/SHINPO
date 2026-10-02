@@ -29,6 +29,7 @@ export type FocusSession = {
   accumulatedPausedSeconds: number
   activeSeconds: number
   remainingSeconds: number
+  serverTime: string
   endedAt: string | null
   createdAt: string
   updatedAt: string
@@ -45,7 +46,7 @@ export type CompleteFocusSessionPayload = {
 }
 
 export type CreateFocusSessionRequest = {
-  userId: number
+  userId?: number
   goalId?: number
   missionId?: number
   planId?: number
@@ -55,7 +56,7 @@ export type CreateFocusSessionRequest = {
   scheduledAt?: string
 }
 
-import { authHeaders } from './auth'
+import { authHeaders, getAuthenticatedUserId } from './auth'
 import { getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api/focus-sessions`
@@ -83,10 +84,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 export async function createFocusSession(
   request: CreateFocusSessionRequest,
 ): Promise<FocusSession> {
+  const effectiveUserId = request.userId ?? getAuthenticatedUserId() ?? undefined
+  const payload = effectiveUserId !== undefined ? { ...request, userId: effectiveUserId } : request
   const response = await fetch(API_BASE, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify(request),
+    body: JSON.stringify(payload),
   })
 
   return parseResponse<FocusSession>(response)

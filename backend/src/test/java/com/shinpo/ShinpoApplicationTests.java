@@ -164,6 +164,8 @@ class ShinpoApplicationTests {
         assertEquals("SCHEDULED", body.getStatus().name());
         assertEquals(0L, body.getAccumulatedPausedSeconds());
         assertEquals(3600L, body.getRemainingSeconds());
+        assertNotNull(body.getServerTime());
+        assertTrue(java.time.Duration.between(body.getServerTime(), java.time.Instant.now()).abs().toSeconds() <= 2L);
     }
 
     @Test

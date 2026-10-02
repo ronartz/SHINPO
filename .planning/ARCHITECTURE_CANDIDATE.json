@@ -2,37 +2,37 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "SHINPO Architecture & Remaining Tasks",
+    "title": "SHINPO Architecture & Remaining Roadmap",
     "output": "shinpo-architecture.html",
     "quality_profile": "showcase"
   },
   "components": [
-    { "id": "db", "type": "database", "label": "PostgreSQL 17", "sublabel": "State & Auth", "pos": [450, 100], "size": [160, 70], "tag": "DONE" },
+    { "id": "db", "type": "database", "label": "PostgreSQL 17", "sublabel": "V16 Migrations • State Authority", "pos": [450, 80], "size": [180, 70], "tag": "DONE" },
     
-    { "id": "ui", "type": "frontend", "label": "React 19 Cockpit", "sublabel": "Dark Glassmorphism", "pos": [100, 300], "size": [160, 70], "tag": "DONE" },
-    { "id": "backend", "type": "backend", "label": "Spring Boot 4.1", "sublabel": "API & Engine", "pos": [450, 300], "size": [160, 70], "tag": "DONE" },
+    { "id": "ui", "type": "frontend", "label": "React 19 Cockpit", "sublabel": "Dark Glassmorphism SPA", "pos": [80, 260], "size": [180, 70], "tag": "DONE" },
+    { "id": "backend", "type": "backend", "label": "Spring Boot 4.1", "sublabel": "Core Engine & Security", "pos": [450, 260], "size": [180, 70], "tag": "DONE" },
+    { "id": "taurishell", "type": "frontend", "label": "Tauri v2 Shell", "sublabel": "Native Window & Tray", "pos": [820, 260], "size": [180, 70], "tag": "PARTIAL" },
     
-    { "id": "eonpai", "type": "backend", "label": "EONPAI Gateway", "sublabel": "Contextual AI", "pos": [100, 550], "size": [160, 70], "tag": "DONE" },
-    { "id": "sentinel", "type": "security", "label": "Sentinel Service", "sublabel": "JVM quarantine", "pos": [450, 550], "size": [160, 70], "tag": "PARTIAL" },
-    { "id": "nativeshield", "type": "security", "label": "Native Shield", "sublabel": "Rust/C++ (Phase 4)", "pos": [800, 550], "size": [160, 70], "tag": "REMAINING" },
+    { "id": "eonpai", "type": "backend", "label": "EONPAI Gateway", "sublabel": "Contextual AI & Tools", "pos": [80, 480], "size": [180, 70], "tag": "DONE" },
+    { "id": "sentinel", "type": "security", "label": "Sentinel Warning Authority", "sublabel": "Grace Engine & Decisions", "pos": [450, 480], "size": [180, 70], "tag": "DONE" },
+    { "id": "nativeshield", "type": "security", "label": "Native Shield Daemon", "sublabel": "Rust 1.98 • shinpo-shield", "pos": [820, 480], "size": [180, 70], "tag": "DONE" },
     
-    { "id": "ollama", "type": "external", "label": "Ollama qwen3:4b", "sublabel": "Local LLM", "pos": [100, 800], "size": [160, 70], "tag": "EXTERNAL" },
-    { "id": "osapi", "type": "external", "label": "OS Process APIs", "sublabel": "Linux /proc", "pos": [450, 800], "size": [160, 70], "tag": "EXTERNAL" }
+    { "id": "warningui", "type": "frontend", "label": "Desktop Warning Modal", "sublabel": "Slice 3D-3 (Tauri + React)", "pos": [450, 700], "size": [180, 70], "tag": "REMAINING" },
+    { "id": "browserenforce", "type": "security", "label": "Browser / Domain Enforcer", "sublabel": "Slice 3E (Web Tab Filtering)", "pos": [820, 700], "size": [180, 70], "tag": "REMAINING" },
+    { "id": "ollama", "type": "external", "label": "Ollama qwen3:4b", "sublabel": "Local LLM Inference", "pos": [80, 700], "size": [180, 70], "tag": "EXTERNAL" }
   ],
   "boundaries": [
-    { "kind": "region", "label": "Host Machine Trust Boundary", "wraps": ["ui", "backend", "db", "eonpai", "sentinel", "nativeshield"] }
+    { "kind": "region", "label": "Workstation Host Trust Boundary", "wraps": ["ui", "backend", "db", "eonpai", "sentinel", "nativeshield", "taurishell", "warningui", "browserenforce"] }
   ],
   "connections": [
-    { "id": "sprint", "from": "ui", "to": "backend", "label": "1. Starts Focus Sprint", "variant": "emphasis" },
-    { "id": "audit", "from": "backend", "to": "db", "label": "2. Locks & Audits", "variant": "emphasis" },
-    { "id": "trigger", "from": "backend", "to": "sentinel", "label": "3. Triggers Enforcer", "variant": "emphasis" },
-    { "id": "sweep", "from": "sentinel", "to": "osapi", "label": "4. Sweeps/Kills Apps", "variant": "emphasis" },
-    
-    { "id": "chat", "from": "ui", "to": "eonpai", "label": "Queries / Tools" },
-    { "id": "ai-delegate", "from": "backend", "to": "eonpai", "label": "AI Context" },
-    { "id": "prompt", "from": "eonpai", "to": "ollama", "label": "Prompts" },
-    
-    { "id": "shield-future", "from": "sentinel", "to": "nativeshield", "label": "Phase 4 Delegation", "variant": "dashed" },
-    { "id": "shield-os", "from": "nativeshield", "to": "osapi", "label": "Secure Enforcement", "variant": "dashed" }
+    { "id": "sprint", "from": "ui", "to": "backend", "label": "Focus Sprint Lifecycle", "variant": "emphasis" },
+    { "id": "state-sync", "from": "backend", "to": "db", "label": "Locks, State & Audit", "variant": "emphasis" },
+    { "id": "daemon-sync", "from": "nativeshield", "to": "sentinel", "label": "Sync & Candidate Handshake", "variant": "emphasis" },
+    { "id": "warning-trigger", "from": "sentinel", "to": "warningui", "label": "STOMP Push Warning", "variant": "dashed" },
+    { "id": "warning-respond", "from": "warningui", "to": "sentinel", "label": "Grant Grace / Close Now", "variant": "dashed" },
+    { "id": "browser-block", "from": "browserenforce", "to": "nativeshield", "label": "URL Activity Reports", "variant": "dashed" },
+    { "id": "ai-flow", "from": "backend", "to": "eonpai", "label": "Context Assembly" },
+    { "id": "llm-prompt", "from": "eonpai", "to": "ollama", "label": "Inference Prompts" },
+    { "id": "desktop-embed", "from": "taurishell", "to": "ui", "label": "Webview Host" }
   ]
 }

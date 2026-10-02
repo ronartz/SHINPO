@@ -9,7 +9,7 @@ export type Goal = {
 }
 
 export type CreateGoalPayload = {
-  userId: number
+  userId?: number
   title: string
   description?: string
   startDate: string
@@ -58,7 +58,7 @@ export type MissionCompletionResponse = {
   totalUserXp: number
 }
 
-import { authHeaders } from './auth'
+import { authHeaders, getAuthenticatedUserId } from './auth'
 import { getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api`
@@ -87,10 +87,12 @@ export async function getGoals(): Promise<Goal[]> {
 }
 
 export async function createGoal(payload: CreateGoalPayload): Promise<Goal> {
+  const effectiveUserId = payload.userId ?? getAuthenticatedUserId() ?? undefined
+  const body = effectiveUserId !== undefined ? { ...payload, userId: effectiveUserId } : payload
   const res = await fetch(`${API_BASE}/goals`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
   return parseResponse<Goal>(res)
 }

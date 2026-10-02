@@ -28,6 +28,7 @@ public class FocusSessionResponse {
     private Long accumulatedPausedSeconds;
     private Long activeSeconds;
     private Long remainingSeconds;
+    private Instant serverTime;
     private Instant endedAt;
     private Instant createdAt;
     private Instant updatedAt;
@@ -55,6 +56,7 @@ public class FocusSessionResponse {
         response.accumulatedPausedSeconds = session.getAccumulatedPausedSeconds();
         response.activeSeconds = session.calculateActiveSeconds(now);
         response.remainingSeconds = session.calculateRemainingSeconds(now);
+        response.serverTime = now;
         response.endedAt = session.getEndedAt();
         response.createdAt = session.getCreatedAt();
         response.updatedAt = session.getUpdatedAt();
@@ -131,6 +133,10 @@ public class FocusSessionResponse {
 
     public Long getRemainingSeconds() {
         return remainingSeconds;
+    }
+
+    public Instant getServerTime() {
+        return serverTime;
     }
 
     public Instant getEndedAt() {

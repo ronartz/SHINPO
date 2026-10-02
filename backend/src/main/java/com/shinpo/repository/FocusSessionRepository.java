@@ -25,6 +25,9 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, Long
 
     boolean existsByUser_IdAndStatusIn(Long userId, Collection<FocusSessionStatus> statuses);
 
+    /** Efficient sweep query — only loads sessions in expirable statuses. */
+    List<FocusSession> findAllByStatusIn(Collection<FocusSessionStatus> statuses);
+
     @Query("""
         SELECT s FROM FocusSession s
         WHERE s.user.id = :userId

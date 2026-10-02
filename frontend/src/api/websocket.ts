@@ -1,5 +1,5 @@
 import { Client } from '@stomp/stompjs'
-import { getAuthToken } from './auth'
+import { getAuthToken, getAuthenticatedUserId } from './auth'
 import { getWsBaseUrl } from './config'
 
 export interface SentinelQuarantineEvent {
@@ -51,13 +51,19 @@ class ShinpoWebSocketClient {
   private currentUserId: number | null = null
   private isConnecting = false
 
-  public connect(userId: number) {
-    if (this.client && this.client.active && this.currentUserId === userId) {
+  public connect(userId?: number) {
+    const targetUserId = userId ?? getAuthenticatedUserId()
+    if (!targetUserId) {
+      console.warn('[STOMP] Cannot connect without authenticated user ID')
+      return
+    }
+
+    if (this.client && this.client.active && this.currentUserId === targetUserId) {
       return
     }
 
     this.disconnect()
-    this.currentUserId = userId
+    this.currentUserId = targetUserId
     this.isConnecting = true
 
     const token = getAuthToken() || ''
@@ -82,10 +88,10 @@ class ShinpoWebSocketClient {
     this.client.onConnect = () => {
       this.isConnecting = false
       this.notifyConnection(true)
-      console.log(`[STOMP] Connected to Shinpo Telemetry Broker for user #${userId}`)
+      console.log(`[STOMP] Connected to Shinpo Telemetry Broker for user #${targetUserId}`)
 
       // 1. Subscribe to Quarantine Events (User-specific + Broadcast)
-      this.client?.subscribe(`/topic/users/${userId}/sentinel/quarantine`, (message) => {
+      this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/quarantine`, (message) => {
         try {
           const payload: SentinelQuarantineEvent = JSON.parse(message.body)
           this.quarantineListeners.forEach((listener) => listener(payload))
@@ -95,7 +101,7 @@ class ShinpoWebSocketClient {
       })
 
       // 2. Subscribe to Sentinel Status Events
-      this.client?.subscribe(`/topic/users/${userId}/sentinel/status`, (message) => {
+      this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/status`, (message) => {
         try {
           const payload: SentinelStatusEvent = JSON.parse(message.body)
           this.statusListeners.forEach((listener) => listener(payload))
@@ -105,7 +111,7 @@ class ShinpoWebSocketClient {
       })
 
       // 3. Subscribe to Focus Session Events (Real-time sprint lockdown sync across tabs)
-      this.client?.subscribe(`/topic/users/${userId}/focus-session`, (message) => {
+      this.client?.subscribe(`/topic/users/${targetUserId}/focus-session`, (message) => {
         try {
           const payload: FocusSessionEvent = JSON.parse(message.body)
           this.focusSessionListeners.forEach((listener) => listener(payload))
@@ -168,6 +174,10 @@ class ShinpoWebSocketClient {
 
   public isConnected(): boolean {
     return !!this.client && this.client.connected
+  }
+
+  public getCurrentUserId(): number | null {
+    return this.currentUserId
   }
 
   public isConnectingToBroker(): boolean {
