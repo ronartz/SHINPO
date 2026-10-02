@@ -151,6 +151,25 @@ export async function deleteGoal(goalId: number): Promise<void> {
   }
 }
 
+export async function deleteAllGoals(): Promise<void> {
+  const res = await fetch(`${API_BASE}/goals/all`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) {
+    let msg = `Failed to delete all goals: ${res.status}`
+    try {
+      const body = await res.json()
+      if (body.message) msg = body.message
+    } catch {
+      // ignore JSON parse error, fallback to status
+    }
+    const error = new Error(msg) as Error & { status: number }
+    error.status = res.status
+    throw error
+  }
+}
+
 export async function updateMission(missionId: number, payload: UpdateMissionPayload): Promise<Mission> {
   const res = await fetch(`${API_BASE}/missions/${missionId}`, {
     method: 'PUT',
@@ -167,6 +186,25 @@ export async function deleteMission(missionId: number): Promise<void> {
   })
   if (!res.ok) {
     let msg = `Failed to delete mission: ${res.status}`
+    try {
+      const body = await res.json()
+      if (body.message) msg = body.message
+    } catch {
+      // ignore JSON parse error, fallback to status
+    }
+    const error = new Error(msg) as Error & { status: number }
+    error.status = res.status
+    throw error
+  }
+}
+
+export async function deleteAllMissions(): Promise<void> {
+  const res = await fetch(`${API_BASE}/missions/all`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) {
+    let msg = `Failed to clear all missions: ${res.status}`
     try {
       const body = await res.json()
       if (body.message) msg = body.message

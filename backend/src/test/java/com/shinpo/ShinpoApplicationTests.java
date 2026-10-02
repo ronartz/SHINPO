@@ -579,6 +579,33 @@ class ShinpoApplicationTests {
     }
 
     @Test
+    void shouldDeleteAllGoalsForCurrentUserAndTheirMissions() {
+        Goal firstGoal = goalRepository.save(new Goal("Goal A", "Desc", LocalDate.now(), null, testUser));
+        Goal secondGoal = goalRepository.save(new Goal("Goal B", "Desc", LocalDate.now(), null, testUser));
+        missionRepository.save(new Mission("Mission A", "Desc", LocalDate.now(), 25, firstGoal));
+        missionRepository.save(new Mission("Mission B", "Desc", LocalDate.now(), 25, secondGoal));
+
+        restTemplate.delete(baseUrl() + "/api/goals/all");
+
+        assertEquals(0, goalRepository.findAllByUser_Id(testUser.getId()).size());
+        assertEquals(0, missionRepository.findAllByGoal_User_Id(testUser.getId()).size());
+    }
+
+    @Test
+    void shouldDeleteAllMissionsForCurrentUserWithoutRemovingGoals() {
+        Goal goal = goalRepository.save(new Goal("Persist Goal", "Desc", LocalDate.now(), null, testUser));
+        missionRepository.save(new Mission("Mission 1", "Desc", LocalDate.now(), 25, goal));
+        missionRepository.save(new Mission("Mission 2", "Desc", LocalDate.now(), 25, goal));
+
+                int goalCountBeforeDelete = goalRepository.findAllByUser_Id(testUser.getId()).size();
+
+        restTemplate.delete(baseUrl() + "/api/missions/all");
+
+                assertEquals(goalCountBeforeDelete, goalRepository.findAllByUser_Id(testUser.getId()).size());
+        assertEquals(0, missionRepository.findAllByGoal_User_Id(testUser.getId()).size());
+    }
+
+    @Test
     void shouldDeleteMission() {
         Goal goal = goalRepository.save(new Goal("Test Goal For Mission", "Desc", LocalDate.now(), null, testUser));
         Mission mission = missionRepository.save(new Mission("Test Mission Deletion", "Desc", LocalDate.now(), 25, goal));

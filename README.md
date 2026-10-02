@@ -1,104 +1,84 @@
-# 進歩 (SHINPO) — Personal Execution Operating System
+# SHINPO
 
-SHINPO is a full-stack, local-first personal execution system linking high-level strategic goals to tactical daily missions, distraction-free focus sessions, and OS-level process enforcement.
+SHINPO is a cross-device personal execution operating system intended to connect long-term goals to daily execution. The current repository contains a useful but incomplete implementation. Product intent and target behavior are documented separately from verified implementation; do not infer feature completion from this summary.
 
----
+## Current architecture snapshot
 
-## Architecture Overview
+- Backend: Spring Boot + PostgreSQL + Spring Security + Flyway
+- Frontend: React + TypeScript + Vite
+- Desktop: Tauri shell with native Rust enforcement thread
+- Local enforcement: Rust shield crate that inspects active processes and reports back to the backend
+- Realtime: STOMP/WebSocket telemetry
+- AI: provider abstraction, context assembly, suggestions, and fallback behavior
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   SHINPO CLOUD / SERVER                │
-│  Spring Boot (Java 25) + PostgreSQL 17 + STOMP Broker  │
-│  • Goals & Tactical Missions Lifecycle Management     │
-│  • Focus Session State Machine & Interruption Tracking │
-│  • EONPAI AI Engine (Ollama Local / Cloud Fallback)    │
-│  • Sentinel Policy Gates & Quarantine Audit Database   │
-└───────────────────────────┬────────────────────────────┘
-                            │ HTTPS / WSS
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               SHINPO DESKTOP CLIENT                    │
-│  • React 19 + TypeScript Bento Cockpit UI              │
-│  • Native Rust Shield Daemon (Zero Overhead)           │
-│  • OS Distraction Quarantine & Offline Telemetry Spool │
-└────────────────────────────────────────────────────────┘
-```
+## Implementation Snapshot
 
----
+The repository includes goal/mission CRUD, a focus-session API lifecycle, schedule surfaces, AI/provider and suggestion paths, STOMP/WebSocket events, process-control code, a Rust telemetry spool, and Tauri v2 command wiring. These are bounded code paths, not evidence that the complete product requirements are finished or safe for release. In particular, contextual/browser enforcement, process safety, current-time/timezone correctness, Analytics truth, polished warning/grace UX, and device/platform certification remain gaps.
 
-## Core Capabilities
+For detailed source/test evidence and bounded statuses, use [SHINPO_IMPLEMENTATION_STATUS.md](SHINPO_IMPLEMENTATION_STATUS.md). Product requirements are in [SHINPO_PRODUCT_REQUIREMENTS.md](SHINPO_PRODUCT_REQUIREMENTS.md), target behavior in [SHINPO_MASTER_BLUEPRINT.md](SHINPO_MASTER_BLUEPRINT.md), architecture in [SHINPO_ARCHITECTURE.md](SHINPO_ARCHITECTURE.md), and UI findings in [SHINPO_UI_UX_DEFECT_REGISTER.md](SHINPO_UI_UX_DEFECT_REGISTER.md).
 
-- **Goal & Mission Decomposition**: Structure ambitious long-term goals into time-boxed, actionable daily missions with XP reward progression.
-- **Deep Focus Session Engine**: Pomodoro and sprint countdowns with pause/resume tracking, state synchronization across tabs, and post-session cognitive debriefs.
-- **Sentinel OS Shield (Rust)**: Autonomous, cross-platform OS process interceptor (`crates/shinpo-shield`) terminating blacklisted distraction apps (Discord, Steam, Spotify, etc.) during active sprints.
-- **Offline Telemetry Spooler**: Buffers intercepted distractions into a local JSONL spool (`daemon/quarantine_spool.jsonl`) when offline and automatically batch-synchronizes when reconnected.
-- **Real-Time STOMP WebSockets**: Instant live toast alerts and notification drawer for quarantine interceptions and sprint lockouts.
-- **EONPAI AI Executive Guide**: Context-aware daily planner, session recovery assistant, and executive briefing agent using local Ollama (`qwen3:4b`) with automatic heuristic fallbacks.
+## Development stack
 
----
+- Java 25 + Spring Boot 4.1.1
+- PostgreSQL 17
+- React 19 + TypeScript
+- Vite
+- Tauri v2 desktop shell
+- Rust shield crate
+- STOMP/WebSocket eventing
 
-## Quickstart (Development)
+## Development setup
 
-### 1. Database
-```bash
-docker run -d --name shinpo-postgres -p 5432:5432 \
-  -e POSTGRES_DB=shinpo \
-  -e POSTGRES_USER=shinpo \
-  -e POSTGRES_PASSWORD=shinpo_dev \
-  postgres:17
-```
-
-### 2. Backend (Spring Boot 25)
+### Backend
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
-*Runs on port 8080. Automatically applies Flyway migrations V1–V14.*
 
-### 3. Frontend (React 19 + Vite)
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Opens cockpit UI at `http://localhost:5173`.*
 
-### 4. Native Rust Shield (Optional Daemon)
+### Rust native shield
 ```bash
 cd crates/shinpo-shield
-cargo run -- run
+cargo test
 ```
 
----
-
-## Automated Verification
-
-The repository enforces a 100% pass verification baseline across all subsystems:
-
-```bash
-# Run 116 Backend Automated Tests
-cd backend && ./mvnw test
-
-# Run 8 Native Rust Shield Tests
-cd crates/shinpo-shield && cargo test
-
-# Verify Frontend Linter & Production Build
-cd frontend && npm run lint && npm run build
-```
-
----
-
-## Production Deployment (Docker Compose)
-
-Deploy the entire production stack (PostgreSQL 17, Spring Boot backend, and Nginx React frontend) with a single command:
-
+### Docker / compose
 ```bash
 docker compose up -d
 ```
 
----
+## Documentation index
+
+- [SHINPO_MASTER_BLUEPRINT.md](SHINPO_MASTER_BLUEPRINT.md) — authoritative product intent and target behavior
+- [SHINPO_PRODUCT_REQUIREMENTS.md](SHINPO_PRODUCT_REQUIREMENTS.md) — stable requirement IDs, status, and traceability
+- [SHINPO_ARCHITECTURE.md](SHINPO_ARCHITECTURE.md) — current architecture evidence, trust boundaries, and migration target
+- [SHINPO_IMPLEMENTATION_STATUS.md](SHINPO_IMPLEMENTATION_STATUS.md) — implementation truth, limitations, contradictions, and verification scope
+- [SHINPO_UI_UX_DEFECT_REGISTER.md](SHINPO_UI_UX_DEFECT_REGISTER.md) — prioritized safety, correctness, UX, and visual-verification register
+- [docs/SHINPO_HARDENING_GUIDELINE.md](docs/SHINPO_HARDENING_GUIDELINE.md) — current hardening guidance; not a certification of implementation
+
+## Documentation Status
+
+| Document set | Classification | Use |
+|---|---|---|
+| The five `SHINPO_*.md` authority documents above | CURRENT | Product intent, stable requirements/status, implementation truth, architecture, and defects. |
+| `README.md` | CURRENT | Project entry point and documentation catalog. |
+| `APP_FLOW.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`, `TRD.md` | HISTORICAL / SUPERSEDED | Retained for provenance; old milestone, current-flow, completion, and test-count claims are not current evidence. |
+| `docs/codebase-audit/*.md` | HISTORICAL SNAPSHOT; some claims CONTRADICT source | Useful discovery notes only; verify every claim against live code and tests. |
+| `docs/architecture/*.html`, `shinpo_architecture.html`, `.planning/*.html`, `.archify/**` | GENERATED REFERENCE / UNKNOWN | Diagrams are not source authority or proof of browser-tested product behavior. |
+| `.planning/PROJECT.md`, `ROADMAP.md`, `ARCHITECTURE_REMAINING.md` | HISTORICAL / SUPERSEDED where contradicted | Preserve as planning history; do not use old milestones as implementation truth. |
+| `.planning/STATE.md` | CONTRADICTORY / REQUIRES RECONCILIATION | Its milestone snapshot is stale. It was not edited because the workspace guard requires an authorized GSD workflow for `.planning/` writes. |
+| `.clinerules/**`, `.roorules` | CURRENT workspace instructions | Agent/tool operating rules, not product requirements. |
+
+## Important product note
+
+The project must not be described as a universal blacklist system. Contextual protection is the target; current process enforcement still uses static patterns and has a P0 process-safety gap. Browser enforcement and the warning/grace flow (maximum 20 minutes) are requirements, not verified implementation claims. See the defect register before enabling or presenting automatic process termination.
 
 ## License
 
-Private & Proprietary. Built for personal execution and distributed focus environments.
+Private and proprietary project documentation. See repository-specific legal and distribution constraints for any shipping or deployment decisions.

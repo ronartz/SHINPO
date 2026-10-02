@@ -110,6 +110,15 @@ public class MissionService {
         missionRepository.delete(mission);
     }
 
+    public void deleteAllMissionsForUser(Long userId) {
+        List<Mission> missions = missionRepository.findAllByGoal_User_Id(userId);
+        if (missions.isEmpty()) {
+            return;
+        }
+
+        missionRepository.deleteAll(missions);
+    }
+
     private MissionResponse toResponse(Mission mission) {
         return new MissionResponse(
                 mission.getId(),
