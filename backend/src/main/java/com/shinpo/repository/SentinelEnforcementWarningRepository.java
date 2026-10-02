@@ -47,4 +47,15 @@ public interface SentinelEnforcementWarningRepository extends JpaRepository<Sent
             @Param("newStatus") SentinelWarningStatus newStatus,
             @Param("now") Instant now
     );
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE SentinelEnforcementWarning w SET w.status = :newStatus, w.updatedAt = :now " +
+           "WHERE w.status = 'GRACE_ACTIVE' AND w.warningId IN (" +
+           "  SELECT g.warningId FROM SentinelGraceWindow g WHERE g.expiresAt <= :now OR g.status = :consumedStatus" +
+           ")")
+    int expireGraceActiveWarnings(
+            @Param("newStatus") SentinelWarningStatus newStatus,
+            @Param("consumedStatus") com.shinpo.entity.SentinelGraceStatus consumedStatus,
+            @Param("now") Instant now
+    );
 }

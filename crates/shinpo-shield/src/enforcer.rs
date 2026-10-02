@@ -175,6 +175,8 @@ impl ShieldEnforcer {
                 continue;
             }
 
+            let mut lifecycle_context: Option<&'static str> = None;
+
             // 1. Active grace check: current server reference time < expiresAt -> DEFER
             if is_in_active_grace(&proc_name, sync_state, ref_time) {
                 continue;
@@ -193,6 +195,13 @@ impl ShieldEnforcer {
                         match resp.decision.as_str() {
                             "ENFORCE_TERMINATE" => {
                                 // Authoritative backend authorization to terminate expired warning/grace
+                                if let Some(msg) = &resp.reason {
+                                    if msg.contains("GRACE_EXPIRED") {
+                                        lifecycle_context = Some("GRACE_EXPIRED");
+                                    } else if msg.contains("WARNING_EXPIRED") {
+                                        lifecycle_context = Some("WARNING_EXPIRED");
+                                    }
+                                }
                             }
                             "DEFER_WARNING" | "DEFER_GRACE" => {
                                 // Newly issued warning or active grace: defer enforcement cycle
@@ -249,7 +258,7 @@ impl ShieldEnforcer {
             let os_name = self.interceptor.os_name();
             let (action, confirmed, escalated) =
                 Self::enforcement_outcome(mode, &mut request_and_verify);
-            let reason = match action {
+            let mut reason = match action {
                 "WARNED" => format!(
                     "Native Shield ({}) audit: distraction active during focus sprint (dry-run)",
                     os_name
@@ -276,6 +285,10 @@ impl ShieldEnforcer {
                 ),
                 _ => format!("Native Shield ({}): permission denied", os_name),
             };
+
+            if let Some(ctx) = lifecycle_context {
+                reason.push_str(&format!(" [{}]", ctx));
+            }
 
             intercepted.push(InterceptedProcess {
                 pid,
@@ -879,6 +892,92 @@ mod tests {
 
         let (action_audit, _, _) = ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", |_force| false);
         assert_eq!(action_audit, "WARNED");
+    }
+
+    #[test]
+    fn test_intercepted_process_reason_reflects_warning_expiration() {
+        let mut reason = "Native Shield (linux): forced termination exit confirmed".to_string();
+        let resp = CandidateProcessResponse {
+            decision: "ENFORCE_TERMINATE".to_string(),
+            warning_id: None,
+            decision_deadline: None,
+            grace_expires_at: None,
+            reason: Some("Warning decision deadline or grace window has expired; enforcement authorized (WARNING_EXPIRED)".to_string()),
+        };
+        let mut lifecycle_context = None;
+        if let Some(msg) = &resp.reason {
+            if msg.contains("GRACE_EXPIRED") {
+                lifecycle_context = Some("GRACE_EXPIRED");
+            } else if msg.contains("WARNING_EXPIRED") {
+                lifecycle_context = Some("WARNING_EXPIRED");
+            }
+        }
+        if let Some(ctx) = lifecycle_context {
+            reason.push_str(&format!(" [{}]", ctx));
+        }
+        assert!(reason.contains("[WARNING_EXPIRED]"));
+    }
+
+    #[test]
+    fn test_intercepted_process_reason_reflects_grace_expiration() {
+        let mut reason = "Native Shield (linux): forced termination exit confirmed".to_string();
+        let resp = CandidateProcessResponse {
+            decision: "ENFORCE_TERMINATE".to_string(),
+            warning_id: None,
+            decision_deadline: None,
+            grace_expires_at: None,
+            reason: Some("Warning decision deadline or grace window has expired; enforcement authorized (GRACE_EXPIRED)".to_string()),
+        };
+        let mut lifecycle_context = None;
+        if let Some(msg) = &resp.reason {
+            if msg.contains("GRACE_EXPIRED") {
+                lifecycle_context = Some("GRACE_EXPIRED");
+            } else if msg.contains("WARNING_EXPIRED") {
+                lifecycle_context = Some("WARNING_EXPIRED");
+            }
+        }
+        if let Some(ctx) = lifecycle_context {
+            reason.push_str(&format!(" [{}]", ctx));
+        }
+        assert!(reason.contains("[GRACE_EXPIRED]"));
+    }
+
+    #[test]
+    fn test_local_grace_expiry_causes_immediate_reevaluation() {
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: Some(10),
+            active_session_name: Some("Focus Session".to_string()),
+            duration_minutes: Some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: true,
+            blocked_patterns: vec!["slack".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            server_time: Some("2026-10-02T12:00:00Z".to_string()),
+            current_mission_id: None,
+            current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: vec![
+                crate::client::ActiveGraceWindowItem {
+                    warning_id: "00000000-0000-0000-0000-000000000003".to_string(),
+                    process_name: "slack".to_string(),
+                    expires_at: "2026-10-02T12:10:00Z".to_string(),
+                }
+            ],
+        };
+
+        // Before expiry: is_in_active_grace returns true (deferral)
+        let before_expiry = parse_iso8601_to_epoch_secs("2026-10-02T12:09:59Z").unwrap();
+        assert!(is_in_active_grace("slack", &sync, before_expiry));
+
+        // At exact expiry and after: is_in_active_grace returns false, triggering immediate re-evaluation
+        let at_expiry = parse_iso8601_to_epoch_secs("2026-10-02T12:10:00Z").unwrap();
+        assert!(!is_in_active_grace("slack", &sync, at_expiry));
+
+        let after_expiry = parse_iso8601_to_epoch_secs("2026-10-02T12:10:01Z").unwrap();
+        assert!(!is_in_active_grace("slack", &sync, after_expiry));
     }
 }
 

@@ -214,11 +214,16 @@ public class SentinelWarningService {
 
             // Cap to session remaining lifetime if session remaining time is less than requested grace
             long remainingSecondsInSession = session.calculateRemainingSeconds(now);
-            if (remainingSecondsInSession > 0) {
-                Instant sessionEnd = now.plusSeconds(remainingSecondsInSession);
-                if (calculatedExpiresAt.isAfter(sessionEnd)) {
-                    calculatedExpiresAt = sessionEnd;
-                }
+            if (remainingSecondsInSession <= 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Focus session duration has expired; cannot grant grace"
+                );
+            }
+
+            Instant sessionEnd = now.plusSeconds(remainingSecondsInSession);
+            if (calculatedExpiresAt.isAfter(sessionEnd)) {
+                calculatedExpiresAt = sessionEnd;
             }
 
             // Effective duration in whole minutes (at least 1 minute)
@@ -248,12 +253,15 @@ public class SentinelWarningService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown action: " + action);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SentinelWarningResponse> getActiveWarningsForUser(Long userId) {
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User authentication required");
         }
 
+        expireStaleItems();
+
+        Instant now = Instant.now();
         List<SentinelEnforcementWarning> warnings = warningRepository
                 .findAllByUser_IdAndStatusInOrderByIssuedAtDesc(
                         userId,
@@ -261,6 +269,18 @@ public class SentinelWarningService {
                 );
 
         return warnings.stream()
+                .filter(w -> {
+                    if (w.getStatus() == SentinelWarningStatus.ISSUED) {
+                        return w.getDecisionDeadline().isAfter(now);
+                    }
+                    if (w.getStatus() == SentinelWarningStatus.GRACE_ACTIVE) {
+                        Optional<SentinelGraceWindow> grace = graceWindowRepository.findByWarningId(w.getWarningId());
+                        return grace.isPresent()
+                                && grace.get().getStatus() == SentinelGraceStatus.ACTIVE
+                                && grace.get().getExpiresAt().isAfter(now);
+                    }
+                    return false;
+                })
                 .map(w -> {
                     SentinelGraceWindow grace = null;
                     if (w.getStatus() == SentinelWarningStatus.GRACE_ACTIVE) {
@@ -295,6 +315,7 @@ public class SentinelWarningService {
     public void expireStaleItems() {
         Instant now = Instant.now();
         warningRepository.expireStaleWarnings(SentinelWarningStatus.EXPIRED, now);
+        warningRepository.expireGraceActiveWarnings(SentinelWarningStatus.EXPIRED, SentinelGraceStatus.CONSUMED, now);
         graceWindowRepository.expireStaleGraceWindows(SentinelGraceStatus.EXPIRED, now);
     }
 
@@ -401,12 +422,13 @@ public class SentinelWarningService {
         );
 
         if (graceConsumedOrExpired || warningExpiredOrTerminated) {
+            String lifecycleReason = graceConsumedOrExpired ? "GRACE_EXPIRED" : "WARNING_EXPIRED";
             return new CandidateProcessResponse(
                     "ENFORCE_TERMINATE",
                     null,
                     null,
                     null,
-                    "Warning decision deadline or grace window has expired; enforcement authorized"
+                    "Warning decision deadline or grace window has expired; enforcement authorized (" + lifecycleReason + ")"
             );
         }
 
@@ -419,5 +441,56 @@ public class SentinelWarningService {
                 null,
                 "New warning issued on candidate detection; enforcement deferred"
         );
+    }
+
+    @Transactional
+    public String handleQuarantineRecorded(Long sessionId, String processName) {
+        if (sessionId == null || processName == null || processName.isBlank()) {
+            return null;
+        }
+        String canonical = processName.trim().toLowerCase();
+
+        Optional<SentinelGraceWindow> graceOpt = graceWindowRepository
+                .findByFocusSession_IdAndProcessNameAndStatusIn(
+                        sessionId,
+                        canonical,
+                        List.of(SentinelGraceStatus.ACTIVE, SentinelGraceStatus.EXPIRED, SentinelGraceStatus.CONSUMED)
+                );
+
+        if (graceOpt.isPresent()) {
+            SentinelGraceWindow grace = graceOpt.get();
+            if (grace.getStatus() != SentinelGraceStatus.CONSUMED) {
+                grace.setStatus(SentinelGraceStatus.CONSUMED);
+                graceWindowRepository.save(grace);
+            }
+
+            warningRepository.findByWarningId(grace.getWarningId()).ifPresent(w -> {
+                if (w.getStatus() == SentinelWarningStatus.GRACE_ACTIVE || w.getStatus() == SentinelWarningStatus.ISSUED) {
+                    w.setStatus(SentinelWarningStatus.EXPIRED);
+                    warningRepository.save(w);
+                }
+            });
+
+            return "GRACE_EXPIRED";
+        }
+
+        boolean hadWarning = warningRepository.existsByFocusSession_IdAndProcessNameAndStatusIn(
+                sessionId,
+                canonical,
+                List.of(SentinelWarningStatus.EXPIRED, SentinelWarningStatus.TERMINATE_NOW, SentinelWarningStatus.ISSUED)
+        );
+        if (hadWarning) {
+            warningRepository.findByFocusSession_IdAndProcessNameAndStatusIn(
+                    sessionId,
+                    canonical,
+                    List.of(SentinelWarningStatus.ISSUED)
+            ).ifPresent(w -> {
+                w.setStatus(SentinelWarningStatus.EXPIRED);
+                warningRepository.save(w);
+            });
+            return "WARNING_EXPIRED";
+        }
+
+        return null;
     }
 }
