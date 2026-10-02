@@ -3,9 +3,13 @@ package com.shinpo.sentinel;
 import com.shinpo.dto.SentinelDtos.*;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
+import com.shinpo.entity.Goal;
+import com.shinpo.entity.Mission;
 import com.shinpo.entity.SentinelTamperEvent;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
+import com.shinpo.repository.GoalRepository;
+import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.SentinelTamperEventRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.service.SentinelEnforcementService;
@@ -20,6 +24,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,6 +39,12 @@ public class SentinelEnforcementTests {
 
     @Autowired
     private FocusSessionRepository sessionRepository;
+
+    @Autowired
+    private GoalRepository goalRepository;
+
+    @Autowired
+    private MissionRepository missionRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -324,8 +335,17 @@ public class SentinelEnforcementTests {
     @Test
     @DisplayName("Native Shield: neutral media defaults stay user-blockable in daemon sync")
     void testDaemonSyncState() {
+        Goal goal = goalRepository.save(
+            new Goal("Context Goal", "Goal linked to the active session", LocalDate.now(), null, testUser)
+        );
+        Mission mission = missionRepository.save(
+            new Mission("Context Mission", "Mission linked to the active session", LocalDate.now(), 25, goal)
+        );
+
         FocusSession session = new FocusSession();
         session.setUser(testUser);
+        session.setGoal(goal);
+        session.setMission(mission);
         session.setName("Sync Target Session");
         session.setIntention("Zero Distraction Code Sprint");
         session.setStatus(FocusSessionStatus.ACTIVE);
@@ -336,6 +356,9 @@ public class SentinelEnforcementTests {
         SentinelDaemonSyncResponse defaultsOnly = sentinelService.getDaemonSyncState(testUser.getId());
         assertFalse(defaultsOnly.blockedPatterns().contains("spotify"));
         assertFalse(defaultsOnly.blockedPatterns().contains("vlc"));
+        assertTrue(defaultsOnly.blockedPatterns().contains("discord"));
+        assertEquals(mission.getId(), defaultsOnly.currentMissionId());
+        assertEquals(goal.getId(), defaultsOnly.currentGoalId());
 
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("steam", "BLOCKED"));
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("spotify", "BLOCKED"));
@@ -352,11 +375,31 @@ public class SentinelEnforcementTests {
         assertEquals(45, sync.durationMinutes());
         assertTrue(sync.blockedPatterns().contains("steam"));
         assertTrue(sync.blockedPatterns().contains("discord")); // Default
+        assertEquals(mission.getId(), sync.currentMissionId());
+        assertEquals(goal.getId(), sync.currentGoalId());
         assertTrue(sync.blockedPatterns().contains("spotify")); // Explicit user BLOCKED rule
         assertTrue(sync.blockedPatterns().contains("vlc")); // Explicit user BLOCKED rule
         assertTrue(sync.allowedPatterns().contains("slack"));
         assertTrue(sync.protectedProcesses().contains("systemd"));
         assertTrue(sync.protectedProcesses().contains("shinpo"));
+    }
+
+    @Test
+    @DisplayName("Native Shield: daemon sync returns null context when active session has no links")
+    void testDaemonSyncWithoutFocusContext() {
+        FocusSession session = new FocusSession();
+        session.setUser(testUser);
+        session.setName("Unlinked Session");
+        session.setStatus(FocusSessionStatus.ACTIVE);
+        session.setStartedAt(Instant.now());
+        session.setDurationMinutes(25);
+        sessionRepository.save(session);
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(testUser.getId());
+
+        assertTrue(sync.hasActiveSession());
+        assertNull(sync.currentMissionId());
+        assertNull(sync.currentGoalId());
     }
 
     @Test
