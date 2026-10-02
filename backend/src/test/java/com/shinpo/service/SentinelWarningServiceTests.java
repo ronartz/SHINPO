@@ -1,5 +1,7 @@
 package com.shinpo.service;
 
+import com.shinpo.dto.FocusSessionExceptionDtos.CreateFocusSessionExceptionRequest;
+import com.shinpo.dto.SentinelDtos.SentinelDaemonSyncResponse;
 import com.shinpo.dto.SentinelWarningDtos.*;
 import com.shinpo.entity.*;
 import com.shinpo.repository.FocusSessionRepository;
@@ -18,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +46,12 @@ public class SentinelWarningServiceTests {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SentinelEnforcementService sentinelService;
+
+    @Autowired
+    private FocusSessionEnforcementExceptionService exceptionService;
 
     private User user1;
     private User user2;
@@ -142,7 +149,6 @@ public class SentinelWarningServiceTests {
         Instant before = Instant.now();
         IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "slack", null);
         SentinelWarningResponse response = warningService.issueWarning(user1.getId(), req);
-        Instant after = Instant.now();
 
         assertNotNull(response.decisionDeadline());
         long diffSeconds = Duration.between(before, response.decisionDeadline()).toSeconds();
@@ -264,7 +270,6 @@ public class SentinelWarningServiceTests {
         Instant before = Instant.now();
         RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 10);
         SentinelWarningResponse resp = warningService.respondToWarning(user1.getId(), w1.warningId(), respondReq);
-        Instant after = Instant.now();
 
         assertNotNull(resp.graceExpiresAt());
         long diff = Duration.between(before.plus(Duration.ofMinutes(10)), resp.graceExpiresAt()).abs().toSeconds();
@@ -429,5 +434,166 @@ public class SentinelWarningServiceTests {
         assertTrue(warningService.getActiveGraceWindow(activeSessionUser1.getId(), "steam").isPresent());
         assertFalse(warningService.getActiveGraceWindow(activeSessionUser1.getId(), "nonexistent").isPresent());
         assertFalse(warningService.getActiveGraceWindow(activeSessionUser2.getId(), "steam").isPresent());
+    }
+
+    @Test
+    @DisplayName("23. Daemon sync contains active warning")
+    void testDaemonSync_ContainsActiveWarning() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "steam", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(user1.getId());
+        assertNotNull(sync.activeWarnings());
+        assertEquals(1, sync.activeWarnings().size());
+        assertEquals("steam", sync.activeWarnings().get(0).processName());
+        assertEquals(w.warningId(), sync.activeWarnings().get(0).warningId());
+        assertEquals("ISSUED", sync.activeWarnings().get(0).status());
+    }
+
+    @Test
+    @DisplayName("24. Daemon sync contains active grace")
+    void testDaemonSync_ContainsActiveGrace() {
+        IssueWarningRequest req = new IssueWarningRequest(activeSessionUser1.getId(), "discord", null);
+        SentinelWarningResponse w = warningService.issueWarning(user1.getId(), req);
+
+        RespondWarningRequest respondReq = new RespondWarningRequest("GRANT_GRACE", 10);
+        warningService.respondToWarning(user1.getId(), w.warningId(), respondReq);
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(user1.getId());
+        assertNotNull(sync.activeGraceWindows());
+        assertEquals(1, sync.activeGraceWindows().size());
+        assertEquals("discord", sync.activeGraceWindows().get(0).processName());
+        assertEquals(w.warningId(), sync.activeGraceWindows().get(0).warningId());
+        assertTrue(sync.activeGraceWindows().get(0).expiresAt().isAfter(Instant.now()));
+    }
+
+    @Test
+    @DisplayName("25. Daemon sync excludes expired warning")
+    void testDaemonSync_ExpiredWarningExcluded() {
+        Instant past = Instant.now().minus(Duration.ofMinutes(5));
+        SentinelEnforcementWarning staleWarning = new SentinelEnforcementWarning(
+                user1,
+                activeSessionUser1,
+                "stale_app",
+                null,
+                past.minus(Duration.ofMinutes(1)),
+                past
+        );
+        warningRepository.save(staleWarning);
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(user1.getId());
+        assertTrue(sync.activeWarnings().stream().noneMatch(w -> "stale_app".equals(w.processName())));
+    }
+
+    @Test
+    @DisplayName("26. Daemon sync excludes expired grace window")
+    void testDaemonSync_ExpiredGraceExcluded() {
+        Instant past = Instant.now().minus(Duration.ofMinutes(5));
+        SentinelEnforcementWarning warning = new SentinelEnforcementWarning(
+                user1,
+                activeSessionUser1,
+                "stale_grace_app",
+                null,
+                past.minus(Duration.ofMinutes(15)),
+                past.minus(Duration.ofMinutes(14))
+        );
+        SentinelEnforcementWarning savedWarning = warningRepository.save(warning);
+
+        SentinelGraceWindow staleGrace = new SentinelGraceWindow(
+                savedWarning.getWarningId(),
+                activeSessionUser1,
+                user1,
+                "stale_grace_app",
+                past.minus(Duration.ofMinutes(10)),
+                past,
+                10
+        );
+        graceWindowRepository.save(staleGrace);
+
+        SentinelDaemonSyncResponse sync = sentinelService.getDaemonSyncState(user1.getId());
+        assertTrue(sync.activeGraceWindows().stream().noneMatch(g -> "stale_grace_app".equals(g.processName())));
+    }
+
+    @Test
+    @DisplayName("27. Candidate evaluation: no active session produces no destructive authorization (ALLOW)")
+    void testCandidate_NoActiveSessionProducesNoDestructiveAuthorization() {
+        User inactiveUser = userRepository.save(new User("inactive_" + System.currentTimeMillis(), "inactive@example.com", "hash", Instant.now()));
+        CandidateProcessRequest req = new CandidateProcessRequest("discord", null, 1234L);
+        CandidateProcessResponse resp = warningService.evaluateCandidate(inactiveUser.getId(), req);
+
+        assertEquals("ALLOW", resp.decision());
+        assertEquals("No active focus session", resp.reason());
+        assertNull(resp.warningId());
+    }
+
+    @Test
+    @DisplayName("28. Candidate evaluation: authenticated user cannot target another user's session")
+    void testCandidate_AuthenticatedUserCannotTargetAnotherUsersSession() {
+        // user1 has activeSessionUser1 with granted grace on discord
+        IssueWarningRequest req1 = new IssueWarningRequest(activeSessionUser1.getId(), "discord", null);
+        SentinelWarningResponse w1 = warningService.issueWarning(user1.getId(), req1);
+        warningService.respondToWarning(user1.getId(), w1.warningId(), new RespondWarningRequest("GRANT_GRACE", 10));
+
+        // user2 evaluates candidate discord - must resolve strictly to user2's session
+        CandidateProcessRequest req2 = new CandidateProcessRequest("discord", null, 5678L);
+        CandidateProcessResponse respUser2 = warningService.evaluateCandidate(user2.getId(), req2);
+
+        // user2 does NOT have grace for discord; candidate issues a new warning for user2
+        assertEquals("DEFER_WARNING", respUser2.decision());
+        assertNotNull(respUser2.warningId());
+        assertNotEquals(w1.warningId(), respUser2.warningId());
+
+        // Now user1 evaluates candidate discord - returns DEFER_GRACE
+        CandidateProcessResponse respUser1 = warningService.evaluateCandidate(user1.getId(), req2);
+        assertEquals("DEFER_GRACE", respUser1.decision());
+        assertEquals(w1.warningId(), respUser1.warningId());
+    }
+
+    @Test
+    @DisplayName("29. Candidate evaluation: existing session exception overrides blocked policy (ALLOW)")
+    void testCandidate_ExistingSessionExceptionOverridesBlockedPolicy() {
+        // Create active exception for "discord" in activeSessionUser1
+        exceptionService.createException(user1.getId(), activeSessionUser1.getId(), new CreateFocusSessionExceptionRequest(
+                "discord",
+                FocusSessionActivityType.PROCESS
+        ));
+
+        CandidateProcessRequest req = new CandidateProcessRequest("discord", null, 1234L);
+        CandidateProcessResponse resp = warningService.evaluateCandidate(user1.getId(), req);
+
+        assertEquals("ALLOW", resp.decision());
+        assertEquals("Process permitted by contextual policy", resp.reason());
+    }
+
+    @Test
+    @DisplayName("30. Candidate evaluation: absent warning triggers warning creation and defers")
+    void testCandidate_AbsentWarningTriggersWarningCreationAndDefers() {
+        CandidateProcessRequest req = new CandidateProcessRequest("obs", "obs --portable", 9999L);
+        CandidateProcessResponse resp = warningService.evaluateCandidate(user1.getId(), req);
+
+        assertEquals("DEFER_WARNING", resp.decision());
+        assertNotNull(resp.warningId());
+        assertNotNull(resp.decisionDeadline());
+
+        // Repeated call while warning is active returns DEFER_WARNING for the same warning
+        CandidateProcessResponse repeat = warningService.evaluateCandidate(user1.getId(), req);
+        assertEquals("DEFER_WARNING", repeat.decision());
+        assertEquals(resp.warningId(), repeat.warningId());
+    }
+
+    @Test
+    @DisplayName("31. Candidate evaluation: expired warning authorizes termination (ENFORCE_TERMINATE)")
+    void testCandidate_ExpiredWarningAuthorizesTermination() {
+        CandidateProcessRequest req = new CandidateProcessRequest("steam", null, 8888L);
+        CandidateProcessResponse initial = warningService.evaluateCandidate(user1.getId(), req);
+        assertEquals("DEFER_WARNING", initial.decision());
+
+        // Force warning to expire
+        SentinelEnforcementWarning warning = warningRepository.findByWarningId(initial.warningId()).orElseThrow();
+        warning.setStatus(SentinelWarningStatus.EXPIRED);
+        warningRepository.save(warning);
+
+        CandidateProcessResponse afterExpiry = warningService.evaluateCandidate(user1.getId(), req);
+        assertEquals("ENFORCE_TERMINATE", afterExpiry.decision());
     }
 }

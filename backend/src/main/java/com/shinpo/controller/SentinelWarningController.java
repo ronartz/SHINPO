@@ -46,4 +46,12 @@ public class SentinelWarningController {
     ) {
         return ResponseEntity.ok(warningService.respondToWarning(principal.getUserId(), warningId, request));
     }
+
+    @PostMapping("/candidate")
+    public ResponseEntity<CandidateProcessResponse> evaluateCandidate(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CandidateProcessRequest request
+    ) {
+        return ResponseEntity.ok(warningService.evaluateCandidate(principal.getUserId(), request));
+    }
 }

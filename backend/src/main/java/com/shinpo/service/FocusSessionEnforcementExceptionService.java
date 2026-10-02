@@ -88,9 +88,9 @@ public class FocusSessionEnforcementExceptionService {
         }
         return exceptionRepository.findAllActiveExceptionsForUser(userId, FocusSessionActivityType.PROCESS)
                 .stream()
-                .map(FocusSessionEnforcementException::getActivityPattern)
-                .map(String::trim)
-                .map(String::toLowerCase)
+                .map(e -> e.getActivityPattern())
+                .map(s -> s.trim())
+                .map(s -> s.toLowerCase())
                 .filter(s -> !s.isBlank())
                 .distinct()
                 .toList();

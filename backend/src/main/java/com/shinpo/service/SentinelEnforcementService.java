@@ -61,6 +61,7 @@ public class SentinelEnforcementService {
     private final TransactionTemplate auditTransactionTemplate;
     private final WebSocketEventService webSocketEventService;
     private final FocusSessionEnforcementExceptionService exceptionService;
+    private final SentinelWarningService warningService;
 
     // Per-user enforcement mode (default STRICT)
     private final Map<Long, String> userEnforcementModes = new ConcurrentHashMap<>();
@@ -79,7 +80,8 @@ public class SentinelEnforcementService {
             PasswordEncoder passwordEncoder,
             PlatformTransactionManager transactionManager,
             WebSocketEventService webSocketEventService,
-            FocusSessionEnforcementExceptionService exceptionService
+            FocusSessionEnforcementExceptionService exceptionService,
+            SentinelWarningService warningService
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
@@ -91,6 +93,7 @@ public class SentinelEnforcementService {
         this.auditTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.webSocketEventService = webSocketEventService;
         this.exceptionService = exceptionService;
+        this.warningService = warningService;
     }
 
     public String getEnforcementMode(Long userId) {
@@ -696,6 +699,13 @@ public class SentinelEnforcementService {
             }
         }
 
+        List<ActiveWarningItem> activeWarnings = activeSession != null
+                ? warningService.getActiveWarningsForSession(activeSession.getId())
+                : List.of();
+        List<ActiveGraceWindowItem> activeGraceWindows = activeSession != null
+                ? warningService.getActiveGraceWindowsForSession(activeSession.getId())
+                : List.of();
+
         return new SentinelDaemonSyncResponse(
                 activeSession != null,
                 activeSession != null ? activeSession.getId() : null,
@@ -709,7 +719,9 @@ public class SentinelEnforcementService {
                 new ArrayList<>(PROTECTED_PROCESSES),
                 Instant.now(),
                 currentMissionId,
-                currentGoalId
+                currentGoalId,
+                activeWarnings,
+                activeGraceWindows
         );
     }
 }

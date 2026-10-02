@@ -32,11 +32,62 @@ pub struct SentinelDaemonSyncResponse {
     #[serde(rename = "protectedProcesses", default)]
     pub protected_processes: Vec<String>,
 
+    #[serde(rename = "serverTime", default)]
+    pub server_time: Option<String>,
+
     #[serde(rename = "currentMissionId", default)]
     pub current_mission_id: Option<i64>,
 
     #[serde(rename = "currentGoalId", default)]
     pub current_goal_id: Option<i64>,
+
+    #[serde(rename = "activeWarnings", default)]
+    pub active_warnings: Vec<ActiveWarningItem>,
+
+    #[serde(rename = "activeGraceWindows", default)]
+    pub active_grace_windows: Vec<ActiveGraceWindowItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ActiveWarningItem {
+    #[serde(rename = "warningId")]
+    pub warning_id: String,
+    #[serde(rename = "processName")]
+    pub process_name: String,
+    #[serde(rename = "decisionDeadline")]
+    pub decision_deadline: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ActiveGraceWindowItem {
+    #[serde(rename = "warningId")]
+    pub warning_id: String,
+    #[serde(rename = "processName")]
+    pub process_name: String,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateProcessRequest {
+    #[serde(rename = "processName")]
+    pub process_name: String,
+    #[serde(rename = "commandLine")]
+    pub command_line: Option<String>,
+    pub pid: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateProcessResponse {
+    pub decision: String,
+    #[serde(rename = "warningId")]
+    pub warning_id: Option<String>,
+    #[serde(rename = "decisionDeadline")]
+    pub decision_deadline: Option<String>,
+    #[serde(rename = "graceExpiresAt")]
+    pub grace_expires_at: Option<String>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -142,8 +193,11 @@ impl SentinelClient {
                             blocked_patterns: Vec::new(),
                             allowed_patterns: Vec::new(),
                             protected_processes: Vec::new(),
+                            server_time: None,
                             current_mission_id: None,
                             current_goal_id: None,
+                            active_warnings: Vec::new(),
+                            active_grace_windows: Vec::new(),
                         });
                     }
                 }
@@ -158,8 +212,11 @@ impl SentinelClient {
                     blocked_patterns: Vec::new(),
                     allowed_patterns: Vec::new(),
                     protected_processes: Vec::new(),
+                    server_time: None,
                     current_mission_id: None,
                     current_goal_id: None,
+                    active_warnings: Vec::new(),
+                    active_grace_windows: Vec::new(),
                 })
             }
             Err(e) => Err(format!("Backend unreachable at {}: {}", self.base_url, e)),
@@ -214,6 +271,27 @@ impl SentinelClient {
                 Err(format!("Server returned HTTP {}: {}", code, err_msg))
             }
             Err(e) => Err(format!("Failed to send batch quarantine telemetry: {}", e)),
+        }
+    }
+
+    /// Evaluates a candidate blocked process with the backend authority.
+    pub fn evaluate_candidate(&self, request: &CandidateProcessRequest) -> Result<CandidateProcessResponse, String> {
+        let candidate_url = format!("{}/api/device/sentinel/warnings/candidate", self.base_url);
+        let mut req = ureq::post(&candidate_url).timeout(Duration::from_secs(3));
+        if let Some(token) = &self.auth_token {
+            req = req.set("Authorization", &format!("Bearer {}", token));
+        }
+
+        match req.send_json(request) {
+            Ok(resp) => {
+                resp.into_json::<CandidateProcessResponse>()
+                    .map_err(|e| format!("Failed to parse candidate response: {}", e))
+            }
+            Err(ureq::Error::Status(code, resp)) => {
+                let body = resp.into_string().unwrap_or_default();
+                Err(format!("Candidate evaluation API error (HTTP {}): {}", code, body))
+            }
+            Err(e) => Err(format!("Failed to evaluate candidate with backend: {}", e)),
         }
     }
 }
@@ -293,5 +371,49 @@ mod tests {
         assert!(sync.has_active_session);
         assert_eq!(sync.current_mission_id, None);
         assert_eq!(sync.current_goal_id, None);
+    }
+
+    #[test]
+    fn sync_response_deserializes_active_warnings_and_grace_windows() {
+        let payload = r#"{
+            "hasActiveSession": true,
+            "activeSessionId": 42,
+            "activeSessionName": "Active Sprint",
+            "durationMinutes": 25,
+            "intention": "Deep work",
+            "enforcementMode": "STRICT",
+            "isPolicyLocked": true,
+            "blockedPatterns": ["discord", "steam"],
+            "allowedPatterns": [],
+            "protectedProcesses": [],
+            "serverTime": "2026-10-02T12:00:00Z",
+            "currentMissionId": null,
+            "currentGoalId": null,
+            "activeWarnings": [
+                {
+                    "warningId": "00000000-0000-0000-0000-000000000001",
+                    "processName": "steam",
+                    "decisionDeadline": "2026-10-02T12:01:00Z",
+                    "status": "ISSUED"
+                }
+            ],
+            "activeGraceWindows": [
+                {
+                    "warningId": "00000000-0000-0000-0000-000000000002",
+                    "processName": "discord",
+                    "expiresAt": "2026-10-02T12:15:00Z"
+                }
+            ]
+        }"#;
+
+        let sync: SentinelDaemonSyncResponse = serde_json::from_str(payload).unwrap();
+
+        assert_eq!(sync.active_warnings.len(), 1);
+        assert_eq!(sync.active_warnings[0].process_name, "steam");
+        assert_eq!(sync.active_warnings[0].status, "ISSUED");
+
+        assert_eq!(sync.active_grace_windows.len(), 1);
+        assert_eq!(sync.active_grace_windows[0].process_name, "discord");
+        assert_eq!(sync.active_grace_windows[0].expires_at, "2026-10-02T12:15:00Z");
     }
 }

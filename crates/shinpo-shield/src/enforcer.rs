@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
-use crate::client::{RecordQuarantineRequest, SentinelDaemonSyncResponse};
+use crate::client::{CandidateProcessResponse, RecordQuarantineRequest, SentinelDaemonSyncResponse};
 use crate::platform::{create_platform_interceptor, PlatformInterceptor};
 
 pub struct InterceptedProcess {
@@ -20,6 +20,9 @@ pub struct ShieldEnforcer {
     debounce_map: HashMap<u32, Instant>,
     protected_system_names: HashSet<String>,
     interceptor: Box<dyn PlatformInterceptor>,
+    unwarned_candidates: HashSet<String>,
+    server_time_anchor: Option<(u64, Instant)>,
+    current_session_id: Option<i64>,
 }
 
 impl ShieldEnforcer {
@@ -48,6 +51,9 @@ impl ShieldEnforcer {
             debounce_map: HashMap::new(),
             protected_system_names: protected,
             interceptor,
+            unwarned_candidates: HashSet::new(),
+            server_time_anchor: None,
+            current_session_id: None,
         }
     }
 
@@ -56,16 +62,63 @@ impl ShieldEnforcer {
         self.interceptor.as_ref()
     }
 
+    pub fn get_reference_time(&mut self, sync_state: &SentinelDaemonSyncResponse) -> u64 {
+        let now = Instant::now();
+        if let Some(server_time_str) = &sync_state.server_time {
+            if let Some(epoch) = parse_iso8601_to_epoch_secs(server_time_str) {
+                self.server_time_anchor = Some((epoch, now));
+                return epoch;
+            }
+        }
+        if let Some((anchor_epoch, anchor_instant)) = self.server_time_anchor {
+            return anchor_epoch + now.duration_since(anchor_instant).as_secs();
+        }
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+
     /// Scans the running OS processes against the active policy rules and executes containment.
+    #[allow(dead_code)]
     pub fn scan_and_enforce(
         &mut self,
         sync_state: &SentinelDaemonSyncResponse,
         fallback_blacklist: &[String],
         dry_run: bool,
     ) -> Vec<InterceptedProcess> {
+        self.scan_and_enforce_with_candidate_evaluator::<fn(&str, Option<&str>, u32) -> Result<CandidateProcessResponse, String>>(
+            sync_state,
+            fallback_blacklist,
+            dry_run,
+            None,
+        )
+    }
+
+    /// Scans the running OS processes with candidate warning/grace evaluation.
+    pub fn scan_and_enforce_with_candidate_evaluator<F>(
+        &mut self,
+        sync_state: &SentinelDaemonSyncResponse,
+        fallback_blacklist: &[String],
+        dry_run: bool,
+        mut candidate_evaluator: Option<F>,
+    ) -> Vec<InterceptedProcess>
+    where
+        F: FnMut(&str, Option<&str>, u32) -> Result<CandidateProcessResponse, String>,
+    {
         if !sync_state.has_active_session {
+            self.unwarned_candidates.clear();
             return Vec::new();
         }
+
+        // Detect session transition
+        if sync_state.active_session_id != self.current_session_id {
+            self.current_session_id = sync_state.active_session_id;
+            self.unwarned_candidates.clear();
+            self.debounce_map.clear();
+        }
+
+        let ref_time = self.get_reference_time(sync_state);
 
         self.sys.refresh_processes(ProcessesToUpdate::All, true);
 
@@ -120,6 +173,51 @@ impl ShieldEnforcer {
 
             if !Self::is_distraction_process(&proc_name, &raw_cmd, &active_blacklist, &allowed, &protected) {
                 continue;
+            }
+
+            // 1. Active grace check: current server reference time < expiresAt -> DEFER
+            if is_in_active_grace(&proc_name, sync_state, ref_time) {
+                continue;
+            }
+
+            // 2. Active warning check: current server reference time < decisionDeadline -> DEFER
+            if is_in_active_warning(&proc_name, sync_state, ref_time) {
+                continue;
+            }
+
+            // 3. Warning/grace absent from sync: candidate evaluation handshake
+            if let Some(ref mut evaluator) = candidate_evaluator {
+                let cmd_opt = if raw_cmd.is_empty() { None } else { Some(raw_cmd.as_str()) };
+                match evaluator(&proc_name, cmd_opt, pid) {
+                    Ok(resp) => {
+                        match resp.decision.as_str() {
+                            "ENFORCE_TERMINATE" => {
+                                // Authoritative backend authorization to terminate expired warning/grace
+                            }
+                            "DEFER_WARNING" | "DEFER_GRACE" => {
+                                // Newly issued warning or active grace: defer enforcement cycle
+                                continue;
+                            }
+                            "ALLOW" => {
+                                // Allowed by session exception or user policy
+                                continue;
+                            }
+                            _ => {
+                                // Fallback safe deferral
+                                continue;
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Offline safety: do not terminate on candidate evaluation error
+                        continue;
+                    }
+                }
+            } else {
+                // Standalone / offline mode: do NOT terminate on first detection of absent warning
+                if self.unwarned_candidates.insert(proc_name.clone()) {
+                    continue;
+                }
             }
 
             // 4. Debounce check (45s window per PID)
@@ -321,6 +419,71 @@ fn same_process_name(expected: &str, observed: &str) -> bool {
     expected.eq_ignore_ascii_case(observed)
 }
 
+pub fn parse_iso8601_to_epoch_secs(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if s.len() < 19 {
+        return None;
+    }
+    let year: u64 = s.get(0..4)?.parse().ok()?;
+    let month: u64 = s.get(5..7)?.parse().ok()?;
+    let day: u64 = s.get(8..10)?.parse().ok()?;
+    let hour: u64 = s.get(11..13)?.parse().ok()?;
+    let min: u64 = s.get(14..16)?.parse().ok()?;
+    let sec: u64 = s.get(17..19)?.parse().ok()?;
+
+    if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 60 {
+        return None;
+    }
+
+    let mut days = 0u64;
+    for y in 1970..year {
+        days += if (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0) { 366 } else { 365 };
+    }
+    let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    let month_days = [
+        31, if leap { 29 } else { 28 }, 31, 30, 31, 30,
+        31, 31, 30, 31, 30, 31
+    ];
+    for m in 1..month {
+        days += month_days[(m - 1) as usize];
+    }
+    days += day - 1;
+
+    Some(days * 86400 + hour * 3600 + min * 60 + sec)
+}
+
+pub fn is_in_active_grace(
+    canonical_name: &str,
+    sync_state: &SentinelDaemonSyncResponse,
+    ref_time: u64,
+) -> bool {
+    sync_state.active_grace_windows.iter().any(|g| {
+        let g_name = g.process_name.to_lowercase();
+        if canonical_name == g_name || canonical_name.contains(&g_name) || g_name.contains(canonical_name) {
+            if let Some(exp) = parse_iso8601_to_epoch_secs(&g.expires_at) {
+                return ref_time < exp;
+            }
+        }
+        false
+    })
+}
+
+pub fn is_in_active_warning(
+    canonical_name: &str,
+    sync_state: &SentinelDaemonSyncResponse,
+    ref_time: u64,
+) -> bool {
+    sync_state.active_warnings.iter().any(|w| {
+        let w_name = w.process_name.to_lowercase();
+        if canonical_name == w_name || canonical_name.contains(&w_name) || w_name.contains(canonical_name) {
+            if let Some(deadline) = parse_iso8601_to_epoch_secs(&w.decision_deadline) {
+                return ref_time < deadline;
+            }
+        }
+        false
+    })
+}
+
 pub fn send_desktop_notification(title: &str, message: &str) {
     let interceptor = create_platform_interceptor();
     interceptor.notify_user(title, message);
@@ -364,8 +527,11 @@ mod tests {
             blocked_patterns: vec!["discord".to_string()],
             allowed_patterns: Vec::new(),
             protected_processes: Vec::new(),
+            server_time: None,
             current_mission_id: None,
             current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: Vec::new(),
         };
 
         assert!(enforcer.scan_and_enforce(&sync, &[], false).is_empty());
@@ -384,8 +550,11 @@ mod tests {
             blocked_patterns: Vec::new(),
             allowed_patterns: Vec::new(),
             protected_processes: Vec::new(),
+            server_time: None,
             current_mission_id: None,
             current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: Vec::new(),
         };
 
         assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "AUDIT_ONLY");
@@ -404,8 +573,11 @@ mod tests {
             blocked_patterns: vec!["discord".to_string()],
             allowed_patterns: Vec::new(),
             protected_processes: Vec::new(),
+            server_time: None,
             current_mission_id: None,
             current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: Vec::new(),
         };
 
         assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "STRICT");
@@ -603,6 +775,110 @@ mod tests {
         let enforcer = ShieldEnforcer::new();
         assert!(!enforcer.interceptor().os_name().is_empty());
         assert!(enforcer.interceptor().network_filtering_supported());
+    }
+
+    #[test]
+    fn test_iso8601_date_parsing_and_expiry() {
+        let parsed = parse_iso8601_to_epoch_secs("2026-10-02T14:35:40Z").unwrap();
+        assert_eq!(parsed, 1790951740);
+
+        // Invalid cases
+        assert!(parse_iso8601_to_epoch_secs("").is_none());
+        assert!(parse_iso8601_to_epoch_secs("invalid-date").is_none());
+        assert!(parse_iso8601_to_epoch_secs("2026-99-99T00:00:00Z").is_none());
+    }
+
+    #[test]
+    fn test_active_warning_causes_defer() {
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: Some(1),
+            active_session_name: Some("Focus Session".to_string()),
+            duration_minutes: Some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: true,
+            blocked_patterns: vec!["discord".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            server_time: Some("2026-10-02T12:00:00Z".to_string()),
+            current_mission_id: None,
+            current_goal_id: None,
+            active_warnings: vec![
+                crate::client::ActiveWarningItem {
+                    warning_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                    process_name: "discord".to_string(),
+                    decision_deadline: "2026-10-02T12:01:00Z".to_string(),
+                    status: "ISSUED".to_string(),
+                }
+            ],
+            active_grace_windows: Vec::new(),
+        };
+
+        let ref_time = parse_iso8601_to_epoch_secs("2026-10-02T12:00:30Z").unwrap();
+        assert!(is_in_active_warning("discord", &sync, ref_time));
+
+        // After deadline passed:
+        let expired_ref_time = parse_iso8601_to_epoch_secs("2026-10-02T12:01:30Z").unwrap();
+        assert!(!is_in_active_warning("discord", &sync, expired_ref_time));
+
+        // Different process
+        assert!(!is_in_active_warning("steam", &sync, ref_time));
+    }
+
+    #[test]
+    fn test_active_grace_causes_defer() {
+        let sync = SentinelDaemonSyncResponse {
+            has_active_session: true,
+            active_session_id: Some(1),
+            active_session_name: Some("Focus Session".to_string()),
+            duration_minutes: Some(25),
+            intention: None,
+            enforcement_mode: "STRICT".to_string(),
+            is_policy_locked: true,
+            blocked_patterns: vec!["discord".to_string()],
+            allowed_patterns: Vec::new(),
+            protected_processes: Vec::new(),
+            server_time: Some("2026-10-02T12:00:00Z".to_string()),
+            current_mission_id: None,
+            current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: vec![
+                crate::client::ActiveGraceWindowItem {
+                    warning_id: "00000000-0000-0000-0000-000000000002".to_string(),
+                    process_name: "discord".to_string(),
+                    expires_at: "2026-10-02T12:15:00Z".to_string(),
+                }
+            ],
+        };
+
+        let ref_time = parse_iso8601_to_epoch_secs("2026-10-02T12:05:00Z").unwrap();
+        assert!(is_in_active_grace("discord", &sync, ref_time));
+
+        // After grace expired:
+        let expired_ref_time = parse_iso8601_to_epoch_secs("2026-10-02T12:16:00Z").unwrap();
+        assert!(!is_in_active_grace("discord", &sync, expired_ref_time));
+    }
+
+    #[test]
+    fn test_absent_warning_defers_on_first_detection() {
+        let mut enforcer = ShieldEnforcer::new();
+        // Candidate is not in unwarned_candidates initially
+        assert!(enforcer.unwarned_candidates.insert("discord".to_string()));
+        // Second insertion returns false (already seen)
+        assert!(!enforcer.unwarned_candidates.insert("discord".to_string()));
+    }
+
+    #[test]
+    fn test_candidate_evaluator_defer_and_terminate_branches() {
+        // Test that evaluator returning DEFER_WARNING / DEFER_GRACE does not proceed to termination,
+        // and ENFORCE_TERMINATE enables termination outcome.
+        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |_force| true);
+        assert_eq!(action, "TERMINATED");
+        assert!(confirmed);
+
+        let (action_audit, _, _) = ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", |_force| false);
+        assert_eq!(action_audit, "WARNED");
     }
 }
 

@@ -155,7 +155,18 @@ fn handle_sweep(client: &SentinelClient, config: &config::ShieldConfig, dry_run:
         }
     };
 
-    let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, dry_run);
+    let intercepted = enforcer.scan_and_enforce_with_candidate_evaluator(
+        &sync,
+        &config.fallback_blacklist,
+        dry_run,
+        Some(|name: &str, cmd: Option<&str>, pid: u32| {
+            client.evaluate_candidate(&client::CandidateProcessRequest {
+                process_name: name.to_string(),
+                command_line: cmd.map(|s| s.to_string()),
+                pid: Some(pid),
+            })
+        }),
+    );
 
     if intercepted.is_empty() {
         println!("✨ Sentinel sweep clean: No distracting processes detected.");
@@ -198,8 +209,11 @@ mod tests {
             blocked_patterns: vec!["discord".to_string()],
             allowed_patterns: Vec::new(),
             protected_processes: Vec::new(),
+            server_time: None,
             current_mission_id: None,
             current_goal_id: None,
+            active_warnings: Vec::new(),
+            active_grace_windows: Vec::new(),
         }
     }
 
@@ -259,7 +273,18 @@ fn handle_run(client: &SentinelClient, config: &config::ShieldConfig, dry_run: b
                     }
 
                     // Enforce processes
-                    let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, dry_run);
+                    let intercepted = enforcer.scan_and_enforce_with_candidate_evaluator(
+                        &sync,
+                        &config.fallback_blacklist,
+                        dry_run,
+                        Some(|name: &str, cmd: Option<&str>, pid: u32| {
+                            client.evaluate_candidate(&client::CandidateProcessRequest {
+                                process_name: name.to_string(),
+                                command_line: cmd.map(|s| s.to_string()),
+                                pid: Some(pid),
+                            })
+                        }),
+                    );
 
                     for p in &intercepted {
                         println!(

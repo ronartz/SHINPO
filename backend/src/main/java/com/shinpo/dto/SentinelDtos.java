@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public class SentinelDtos {
 
@@ -137,6 +138,19 @@ public class SentinelDtos {
             String reason
     ) {}
 
+    public record ActiveWarningItem(
+            UUID warningId,
+            String processName,
+            Instant decisionDeadline,
+            String status
+    ) {}
+
+    public record ActiveGraceWindowItem(
+            UUID warningId,
+            String processName,
+            Instant expiresAt
+    ) {}
+
     public record SentinelDaemonSyncResponse(
             boolean hasActiveSession,
             Long activeSessionId,
@@ -150,7 +164,9 @@ public class SentinelDtos {
             List<String> protectedProcesses,
             Instant serverTime,
             Long currentMissionId,
-            Long currentGoalId
+            Long currentGoalId,
+            List<ActiveWarningItem> activeWarnings,
+            List<ActiveGraceWindowItem> activeGraceWindows
     ) {}
 
     public record BatchQuarantineRequest(

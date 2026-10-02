@@ -39,6 +39,8 @@ public interface SentinelGraceWindowRepository extends JpaRepository<SentinelGra
             SentinelGraceStatus status
     );
 
+    List<SentinelGraceWindow> findAllByFocusSession_IdAndStatus(Long focusSessionId, SentinelGraceStatus status);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE SentinelGraceWindow g SET g.status = :newStatus, g.updatedAt = :now " +
            "WHERE g.status = 'ACTIVE' AND g.expiresAt <= :now")
