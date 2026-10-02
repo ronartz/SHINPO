@@ -28,7 +28,7 @@ Screenshots/video were described by the user but not accessible as files or shar
 | PR-TIME-002 | Separate wall clock from session timer. | PARTIAL | Session countdown exists; wall clock absent. |
 | PR-TIME-003 | Date-only values preserve local dates; UTC instants render in a consistent user timezone. | PARTIAL | UI mixes UTC ISO extraction, UTC timestamp construction, local formatting, and server UTC analytics boundaries. |
 | PR-TIME-004 | Consistent local-time policy across dashboard, goals, tasks, calendar, focus, activity, assistant, alerts, desktop. | PLANNED | No common policy/helper verified. |
-| PR-QUOTE-001 | One concise daily quote, stable during local day/restart/rerender, changed at local midnight; no timed rotation. | PARTIAL | Helper exists but uses UTC date and rotates on new session/tab and manual refresh. |
+| PR-QUOTE-001 | One concise daily quote, stable during the local day/rerender; app restart reloads the quote for the current local date without advancing it; local date change selects that day's quote; no timed rotation. | PARTIAL | Helper exists but uses UTC date and rotates on new session/tab and manual refresh. |
 | PR-QUOTE-002 | Replace sidebar’s “Start Your / Day Be / Productive” slogan region with daily quote. | PLANNED | Slogan remains; dynamic message occupies another region. |
 
 ## UX and Presentation
@@ -39,7 +39,7 @@ Screenshots/video were described by the user but not accessible as files or shar
 | PR-UX-002 | Schedule form uses Task/Objective, Session Name, Date, Start Time, Focus Pattern, Duration; Cancel/Schedule Session. | PLANNED | Current modal says “Book Temporal Focus Sprint”, “Target Mission”, “Sprint Title / Name”, “Execution Protocol Plan”. |
 | PR-UX-003 | Overview prioritizes time, current objective, next action, session, protection, today plan, progress, supporting data. | PARTIAL | Dashboard exists; current hierarchy/cockpit remains crowded. |
 | PR-UX-004 | Completed tasks stay readable and clearly completed. | PARTIAL | Mission status/filter exists; supplied visual not accessible for independent review. |
-| PR-UX-005 | Reusable SHINPO date picker: themes, month nav, selected date, Today/Clear, keyboard/accessibility, local dates, responsive. | PLANNED | Native `input[type=date]` used. |
+| PR-UX-005 | Reusable SHINPO date picker: themes, month nav, selected date, Today/Clear, keyboard navigation/accessibility, local dates, responsive. | PLANNED | Native `input[type=date]` used. |
 | PR-UX-006 | Accessible dark/light design with Coral accent and separate light-mode treatment. | PARTIAL | Theme styles exist; separate contrast/usability audit absent. |
 | PR-UX-007 | Responsive, keyboard/assistive-tech support, focus visibility, reduced motion, honest loading/empty/error states. | PARTIAL | Some ARIA/reduced-motion/responsive patterns exist; no full validation. |
 | PR-UX-008 | Restrained, purposeful motion with reduced-motion support. | PARTIAL | CSS motion and reduced-motion rules exist; product-wide verification absent. |
@@ -62,15 +62,16 @@ Screenshots/video were described by the user but not accessible as files or shar
 |---|---|---|---|
 | PR-ENF-001 | Evaluate local activity during an authorized active session. | IMPLEMENTED | Java Sentinel/Rust process scans and policies exist; process-pattern based. |
 | PR-ENF-002 | Contextual decision includes session, objective, task, policy, exceptions, break/recovery, activity identity, safety. | PARTIAL | Rules, active-session checks, allow/protected patterns exist; no complete contextual engine. |
-| PR-ENF-003 | App/site identity alone is insufficient; music/audio and screen recording are not inherently distracting. | PLANNED | Defaults include Spotify/OBS; OBS termination was reported by user. |
+| PR-ENF-003 | App/site identity alone is insufficient; Spotify, Discord, YouTube, Reddit, VLC, browser activity, music/audio, and screen recording are not inherently distracting. | PLANNED | Defaults include Spotify/OBS; OBS termination was reported by user. Contextual classification is not complete. |
 | PR-ENF-004 | Protect SHINPO, OS-critical, accessibility/security/input, recording, and user-protected apps. | PARTIAL | Static names exist, but robust identity/configurable categories do not. |
 | PR-ENF-005 | Validate device, PID+start time, executable, OS user/session, policy version, safety before termination. | PLANNED | Current paths match patterns and terminate by PID; immediate identity validation not evidenced. |
-| PR-ENF-006 | Native warning explains detection, reason, current session/task, grace countdown, actions. | PLANNED | Complete warning overlay not found. |
+| PR-ENF-006 | Professional SHINPO desktop warning overlay explains detected activity, reason, current Focus Session and Objective/Task, remaining grace, and available actions; supports countdown, keyboard access, focus trapping, reduced motion, clear transitions, and safe fallback. | PLANNED | Complete desktop warning overlay not found. |
 | PR-ENF-007 | User-selectable grace capped at 20 minutes. | PLANNED | No verified grace setting/countdown. |
 | PR-ENF-008 | Verify result and audit requested/sent/confirmed/rejected/stale/failed. | PARTIAL | Quarantine/tamper records exist; target outcome verification and distinct action contract incomplete. |
 | PR-ENF-009 | Scoped exceptions, allow rules and emergency override are explainable/authorized/audited. | PARTIAL | Allow patterns, override endpoint and tamper events exist; complete safe UX/device scope needs verification. |
-| PR-ENF-010 | Browser activity is a privacy-bounded enforcement surface. | PLANNED | No browser site classifier/agent found. |
+| PR-ENF-010 | Detect, classify, and enforce browser/web activity contextually with privacy boundaries, legitimate-work exceptions, warning, verification, and audit. | PLANNED | No browser site classifier/agent found. |
 | PR-ENF-011 | Task Manager primary UX communicates Focus Protection; advanced controls are appropriately gated. | PARTIAL | Raw table and termination exist; backend-host process scope and synthetic metrics mislead. |
+| PR-ENF-012 | Preserve actual OS-level enforcement after activity identity, focus/task context, user policy, exceptions, break/recovery, and protected-process checks; verify the action and audit its outcome. | PARTIAL | OS-level process termination paths exist, but current name-based policies and incomplete identity/outcome checks do not meet the target. This requirement is safe contextual enforcement, not removal of enforcement. |
 
 ## Bulk Cleanup and History
 
@@ -78,7 +79,7 @@ Screenshots/video were described by the user but not accessible as files or shar
 |---|---|---|---|
 | PR-DEL-001 | Bulk goal delete is user-scoped, count-confirmed, explains linked missions/permanence, updates UI correctly. | IMPLEMENTED | `/api/goals/all`, service deletes linked missions, UI confirmation/error handling and regression test. |
 | PR-DEL-002 | Bulk mission clear is user-scoped, preserves goals, count-confirmed, handles errors. | IMPLEMENTED | `/api/missions/all`, service, UI confirmation/error handling and regression test. |
-| PR-DEL-003 | Appropriate cleanup for sessions, conversation history, activity/history, notifications, other deletable collections. | PARTIAL | Single-session delete only; assistant clear archives active conversation and creates a new one; no general history/notification bulk route found. |
+| PR-DEL-003 | Appropriate cleanup for sessions, calendar entries where supported, conversation history, activity/history, notifications, and other deletable collections. | PARTIAL | Single-session delete only; assistant clear archives active conversation and creates a new one; no general calendar-entry, history, or notification bulk route found. |
 | PR-DEL-004 | Each bulk action states scope/count/dependencies/permanence and enforces authorization/audit. | PARTIAL | Goals/missions explain scope/count/permanence; other collections absent and audit coverage not universal. |
 
 ## AI, Realtime, Security, and Platforms

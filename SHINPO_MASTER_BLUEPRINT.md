@@ -35,7 +35,7 @@ Preserve focus-pattern plans with focus/short-break/long-break intervals, allowe
 
 ## Daily Quote and Current Time
 
-The sidebar currently shows the permanent “Start Your / Day Be / Productive” slogan and a separate dynamic-message card below it. Replace the slogan region with one concise professional quote for the **current local day**. It must be stable across rerenders and restarts, change at local midnight, not rotate on a timer, and not overpower execution information. The current helper uses UTC-derived date text and rotates on new session/tab and manual refresh, so it does not meet the target lifecycle.
+The sidebar currently shows the permanent “Start Your / Day Be / Productive” slogan and a separate dynamic-message card below it. Replace the slogan region with one concise professional quote for the **current local day**. It must be stable across rerenders and restarts; app restart must reload the correct quote for today's local date, not advance it randomly; a local-day change must load that day's quote. Do not rotate on a timer or let the quote overpower execution information. The current helper uses UTC-derived date text and rotates on new session/tab and manual refresh, so it does not meet the target lifecycle.
 
 The Overview must show the live local wall clock and date, update without reload, and roll over at midnight. This is not a Focus Session timer. Current source contains a one-second session-timer ticker but no live Overview clock. Store timestamps as UTC instants; represent date-only selections as local dates; render using one user-local timezone policy. Current code mixes UTC-derived date strings, local formatting, and UTC construction of scheduled timestamps.
 
@@ -43,25 +43,25 @@ The Overview must show the live local wall clock and date, update without reload
 
 ### Contextual model
 
-Target evaluation order:
+Required target decision and enforcement order:
 
-`ACTIVITY IDENTITY -> CURRENT FOCUS SESSION -> GOAL / OBJECTIVE -> TASK / MISSION -> USER POLICY -> EXCEPTIONS -> BREAK / RECOVERY STATE -> SAFETY EXCLUSIONS -> CONTEXTUAL DECISION`
+`ACTIVITY DETECTED -> ACTIVITY IDENTITY VALIDATED -> CURRENT FOCUS CONTEXT -> OBJECTIVE/TASK CONTEXT -> USER POLICY -> EXCEPTIONS -> BREAK/RECOVERY STATE -> SAFETY/PROTECTED PROCESS CHECK -> WARNING -> OPTIONAL GRACE PERIOD (MAX 20 MINUTES) -> OS-LEVEL ENFORCEMENT -> VERIFICATION -> AUDIT`
 
 Discord, Spotify, Steam, Reddit, YouTube, VLC, Chrome, Firefox, and similar tools are not inherently distractions. The same service can support work in one context and interrupt it in another. Music/audio and screen recording are not distractions by category. Current process-name rules and defaults do not meet this model.
 
 ### Warning, grace, and desktop surface
 
-Target flow: `DETECT -> IDENTIFY -> CONTEXT EVALUATE -> POLICY / EXCEPTIONS -> WARN -> OPTIONAL GRACE -> ENFORCE -> VERIFY -> AUDIT`.
+Use the ordered target pipeline above. The warning is a professional SHINPO desktop experience and precedes any enforcement action; grace is optional only where policy permits and may never exceed 20 minutes.
 
-Explain detected activity, intervention reason, current session/objective/task, remaining grace, and choices. User-selectable grace is capped at **20 minutes**. A future Tauri/native SHINPO warning surface needs countdown, explanation, keyboard access, focus management, reduced motion, clear transitions, and safe fallback. Warning UX and grace flow are not verified as implemented.
+Explain detected activity, intervention reason, current session/objective/task, remaining grace, and choices. User-selectable grace is capped at **20 minutes**. A future Tauri/native SHINPO warning surface needs countdown, explanation, keyboard access, focus trapping, reduced motion, clear transitions, and safe fallback. Warning UX and grace flow are not verified as implemented.
 
 ### Safety and browser activity
 
 The supplied video is described as showing Sentinel terminating OBS while SHINPO was being recorded. The visual was unavailable, but source corroborates serious risk: `obs` is in Rust and Java fallback distraction lists, and automatic termination is wired to process-name/pattern matching. Fixed protected-name lists are not adequate.
 
-Target protection includes SHINPO, shell, OS-critical processes, input/accessibility/security tools, screen recording, user-protected apps, and configured development/debugging tools. Do not hardcode a final list without policy justification. Immediately validate device, PID and process start time, executable identity, OS user/session, policy version, and safety exclusions. Distinguish requested, signal-sent, exit-confirmed, rejected, stale, unsupported, and failed outcomes. Do not enable automatic termination as a default end-user behavior before the safety gate passes.
+Target protection includes SHINPO, shell, OS-critical processes, input/accessibility/security tools, screen recording, user-protected apps, and configured development/debugging tools. Do not hardcode a final list without policy justification. Immediately validate device, PID and process start time, executable identity, OS user/session, policy version, and safety exclusions. Distinguish requested, signal-sent, exit-confirmed, rejected, stale, unsupported, and failed outcomes. The target retains actual OS-level enforcement when the validated contextual decision and user policy require it; verification and audit are mandatory. The migration replaces unsafe name-only action with safe, contextual, verified enforcement, not removal of enforcement. Current termination paths must not be represented as safe until those controls are verified.
 
-Browser/site activity is a future first-class enforcement surface. Installed-process monitoring cannot distinguish technical learning/project work from unrelated browsing. Browser classification, privacy boundaries, exceptions, warning UX, and browser-agent capabilities remain migration work.
+Browser/web activity is a future first-class detection, classification, and enforcement surface. Installed-process monitoring cannot distinguish technical learning/project work from unrelated browsing. Browser classification, privacy boundaries, exceptions, warning UX, browser-agent capabilities, and safe OS/browser enforcement remain migration work.
 
 ### Task Manager
 

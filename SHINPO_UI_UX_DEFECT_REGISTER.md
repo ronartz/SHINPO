@@ -52,6 +52,8 @@ No specific screenshot-only visual defect is asserted without access to the supp
 
 ## Evidence and Follow-Up
 
+The remediation target is safe, contextual, verified OS-level enforcement using the ordered pipeline in [SHINPO_ARCHITECTURE.md](SHINPO_ARCHITECTURE.md). P0 findings do not imply removing enforcement: the product must retain enforcement after identity, context, policy, exception, break/recovery, protected-process, warning/grace, verification, and audit checks.
+
 Source evidence includes `frontend/src/App.tsx`, `frontend/src/utils/shinpoMessages.ts`, `backend/src/main/java/com/shinpo/service/AnalyticsService.java`, `backend/src/main/java/com/shinpo/service/TaskManagerService.java`, `backend/src/main/java/com/shinpo/service/SentinelEnforcementService.java`, `crates/shinpo-shield/src/config.rs`, and `crates/shinpo-shield/src/enforcer.rs`.
 
 Before resolving visual-only items, manually review the actual Goals/Missions, scheduling modal, Assistant, Calendar, Dashboard, Task Manager, Analytics, enforcement video, sidebar, date/time, and light/dark evidence. Until supplied assets are available, do not convert user descriptions into verified visual findings.
