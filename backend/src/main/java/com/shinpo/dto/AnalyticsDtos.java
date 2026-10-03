@@ -13,7 +13,10 @@ public class AnalyticsDtos {
             Integer missionsTotal,
             Double avgQuality,
             Integer completionRate,
-            Integer currentStreak
+            Integer currentStreak,
+            String completionRatePopulation,
+            Integer completionRateNumerator,
+            Integer completionRateDenominator
     ) {}
 
     public record DailyFocusVelocity(
