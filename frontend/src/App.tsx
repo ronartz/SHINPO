@@ -72,8 +72,18 @@ import {
   updateSentinelMode,
   emergencyOverride,
   fetchSentinelTamperEvents,
+  fetchActiveWarnings,
+  respondToWarning,
 } from './api/device'
-import type { ProcessInfo, ProcessSnapshot, SentinelStatus, PolicyRule, SentinelTamperEventItem, SentinelQuarantineItem } from './api/device'
+import type {
+  ProcessInfo,
+  ProcessSnapshot,
+  SentinelStatus,
+  PolicyRule,
+  SentinelTamperEventItem,
+  SentinelQuarantineItem,
+  SentinelWarningItem,
+} from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from './api/analytics'
 import { ShinpoLogo } from './components/ShinpoLogo'
@@ -697,6 +707,12 @@ export function App() {
   const [tamperEventsExpanded, setTamperEventsExpanded] = useState(false)
   const [tamperEventsLoading, setTamperEventsLoading] = useState(false)
 
+  // Sentinel Discipline Warning & Grace Period State (Item 3 & 4)
+  const [activeWarnings, setActiveWarnings] = useState<SentinelWarningItem[]>([])
+  const [selectedGraceMinutes, setSelectedGraceMinutes] = useState(5)
+  const [warningSubmitting, setWarningSubmitting] = useState(false)
+  const [warningError, setWarningError] = useState<string | null>(null)
+
   // Operational Velocity & Telemetry State (C-003)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
@@ -879,13 +895,14 @@ export function App() {
     }
 
     try {
-      const [g, m, s, analytics, sentStatus, briefing] = await Promise.all([
+      const [g, m, s, analytics, sentStatus, briefing, warnings] = await Promise.all([
         getGoals(),
         getMissions(),
         getFocusSessions(),
         fetchAnalyticsDashboard().catch(() => null),
         fetchSentinelStatus().catch(() => null),
         getExecutiveBriefing().catch(() => null),
+        fetchActiveWarnings().catch(() => []),
       ])
       setGoals(g)
       setMissions(m)
@@ -893,6 +910,7 @@ export function App() {
       if (analytics) setAnalyticsData(analytics)
       if (sentStatus) setSentinelStatus(sentStatus)
       if (briefing) setExecutiveBriefing(briefing)
+      if (warnings) setActiveWarnings(warnings)
     } catch {
       // Keep empty if backend offline
     }
@@ -1621,6 +1639,23 @@ export function App() {
     )
   }, [sessions])
 
+  // Poll for Sentinel warnings during active focus session or while warnings/grace windows exist
+  useEffect(() => {
+    if (!currentUser) return
+    const pollWarnings = async () => {
+      try {
+        const w = await fetchActiveWarnings()
+        setActiveWarnings(w)
+      } catch {
+        // Ignore background polling errors
+      }
+    }
+    if (activeSession || activeWarnings.length > 0) {
+      const interval = setInterval(pollWarnings, 4000)
+      return () => clearInterval(interval)
+    }
+  }, [currentUser, activeSession, activeWarnings.length])
+
   const timerSeconds = useMemo(() => {
     if (!activeSession) return selectedDuration * 60
 
@@ -1647,6 +1682,50 @@ export function App() {
     const s = sec % 60
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
+
+  // Sentinel Warning & Grace Computations (Item 3 & 4)
+  const pendingWarning = useMemo(() => {
+    return activeWarnings.find((w) => w.status === 'ISSUED') ?? null
+  }, [activeWarnings])
+
+  const activeGraceWarning = useMemo(() => {
+    return activeWarnings.find((w) => w.status === 'GRACE_ACTIVE') ?? null
+  }, [activeWarnings])
+
+  const warningSecondsLeft = useMemo(() => {
+    if (!pendingWarning || !pendingWarning.decisionDeadline) return 0
+    const deadlineMs = new Date(pendingWarning.decisionDeadline).getTime()
+    return Math.max(0, Math.floor((deadlineMs - timerNow) / 1000))
+  }, [pendingWarning, timerNow])
+
+  const graceSecondsLeft = useMemo(() => {
+    if (!activeGraceWarning || !activeGraceWarning.graceExpiresAt) return 0
+    const expiresMs = new Date(activeGraceWarning.graceExpiresAt).getTime()
+    return Math.max(0, Math.floor((expiresMs - timerNow) / 1000))
+  }, [activeGraceWarning, timerNow])
+
+  const handleRespondToWarning = async (action: 'GRANT_GRACE' | 'TERMINATE_NOW') => {
+    if (!pendingWarning) return
+    setWarningSubmitting(true)
+    setWarningError(null)
+    try {
+      // Server is authoritative: cap graceMinutes between 1 and 20
+      const graceMin = action === 'GRANT_GRACE' ? Math.min(20, Math.max(1, selectedGraceMinutes)) : undefined
+      const updated = await respondToWarning(pendingWarning.warningId, action, graceMin)
+      setActiveWarnings((prev) =>
+        prev.map((w) => (w.warningId === updated.warningId ? updated : w)).filter((w) => w.status === 'ISSUED' || w.status === 'GRACE_ACTIVE'),
+      )
+      // Refresh Sentinel status
+      const st = await fetchSentinelStatus().catch(() => null)
+      if (st) setSentinelStatus(st)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit response to Sentinel warning'
+      setWarningError(msg)
+    } finally {
+      setWarningSubmitting(false)
+    }
+  }
+
 
   const handleStartSession = async () => {
     if (!currentUser) return
@@ -2335,13 +2414,47 @@ export function App() {
         <div className="sidebar-footer">
           <div
             className="sidebar-status-quiet"
-            title={activeSession ? 'Sentinel Shield Locked: Distraction apps blocked' : 'Sentinel Shield Armed & Monitoring'}
+            title={
+              pendingWarning
+                ? 'Sentinel Warning: Distraction process detected'
+                : activeGraceWarning
+                ? 'Sentinel Grace Period Active'
+                : activeSession
+                ? 'Sentinel Shield Locked: Distraction apps blocked'
+                : 'Sentinel Shield Armed & Monitoring'
+            }
           >
-            <span className={`status-dot-active ${activeSession ? 'focus-engaged' : ''}`} />
+            <span
+              className={`status-dot-active ${
+                pendingWarning
+                  ? 'warning-engaged'
+                  : activeGraceWarning
+                  ? 'grace-engaged'
+                  : activeSession
+                  ? 'focus-engaged'
+                  : ''
+              }`}
+            />
             {sidebarExpanded && (
               <div className="status-quiet-text">
-                <span className="status-quiet-title">Sentinel {activeSession ? 'Shielded' : 'Armed'}</span>
-                <span className="status-quiet-sub">{activeSession ? 'Processes locked' : 'Execution ready'}</span>
+                <span className="status-quiet-title">
+                  {pendingWarning
+                    ? '⚠️ Warning'
+                    : activeGraceWarning
+                    ? '⏳ Grace Active'
+                    : activeSession
+                    ? 'Sentinel Enforcing'
+                    : 'Sentinel Armed'}
+                </span>
+                <span className="status-quiet-sub">
+                  {pendingWarning
+                    ? `${pendingWarning.processName} detected`
+                    : activeGraceWarning
+                    ? `${formatTimerDigits(graceSecondsLeft)} left`
+                    : activeSession
+                    ? 'Processes locked'
+                    : 'Execution ready'}
+                </span>
               </div>
             )}
           </div>
@@ -3009,10 +3122,24 @@ export function App() {
                       </div>
                       <h3 className="cockpit-panel-title">Execution Cockpit</h3>
                     </div>
-                    {activeSession ? (
+                    {pendingWarning ? (
+                      <span className="hero-session-tag" style={{ background: 'rgba(255, 77, 94, 0.2)', border: '1px solid #FF4D5E', color: '#FF4D5E' }}>
+                        <span className="hero-pulse-dot" style={{ background: '#FF4D5E' }} />
+                        <span>DISCIPLINE WARNING</span>
+                      </span>
+                    ) : activeGraceWarning ? (
+                      <span className="hero-session-tag" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #F59E0B', color: '#F59E0B' }}>
+                        <span className="hero-pulse-dot" style={{ background: '#F59E0B' }} />
+                        <span>GRACE ({formatTimerDigits(graceSecondsLeft)})</span>
+                      </span>
+                    ) : activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
+                      <span className="hero-session-tag" style={{ background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #A855F7', color: '#A855F7' }}>
+                        <span>COMPLETE / RECOVERY</span>
+                      </span>
+                    ) : activeSession ? (
                       <span className="hero-session-tag">
                         <span className="hero-pulse-dot" />
-                        <span>ACTIVE</span>
+                        <span>{activeSession.status === 'PAUSED' ? 'PAUSED' : 'ENFORCEMENT ACTIVE'}</span>
                       </span>
                     ) : (
                       <span className="hero-idle-shield-tag">
@@ -3027,6 +3154,27 @@ export function App() {
                       {activeSession.intention && (
                         <div className="hero-session-intention">{activeSession.intention}</div>
                       )}
+
+                      {/* Live Grace Period Countdown Banner in Cockpit */}
+                      {activeGraceWarning && (
+                        <div className="sentinel-grace-banner">
+                          <div className="grace-banner-left">
+                            <span className="grace-banner-icon">⏳</span>
+                            <div>
+                              <div className="grace-banner-title">
+                                Grace Window: {activeGraceWarning.processName}
+                              </div>
+                              <div className="grace-banner-subtitle">
+                                Distraction app allowed until countdown expires.
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grace-banner-countdown">
+                            {formatTimerDigits(graceSecondsLeft)}
+                          </div>
+                        </div>
+                      )}
+
                       {activeSession.status === 'ACTIVE' && timerSeconds === 0 ? (
                         <div className="hero-timer-display" style={{ fontSize: 13, color: 'var(--accent-coral, #FF4D5E)' }}>
                           ⏰ Time's Up!
@@ -3452,12 +3600,48 @@ export function App() {
               <div className="card-header-row">
                 <div className="card-title-group">
                   <span className="card-title">Focus</span>
-                  <span className={`badge-tag ${activeSession ? 'green' : 'blue'}`}>
-                    {activeSession ? activeSession.status : 'STANDBY'}
+                  <span className={`badge-tag ${
+                    pendingWarning
+                      ? 'red'
+                      : activeGraceWarning
+                      ? 'yellow'
+                      : activeSession?.status === 'ACTIVE'
+                      ? 'green'
+                      : activeSession?.status === 'PAUSED'
+                      ? 'amber'
+                      : 'blue'
+                  }`}>
+                    {pendingWarning
+                      ? '⚠️ WARNING'
+                      : activeGraceWarning
+                      ? `⏳ GRACE (${formatTimerDigits(graceSecondsLeft)})`
+                      : activeSession
+                      ? (activeSession.status === 'ACTIVE' && timerSeconds === 0 ? 'COMPLETE' : activeSession.status)
+                      : 'STANDBY'}
                   </span>
                 </div>
                 <Icon name="clock" size={20} />
               </div>
+
+              {/* Live Grace Period Countdown Banner in Focus Engine HUD */}
+              {activeGraceWarning && (
+                <div className="sentinel-grace-banner" style={{ margin: '8px 0 16px' }}>
+                  <div className="grace-banner-left">
+                    <span className="grace-banner-icon">⏳</span>
+                    <div>
+                      <div className="grace-banner-title">
+                        Grace Active: <strong>{activeGraceWarning.processName}</strong>
+                      </div>
+                      <div className="grace-banner-subtitle">
+                        Enforcement deferred. Process will terminate when timer reaches 0.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grace-banner-countdown">
+                    {formatTimerDigits(graceSecondsLeft)}
+                  </div>
+                </div>
+              )}
 
               {activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
                 <div className="timer-ended-banner">
@@ -5587,14 +5771,16 @@ export function App() {
                   </div>
                 </div>
                 <div className="tm-metric-val" style={{ color: 'var(--accent-emerald)' }}>
-                  {analyticsData ? `${analyticsData.summary.completionRate}%` : '100%'}
+                  {analyticsData?.summary.completionRate != null
+                    ? `${analyticsData.summary.completionRate}%`
+                    : '—'}
                 </div>
                 <div className="tm-metric-sub">
                   {analyticsData
-                    ? `${analyticsData.summary.sessionsCompleted} completed of ${
-                        analyticsData.summary.sessionsCompleted + analyticsData.summary.sessionsStarted
-                      } sessions`
-                    : '100% target conversion'}
+                    ? `${analyticsData.summary.completionRateNumerator} completed of ${
+                        analyticsData.summary.completionRateDenominator
+                      } missions`
+                    : 'No mission data'}
                 </div>
               </div>
 
@@ -5625,11 +5811,15 @@ export function App() {
                   </div>
                 </div>
                 <div className="tm-metric-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>{analyticsData ? analyticsData.summary.avgQuality.toFixed(1) : '5.0'}</span>
+                  <span>
+                    {analyticsData?.summary.avgQuality != null
+                      ? analyticsData.summary.avgQuality.toFixed(1)
+                      : '—'}
+                  </span>
                   <span style={{ fontSize: 18, color: 'var(--accent-amber)' }}>★</span>
                 </div>
                 <div className="tm-metric-sub">
-                  {analyticsData?.summary.currentStreak ?? 3}-Day Execution Streak
+                  {analyticsData ? `${analyticsData.summary.currentStreak}-Day Execution Streak` : 'No execution data'}
                 </div>
               </div>
             </div>
@@ -5702,9 +5892,11 @@ export function App() {
                       <div className="analytics-debrief-top">
                         <div className="analytics-debrief-title">{deb.sessionName}</div>
                         <div className="analytics-debrief-stars">
-                          {Array.from({ length: deb.quality }).map((_, i) => (
-                            <span key={i}>⭐</span>
-                          ))}
+                          {deb.quality != null
+                            ? Array.from({ length: deb.quality }).map((_, i) => (
+                                <span key={i}>⭐</span>
+                              ))
+                            : '—'}
                           <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 6 }}>
                             ({deb.durationMinutes}m)
                           </span>
@@ -5748,6 +5940,99 @@ export function App() {
             </div>
           )}
       </main>
+
+      {/* Sentinel Discipline Warning & Grace Period Modal (Requirement 3 & 4) */}
+      {pendingWarning && (
+        <div className="quick-modal-overlay sentinel-warning-overlay">
+          <div
+            className="quick-modal-card sentinel-warning-card"
+            style={{ maxWidth: 480, borderTop: '3px solid var(--accent-coral, #FF4D5E)' }}
+          >
+            <div className="quick-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 24 }}>⚠️</span>
+                <div>
+                  <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)', margin: 0 }}>
+                    Sentinel Discipline Alert
+                  </h3>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+                    Distraction process detected during active focus session
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sentinel-warning-body">
+              <div className="sentinel-warning-meta">
+                <div className="warning-proc-tag">
+                  <Icon name="shield" size={14} />
+                  <span className="warning-proc-name">{pendingWarning.processName}</span>
+                </div>
+                {pendingWarning.commandLine && (
+                  <div className="warning-cmdline" title={pendingWarning.commandLine}>
+                    {pendingWarning.commandLine}
+                  </div>
+                )}
+              </div>
+
+              <div className="sentinel-warning-countdown-box">
+                <div className="warning-countdown-label">Decision Timeout</div>
+                <div className="warning-countdown-digits">
+                  {String(warningSecondsLeft).padStart(2, '0')}s
+                </div>
+                <div className="warning-countdown-sub">
+                  Choose a grace period or terminate immediately. Unanswered warnings transition to automatic enforcement.
+                </div>
+              </div>
+
+              <div className="quick-form-group">
+                <label className="quick-form-label">
+                  Request Grace Period (Max 20 Minutes)
+                </label>
+                <div className="grace-selector-row">
+                  {[2, 5, 10, 15, 20].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      className={`grace-chip ${selectedGraceMinutes === mins ? 'selected' : ''}`}
+                      onClick={() => setSelectedGraceMinutes(mins)}
+                      disabled={warningSubmitting}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {warningError && (
+                <div className="override-error-banner" style={{ marginTop: 8 }}>
+                  ⚠️ {warningError}
+                </div>
+              )}
+
+              <div className="quick-modal-actions" style={{ marginTop: 14 }}>
+                <button
+                  type="button"
+                  className="quick-btn-cancel"
+                  style={{ borderColor: 'var(--accent-coral, #FF4D5E)', color: 'var(--accent-coral, #FF4D5E)' }}
+                  disabled={warningSubmitting}
+                  onClick={() => handleRespondToWarning('TERMINATE_NOW')}
+                >
+                  {warningSubmitting ? 'Enforcing...' : 'Terminate Now'}
+                </button>
+                <button
+                  type="button"
+                  className="quick-btn-submit"
+                  disabled={warningSubmitting || warningSecondsLeft <= 0}
+                  onClick={() => handleRespondToWarning('GRANT_GRACE')}
+                >
+                  {warningSubmitting ? 'Granting...' : `Grant ${selectedGraceMinutes}m Grace`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Post-Session Reflection Modal */}
       {completingSessionId && (

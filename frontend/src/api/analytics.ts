@@ -6,9 +6,12 @@ export interface AnalyticsSummary {
   sessionsStarted: number
   missionsCompleted: number
   missionsTotal: number
-  avgQuality: number
-  completionRate: number
+  avgQuality: number | null
+  completionRate: number | null
   currentStreak: number
+  completionRatePopulation: 'MISSIONS'
+  completionRateNumerator: number
+  completionRateDenominator: number
 }
 
 export interface DailyFocusVelocity {
@@ -23,7 +26,7 @@ export interface RecentDebrief {
   sessionName: string
   intention: string
   durationMinutes: number
-  quality: number
+  quality: number | null
   accomplishment: string
   reflectionNote: string
   completedAt: string
