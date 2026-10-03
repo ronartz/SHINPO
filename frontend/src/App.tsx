@@ -102,6 +102,25 @@ import type { ShinpoMessage } from './utils/shinpoMessages'
 
 import './App.css'
 
+const formatLocalCalendarDate = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const localCalendarDate = (date = new Date()): string => formatLocalCalendarDate(date)
+
+const localCalendarDateFromInstant = (instant: string | null | undefined): string | null => {
+  return instant ? localCalendarDate(new Date(instant)) : null
+}
+
+const addLocalCalendarDays = (days: number): string => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return localCalendarDate(date)
+}
+
 export interface LiveAlertItem {
   id: string
   type: 'quarantine' | 'focus' | 'sentinel'
@@ -642,9 +661,7 @@ export function App() {
   const [isCreatingGoal, setIsCreatingGoal] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [newGoalDesc, setNewGoalDesc] = useState('')
-  const [newGoalDate, setNewGoalDate] = useState(() =>
-    new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-  )
+  const [newGoalDate, setNewGoalDate] = useState(() => addLocalCalendarDays(30))
   const [decomposingGoalId, setDecomposingGoalId] = useState<number | null>(null)
   const [aiDecompResult, setAiDecompResult] = useState<GoalDecomposition | null>(null)
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
@@ -667,7 +684,7 @@ export function App() {
 
   // Schedule Deck State (C-002)
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>(() => {
-    return new URLSearchParams(window.location.search).get('date') || new Date().toISOString().split('T')[0]
+    return new URLSearchParams(window.location.search).get('date') || localCalendarDate()
   })
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState<number>(0)
   const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
@@ -675,7 +692,7 @@ export function App() {
   const [bookMissionId, setBookMissionId] = useState<number | null>(null)
   const [bookName, setBookName] = useState('')
   const [bookIntention, setBookIntention] = useState('')
-  const [bookDate, setBookDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [bookDate, setBookDate] = useState(() => localCalendarDate())
   const [bookTime, setBookTime] = useState('09:00')
   const [bookDuration, setBookDuration] = useState(25)
   const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
@@ -742,7 +759,7 @@ export function App() {
     setQuickMissionError(null)
     setIsSubmittingQuickMission(true)
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = localCalendarDate()
       await createMission({
         goalId: quickMissionGoalId,
         title: quickMissionTitle.trim(),
@@ -782,18 +799,17 @@ export function App() {
 
     const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = localCalendarDate()
 
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
-      const dateStr = d.toISOString().split('T')[0]
+      const dateStr = localCalendarDate(d)
       const count = sessions.filter((s) => {
-        const sDate = s.scheduledAt
-          ? s.scheduledAt.split('T')[0]
-          : s.startedAt
-          ? s.startedAt.split('T')[0]
-          : s.createdAt.split('T')[0]
+        const sDate =
+          localCalendarDateFromInstant(s.scheduledAt) ||
+          localCalendarDateFromInstant(s.startedAt) ||
+          localCalendarDateFromInstant(s.createdAt)
         return sDate === dateStr
       }).length
 
@@ -810,11 +826,10 @@ export function App() {
 
   const selectedDaySessions = useMemo(() => {
     return sessions.filter((s) => {
-      const sDate = s.scheduledAt
-        ? s.scheduledAt.split('T')[0]
-        : s.startedAt
-        ? s.startedAt.split('T')[0]
-        : s.createdAt.split('T')[0]
+      const sDate =
+        localCalendarDateFromInstant(s.scheduledAt) ||
+        localCalendarDateFromInstant(s.startedAt) ||
+        localCalendarDateFromInstant(s.createdAt)
       if (sDate !== selectedScheduleDate) return false
 
       if (scheduleFilter === 'PENDING') {
@@ -1331,7 +1346,7 @@ export function App() {
         userId: currentUser.id,
         title: newGoalTitle.trim(),
         description: newGoalDesc.trim() || undefined,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: localCalendarDate(),
         targetDate: newGoalDate || undefined,
       })
       setGoals((prev) => [created, ...prev])
@@ -1428,7 +1443,7 @@ export function App() {
       if (aiDecompResult.suggestionId) {
         await commitSuggestion(aiDecompResult.suggestionId, { targetGoalId: aiDecompResult.goalId })
       } else {
-        const today = new Date().toISOString().split('T')[0]
+        const today = localCalendarDate()
         const created = await Promise.all(
           aiDecompResult.proposedMissions.map((pm) =>
             createMission({
@@ -4801,7 +4816,7 @@ export function App() {
                   className="schedule-nav-btn"
                   onClick={() => {
                     setScheduleWeekOffset(0)
-                    setSelectedScheduleDate(new Date().toISOString().split('T')[0])
+                    setSelectedScheduleDate(localCalendarDate())
                   }}
                   title="Return to Current Day"
                 >
@@ -4858,12 +4873,11 @@ export function App() {
               <div className="schedule-agenda-header">
                 <div className="schedule-agenda-title-group">
                   <h2>
-                    {new Date(selectedScheduleDate + 'T00:00:00Z').toLocaleDateString('en-US', {
+                    {new Date(`${selectedScheduleDate}T00:00:00`).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',
-                      timeZone: 'UTC',
                     })}
                   </h2>
                   <p>
