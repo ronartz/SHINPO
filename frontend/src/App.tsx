@@ -2171,7 +2171,7 @@ export function App() {
     let scheduledAt: string | undefined = undefined
     if (bookDate) {
       const timePart = bookTime ? (bookTime.length === 5 ? `${bookTime}:00` : bookTime) : '09:00:00'
-      scheduledAt = new Date(`${bookDate}T${timePart}Z`).toISOString()
+      scheduledAt = new Date(`${bookDate}T${timePart}`).toISOString()
     }
 
     try {

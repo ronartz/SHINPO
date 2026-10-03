@@ -25,7 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -153,12 +153,12 @@ public class FocusSessionService {
     }
 
     @Transactional
-    public List<FocusSessionResponse> getSessionsByDate(Long userId, LocalDate date) {
+    public List<FocusSessionResponse> getSessionsByDate(Long userId, LocalDate date, ZoneId zoneId) {
         if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User not found: " + userId);
         }
-        Instant start = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant end = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant start = date.atStartOfDay(zoneId).toInstant();
+        Instant end = date.plusDays(1).atStartOfDay(zoneId).toInstant();
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
         Instant now = Instant.now();
         for (FocusSession session : sessions) {
@@ -168,12 +168,17 @@ public class FocusSessionService {
     }
 
     @Transactional
-    public List<FocusSessionResponse> getSessionsForAgenda(Long userId, LocalDate startDate, LocalDate endDate) {
+    public List<FocusSessionResponse> getSessionsForAgenda(
+            Long userId,
+            LocalDate startDate,
+            LocalDate endDate,
+            ZoneId zoneId
+    ) {
         if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User not found: " + userId);
         }
-        Instant start = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant end = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant start = startDate.atStartOfDay(zoneId).toInstant();
+        Instant end = endDate.plusDays(1).atStartOfDay(zoneId).toInstant();
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
         Instant now = Instant.now();
         for (FocusSession session : sessions) {
@@ -183,8 +188,8 @@ public class FocusSessionService {
     }
 
     @Transactional
-    public List<FocusSessionResponse> getAgenda(Long userId, LocalDate startDate, LocalDate endDate) {
-        return getSessionsForAgenda(userId, startDate, endDate);
+    public List<FocusSessionResponse> getAgenda(Long userId, LocalDate startDate, LocalDate endDate, ZoneId zoneId) {
+        return getSessionsForAgenda(userId, startDate, endDate, zoneId);
     }
 
     @Transactional

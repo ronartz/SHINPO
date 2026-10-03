@@ -60,6 +60,9 @@ import { authHeaders, getAuthenticatedUserId } from './auth'
 import { getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api/focus-sessions`
+const timezoneHeader = () => ({
+  'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+})
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -107,7 +110,7 @@ export async function getFocusSessions(
 
 export async function getFocusSessionsByDate(date: string): Promise<FocusSession[]> {
   const response = await fetch(`${API_BASE}/by-date?date=${encodeURIComponent(date)}`, {
-    headers: authHeaders(),
+    headers: { ...authHeaders(), ...timezoneHeader() },
   })
   return parseResponse<FocusSession[]>(response)
 }
@@ -119,7 +122,7 @@ export async function getFocusSessionsAgenda(
   const response = await fetch(
     `${API_BASE}/agenda?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
     {
-      headers: authHeaders(),
+      headers: { ...authHeaders(), ...timezoneHeader() },
     },
   )
   return parseResponse<FocusSession[]>(response)

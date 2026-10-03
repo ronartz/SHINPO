@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,9 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.shinpo.dto.AiDtos.AiChatRequest;
@@ -29,6 +33,8 @@ import com.shinpo.dto.AuthDtos;
 import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.entity.AiSuggestion;
 import com.shinpo.entity.Goal;
+import com.shinpo.entity.FocusSession;
+import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.Mission;
 import com.shinpo.entity.SessionInterval;
 import com.shinpo.entity.SessionIntervalType;
@@ -833,6 +839,66 @@ class ShinpoApplicationTests {
         );
         assertEquals(200, agendaResponse.getStatusCode().value());
         assertNotNull(agendaResponse.getBody());
+    }
+
+    @Test
+    void shouldQueryFocusSessionsUsingIstCalendarBoundaries() {
+        FocusSession beforeIstMidnight = new FocusSession();
+        beforeIstMidnight.setUser(testUser);
+        beforeIstMidnight.setName("IST Included");
+        beforeIstMidnight.setDurationMinutes(25);
+        beforeIstMidnight.setScheduledAt(Instant.parse("2026-10-01T18:00:00Z"));
+        beforeIstMidnight.setStatus(FocusSessionStatus.SCHEDULED);
+
+        FocusSession afterIstMidnight = new FocusSession();
+        afterIstMidnight.setUser(testUser);
+        afterIstMidnight.setName("IST Excluded");
+        afterIstMidnight.setDurationMinutes(25);
+        afterIstMidnight.setScheduledAt(Instant.parse("2026-10-01T19:00:00Z"));
+        afterIstMidnight.setStatus(FocusSessionStatus.SCHEDULED);
+        focusSessionRepository.saveAll(List.of(beforeIstMidnight, afterIstMidnight));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Timezone", "Asia/Kolkata");
+        ResponseEntity<FocusSessionResponse[]> response = restTemplate.exchange(
+                baseUrl() + "/api/focus-sessions/by-date?date=2026-10-01",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                FocusSessionResponse[].class
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+        assertEquals("IST Included", response.getBody()[0].getName());
+        Instant expectedStart = LocalDate.of(2026, 10, 1)
+                .atStartOfDay(ZoneId.of("Asia/Kolkata"))
+                .toInstant();
+        Instant expectedEnd = LocalDate.of(2026, 10, 2)
+                .atStartOfDay(ZoneId.of("Asia/Kolkata"))
+                .toInstant();
+        assertEquals(
+                Instant.parse("2026-09-30T18:30:00Z"),
+                expectedStart
+        );
+        assertEquals(
+                Instant.parse("2026-10-01T18:30:00Z"),
+                expectedEnd
+        );
+    }
+
+    @Test
+    void shouldRejectInvalidFocusSessionTimezone() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Timezone", "Not/A-Timezone");
+        ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl() + "/api/focus-sessions/by-date?date=2026-10-01",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class
+        );
+
+        assertEquals(400, response.getStatusCode().value());
     }
 
     @Test
