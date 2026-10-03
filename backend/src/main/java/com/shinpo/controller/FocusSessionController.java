@@ -11,8 +11,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -45,18 +48,28 @@ public class FocusSessionController {
     @GetMapping("/by-date")
     public ResponseEntity<List<FocusSessionResponse>> getSessionsByDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(focusSessionService.getSessionsByDate(principal.getUserId(), date));
+        return ResponseEntity.ok(focusSessionService.getSessionsByDate(principal.getUserId(), date, parseTimezone(timezone)));
     }
 
     @GetMapping("/agenda")
     public ResponseEntity<List<FocusSessionResponse>> getAgenda(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(focusSessionService.getAgenda(principal.getUserId(), startDate, endDate));
+        return ResponseEntity.ok(focusSessionService.getAgenda(principal.getUserId(), startDate, endDate, parseTimezone(timezone)));
+    }
+
+    private ZoneId parseTimezone(String timezone) {
+        try {
+            return ZoneId.of(timezone);
+        } catch (DateTimeException | NullPointerException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid timezone: " + timezone);
+        }
     }
 
     @GetMapping("/{sessionId}")
