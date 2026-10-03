@@ -9799,6 +9799,195 @@ html[data-theme='light'] .modal-meta-grid {
   border-radius: 999px;
 }
 
+/* Sentinel Discipline Warning & Grace Period Styles (Requirement 3 & 4) */
+.sentinel-warning-overlay {
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.sentinel-warning-card {
+  max-width: 480px;
+  animation: tmModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sentinel-warning-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sentinel-warning-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.warning-proc-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-coral, #FF4D5E);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.warning-cmdline {
+  font-size: 11.5px;
+  font-family: monospace;
+  color: var(--text-3);
+  word-break: break-all;
+  max-height: 48px;
+  overflow-y: auto;
+}
+
+.sentinel-warning-countdown-box {
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.warning-countdown-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent-coral, #FF4D5E);
+  margin-bottom: 4px;
+}
+
+.warning-countdown-digits {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--accent-coral, #FF4D5E);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+
+.warning-countdown-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+.grace-selector-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.grace-chip {
+  flex: 1;
+  min-width: 50px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.grace-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.grace-chip.selected {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-yellow, #F59E0B);
+  color: var(--accent-yellow, #F59E0B);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* Live Grace Banner in Execution Cockpit and Focus Engine */
+.sentinel-grace-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  animation: graceBannerGlow 2s ease-in-out infinite;
+}
+
+@keyframes graceBannerGlow {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.35); }
+  50% { border-color: rgba(245, 158, 11, 0.7); box-shadow: 0 0 12px rgba(245, 158, 11, 0.15); }
+}
+
+.grace-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.grace-banner-icon {
+  font-size: 20px;
+}
+
+.grace-banner-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-yellow, #F59E0B);
+}
+
+.grace-banner-subtitle {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.grace-banner-countdown {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--accent-yellow, #F59E0B);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Status indicator colors in sidebar */
+.status-dot-active.warning-engaged {
+  background: var(--accent-coral, #FF4D5E);
+  box-shadow: 0 0 8px #FF4D5E;
+  animation: pulseDot 1s infinite;
+}
+
+.status-dot-active.grace-engaged {
+  background: var(--accent-yellow, #F59E0B);
+  box-shadow: 0 0 8px #F59E0B;
+  animation: pulseDot 1.5s infinite;
+}
+
+.badge-tag.yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow, #F59E0B);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-tag.amber {
+  background: rgba(217, 119, 6, 0.15);
+  color: #D97706;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
 .sentinel-tamper-badge-count.clean {
   background: rgba(46, 213, 115, 0.12);
   border: 1px solid rgba(46, 213, 115, 0.3);
