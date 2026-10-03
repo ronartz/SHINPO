@@ -245,3 +245,40 @@ export async function fetchSentinelTamperEvents(sessionId?: number): Promise<Sen
   if (!res.ok) throw new Error(`Failed to fetch tamper events: ${res.status}`)
   return res.json()
 }
+
+export interface SentinelWarningItem {
+  warningId: string
+  sessionId: number | null
+  processName: string
+  commandLine: string | null
+  issuedAt: string
+  decisionDeadline: string
+  status: 'ISSUED' | 'GRACE_ACTIVE' | 'TERMINATE_NOW' | 'EXPIRED' | 'CANCELLED' | string
+  graceExpiresAt: string | null
+  effectiveGraceMinutes: number | null
+}
+
+export async function fetchActiveWarnings(): Promise<SentinelWarningItem[]> {
+  const res = await fetch(`${SENTINEL_BASE}/warnings`, {
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error(`Failed to fetch active warnings: ${res.status}`)
+  return res.json()
+}
+
+export async function respondToWarning(
+  warningId: string,
+  action: 'GRANT_GRACE' | 'TERMINATE_NOW',
+  graceMinutes?: number,
+): Promise<SentinelWarningItem> {
+  const res = await fetch(`${SENTINEL_BASE}/warnings/${warningId}/respond`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ action, graceMinutes }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null)
+    throw new Error(errData?.message || `Failed to respond to warning: ${res.status}`)
+  }
+  return res.json()
+}
