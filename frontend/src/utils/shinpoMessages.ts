@@ -67,7 +67,8 @@ function getDailyBaseIndex(dateStr: string): number {
  * session-launch bump, and local persistence.
  */
 export function getInitialShinpoMessage(): ShinpoMessage {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const storedDate = localStorage.getItem(STORAGE_KEY_LAST_DATE)
   const storedIndexStr = localStorage.getItem(STORAGE_KEY_CYCLE_INDEX)
   let currentIndex = storedIndexStr !== null ? parseInt(storedIndexStr, 10) : getDailyBaseIndex(todayStr)

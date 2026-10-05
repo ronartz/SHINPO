@@ -163,7 +163,8 @@ class AdaptivePlanningTests {
     @DisplayName("Adaptive Planning: detects schedule conflicts and automatically offsets with 10m buffers")
     void testScheduleConflictResolution() {
         // Create an already scheduled focus session overlapping with the 9:00 AM circadian window
-        Instant scheduledStart = LocalDate.now().atTime(9, 15).atZone(java.time.ZoneId.systemDefault()).toInstant();
+        ZoneId userZone = ZoneId.of("Asia/Kolkata");
+        Instant scheduledStart = LocalDate.now(userZone).atTime(9, 15).atZone(userZone).toInstant();
         FocusSession existing = new FocusSession();
         existing.setUser(testUser);
         existing.setName("Client Alignment Sync");
@@ -174,7 +175,7 @@ class AdaptivePlanningTests {
         existing.setAccumulatedPausedSeconds(0L);
         focusSessionRepository.save(existing);
 
-        DailyPlanResponse plan = aiGateway.getDailyPlan(testUser.getId());
+        DailyPlanResponse plan = aiGateway.getDailyPlan(testUser.getId(), userZone);
 
         assertNotNull(plan);
         // Verify conflict detection triggered
