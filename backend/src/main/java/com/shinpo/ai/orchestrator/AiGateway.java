@@ -406,6 +406,10 @@ public class AiGateway {
      * historical estimation bias calibration, conflict resolution, and restorative breaks.
      */
     public DailyPlanResponse getDailyPlan(Long userId) {
+        return getDailyPlan(userId, ZoneId.systemDefault());
+    }
+
+    public DailyPlanResponse getDailyPlan(Long userId, ZoneId zoneId) {
         // 1. Fetch user execution profile & estimation bias
         Map<String, Object> profile = toolRegistry.getUserExecutionProfile(userId);
         Double biasPct = 0.0;
@@ -430,7 +434,7 @@ public class AiGateway {
         boolean hasConflictsResolved = false;
 
         // 4. Determine base reference time (LocalTime)
-        LocalTime now = LocalTime.now();
+        LocalTime now = LocalTime.now(zoneId);
         LocalTime cursor;
         if (now.isBefore(LocalTime.of(8, 30))) {
             cursor = LocalTime.of(9, 0);
@@ -538,7 +542,7 @@ public class AiGateway {
                 if (schedAtStr != null) {
                     try {
                         Instant inst = Instant.parse(schedAtStr);
-                        LocalTime exStart = inst.atZone(ZoneId.systemDefault()).toLocalTime();
+                        LocalTime exStart = inst.atZone(zoneId).toLocalTime();
                         int exDuration = existing.get("durationMinutes") instanceof Number n ? n.intValue() : 25;
                         LocalTime exEnd = exStart.plusMinutes(exDuration);
 
