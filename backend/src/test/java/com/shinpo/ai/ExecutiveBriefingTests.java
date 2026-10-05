@@ -4,6 +4,9 @@ import com.shinpo.dto.AiDtos.ExecutiveBriefingResponse;
 import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.CreateMissionRequest;
 import com.shinpo.entity.User;
+import com.shinpo.entity.FocusSession;
+import com.shinpo.entity.FocusSessionStatus;
+import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.service.AiService;
 import com.shinpo.service.GoalService;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -38,6 +42,9 @@ public class ExecutiveBriefingTests {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FocusSessionRepository focusSessionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -102,5 +109,32 @@ public class ExecutiveBriefingTests {
         assertEquals(0, briefing.completedMissionsCount());
         assertTrue(briefing.primaryRecommendation().contains("Compile Kernel Drivers"));
         assertEquals("SECURE", briefing.sentinelThreatPosture());
+    }
+
+    @Test
+    @DisplayName("Executive briefing counts focus sessions using the requested Asia/Kolkata day")
+    void testBriefingUsesRequestedTimezoneDayBoundary() {
+        ZoneId zone = ZoneId.of("Asia/Kolkata");
+        LocalDate today = LocalDate.now(zone);
+
+        FocusSession included = new FocusSession();
+        included.setUser(testUser);
+        included.setName("IST included");
+        included.setDurationMinutes(35);
+        included.setStatus(FocusSessionStatus.COMPLETED);
+        included.setStartedAt(today.atStartOfDay(zone).plusMinutes(30).toInstant());
+        focusSessionRepository.save(included);
+
+        FocusSession excluded = new FocusSession();
+        excluded.setUser(testUser);
+        excluded.setName("IST excluded");
+        excluded.setDurationMinutes(45);
+        excluded.setStatus(FocusSessionStatus.COMPLETED);
+        excluded.setStartedAt(today.minusDays(1).atStartOfDay(zone).plusHours(23).plusMinutes(30).toInstant());
+        focusSessionRepository.save(excluded);
+
+        ExecutiveBriefingResponse briefing = aiService.generateExecutiveBriefing(testUser.getId(), zone);
+
+        assertEquals(35, briefing.focusMinutesToday());
     }
 }
