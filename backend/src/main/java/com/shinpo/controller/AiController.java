@@ -14,6 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -87,12 +89,13 @@ public class AiController {
 
     @GetMapping("/briefing")
     public ResponseEntity<ExecutiveBriefingResponse> getExecutiveBriefing(
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return ResponseEntity.ok(aiService.generateExecutiveBriefing(principal.getUserId()));
+        return ResponseEntity.ok(aiService.generateExecutiveBriefing(principal.getUserId(), parseTimezone(timezone)));
     }
 
     @GetMapping("/next-action")
@@ -118,12 +121,13 @@ public class AiController {
     @PostMapping("/daily-plan/commit")
     public ResponseEntity<CommitDailyPlanResponse> commitDailyPlan(
             @Valid @RequestBody(required = false) CommitDailyPlanRequest request,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return ResponseEntity.ok(aiService.commitDailyPlan(principal.getUserId(), request));
+        return ResponseEntity.ok(aiService.commitDailyPlan(principal.getUserId(), request, parseTimezone(timezone)));
     }
 
     @GetMapping("/recovery/{sessionId}")
@@ -184,12 +188,13 @@ public class AiController {
     public ResponseEntity<SuggestionCommitResponse> commitSuggestion(
             @PathVariable Long suggestionId,
             @Valid @RequestBody(required = false) SuggestionCommitRequest request,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return ResponseEntity.ok(aiService.commitSuggestion(suggestionId, principal.getUserId(), request));
+        return ResponseEntity.ok(aiService.commitSuggestion(suggestionId, principal.getUserId(), request, parseTimezone(timezone)));
     }
 
     @GetMapping("/profile")
@@ -200,6 +205,14 @@ public class AiController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
         return ResponseEntity.ok(aiService.getUserExecutionProfile(principal.getUserId()));
+    }
+
+    private ZoneId parseTimezone(String timezone) {
+        try {
+            return ZoneId.of(timezone);
+        } catch (DateTimeException | NullPointerException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid timezone: " + timezone);
+        }
     }
 
     @GetMapping("/tools")

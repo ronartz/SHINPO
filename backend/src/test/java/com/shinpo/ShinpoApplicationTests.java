@@ -902,6 +902,20 @@ class ShinpoApplicationTests {
     }
 
     @Test
+    void shouldRejectInvalidAiTimezone() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Timezone", "Not/A-Timezone");
+        ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl() + "/api/ai/briefing",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class
+        );
+
+        assertEquals(400, response.getStatusCode().value());
+    }
+
+    @Test
     void shouldFetchDeviceSystemInfoAndProcesses() {
         ResponseEntity<com.shinpo.dto.TaskManagerDtos.DeviceSystemInfo> sysInfoResp = restTemplate.getForEntity(
                 baseUrl() + "/api/device/system-info",

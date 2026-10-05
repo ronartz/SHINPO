@@ -157,6 +157,10 @@ public class AiService {
     }
 
     public SuggestionCommitResponse commitSuggestion(Long suggestionId, Long userId, SuggestionCommitRequest request) {
+        return commitSuggestion(suggestionId, userId, request, ZoneId.of("UTC"));
+    }
+
+    public SuggestionCommitResponse commitSuggestion(Long suggestionId, Long userId, SuggestionCommitRequest request, ZoneId zoneId) {
         if (suggestionId == null || userId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "suggestionId and userId are required");
         }
@@ -169,7 +173,7 @@ public class AiService {
         }
 
         if ("DAILY_PLAN".equalsIgnoreCase(suggestion.getSuggestionType())) {
-            CommitDailyPlanResponse res = commitDailyPlan(userId, new CommitDailyPlanRequest(suggestionId, null));
+            CommitDailyPlanResponse res = commitDailyPlan(userId, new CommitDailyPlanRequest(suggestionId, null), zoneId);
             return new SuggestionCommitResponse(
                     suggestionId,
                     null,
@@ -450,6 +454,11 @@ public class AiService {
 
     @Transactional
     public CommitDailyPlanResponse commitDailyPlan(Long userId, CommitDailyPlanRequest request) {
+        return commitDailyPlan(userId, request, ZoneId.of("UTC"));
+    }
+
+    @Transactional
+    public CommitDailyPlanResponse commitDailyPlan(Long userId, CommitDailyPlanRequest request, ZoneId zoneId) {
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID is required");
         }
@@ -489,7 +498,7 @@ public class AiService {
 
         List<Long> createdSessionIds = new ArrayList<>();
         int totalMinutes = 0;
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(zoneId);
 
         for (DailyPlanItem item : items) {
             if (item.isRestorativeBreak()) {
@@ -502,7 +511,7 @@ public class AiService {
                     String[] parts = item.scheduledStartTime().split(":");
                     int hour = Integer.parseInt(parts[0].trim());
                     int minute = Integer.parseInt(parts[1].trim());
-                    scheduledAt = today.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant();
+                    scheduledAt = today.atTime(hour, minute).atZone(zoneId).toInstant();
                 } catch (Exception ignored) {}
             }
             if (scheduledAt == null || scheduledAt.isBefore(Instant.now())) {
@@ -570,6 +579,11 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public ExecutiveBriefingResponse generateExecutiveBriefing(Long userId) {
+        return generateExecutiveBriefing(userId, ZoneId.of("UTC"));
+    }
+
+    @Transactional(readOnly = true)
+    public ExecutiveBriefingResponse generateExecutiveBriefing(Long userId, ZoneId zoneId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -594,8 +608,8 @@ public class AiService {
         double avgGoalProgress = evaluatedGoals > 0 ? Math.round(totalGoalProgress / evaluatedGoals) : 0.0;
 
         // Focus minutes today
-        LocalDate today = LocalDate.now();
-        Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        LocalDate today = LocalDate.now(zoneId);
+        Instant startOfDay = today.atStartOfDay(zoneId).toInstant();
         List<FocusSession> sessions = focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
         long focusMinutesToday = sessions.stream()
                 .filter(s -> s.getStartedAt() != null && s.getStartedAt().isAfter(startOfDay))

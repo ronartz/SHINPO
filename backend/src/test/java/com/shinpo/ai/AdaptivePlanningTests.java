@@ -2,6 +2,7 @@ package com.shinpo.ai;
 
 import com.shinpo.ai.orchestrator.AiGateway;
 import com.shinpo.dto.AiDtos.*;
+import com.shinpo.service.AiService;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.Goal;
@@ -27,6 +28,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -40,6 +43,9 @@ class AdaptivePlanningTests {
 
     @Autowired
     private AiGateway aiGateway;
+
+    @Autowired
+    private AiService aiService;
 
     @Autowired
     private UserRepository userRepository;
@@ -184,6 +190,7 @@ class AdaptivePlanningTests {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(jwtToken);
+        headers.set("X-Timezone", "Asia/Kolkata");
 
         CommitDailyPlanRequest commitReq = new CommitDailyPlanRequest(plan.suggestionId(), null);
         HttpEntity<CommitDailyPlanRequest> requestEntity = new HttpEntity<>(commitReq, headers);
@@ -205,6 +212,28 @@ class AdaptivePlanningTests {
         );
         assertFalse(scheduledSessions.isEmpty());
         assertEquals(response.getBody().scheduledSessionsCount(), scheduledSessions.size());
+    }
+
+    @Test
+    @DisplayName("Adaptive Planning: schedules HH:mm using the user's Asia/Kolkata calendar date")
+    void testCommitDailyPlanUsesRequestedTimezone() {
+        ZoneId zone = ZoneId.of("Asia/Kolkata");
+        ZonedDateTime target = ZonedDateTime.now(zone).withHour(23).withMinute(59).withSecond(0).withNano(0);
+        DailyPlanItem item = new DailyPlanItem(
+                null, "Timezone boundary session", "Timezone boundary", 25, "HIGH",
+                target.toLocalTime().toString(), null, "TACTICAL_SPRINT", 25, 1.0, false, testGoal.getId()
+        );
+
+        aiService.commitDailyPlan(
+                testUser.getId(),
+                new CommitDailyPlanRequest(null, List.of(item)),
+                zone
+        );
+
+        FocusSession scheduled = focusSessionRepository.findAllByUser_IdAndStatus(
+                testUser.getId(), FocusSessionStatus.SCHEDULED
+        ).stream().findFirst().orElseThrow();
+        assertEquals(target.toInstant(), scheduled.getScheduledAt());
     }
 
     @Test
