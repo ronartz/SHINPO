@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -406,7 +407,7 @@ public class AiGateway {
      * historical estimation bias calibration, conflict resolution, and restorative breaks.
      */
     public DailyPlanResponse getDailyPlan(Long userId) {
-        return getDailyPlan(userId, ZoneId.systemDefault());
+        return getDailyPlan(userId, ZoneOffset.UTC);
     }
 
     public DailyPlanResponse getDailyPlan(Long userId, ZoneId zoneId) {
@@ -421,7 +422,7 @@ public class AiGateway {
         }
 
         // 2. Fetch existing schedule for today to detect conflicts
-        List<Map<String, Object>> existingSchedule = toolRegistry.getTodaysSchedule(userId);
+        List<Map<String, Object>> existingSchedule = toolRegistry.getTodaysSchedule(userId, zoneId);
         Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
 
         // 3. Fetch active missions from backlog

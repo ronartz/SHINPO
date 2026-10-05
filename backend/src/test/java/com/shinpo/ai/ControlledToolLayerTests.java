@@ -5,7 +5,10 @@ import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.ai.tool.ToolDefinition;
 import com.shinpo.ai.tool.ToolResult;
 import com.shinpo.entity.Goal;
+import com.shinpo.entity.FocusSession;
+import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.User;
+import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.security.JwtTokenService;
@@ -24,6 +27,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +48,9 @@ class ControlledToolLayerTests {
 
     @Autowired
     private GoalRepository goalRepository;
+
+    @Autowired
+    private FocusSessionRepository focusSessionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -112,6 +119,39 @@ class ControlledToolLayerTests {
         assertFalse(result.success());
         assertEquals("get_current_user", result.toolName());
         assertTrue(result.errorMessage().contains("Unauthenticated"));
+    }
+
+    @Test
+    @DisplayName("AI.3: today's schedule uses the supplied Asia/Kolkata calendar day")
+    void testTodaysScheduleUsesRequestedTimezone() {
+        ZoneId userZone = ZoneId.of("Asia/Kolkata");
+        LocalDate today = LocalDate.now(userZone);
+
+        FocusSession included = new FocusSession();
+        included.setUser(userA);
+        included.setName("IST included");
+        included.setDurationMinutes(25);
+        included.setStatus(FocusSessionStatus.SCHEDULED);
+        included.setScheduledAt(today.atStartOfDay(userZone).plusMinutes(30).toInstant());
+        focusSessionRepository.save(included);
+
+        FocusSession excluded = new FocusSession();
+        excluded.setUser(userA);
+        excluded.setName("IST adjacent day");
+        excluded.setDurationMinutes(25);
+        excluded.setStatus(FocusSessionStatus.SCHEDULED);
+        excluded.setScheduledAt(today.minusDays(1).atStartOfDay(userZone).plusHours(23).toInstant());
+        focusSessionRepository.save(excluded);
+
+        ToolResult result = toolRegistry.executeTool(
+                "get_todays_schedule", userA.getId(), Map.of(), userZone
+        );
+
+        assertTrue(result.success());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sessions = (List<Map<String, Object>>) result.data();
+        assertTrue(sessions.stream().anyMatch(session -> "IST included".equals(session.get("name"))));
+        assertTrue(sessions.stream().noneMatch(session -> "IST adjacent day".equals(session.get("name"))));
     }
 
     @Test

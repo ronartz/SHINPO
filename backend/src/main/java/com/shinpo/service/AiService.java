@@ -242,7 +242,7 @@ public class AiService {
         }
 
         // 3. Persist Missions
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(zoneId);
         List<MissionResponse> committedList = new ArrayList<>();
         for (ProposedMission proposed : missionsToCommit) {
             Mission m = new Mission(
@@ -492,7 +492,7 @@ public class AiService {
         }
 
         if (items == null || items.isEmpty()) {
-            DailyPlanResponse freshPlan = aiGateway.getDailyPlan(userId);
+            DailyPlanResponse freshPlan = aiGateway.getDailyPlan(userId, zoneId);
             items = freshPlan.planItems();
         }
 

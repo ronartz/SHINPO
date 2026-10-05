@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -134,6 +135,30 @@ class StructuredSuggestionApprovalTests {
                 aiService.commitSuggestion(suggestionId, userA.getId(), null)
         );
         assertEquals(HttpStatus.CONFLICT, duplicateCommit.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("AI.4: timezone-aware suggestion commits use the user's local mission date")
+    void testCommitSuggestionUsesRequestedTimezone() {
+        ZoneId userZone = ZoneId.of("Asia/Kolkata");
+        GoalDecompositionResponse decomp = aiService.decomposeGoal(goalA.getId(), userA.getId());
+
+        SuggestionCommitResponse response = aiService.commitSuggestion(
+                decomp.suggestionId(),
+                userA.getId(),
+                new SuggestionCommitRequest(
+                        goalA.getId(),
+                        List.of(new ProposedMission("IST mission", "Local date regression", 30))
+                ),
+                userZone
+        );
+
+        assertEquals(1, response.committedMissionsCount());
+        Mission mission = missionRepository.findAllByGoal_User_Id(userA.getId()).stream()
+                .filter(saved -> "IST mission".equals(saved.getTitle()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(LocalDate.now(userZone), mission.getScheduledDate());
     }
 
     @Test

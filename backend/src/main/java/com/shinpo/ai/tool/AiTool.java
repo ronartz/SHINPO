@@ -1,6 +1,7 @@
 package com.shinpo.ai.tool;
 
 import java.util.Map;
+import java.time.ZoneId;
 
 /**
  * Functional contract for executable AI tools in SHINPO.
@@ -45,4 +46,8 @@ public interface AiTool {
      * @return Structured {@link ToolResult} with outcome or sanitized error.
      */
     ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters);
+
+    default ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters, ZoneId zoneId) {
+        return execute(authenticatedUserId, parameters);
+    }
 }

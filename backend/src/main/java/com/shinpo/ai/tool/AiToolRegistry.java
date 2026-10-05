@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 
@@ -125,6 +126,10 @@ public class AiToolRegistry {
      * Executes a tool with strict caller user verification and IDOR prevention.
      */
     public ToolResult executeTool(String toolName, Long authenticatedUserId, Map<String, Object> parameters) {
+        return executeTool(toolName, authenticatedUserId, parameters, ZoneOffset.UTC);
+    }
+
+    public ToolResult executeTool(String toolName, Long authenticatedUserId, Map<String, Object> parameters, ZoneId zoneId) {
         if (toolName == null || toolName.isBlank()) {
             return ToolResult.error("unknown", "Tool name cannot be blank");
         }
@@ -141,7 +146,7 @@ public class AiToolRegistry {
         safeParams.remove("userId");
         safeParams.remove("user_id");
 
-        return tool.execute(authenticatedUserId, safeParams);
+        return tool.execute(authenticatedUserId, safeParams, zoneId);
     }
 
     private void registerBuiltInTools() {
@@ -295,9 +300,14 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            LocalDate today = LocalDate.now();
-            Instant start = today.atStartOfDay(ZoneOffset.UTC).toInstant();
-            Instant end = today.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            return execute(authenticatedUserId, parameters, ZoneOffset.UTC);
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters, ZoneId zoneId) {
+            LocalDate today = LocalDate.now(zoneId);
+            Instant start = today.atStartOfDay(zoneId).toInstant();
+            Instant end = today.plusDays(1).atStartOfDay(zoneId).toInstant();
             Instant now = Instant.now();
 
             List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(authenticatedUserId, start, end);
@@ -738,7 +748,11 @@ public class AiToolRegistry {
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getTodaysSchedule(Long userId) {
-        ToolResult res = executeTool("get_todays_schedule", userId, Map.of());
+        return getTodaysSchedule(userId, ZoneOffset.UTC);
+    }
+
+    public List<Map<String, Object>> getTodaysSchedule(Long userId, ZoneId zoneId) {
+        ToolResult res = executeTool("get_todays_schedule", userId, Map.of(), zoneId);
         if (res.success() && res.data() instanceof List<?> l) {
             return (List<Map<String, Object>>) l;
         }
