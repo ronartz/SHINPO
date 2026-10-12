@@ -39,15 +39,44 @@ class SentinelProcessTerminationVerificationTests {
     void strictReportsTerminatedOnlyAfterExitIsConfirmed() {
         ProcessHandle handle = mock(ProcessHandle.class);
         when(handle.destroyForcibly()).thenReturn(true);
-        when(handle.onExit()).thenReturn(CompletableFuture.completedFuture(handle));
+        Queue<CompletableFuture<ProcessHandle>> exitFutures = new ArrayDeque<>(List.of(
+            new CompletableFuture<>(),
+            CompletableFuture.completedFuture(handle)
+        ));
+        when(handle.onExit()).thenAnswer(invocation -> exitFutures.remove());
+        when(handle.isAlive()).thenReturn(true);
 
         assertEquals("TERMINATED", SentinelEnforcementService.enforceProcess(handle, "STRICT"));
         verify(handle).destroyForcibly();
     }
 
     @Test
+    void strictStopsAfterConfirmedGracefulExitWithoutForcedTermination() {
+        ProcessHandle handle = mock(ProcessHandle.class);
+        when(handle.destroy()).thenReturn(true);
+        when(handle.onExit()).thenReturn(CompletableFuture.completedFuture(handle));
+
+        assertEquals("TERMINATED", SentinelEnforcementService.enforceProcess(handle, "STRICT"));
+        verify(handle).destroy();
+        verify(handle, never()).destroyForcibly();
+    }
+
+    @Test
+    void forcedKillDisabledByPolicyReportsContainmentFailure() {
+        ProcessHandle handle = mock(ProcessHandle.class);
+        when(handle.destroy()).thenReturn(true);
+        when(handle.onExit()).thenReturn(new CompletableFuture<>());
+        when(handle.isAlive()).thenReturn(true);
+
+        assertEquals("CONTAINMENT_FAILED", SentinelEnforcementService.enforceProcess(handle, "CONTAINMENT", false));
+        verify(handle).destroy();
+        verify(handle, never()).destroyForcibly();
+    }
+
+    @Test
     void alreadyExitedProcessIsConfirmedEvenWhenTerminationRequestReturnsFalse() {
         ProcessHandle handle = mock(ProcessHandle.class);
+        when(handle.destroy()).thenReturn(false);
         when(handle.destroyForcibly()).thenReturn(false);
         when(handle.onExit()).thenReturn(CompletableFuture.completedFuture(handle));
 

@@ -344,3 +344,69 @@ export async function getExecutiveBriefing(): Promise<ExecutiveBriefing> {
   })
   return parseResponse<ExecutiveBriefing>(res)
 }
+
+export type AiActionStatus = 'PROPOSED' | 'APPROVED' | 'COMPLETED' | 'FAILED' | 'REJECTED' | 'EXPIRED'
+
+export type AiActionDto = {
+  actionId: string
+  actionType: string
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
+  status: AiActionStatus
+  description: string
+  payloadJson: string
+  expiresAt: string
+  createdAt: string
+}
+
+export type AiActionExecutionResponse = {
+  actionId: string
+  status: string
+  resultSummary: string
+  errorMessage?: string
+  executedAt: string
+  partialCompletedItems?: string[]
+  partialFailedItems?: string[]
+}
+
+export async function proposeAiAction(
+  actionType: string,
+  description: string,
+  payload: Record<string, unknown>
+): Promise<AiActionDto> {
+  const res = await fetch(`${API_BASE}/ai/actions/propose`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ actionType, description, payload }),
+  })
+  return parseResponse<AiActionDto>(res)
+}
+
+export async function confirmAiAction(actionId: string): Promise<AiActionExecutionResponse> {
+  const res = await fetch(`${API_BASE}/ai/actions/${actionId}/confirm`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  return parseResponse<AiActionExecutionResponse>(res)
+}
+
+export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
+  const res = await fetch(`${API_BASE}/ai/actions/${actionId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  return parseResponse<AiActionDto>(res)
+}
+
+export async function getPendingAiActions(): Promise<AiActionDto[]> {
+  const res = await fetch(`${API_BASE}/ai/actions/pending`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<AiActionDto[]>(res)
+}
+
+export async function getRecentAiActions(): Promise<AiActionDto[]> {
+  const res = await fetch(`${API_BASE}/ai/actions/recent`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<AiActionDto[]>(res)
+}

@@ -3,6 +3,11 @@
    Full Dark / Light Mode Fidelity, Collapsible Sidebar, Dense 12-Col Grid
    ========================================================================== */
 
+:root {
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: 72px;
+}
+
 :root,
 html[data-theme='dark'],
 .theme-dark {
@@ -113,8 +118,6 @@ html[data-theme='dark'],
   --blue-gradient: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
 
   /* Geometry Tokens (Reference Rounded Containers) */
-  --sidebar-w: 260px;
-  --sidebar-w-collapsed: 72px;
   --radius-xl: 26px;
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -250,8 +253,6 @@ html[data-theme='light'],
   --blue-gradient: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
 
   /* Geometry Tokens (Reference Rounded Containers) */
-  --sidebar-w: 260px;
-  --sidebar-w-collapsed: 72px;
   --radius-xl: 26px;
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -276,20 +277,7 @@ html[data-theme='light'],
   --glow-color: rgba(225, 29, 72, 0.03);
 }
 
-/* ==========================================================================
-   AMBIENT CURSOR GLOW
-   ========================================================================== */
-.ambient-cursor-glow {
-  position: fixed;
-  width: 650px;
-  height: 650px;
-  pointer-events: none;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--glow-color) 0%, rgba(59, 130, 246, 0.02) 45%, transparent 70%);
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  transition: opacity 0.3s ease;
-}
+
 
 /* ==========================================================================
    APP SHELL LAYOUT
@@ -297,11 +285,14 @@ html[data-theme='light'],
 .app-shell {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   position: relative;
   z-index: 2;
   background-color: var(--bg);
   background-image:
-    radial-gradient(circle at 90% 8%, rgba(255, 77, 77, 0.055) 0%, transparent 42%),
+    radial-gradient(circle at 90% 8%, rgba(255, 77, 94, 0.055) 0%, transparent 42%),
     radial-gradient(circle at 8% 88%, rgba(59, 130, 246, 0.035) 0%, transparent 40%);
   background-attachment: fixed;
   color: var(--text);
@@ -497,11 +488,22 @@ html[data-theme='light'],
   cursor: pointer;
   font-size: 13.5px;
   font-weight: 600;
-  transition: var(--transition);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   text-decoration: none;
   white-space: nowrap;
   width: 100%;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sidebar-btn * {
+  pointer-events: none;
+}
+
+.sidebar-btn:focus-visible {
+  outline: 2px solid var(--primary-coral);
+  outline-offset: 1px;
 }
 
 .icon-sidebar:not(.expanded) .sidebar-btn {
@@ -841,6 +843,15 @@ html[data-theme='dark'] .sidebar-shield-card {
   border: 1px solid var(--border);
 }
 
+.icon-sidebar:not(.expanded) .sidebar-status-quiet {
+  justify-content: center;
+  padding: 8px;
+}
+
+.icon-sidebar:not(.expanded) .status-quiet-text {
+  display: none;
+}
+
 .status-dot-active {
   width: 8px;
   height: 8px;
@@ -878,16 +889,36 @@ html[data-theme='dark'] .sidebar-shield-card {
    ========================================================================== */
 .app-main {
   flex: 1;
+  min-width: 0;
+  width: calc(100% - var(--sidebar-w-collapsed));
+  max-width: calc(100% - var(--sidebar-w-collapsed));
+  box-sizing: border-box;
+  overflow-x: hidden;
   margin-left: var(--sidebar-w-collapsed);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: margin-left 0.26s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease, width 0.26s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 20px 32px 32px;
 }
 
 .app-main.sidebar-expanded {
   margin-left: var(--sidebar-w);
+  width: calc(100% - var(--sidebar-w));
+  max-width: calc(100% - var(--sidebar-w));
+}
+
+.app-main > section,
+.app-main > div,
+.shinpo-flight-deck,
+.bento-grid,
+.task-manager-view,
+.analytics-view,
+.schedule-container,
+.ai-bento-container {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -946,10 +977,10 @@ html[data-theme='dark'] .sidebar-shield-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 9999px;
   padding: 8px 18px;
-  min-width: 320px;
+  min-width: 160px;
   max-width: 480px;
   flex: 1;
-  margin: 0 16px;
+  margin: 0 10px;
   color: var(--text-3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1130,80 +1161,50 @@ html[data-theme='dark'] .sidebar-shield-card {
    ========================================================================== */
 
 /* 1. Hero Greeting */
-.sidebar-hero-greeting {
-  padding: 6px 4px 14px;
+/* 1. Restrained Upper Motivational Quote (Slice 1 Specification) */
+.sidebar-upper-quote {
+  padding: 8px 10px;
+  margin: 0 0 14px 0;
+  background: rgba(22, 27, 36, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
+  flex-shrink: 0;
   user-select: none;
-  flex-shrink: 0;
 }
 
-.sidebar-hero-line {
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.6px;
-  color: var(--text);
+.theme-light .sidebar-upper-quote,
+html[data-theme='light'] .sidebar-upper-quote {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
-.sidebar-hero-line.highlight {
-  background: var(--brand-coral-gradient);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: var(--primary-coral);
-}
-
-/* 2. Dynamic SHINPO Execution & Motivational Message */
-.sidebar-quote-card {
-  background: rgba(22, 27, 36, 0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 10px 12px;
-  margin: 10px 0 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.sidebar-quote-card:hover {
-  background: rgba(22, 27, 36, 0.75);
-  border-color: rgba(255, 77, 94, 0.2);
-}
-
-.sidebar-quote-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-  background: var(--brand-coral-gradient);
-}
-
-.sidebar-quote-top {
+.sidebar-upper-quote-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.sidebar-quote-tag {
+.sidebar-upper-quote-tag {
   font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-weight: 700;
   letter-spacing: 0.6px;
   color: var(--primary-coral);
-  background: rgba(255, 77, 94, 0.12);
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 77, 94, 0.22);
+  text-transform: uppercase;
+}
+
+.sidebar-upper-quote-text {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-2);
+  margin: 0;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .sidebar-quote-refresh-btn {
@@ -1212,26 +1213,16 @@ html[data-theme='dark'] .sidebar-shield-card {
   color: var(--text-3);
   cursor: pointer;
   border-radius: 4px;
-  padding: 3px;
+  padding: 2px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .sidebar-quote-refresh-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--primary-coral);
-  transform: rotate(45deg);
-}
-
-.sidebar-quote-text {
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--text);
-  font-style: italic;
-  font-weight: 500;
-  margin: 0;
 }
 
 /* 3. Team Avatar Cluster Row from Reference */
@@ -2573,6 +2564,9 @@ html[data-theme='dark'] .sidebar-shield-card {
   border-radius: 18px;
   padding: 24px;
   width: 100%;
+  max-width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0,0,0,0.2);
   display: flex;
   flex-direction: column;
@@ -2707,7 +2701,9 @@ html[data-theme='light'] .quick-btn-cancel {
   border-radius: 20px;
   padding: 24px;
   width: 100%;
-  max-width: 460px;
+  max-width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   box-shadow: var(--shadow-elevated);
   display: flex;
   flex-direction: column;
@@ -5929,11 +5925,12 @@ html[data-theme='light'] .category-badge.core,
    ========================================================================== */
 .ai-bento-container {
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
   width: 100%;
+  min-width: 0;
   height: calc(100vh - 120px);
-  min-height: 540px;
+  min-height: 520px;
 }
 
 .ai-sidebar-card {
@@ -5945,6 +5942,7 @@ html[data-theme='light'] .category-badge.core,
   flex-direction: column;
   gap: 16px;
   height: 100%;
+  min-width: 0;
   overflow-y: auto;
 }
 
@@ -5979,6 +5977,8 @@ html[data-theme='light'] .category-badge.core,
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  min-width: 0;
   position: relative;
   overflow: hidden;
 }
@@ -5986,21 +5986,25 @@ html[data-theme='light'] .category-badge.core,
 .ai-messages-feed {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
+  padding-bottom: 8px;
   padding-right: 8px;
 }
 
 .ai-bubble {
-  max-width: 82%;
+  max-width: 88%;
+  min-width: 0;
   padding: 14px 18px;
   border-radius: 14px;
   font-size: 15px;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .ai-bubble.user {
@@ -6076,12 +6080,13 @@ html[data-theme='light'] .category-badge.core,
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  min-width: 0;
 }
 
 .ai-scroll-bottom-btn {
   position: absolute;
-  bottom: 84px;
-  right: 32px;
+  bottom: 74px;
+  right: 24px;
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -6551,6 +6556,9 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .ai-input-field {
@@ -7200,7 +7208,9 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   border-radius: var(--radius-lg);
   padding: 32px;
   width: 480px;
-  max-width: 90vw;
+  max-width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
 }
 
@@ -7274,10 +7284,11 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 
 .goals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 16px;
   grid-column: span 12;
   margin-bottom: 24px;
+  min-width: 0;
 }
 
 .goal-card-item {
@@ -7373,9 +7384,10 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 
 .decomp-items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: 12px;
   margin: 14px 0 16px;
+  min-width: 0;
 }
 
 .decomp-mission-box {
@@ -7478,39 +7490,79 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 /* ==========================================================================
    RESPONSIVE DESIGN (DESKTOP, LAPTOP, TABLET, MOBILE)
    ========================================================================== */
+/* ==========================================================================
+   EXPLICIT RESPONSIVE DESIGN TIERS
+   Tier 1: Wide Desktop (> 1200px) - Full brand lockup, quote, 260px sidebar
+   Tier 2: Medium Desktop (1001px – 1200px) - Tighter brand block, quote hidden, 200px sidebar
+   Tier 3: Narrow Restored Desktop (<= 1000px, down to 900px) - Icon-only rail (72px), mark only, 2-row topbar, stacked cards
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   TIER 2: MEDIUM DESKTOP (1001px – 1200px)
+   -------------------------------------------------------------------------- */
 @media (max-width: 1200px) {
-  .card-now-execution {
-    grid-column: span 12;
+  :root,
+  html,
+  body,
+  .app-shell {
+    --sidebar-w: 200px;
   }
 
-  .dash-hero-side-stack {
-    grid-column: span 12;
-    flex-direction: row;
-    width: 100%;
+  .icon-sidebar.expanded {
+    width: 200px !important;
+    padding: 16px 10px !important;
   }
 
-  .card-next-action,
-  .card-protection {
-    flex: 1;
+  .app-main.sidebar-expanded {
+    margin-left: 200px !important;
+    width: calc(100% - 200px) !important;
+    max-width: calc(100% - 200px) !important;
+    padding: 18px 22px 28px !important;
   }
 
-  .card-today-timeline {
-    grid-column: span 12;
+  /* Medium Desktop Brand: Tighter brand block (hide subtitle row, keep mark + SHINPO) */
+  .shinpo-logo-sub-row {
+    display: none !important;
   }
 
-  .card-goals-summary {
-    grid-column: span 12;
+  /* Quote Hidden in Medium Desktop */
+  .sidebar-upper-quote {
+    display: none !important;
   }
 
-  .card-missions-table {
-    grid-column: span 12;
+  /* Compact topbar controls in Medium Desktop */
+  .cockpit-top-bar {
+    gap: 12px;
   }
 
+  .top-search-command {
+    min-width: 130px;
+    max-width: 280px;
+    margin: 0 6px;
+    padding: 7px 14px;
+  }
+
+  .profile-role {
+    display: none !important;
+  }
+
+  .top-bar-actions {
+    gap: 8px;
+  }
+
+  .action-btn-circle {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Dashboard reflows earlier to prioritize readability over density */
+  .card-now-execution,
+  .dash-hero-side-stack,
+  .card-today-timeline,
+  .card-goals-summary,
+  .card-missions-table,
   .card-overview,
-  .card-cadence {
-    grid-column: span 6;
-  }
-
+  .card-cadence,
   .card-radar,
   .card-distribution,
   .card-timer-hud,
@@ -7519,8 +7571,217 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
     grid-column: span 12;
   }
 
-  .ai-bento-container {
+  .dash-hero-side-stack {
+    flex-direction: column;
+  }
+
+  .dash-hero-side-stack .card-next-action,
+  .dash-hero-side-stack .card-protection {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .flight-deck-board-grid {
     grid-template-columns: 1fr;
+  }
+
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tm-telemetry-grid,
+  .analytics-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .schedule-week-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .ai-bento-container {
+    grid-template-columns: 220px 1fr;
+    gap: 14px;
+    height: calc(100vh - 110px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   TIER 3: NARROW RESTORED DESKTOP (<= 1000px, including 900px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1000px) {
+  :root,
+  html,
+  body,
+  .app-shell {
+    --sidebar-w: var(--sidebar-w-collapsed);
+  }
+
+  /* Collapse sidebar to icon-only rail */
+  .icon-sidebar,
+  .icon-sidebar.expanded {
+    width: var(--sidebar-w-collapsed) !important;
+    padding: 16px 8px !important;
+  }
+
+  .icon-sidebar .sidebar-header,
+  .icon-sidebar.expanded .sidebar-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+  }
+
+  /* Branding in narrow rail: ONLY mark, absolutely no text, no overlap, centered */
+  .brand-badge {
+    justify-content: center !important;
+    align-items: center !important;
+    flex: initial !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .shinpo-logo-lockup {
+    gap: 0 !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .shinpo-logo-text-group,
+  .shinpo-logo-sub-row,
+  .shinpo-logo-wordmark,
+  .brand-meta {
+    display: none !important;
+  }
+
+  /* Toggle button centered in rail */
+  .sidebar-toggle-btn {
+    width: 32px !important;
+    height: 28px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Hide quote and text in rail */
+  .sidebar-upper-quote,
+  .sidebar-section-header,
+  .sidebar-btn span,
+  .sidebar-nav-badge,
+  .sidebar-active-arrow,
+  .sidebar-system-meta {
+    display: none !important;
+  }
+
+  .icon-sidebar .sidebar-btn,
+  .icon-sidebar.expanded .sidebar-btn {
+    justify-content: center !important;
+    padding: 11px 0 !important;
+    width: 100% !important;
+  }
+
+  /* Status footer: minimal centered indicator */
+  .sidebar-status-quiet {
+    justify-content: center !important;
+    padding: 8px !important;
+    width: 100% !important;
+  }
+
+  .status-quiet-text {
+    display: none !important;
+  }
+
+  /* Main workspace offset begins exactly after the 72px rail */
+  .app-main,
+  .app-main.sidebar-expanded {
+    margin-left: var(--sidebar-w-collapsed) !important;
+    width: calc(100% - var(--sidebar-w-collapsed)) !important;
+    max-width: calc(100% - var(--sidebar-w-collapsed)) !important;
+    padding: 14px 16px 24px !important;
+  }
+
+  /* Top Bar compaction: 2-tier card, no horizontal collision */
+  .cockpit-top-bar {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    border-radius: 18px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .page-header-info {
+    order: 1 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .page-heading {
+    font-size: 18px !important;
+  }
+
+  .top-bar-actions {
+    order: 2 !important;
+    margin-left: auto !important;
+    gap: 6px !important;
+  }
+
+  .action-btn-circle {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .profile-badge-card {
+    padding: 2px !important;
+    border-radius: 50% !important;
+  }
+
+  .profile-text-wrap {
+    display: none !important;
+  }
+
+  .top-search-command {
+    order: 3 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 4px 0 0 0 !important;
+    padding: 7px 14px !important;
+  }
+
+  /* Dashboard: all panels stack cleanly */
+  .flight-deck-board-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .fitpulse-row-upper,
+  .fitpulse-row-lower {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* AI Assistant: vertical stack with scrollable top actions */
+  .ai-bento-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 90px) !important;
+    min-height: 500px !important;
+    gap: 12px !important;
+  }
+
+  .ai-sidebar-card {
+    max-height: 180px !important;
+    flex-shrink: 0 !important;
+    overflow-y: auto !important;
+    padding: 14px 16px !important;
+  }
+
+  .ai-chat-card {
+    flex: 1 !important;
+    min-height: 320px !important;
+    height: 100% !important;
+    padding: 16px !important;
   }
 }
 
@@ -7802,6 +8063,8 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -7811,7 +8074,8 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 .schedule-nav-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .schedule-nav-btn {
@@ -8255,14 +8519,12 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 }
 
 /* Responsive adjustments */
-@media (max-width: 900px) {
+@media (max-width: 650px) {
   .schedule-week-strip {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
-/* ==========================================================================
-   CRAZY ANIMATIONS & VIEW TRANSITIONS (SPRING MICRO-INTERACTIONS)
-   ========================================================================== */
+/* View Transitions: Instantaneous layout rendering without animation delay */
 .tab-content-view,
 .app-main > section,
 .dashboard-grid-12,
@@ -8270,18 +8532,7 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 .analytics-view,
 .schedule-view-container,
 .fitpulse-dashboard {
-  animation: tabSwitchEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes tabSwitchEnter {
-  0% {
-    opacity: 0.88;
-    transform: translateY(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: none;
 }
 
 /* Sentinel Radar Active Ping */
@@ -8432,10 +8683,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   color: var(--primary-green);
 }
 
-.custom-cursor-active .app-shell,
-.custom-cursor-active .app-shell * {
-  cursor: none !important;
-}
+
 
 @keyframes quoteSlideIn {
   from {
@@ -8663,7 +8911,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 8px 14px;
-  min-width: 280px;
+  min-width: min(240px, 100%);
   flex: 1;
 }
 
@@ -8739,6 +8987,9 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   border: var(--glass-border);
   border-radius: 20px;
   overflow: hidden;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   box-shadow: var(--shadow-glass);
 }
 
@@ -8938,10 +9189,14 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   padding: 12px 16px 0;
   border-bottom: 1px solid var(--border);
   gap: 14px;
+  overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .analytics-bar-col {
   flex: 1;
+  min-width: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -9043,10 +9298,10 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
   line-height: 1.5;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .tm-telemetry-grid,
   .analytics-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
@@ -9232,8 +9487,10 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 }
 
 .taskmaster-modal-card {
-  width: 90%;
-  max-width: 520px;
+  width: 100%;
+  max-width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: var(--surface-card);
   border: 1px solid var(--border-strong);
   border-radius: 18px;
@@ -9322,6 +9579,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .modal-action-footer {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -10317,9 +10575,10 @@ html[data-theme='light'] .modal-meta-grid {
 .telemetry-drawer-panel {
   position: absolute;
   top: 68px;
-  right: 180px;
-  width: 420px;
-  max-height: 520px;
+  right: min(180px, calc(100vw - 440px));
+  max-width: min(420px, calc(100vw - 32px));
+  width: 100%;
+  max-height: calc(100vh - 100px);
   background: var(--glass-elevated);
   border: var(--glass-elevated-border);
   border-radius: 16px;
@@ -10506,6 +10765,176 @@ html[data-theme='light'] .modal-meta-grid {
   margin-top: 2px;
 }
 
+/* EONPAI Controlled Action Cards (Slice 7) */
+.ai-action-card {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(20, 24, 34, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-left: 4px solid #00e5ff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: actionCardFadeIn 0.25s ease-out;
+}
+
+@keyframes actionCardFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.ai-action-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-action-type {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #00e5ff;
+}
+
+.ai-action-desc {
+  font-size: 13.5px;
+  color: var(--text, #E6EDF3);
+  line-height: 1.45;
+}
+
+.ai-risk-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ai-risk-tag.low {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.ai-risk-tag.medium {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(243, 156, 18, 0.3);
+}
+
+.ai-risk-tag.high {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.ai-action-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ai-action-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #00e5ff;
+  color: #0d1117;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-action-apply-btn:hover:not(:disabled) {
+  background: #33ebff;
+  transform: translateY(-1px);
+}
+
+.ai-action-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-action-reject-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-2, #8E95A5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-action-reject-btn:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.15);
+  color: #ff6b6b;
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.ai-action-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ai-action-status-badge.completed {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.ai-action-status-badge.failed {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.ai-action-status-badge.rejected {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-3, #565D6D);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ai-pending-banner {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 229, 255, 0.06);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -10516,3 +10945,4 @@ html[data-theme='light'] .modal-meta-grid {
     transition-duration: 0.01ms !important;
   }
 }
+

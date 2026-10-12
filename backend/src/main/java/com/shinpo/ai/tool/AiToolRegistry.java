@@ -35,8 +35,14 @@ public class AiToolRegistry {
     private final TaskManagerService taskManagerService;
     private final UserExecutionProfileService userExecutionProfileService;
     private final SentinelEnforcementService sentinelEnforcementService;
+    private com.shinpo.ai.actions.AiActionService aiActionService;
 
     private final Map<String, AiTool> toolMap = new LinkedHashMap<>();
+
+    @Autowired(required = false)
+    public void setAiActionService(com.shinpo.ai.actions.AiActionService aiActionService) {
+        this.aiActionService = aiActionService;
+    }
 
     @Autowired
     public AiToolRegistry(
@@ -163,6 +169,10 @@ public class AiToolRegistry {
         registerToolWithAliases(new GetEnforcementExplanationTool());
         registerToolWithAliases(new GetSanitizedDiagnosticsTool());
         registerToolWithAliases(new GetUserExecutionProfileTool());
+        registerToolWithAliases(new ProposeCreateTaskTool());
+        registerToolWithAliases(new ProposeRescheduleTaskTool());
+        registerToolWithAliases(new ProposeStartFocusTool());
+        registerToolWithAliases(new ProposeDailyPlanTool());
     }
 
     private void registerToolWithAliases(AiTool tool) {
@@ -746,11 +756,11 @@ public class AiToolRegistry {
         return Map.of("hasGoals", false, "notFoundId", goalId != null ? goalId : 0L);
     }
 
-    @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getTodaysSchedule(Long userId) {
         return getTodaysSchedule(userId, ZoneOffset.UTC);
     }
 
+    @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getTodaysSchedule(Long userId, ZoneId zoneId) {
         ToolResult res = executeTool("get_todays_schedule", userId, Map.of(), zoneId);
         if (res.success() && res.data() instanceof List<?> l) {
@@ -883,5 +893,174 @@ public class AiToolRegistry {
         m.put("status", g.getStatus() != null ? g.getStatus() : "ACTIVE");
         m.put("targetDate", g.getTargetDate() != null ? g.getTargetDate().toString() : null);
         return m;
+    }
+
+    private class ProposeCreateTaskTool implements AiTool {
+        @Override
+        public String getName() {
+            return "propose_create_task";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Propose creating a new tactical task/mission under an active goal. Creates a proposal requiring user confirmation.";
+        }
+
+        @Override
+        public Map<String, ToolParameter> getParameters() {
+            Map<String, ToolParameter> params = new LinkedHashMap<>();
+            params.put("goalId", new ToolParameter("goalId", "integer", "Target goal ID (required)", true));
+            params.put("title", new ToolParameter("title", "string", "Task title (required)", true));
+            params.put("description", new ToolParameter("description", "string", "Optional task description", false));
+            params.put("scheduledDate", new ToolParameter("scheduledDate", "string", "Scheduled date (YYYY-MM-DD)", false));
+            params.put("estimatedMinutes", new ToolParameter("estimatedMinutes", "integer", "Estimated minutes (15-180)", false));
+            return params;
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
+            if (aiActionService != null) {
+                try {
+                    String title = (String) parameters.get("title");
+                    var dto = aiActionService.proposeAction(authenticatedUserId, "CREATE_TASK", "Create task: " + title, parameters);
+                    return ToolResult.ok(getName(), Map.of(
+                            "status", "PROPOSED",
+                            "actionId", dto.actionId(),
+                            "actionType", dto.actionType(),
+                            "description", dto.description(),
+                            "requiresConfirmation", true,
+                            "message", "Task proposal generated. User must confirm before task is added to database."
+                    ));
+                } catch (Exception e) {
+                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+                }
+            }
+            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+        }
+    }
+
+    private class ProposeRescheduleTaskTool implements AiTool {
+        @Override
+        public String getName() {
+            return "propose_reschedule_task";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Propose rescheduling an existing task to a new date. Creates a proposal requiring user confirmation.";
+        }
+
+        @Override
+        public Map<String, ToolParameter> getParameters() {
+            Map<String, ToolParameter> params = new LinkedHashMap<>();
+            params.put("taskId", new ToolParameter("taskId", "integer", "Existing task ID to reschedule (required)", true));
+            params.put("scheduledDate", new ToolParameter("scheduledDate", "string", "Target date (YYYY-MM-DD, required)", true));
+            return params;
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
+            if (aiActionService != null) {
+                try {
+                    Long taskId = parseLong(parameters.get("taskId"));
+                    String date = (String) parameters.get("scheduledDate");
+                    var dto = aiActionService.proposeAction(authenticatedUserId, "RESCHEDULE_TASK", "Reschedule task " + taskId + " to " + date, parameters);
+                    return ToolResult.ok(getName(), Map.of(
+                            "status", "PROPOSED",
+                            "actionId", dto.actionId(),
+                            "actionType", dto.actionType(),
+                            "description", dto.description(),
+                            "requiresConfirmation", true,
+                            "message", "Reschedule proposal generated. User must confirm before task date is modified."
+                    ));
+                } catch (Exception e) {
+                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+                }
+            }
+            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+        }
+    }
+
+    private class ProposeStartFocusTool implements AiTool {
+        @Override
+        public String getName() {
+            return "propose_start_focus";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Propose starting an immediate focus sprint on a task. Creates a proposal requiring user confirmation.";
+        }
+
+        @Override
+        public Map<String, ToolParameter> getParameters() {
+            Map<String, ToolParameter> params = new LinkedHashMap<>();
+            params.put("name", new ToolParameter("name", "string", "Session name (required)", true));
+            params.put("durationMinutes", new ToolParameter("durationMinutes", "integer", "Sprint duration in minutes", false));
+            params.put("taskId", new ToolParameter("taskId", "integer", "Associated task ID", false));
+            params.put("goalId", new ToolParameter("goalId", "integer", "Associated goal ID", false));
+            return params;
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
+            if (aiActionService != null) {
+                try {
+                    String name = (String) parameters.get("name");
+                    int duration = parseInteger(parameters.get("durationMinutes"), 25);
+                    var dto = aiActionService.proposeAction(authenticatedUserId, "START_FOCUS_SESSION", "Start focus session \"" + name + "\" (" + duration + "m)", parameters);
+                    return ToolResult.ok(getName(), Map.of(
+                            "status", "PROPOSED",
+                            "actionId", dto.actionId(),
+                            "actionType", dto.actionType(),
+                            "description", dto.description(),
+                            "requiresConfirmation", true,
+                            "message", "Focus session proposal generated. User must confirm before session begins."
+                    ));
+                } catch (Exception e) {
+                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+                }
+            }
+            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+        }
+    }
+
+    private class ProposeDailyPlanTool implements AiTool {
+        @Override
+        public String getName() {
+            return "propose_daily_plan";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Propose a structured daily plan of focus sessions from active backlog. Creates a proposal requiring user confirmation.";
+        }
+
+        @Override
+        public Map<String, ToolParameter> getParameters() {
+            Map<String, ToolParameter> params = new LinkedHashMap<>();
+            params.put("planSummary", new ToolParameter("planSummary", "string", "Summary of proposed itinerary", false));
+            return params;
+        }
+
+        @Override
+        public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
+            if (aiActionService != null) {
+                try {
+                    var dto = aiActionService.proposeAction(authenticatedUserId, "APPLY_DAILY_PLAN", "Apply proposed daily agenda", parameters);
+                    return ToolResult.ok(getName(), Map.of(
+                            "status", "PROPOSED",
+                            "actionId", dto.actionId(),
+                            "actionType", dto.actionType(),
+                            "description", dto.description(),
+                            "requiresConfirmation", true,
+                            "message", "Daily plan proposal generated. User must confirm before sessions are scheduled."
+                    ));
+                } catch (Exception e) {
+                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+                }
+            }
+            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+        }
     }
 }

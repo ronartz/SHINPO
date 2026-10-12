@@ -75,6 +75,15 @@ class ShinpoWebSocketClient {
         Authorization: `Bearer ${token}`,
         token: token,
       },
+      beforeConnect: () => {
+        const freshToken = getAuthToken() || ''
+        if (this.client) {
+          this.client.connectHeaders = {
+            Authorization: `Bearer ${freshToken}`,
+            token: freshToken,
+          }
+        }
+      },
       debug: (msg: string) => {
         if (import.meta.env.DEV) {
           console.debug('[STOMP]', msg)

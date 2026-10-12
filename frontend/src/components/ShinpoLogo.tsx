@@ -70,6 +70,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
     >
       {mark}
       <div
+        className="shinpo-logo-text-group"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -78,6 +79,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
         }}
       >
         <div
+          className="shinpo-logo-wordmark"
           style={{
             fontFamily:
               "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif",
@@ -92,6 +94,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
         </div>
         {variant === 'full' && (
           <div
+            className="shinpo-logo-sub-row"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -100,6 +103,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
             }}
           >
             <span
+              className="shinpo-logo-kanji"
               style={{
                 fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
                 fontSize: Math.round(size * 0.28),
@@ -111,6 +115,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
               進歩
             </span>
             <span
+              className="shinpo-logo-tagline"
               style={{
                 fontFamily:
                   "-apple-system, BlinkMacSystemFont, 'SF Pro Display', monospace",

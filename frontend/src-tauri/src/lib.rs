@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
-use tauri::Manager;
 
 use shinpo_shield::client::SentinelClient;
 use shinpo_shield::config::ShieldConfig;
@@ -33,7 +32,18 @@ fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Resul
                     }
 
                     if sync.has_active_session {
-                        let intercepted = enforcer.scan_and_enforce(&sync, &config.fallback_blacklist, false);
+                        let intercepted = enforcer.scan_and_enforce_with_candidate_evaluator(
+                            &sync,
+                            &config.fallback_blacklist,
+                            false,
+                            Some(|name: &str, cmd: Option<&str>, pid: u32| {
+                                client.evaluate_candidate(&shinpo_shield::client::CandidateProcessRequest {
+                                    process_name: name.to_string(),
+                                    command_line: cmd.map(|s| s.to_string()),
+                                    pid: Some(pid),
+                                })
+                            }),
+                        );
                         for p in &intercepted {
                             log::warn!("[SHINPO Desktop Shield] Intercepted distraction: PID {} ({})", p.pid, p.name);
                             let req = ShieldEnforcer::to_quarantine_request(p);

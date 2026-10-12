@@ -2,9 +2,15 @@ package com.shinpo.ai.orchestrator;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.shinpo.ai.actions.AiActionService;
 import com.shinpo.ai.config.AiProperties;
 import com.shinpo.ai.context.ContextEngine;
+import com.shinpo.ai.context.ContextSynthesisService;
 import com.shinpo.ai.context.ExecutionIntelligenceContext;
+import com.shinpo.ai.debrief.SessionDebriefService;
+import com.shinpo.ai.planning.DailyPlanningService;
+import com.shinpo.ai.planning.GoalDecompositionService;
+import com.shinpo.ai.prompt.PromptEngineeringService;
 import com.shinpo.ai.provider.AIProvider;
 import com.shinpo.ai.provider.AIProviderRegistry;
 import com.shinpo.ai.provider.AiProviderRequest;
@@ -47,6 +53,12 @@ public class AiGateway {
     private final ObjectMapper objectMapper;
     private final BugReportRepository bugReportRepository;
     private final FocusSessionRepository focusSessionRepository;
+    private final ContextSynthesisService contextSynthesisService;
+    private final PromptEngineeringService promptEngineeringService;
+    private final GoalDecompositionService goalDecompositionService;
+    private final DailyPlanningService dailyPlanningService;
+    private final SessionDebriefService sessionDebriefService;
+    private final AiActionService aiActionService;
 
     @Autowired
     public AiGateway(
@@ -58,7 +70,13 @@ public class AiGateway {
             UserRepository userRepository,
             ObjectMapper objectMapper,
             @Autowired(required = false) BugReportRepository bugReportRepository,
-            @Autowired(required = false) FocusSessionRepository focusSessionRepository
+            @Autowired(required = false) FocusSessionRepository focusSessionRepository,
+            @Autowired(required = false) ContextSynthesisService contextSynthesisService,
+            @Autowired(required = false) PromptEngineeringService promptEngineeringService,
+            @Autowired(required = false) GoalDecompositionService goalDecompositionService,
+            @Autowired(required = false) DailyPlanningService dailyPlanningService,
+            @Autowired(required = false) SessionDebriefService sessionDebriefService,
+            @Autowired(required = false) AiActionService aiActionService
     ) {
         this.providerRegistry = providerRegistry;
         this.aiProperties = aiProperties;
@@ -69,6 +87,29 @@ public class AiGateway {
         this.objectMapper = objectMapper;
         this.bugReportRepository = bugReportRepository;
         this.focusSessionRepository = focusSessionRepository;
+        this.contextSynthesisService = contextSynthesisService;
+        this.promptEngineeringService = promptEngineeringService != null ? promptEngineeringService : new PromptEngineeringService();
+        this.aiActionService = aiActionService;
+        this.goalDecompositionService = goalDecompositionService != null ? goalDecompositionService :
+                new GoalDecompositionService(providerRegistry, aiProperties, toolRegistry, aiSuggestionRepository, userRepository, objectMapper, aiActionService);
+        this.dailyPlanningService = dailyPlanningService != null ? dailyPlanningService :
+                new DailyPlanningService(toolRegistry, aiSuggestionRepository, userRepository, objectMapper, aiActionService);
+        this.sessionDebriefService = sessionDebriefService != null ? sessionDebriefService :
+                new SessionDebriefService(providerRegistry, aiProperties, focusSessionRepository, objectMapper);
+    }
+
+    public AiGateway(
+            AIProviderRegistry providerRegistry,
+            AiProperties aiProperties,
+            AiToolRegistry toolRegistry,
+            ContextEngine contextEngine,
+            AiSuggestionRepository aiSuggestionRepository,
+            UserRepository userRepository,
+            ObjectMapper objectMapper,
+            BugReportRepository bugReportRepository,
+            FocusSessionRepository focusSessionRepository
+    ) {
+        this(providerRegistry, aiProperties, toolRegistry, contextEngine, aiSuggestionRepository, userRepository, objectMapper, bugReportRepository, focusSessionRepository, null, null, null, null, null, null);
     }
 
     public AiGateway(
@@ -302,72 +343,10 @@ public class AiGateway {
     }
 
     /**
-     * Decompose Goal into actionable missions.
+     * Decompose Goal into actionable missions via GoalDecompositionService.
      */
     public GoalDecompositionResponse decomposeGoal(Long goalId, Long userId, String goalTitle) {
-        Map<String, Object> goalCtx = toolRegistry.getCurrentGoal(userId, goalId);
-
-        AIProvider provider = getActiveProvider();
-        if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
-            String systemPrompt = """
-                    You are EONPAI, Strategic Architect for SHINPO.
-                    Partition the user's high-level goal into 3 to 4 sequential, concrete focus sprint missions.
-                    Respond strictly in valid JSON matching:
-                    {
-                      "goalId": <number>,
-                      "goalTitle": "<string>",
-                      "analysis": "<string explaining strategic approach>",
-                      "proposedMissions": [
-                        {
-                          "title": "<string>",
-                          "description": "<string>",
-                          "estimatedMinutes": <integer between 15 and 90>
-                        }
-                      ]
-                    }
-                    """;
-
-            String userPrompt = "Goal Title: " + goalTitle + "\nContext: " + goalCtx;
-            AiProviderRequest req = AiProviderRequest.of(systemPrompt, userPrompt);
-            AiProviderResponse res = provider.generate(req);
-
-            if (res.successful() && res.content() != null) {
-                try {
-                    GoalDecompositionResponse parsed = objectMapper.readValue(cleanJson(res.content()), GoalDecompositionResponse.class);
-                    AiSuggestion s = logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, res.content());
-                    return new GoalDecompositionResponse(
-                            parsed.goalId(),
-                            parsed.goalTitle(),
-                            parsed.analysis(),
-                            parsed.proposedMissions(),
-                            s != null ? s.getId() : null
-                    );
-                } catch (Exception e) {
-                    log.warn("Failed to parse decomposition JSON output: {}", e.getMessage());
-                }
-            }
-        }
-
-        // Deterministic Fallback
-        List<ProposedMission> fallbackMissions = List.of(
-                new ProposedMission("Map out core requirements & outcome boundaries", "Clarify definition of done.", 25),
-                new ProposedMission("Build foundational prototype & establish MVP boundary", "Ship the smallest verifiable slice.", 50),
-                new ProposedMission("Execute deep focus sprint on critical bottleneck", "Eliminate the single highest constraint.", 45),
-                new ProposedMission("Audit execution metrics & review outcomes", "Measure results and close loop.", 20)
-        );
-        String payloadJson = "{}";
-        try {
-            payloadJson = objectMapper.writeValueAsString(fallbackMissions);
-        } catch (Exception ignored) {}
-
-        AiSuggestion s = logSuggestion(userId, "GOAL_DECOMPOSITION", "goalId=" + goalId, payloadJson);
-        return new GoalDecompositionResponse(
-                goalId,
-                goalTitle,
-                "Goal strategically partitioned into high-velocity execution blocks (Deterministic Safe Engine).",
-                fallbackMissions,
-                s != null ? s.getId() : null
-        );
+        return goalDecompositionService.decomposeGoal(goalId, userId, goalTitle);
     }
 
     /**
@@ -403,444 +382,31 @@ public class AiGateway {
     }
 
     /**
-     * Generate adaptive daily execution plan with circadian energy windows,
-     * historical estimation bias calibration, conflict resolution, and restorative breaks.
+     * Generate adaptive daily execution plan with circadian energy windows via DailyPlanningService.
      */
     public DailyPlanResponse getDailyPlan(Long userId) {
         return getDailyPlan(userId, ZoneOffset.UTC);
     }
 
     public DailyPlanResponse getDailyPlan(Long userId, ZoneId zoneId) {
-        // 1. Fetch user execution profile & estimation bias
-        Map<String, Object> profile = toolRegistry.getUserExecutionProfile(userId);
-        Double biasPct = 0.0;
-        double biasFactor = 1.0;
-        if (profile != null && Boolean.TRUE.equals(profile.get("hasSufficientData"))
-                && profile.get("estimationBiasPercentage") instanceof Number n) {
-            biasPct = n.doubleValue();
-            biasFactor = Math.max(0.6, Math.min(2.0, 1.0 + (biasPct / 100.0)));
-        }
-
-        // 2. Fetch existing schedule for today to detect conflicts
-        List<Map<String, Object>> existingSchedule = toolRegistry.getTodaysSchedule(userId, zoneId);
-        Map<String, Object> activeSession = toolRegistry.getActiveFocusSession(userId);
-
-        // 3. Fetch active missions from backlog
-        List<Map<String, Object>> allMissions = toolRegistry.getTodaysMissions(userId);
-        List<Map<String, Object>> pendingMissions = allMissions.stream()
-                .filter(m -> !"COMPLETED".equalsIgnoreCase((String) m.get("status")))
-                .toList();
-
-        List<DailyPlanItem> items = new ArrayList<>();
-        boolean hasConflictsResolved = false;
-
-        // 4. Determine base reference time (LocalTime)
-        LocalTime now = LocalTime.now(zoneId);
-        LocalTime cursor;
-        if (now.isBefore(LocalTime.of(8, 30))) {
-            cursor = LocalTime.of(9, 0);
-        } else if (now.isAfter(LocalTime.of(19, 0))) {
-            cursor = LocalTime.of(9, 0);
-        } else {
-            int rem = now.getMinute() % 15;
-            cursor = now.plusMinutes(15 - rem).withSecond(0).withNano(0);
-        }
-
-        // 5. Handle Active Session if currently running
-        if (activeSession != null && Boolean.TRUE.equals(activeSession.get("hasActiveSession"))
-                && "ACTIVE".equalsIgnoreCase((String) activeSession.get("status"))) {
-            String activeName = (String) activeSession.get("name");
-            Long remSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 1500L;
-            int remMins = Math.max(5, (int) Math.round(remSecs / 60.0));
-            LocalTime activeEnd = now.plusMinutes(remMins);
-
-            items.add(new DailyPlanItem(
-                    activeSession.get("id") instanceof Number n ? n.longValue() : null,
-                    activeName != null ? activeName : "Current Active Sprint",
-                    "Active Sprint (Shield Engaged)",
-                    remMins,
-                    "HIGH",
-                    "NOW",
-                    activeEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
-                    "DEEP_FOCUS",
-                    remMins,
-                    1.0,
-                    false,
-                    null
-            ));
-
-            cursor = activeEnd.plusMinutes(10);
-            items.add(new DailyPlanItem(
-                    null,
-                    "☕ 10m Attention Restoration Recess",
-                    "Cognitive Recovery",
-                    10,
-                    "NORMAL",
-                    activeEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
-                    cursor.format(DateTimeFormatter.ofPattern("HH:mm")),
-                    "COGNITIVE_RECOVERY",
-                    10,
-                    1.0,
-                    true,
-                    null
-            ));
-        }
-
-        // 6. Assemble candidate tasks
-        List<Map<String, Object>> candidateTasks = new ArrayList<>();
-        if (!pendingMissions.isEmpty()) {
-            candidateTasks.addAll(pendingMissions.stream().limit(4).toList());
-        } else {
-            candidateTasks.add(Map.of(
-                    "title", "Architectural Core Execution & Bottleneck Delivery",
-                    "goalTitle", "Core Strategic Delivery",
-                    "estimatedMinutes", 45
-            ));
-            candidateTasks.add(Map.of(
-                    "title", "Module Verification & Integration Testing",
-                    "goalTitle", "Quality Assurance",
-                    "estimatedMinutes", 30
-            ));
-            candidateTasks.add(Map.of(
-                    "title", "Operational Debrief & Seed Retrospective",
-                    "goalTitle", "Continuous Calibration",
-                    "estimatedMinutes", 20
-            ));
-        }
-
-        // 7. Schedule each candidate task into circadian windows
-        int taskIndex = items.isEmpty() ? 0 : 1;
-        for (int i = 0; i < candidateTasks.size(); i++) {
-            Map<String, Object> task = candidateTasks.get(i);
-            String title = (String) task.get("title");
-            String goalTitle = task.get("goalTitle") instanceof String s ? s : "Strategic Goal";
-            Long missionId = task.get("id") instanceof Number n ? n.longValue() : null;
-            Long goalId = task.get("goalId") instanceof Number n ? n.longValue() : null;
-
-            int origMins = task.get("estimatedMinutes") instanceof Number n ? n.intValue() : 25;
-            int calibratedMins = (int) Math.round(origMins * biasFactor);
-            int rem5 = calibratedMins % 5;
-            if (rem5 >= 3) calibratedMins += (5 - rem5);
-            else calibratedMins -= rem5;
-            calibratedMins = Math.max(15, Math.min(90, calibratedMins));
-
-            String energyWindow;
-            String priority;
-            if (taskIndex == 0) {
-                energyWindow = "DEEP_FOCUS";
-                priority = "HIGH";
-            } else if (i == candidateTasks.size() - 1) {
-                energyWindow = "STRATEGIC_REVIEW";
-                priority = "NORMAL";
-            } else {
-                energyWindow = "TACTICAL_SPRINT";
-                priority = "HIGH";
-            }
-
-            LocalTime candidateEnd = cursor.plusMinutes(calibratedMins);
-            for (Map<String, Object> existing : existingSchedule) {
-                String schedAtStr = (String) existing.get("scheduledAt");
-                if (schedAtStr != null) {
-                    try {
-                        Instant inst = Instant.parse(schedAtStr);
-                        LocalTime exStart = inst.atZone(zoneId).toLocalTime();
-                        int exDuration = existing.get("durationMinutes") instanceof Number n ? n.intValue() : 25;
-                        LocalTime exEnd = exStart.plusMinutes(exDuration);
-
-                        if (cursor.isBefore(exEnd) && candidateEnd.isAfter(exStart)) {
-                            hasConflictsResolved = true;
-                            cursor = exEnd.plusMinutes(10);
-                            candidateEnd = cursor.plusMinutes(calibratedMins);
-                        }
-                    } catch (Exception ignored) {}
-                }
-            }
-
-            String startStr = cursor.format(DateTimeFormatter.ofPattern("HH:mm"));
-            String endStr = candidateEnd.format(DateTimeFormatter.ofPattern("HH:mm"));
-
-            items.add(new DailyPlanItem(
-                    missionId,
-                    title,
-                    goalTitle,
-                    calibratedMins,
-                    priority,
-                    startStr,
-                    endStr,
-                    energyWindow,
-                    origMins,
-                    biasFactor,
-                    false,
-                    goalId
-            ));
-
-            cursor = candidateEnd;
-            taskIndex++;
-
-            if (i < candidateTasks.size() - 1) {
-                int breakMins = "DEEP_FOCUS".equals(energyWindow) ? 15 : 10;
-                LocalTime breakEnd = cursor.plusMinutes(breakMins);
-                items.add(new DailyPlanItem(
-                        null,
-                        "☕ " + breakMins + "m Attention Restoration Recess",
-                        "Cognitive Recovery",
-                        breakMins,
-                        "NORMAL",
-                        cursor.format(DateTimeFormatter.ofPattern("HH:mm")),
-                        breakEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
-                        "COGNITIVE_RECOVERY",
-                        breakMins,
-                        1.0,
-                        true,
-                        null
-                ));
-                cursor = breakEnd;
-            }
-        }
-
-        int totalPlannedMins = items.stream().mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
-        int totalFocusMins = items.stream().filter(it -> !it.isRestorativeBreak()).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
-        int totalBreakMins = items.stream().filter(item -> item != null && Boolean.TRUE.equals(item.isRestorativeBreak())).mapToInt(it -> it.durationMinutes() != null ? it.durationMinutes() : 0).sum();
-
-        String pacingStrategy = (biasPct != 0.0)
-                ? String.format("BIAS_CALIBRATED_ULTRADIAN_FLOW (%+.0f%% estimation calibration applied)", biasPct)
-                : "CIRCADIAN_OPTIMIZED_FLOW";
-
-        String headline = String.format("Bias-Calibrated Daily Agenda (%d Focus Blocks • %dm Focus • %dm Rest)",
-                (int) items.stream().filter(it -> !it.isRestorativeBreak()).count(), totalFocusMins, totalBreakMins);
-
-        String rationale = (biasPct != 0.0)
-                ? String.format("Sprint durations calibrated by %+.0f%% based on historical execution velocity. High-cognitive load deep work is sequenced first with mandatory non-screen cognitive recovery buffers.", biasPct)
-                : "Structured around natural ultradian focus rhythms: front-loading high-leverage deep work with dedicated restorative micro-breaks.";
-
-        String payloadJson = "{}";
-        try {
-            payloadJson = objectMapper.writeValueAsString(items);
-        } catch (Exception ignored) {}
-
-        AiSuggestion s = logSuggestion(userId, "DAILY_PLAN", "userId=" + userId, payloadJson);
-        Long suggestionId = s != null ? s.getId() : null;
-
-        return new DailyPlanResponse(
-                headline,
-                rationale,
-                items,
-                totalPlannedMins,
-                totalFocusMins,
-                totalBreakMins,
-                pacingStrategy,
-                biasPct,
-                hasConflictsResolved,
-                suggestionId
-        );
+        return dailyPlanningService.generateDailyPlan(userId, zoneId);
     }
 
     /**
-     * Analyze a focus session's debrief and generate tactical critique & next sprint recommendation.
+     * Analyze a focus session's debrief and generate tactical critique & next sprint recommendation via SessionDebriefService.
      */
     public SessionDebriefAnalysisResponse analyzeSessionDebrief(Long sessionId, Long userId) {
-        FocusSession session = null;
-        if (focusSessionRepository != null) {
-            if (sessionId != null && sessionId > 0) {
-                session = focusSessionRepository.findByIdAndUser_Id(sessionId, userId).orElse(null);
-            }
-            if (session == null) {
-                session = focusSessionRepository.findFirstByUser_IdAndStatusOrderByCreatedAtDesc(userId, FocusSessionStatus.COMPLETED)
-                        .orElseGet(() -> focusSessionRepository.findFirstByUser_IdOrderByCreatedAtDesc(userId).orElse(null));
-            }
-        }
-
-        List<RecoveryOption> defaultSteps = List.of(
-                new RecoveryOption("RECESS_RESTORE", "5m Cognitive Recess", "Step away from screens and stretch to restore attention capacity."),
-                new RecoveryOption("NEXT_MISSION", "Arm Next Mission", "Proceed immediately to the next scheduled backlog item."),
-                new RecoveryOption("CALIBRATE_SCOPE", "Scope Calibration", "Adjust future sprint estimation based on observed time variance.")
-        );
-
-        if (session == null) {
-            return new SessionDebriefAnalysisResponse(
-                    null,
-                    "No Recorded Sessions",
-                    "No completed focus sessions found in database.",
-                    "Complete a focus sprint and log your reflection to generate deep performance analytics.",
-                    "INITIALIZING",
-                    25,
-                    0L,
-                    0.0,
-                    "CALIBRATION_BASELINE",
-                    "No past session debriefs are available yet. To begin the behavioral execution loop, start a 25-minute sprint on your top priority mission.",
-                    "Arm your first tactical mission and run an uninterrupted focus block with the Sentinel shield.",
-                    defaultSteps
-            );
-        }
-
-        String sessionName = session.getName() != null ? session.getName() : "Focus Sprint";
-        String accomplishment = session.getAccomplishment() != null ? session.getAccomplishment() : "No accomplishment logged";
-        String reflectionNote = session.getReflectionNote() != null ? session.getReflectionNote() : "No reflection notes logged";
-        String quality = session.getCompletionQuality() != null ? String.valueOf(session.getCompletionQuality()) : "NORMAL";
-        int plannedMins = session.getDurationMinutes() != null && session.getDurationMinutes() > 0 ? session.getDurationMinutes() : 25;
-
-        long actualMins = session.calculateActiveSeconds(Instant.now()) / 60;
-        if (actualMins <= 0 && session.getStartedAt() != null && session.getEndedAt() != null) {
-            actualMins = Math.max(1, Duration.between(session.getStartedAt(), session.getEndedAt()).toMinutes());
-        } else if (actualMins <= 0) {
-            actualMins = plannedMins;
-        }
-
-        double diff = (double) (actualMins - plannedMins);
-        double accuracyPct = (diff / plannedMins) * 100.0;
-        accuracyPct = Math.round(accuracyPct * 10.0) / 10.0;
-
-        String velocityAssessment;
-        if ("DISTRACTED".equalsIgnoreCase(quality) || "LOW".equalsIgnoreCase(quality)) {
-            velocityAssessment = "COGNITIVE_RECOVERY_REQUIRED";
-        } else if (accuracyPct > 25.0) {
-            velocityAssessment = "PACING_CALIBRATION_NEEDED";
-        } else if (Math.abs(accuracyPct) <= 15.0) {
-            velocityAssessment = "PEAK_EXECUTION_FLOW";
-        } else {
-            velocityAssessment = "STABLE_MOMENTUM";
-        }
-
-        AIProvider provider = getActiveProvider();
-        if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
-            try {
-                String systemPrompt = """
-                        You are EONPAI, Strategic Execution Companion for SHINPO.
-                        Analyze the user's completed focus sprint debrief.
-                        Provide a crisp, constructive tactical critique and actionable recommendation for their next sprint.
-                        Philosophy: Execution > Planning Theater. Radical Honesty + Behavioral Encouragement.
-                        Respond strictly in valid JSON matching:
-                        {
-                          "tacticalCritique": "<2 sentences evaluating accomplishment, cognitive effort, and time discipline>",
-                          "nextSprintRecommendation": "<1 actionable, concrete sentence guiding the user's immediate next step>"
-                        }
-                        """;
-
-                String userPrompt = String.format(
-                        "Session: %s\nPlanned: %d min | Actual: %d min (Variance: %+.1f%%)\nQuality: %s\nAccomplishment: %s\nReflection: %s",
-                        sessionName, plannedMins, actualMins, accuracyPct, quality, accomplishment, reflectionNote
-                );
-
-                AiProviderRequest req = AiProviderRequest.of(systemPrompt, userPrompt);
-                AiProviderResponse res = provider.generate(req);
-
-                if (res.successful() && res.content() != null) {
-                    JsonNode node = objectMapper.readTree(cleanJson(res.content()));
-                    String critique = node.has("tacticalCritique") ? node.get("tacticalCritique").asString() : null;
-                    String nextRec = node.has("nextSprintRecommendation") ? node.get("nextSprintRecommendation").asString() : null;
-                    if (critique != null && !critique.isBlank()) {
-                        SessionDebriefAnalysisResponse result = new SessionDebriefAnalysisResponse(
-                                session.getId(),
-                                sessionName,
-                                accomplishment,
-                                reflectionNote,
-                                quality,
-                                plannedMins,
-                                actualMins,
-                                accuracyPct,
-                                velocityAssessment,
-                                critique,
-                                nextRec != null ? nextRec : "Take a brief cognitive recess before engaging the next sprint.",
-                                defaultSteps
-                        );
-                        logSuggestion(userId, "DEBRIEF_ANALYSIS", "sessionId=" + session.getId(), critique);
-                        return result;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("LLM debrief analysis failed, falling back to deterministic critique: {}", e.getMessage());
-            }
-        }
-
-        // Deterministic behavioral analysis
-        String critique;
-        String nextRec;
-        if (accuracyPct > 25.0) {
-            critique = String.format(
-                    "Sprint completed in %dm against planned %dm (+%.0f%% overrun). While '%s' was captured, the task required more cognitive bandwidth than estimated.",
-                    actualMins, plannedMins, accuracyPct, accomplishment
-            );
-            nextRec = "For your next sprint, decompose the remaining backlog into smaller 15-20 minute micro-slices to prevent estimation drift.";
-        } else if (accuracyPct < -20.0) {
-            critique = String.format(
-                    "Sprint wrapped up swiftly in %dm (planned %dm, finished %.0f%% ahead of schedule). You achieved rapid convergence on '%s'.",
-                    actualMins, plannedMins, Math.abs(accuracyPct), accomplishment
-            );
-            nextRec = "Channel this high momentum immediately into your next queued mission or take a proactive 5-minute break.";
-        } else {
-            critique = String.format(
-                    "High-precision execution: finished in %dm close to your %dm plan. Delivered '%s' with balanced cognitive pacing and zero derailment.",
-                    actualMins, plannedMins, accomplishment
-            );
-            nextRec = "Maintain this rhythm. Hydrate, take a 5-minute non-screen breather, then lock in your next mission.";
-        }
-
-        SessionDebriefAnalysisResponse result = new SessionDebriefAnalysisResponse(
-                session.getId(),
-                sessionName,
-                accomplishment,
-                reflectionNote,
-                quality,
-                plannedMins,
-                actualMins,
-                accuracyPct,
-                velocityAssessment,
-                critique,
-                nextRec,
-                defaultSteps
-        );
-        logSuggestion(userId, "DEBRIEF_ANALYSIS", "sessionId=" + session.getId(), critique);
-        return result;
+        return sessionDebriefService.analyzeSessionDebrief(sessionId, userId);
     }
 
     /**
-     * Provide session recovery options.
+     * Provide session recovery options via SessionDebriefService.
      */
     public RecoveryResponse getSessionRecovery(Long sessionId, Long userId, String sessionName, Integer plannedMinutes, Long actualMinutes) {
-        String resolvedName = sessionName;
-        Integer resolvedPlanned = plannedMinutes;
-        Long resolvedActual = actualMinutes;
-        Long resolvedSessionId = sessionId;
-
-        if (resolvedName == null && focusSessionRepository != null) {
-            FocusSession s = null;
-            if (sessionId != null && sessionId > 0) {
-                s = focusSessionRepository.findByIdAndUser_Id(sessionId, userId).orElse(null);
-            }
-            if (s == null) {
-                s = focusSessionRepository.findFirstByUser_IdOrderByCreatedAtDesc(userId).orElse(null);
-            }
-            if (s != null) {
-                resolvedSessionId = s.getId();
-                resolvedName = s.getName();
-                resolvedPlanned = s.getDurationMinutes();
-                resolvedActual = s.calculateActiveSeconds(Instant.now()) / 60;
-            }
-        }
-        if (resolvedName == null) resolvedName = "Tactical Focus Sprint";
-        if (resolvedPlanned == null) resolvedPlanned = 25;
-        if (resolvedActual == null) resolvedActual = 15L;
-
-        List<RecoveryOption> options = List.of(
-                new RecoveryOption("MICRO_RECOVERY", "15m Micro-Sprint", "Resume with a lightweight 15-minute re-entry block to lower cognitive resistance."),
-                new RecoveryOption("RECESS_RESTORE", "10m Non-Screen Recess", "Step away from screens and stretch to replenish working memory capacity."),
-                new RecoveryOption("SPLIT_MISSION", "Divide Intention", "Deconstruct your current task into two bite-sized 10-minute micro-steps.")
-        );
-
-        RecoveryResponse response = new RecoveryResponse(
-                resolvedSessionId,
-                resolvedName,
-                resolvedPlanned,
-                resolvedActual,
-                "Cognitive recovery protocol engaged for [" + resolvedName + "]. Pacing interruptions are normal biological friction points—choose a gentle re-entry strategy to restore momentum without guilt.",
-                options
-        );
-
-        logSuggestion(userId, "SESSION_RECOVERY", "sessionId=" + resolvedSessionId, "Recovery suggested for " + resolvedName);
-        return response;
+        return sessionDebriefService.getSessionRecovery(sessionId, userId, sessionName, plannedMinutes, actualMinutes);
     }
-    
-    public void acceptSuggestion(Long suggestionId, Long userId) {
+
+        public void acceptSuggestion(Long suggestionId, Long userId) {
         aiSuggestionRepository.findById(suggestionId).ifPresent(s -> {
             if (s.getUser().getId().equals(userId)) {
                 s.setAccepted(true);

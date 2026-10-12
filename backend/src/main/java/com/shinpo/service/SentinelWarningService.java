@@ -149,8 +149,9 @@ public class SentinelWarningService {
         SentinelEnforcementWarning warning = warningRepository.findByWarningIdAndUser_Id(warningId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Warning not found or access denied"));
 
-        // Validate warning status
-        if (warning.getStatus() != SentinelWarningStatus.ISSUED) {
+        // Validate warning status (ISSUED for all actions, or GRACE_ACTIVE for TERMINATE_NOW)
+        String action = request.action().trim().toUpperCase();
+        if (warning.getStatus() != SentinelWarningStatus.ISSUED && !(warning.getStatus() == SentinelWarningStatus.GRACE_ACTIVE && "TERMINATE_NOW".equals(action))) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Warning is not in ISSUED state (current status: " + warning.getStatus() + ")"
@@ -158,7 +159,7 @@ public class SentinelWarningService {
         }
 
         Instant now = Instant.now();
-        if (now.isAfter(warning.getDecisionDeadline())) {
+        if (warning.getStatus() == SentinelWarningStatus.ISSUED && now.isAfter(warning.getDecisionDeadline())) {
             warning.setStatus(SentinelWarningStatus.EXPIRED);
             warningRepository.save(warning);
             throw new ResponseStatusException(HttpStatus.GONE, "Warning decision deadline has expired");
@@ -174,11 +175,13 @@ public class SentinelWarningService {
             );
         }
 
-        String action = request.action().trim().toUpperCase();
-
         if ("TERMINATE_NOW".equals(action)) {
             warning.setStatus(SentinelWarningStatus.TERMINATE_NOW);
             SentinelEnforcementWarning saved = warningRepository.save(warning);
+            graceWindowRepository.findByWarningId(warningId).ifPresent(g -> {
+                g.setStatus(SentinelGraceStatus.CONSUMED);
+                graceWindowRepository.save(g);
+            });
             log.info("SENTINEL_WARNING_TERMINATE_NOW: user={} warningId={} process={}",
                     userId, warningId, warning.getProcessName());
             return SentinelWarningResponse.from(saved);
@@ -358,6 +361,11 @@ public class SentinelWarningService {
 
         String canonical = request.processName().trim().toLowerCase();
 
+        // SHINPO runtime processes (dev servers, daemons, backend/frontend) are unconditionally protected
+        if (canonical.contains("shinpo") || (request.commandLine() != null && request.commandLine().toLowerCase().contains("shinpo"))) {
+            return new CandidateProcessResponse("ALLOW", null, null, null, "SHINPO runtime process is protected");
+        }
+
         // 1. Contextual policy check (protected processes, session exceptions, user allowed/blocked rules)
         ContextualEnforcementDecisionService.PolicyDecision policyDecision =
                 contextualDecisionService.evaluateProcess(userId, canonical);
@@ -441,6 +449,27 @@ public class SentinelWarningService {
                 null,
                 "New warning issued on candidate detection; enforcement deferred"
         );
+    }
+
+    @Transactional
+    public void handleProcessUserClosed(Long sessionId, String processName) {
+        if (sessionId == null || processName == null || processName.isBlank()) {
+            return;
+        }
+        String canonical = processName.trim().toLowerCase();
+        warningRepository.findByFocusSession_IdAndProcessNameAndStatusIn(
+                sessionId,
+                canonical,
+                List.of(SentinelWarningStatus.ISSUED, SentinelWarningStatus.GRACE_ACTIVE)
+        ).ifPresent(w -> {
+            w.setStatus(SentinelWarningStatus.CANCELLED);
+            warningRepository.save(w);
+            graceWindowRepository.findByWarningId(w.getWarningId()).ifPresent(g -> {
+                g.setStatus(SentinelGraceStatus.CANCELLED);
+                graceWindowRepository.save(g);
+            });
+            log.info("SENTINEL_PROCESS_USER_CLOSED: session={} process={} warningId={}", sessionId, canonical, w.getWarningId());
+        });
     }
 
     @Transactional

@@ -34,14 +34,14 @@ impl ShieldEnforcer {
     pub fn with_interceptor(interceptor: Box<dyn PlatformInterceptor>) -> Self {
         let mut protected = HashSet::new();
         for name in [
-            "systemd", "init", "kernel", "kthreadd", "dbus", "sshd",
-            "xorg", "wayland", "mutter", "gnome-shell", "kwin", "plasma",
-            "pulseaudio", "pipewire", "wireplumber", "dockerd", "containerd",
-            "postgres", "postgresql", "shinpo", "cargo", "rustc",
-            "bash", "zsh", "sh", "fish", "sudo", "su", "login",
-            "code", "idea", "nvim", "vim", "tmux",
-            "java", "jvm", "mvn", "mvnw", "node", "npm", "npx", "vite", "git",
-            "docker", "ollama", "qwen", "python", "python3",
+            "systemd", "init", "kernel", "kthreadd",
+            "dbus-daemon", "dbus-broker", "dbus-broker-launch", "dbus",
+            "systemd-journald", "systemd-udevd", "systemd-logind",
+            "xorg", "xwayland", "wayland", "sway", "mutter", "kwin", "kwin_wayland", "plasma", "plasmashell", "gnome-shell",
+            "pipewire", "wireplumber", "pulseaudio",
+            "sshd", "login",
+            "shinpo", "shinpo-shield", "shinpo-desktop",
+            "postgres", "postgresql",
         ] {
             protected.insert(name.to_string());
         }
@@ -237,6 +237,39 @@ impl ShieldEnforcer {
             }
             self.debounce_map.insert(pid, now);
 
+            // Revalidate process identity right before termination
+            self.sys.refresh_processes(ProcessesToUpdate::All, true);
+            let current_proc = match self.sys.process(pid_obj) {
+                Some(p) => p,
+                None => {
+                    intercepted.push(InterceptedProcess {
+                        pid,
+                        name: process_name,
+                        cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
+                        policy_action: "USER_CLOSED".to_string(),
+                        enforcement_mode: mode.to_string(),
+                        reason: "Process exited naturally prior to enforcement execution".to_string(),
+                    });
+                    continue;
+                }
+            };
+
+            let current_name = current_proc.name().to_string_lossy();
+            if !same_process_name(&process_name, &current_name) {
+                intercepted.push(InterceptedProcess {
+                    pid,
+                    name: process_name.clone(),
+                    cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
+                    policy_action: "REVALIDATION_FAILED".to_string(),
+                    enforcement_mode: mode.to_string(),
+                    reason: format!(
+                        "Process identity mismatch: PID {} now belongs to '{}' (expected '{}')",
+                        pid, current_name, process_name
+                    ),
+                });
+                continue;
+            }
+
             let expected_name = process_name.clone();
             let interceptor = self.interceptor.as_ref();
             let system = &mut self.sys;
@@ -263,8 +296,12 @@ impl ShieldEnforcer {
                     "Native Shield ({}) audit: distraction active during focus sprint (dry-run)",
                     os_name
                 ),
-                "TERMINATED" => format!(
+                "TERMINATED" if escalated => format!(
                     "Native Shield ({}): forced termination exit confirmed",
+                    os_name
+                ),
+                "TERMINATED" => format!(
+                    "Native Shield ({}): process exit confirmed after graceful stop",
                     os_name
                 ),
                 "CONTAINED" if escalated => format!(
@@ -334,8 +371,13 @@ impl ShieldEnforcer {
                 ("CONTAINMENT_FAILED", false, true)
             }
         } else {
-            let confirmed = request_and_verify(true);
-            (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, false)
+            // STRICT mode: attempt graceful first, escalate to forced only if needed
+            if request_and_verify(false) {
+                ("TERMINATED", true, false)
+            } else {
+                let confirmed = request_and_verify(true);
+                (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, true)
+            }
         }
     }
 
@@ -369,6 +411,7 @@ impl ShieldEnforcer {
             || proc_lower.starts_with("vm thread")
             || proc_lower.starts_with("finalizer")
             || proc_lower.starts_with("signal dispatch")
+            || proc_lower.contains("gamepad")
         {
             return false;
         }
@@ -594,8 +637,7 @@ mod tests {
         };
 
         assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "STRICT");
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            assert!(force);
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |_force| {
             true
         });
         assert_eq!(action, "TERMINATED");
@@ -614,29 +656,49 @@ mod tests {
     }
 
     #[test]
-    fn test_successful_force_request_is_reported_only_after_exit_confirmation() {
-        let request_accepted = true;
-        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            assert!(force);
-            assert!(request_accepted);
-            verify_target_exit(|| false)
+    fn test_strict_stops_after_verified_graceful_exit() {
+        let mut calls = Vec::new();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            calls.push(force);
+            true
         });
 
+        assert_eq!(calls, vec![false]);
         assert_eq!(action, "TERMINATED");
         assert!(confirmed);
+        assert!(!escalated);
+    }
+
+    #[test]
+    fn test_successful_force_request_is_reported_only_after_exit_confirmation() {
+        let mut calls = Vec::new();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            calls.push(force);
+            if !force {
+                false
+            } else {
+                verify_target_exit(|| false)
+            }
+        });
+
+        assert_eq!(calls, vec![false, true]);
+        assert_eq!(action, "TERMINATED");
+        assert!(confirmed);
+        assert!(escalated);
     }
 
     #[test]
     fn test_successful_force_request_with_live_process_is_not_confirmed() {
-        let request_accepted = true;
-        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            assert!(force);
-            assert!(request_accepted);
-            verify_target_exit(|| true)
+        let mut calls = Vec::new();
+        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
+            calls.push(force);
+            false
         });
 
+        assert_eq!(calls, vec![false, true]);
         assert_eq!(action, "TERMINATE_ATTEMPTED");
         assert!(!confirmed);
+        assert!(escalated);
     }
 
     #[test]
@@ -734,18 +796,72 @@ mod tests {
     #[test]
     fn test_protected_process_immunity() {
         let enforcer = ShieldEnforcer::new();
-        let blacklist = vec!["java".to_string(), "postgres".to_string(), "shinpo".to_string()];
+        let blacklist = vec!["systemd".to_string(), "postgres".to_string(), "shinpo".to_string(), "wireplumber".to_string()];
         let allowed = HashSet::new();
 
-        // Even if someone put "java" or "postgres" or "shinpo" in blacklist, it must be protected!
+        // Critical system infrastructure, db, and shinpo are protected even if blacklisted
         assert!(!ShieldEnforcer::is_distraction_process(
-            "java", "java -jar target.jar", &blacklist, &allowed, &enforcer.protected_system_names
+            "systemd", "/usr/lib/systemd/systemd", &blacklist, &allowed, &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
             "postgres", "/usr/bin/postgres", &blacklist, &allowed, &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
+            "wireplumber", "/usr/bin/wireplumber", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        assert!(!ShieldEnforcer::is_distraction_process(
             "shinpo_backend", "shinpo -Ddev", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+    }
+
+    #[test]
+    fn test_ordinary_browser_is_blockable() {
+        let enforcer = ShieldEnforcer::new();
+        let blacklist = vec!["chrome".to_string(), "firefox".to_string(), "brave".to_string()];
+        let allowed = HashSet::new();
+
+        assert!(ShieldEnforcer::is_distraction_process(
+            "chrome", "/opt/google/chrome/chrome", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        assert!(ShieldEnforcer::is_distraction_process(
+            "firefox", "/usr/bin/firefox", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        assert!(ShieldEnforcer::is_distraction_process(
+            "brave", "/usr/bin/brave-browser", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+    }
+
+    #[test]
+    fn test_ordinary_editor_is_blockable() {
+        let enforcer = ShieldEnforcer::new();
+        let blacklist = vec!["code".to_string(), "idea".to_string()];
+        let allowed = HashSet::new();
+
+        assert!(ShieldEnforcer::is_distraction_process(
+            "code", "/usr/share/code/code", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        assert!(ShieldEnforcer::is_distraction_process(
+            "idea", "/opt/intellij/bin/idea.sh", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+    }
+
+    #[test]
+    fn test_shinpo_owned_process_remains_immune() {
+        let enforcer = ShieldEnforcer::new();
+        let blacklist = vec!["node".to_string(), "java".to_string(), "python".to_string()];
+        let allowed = HashSet::new();
+
+        // Node running shinpo frontend dev server has shinpo in cmdline: protected!
+        assert!(!ShieldEnforcer::is_distraction_process(
+            "node", "node /home/user/Projects/SHINPO/frontend/node_modules/vite/bin/vite.js", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        // Java running shinpo backend has shinpo in cmdline: protected!
+        assert!(!ShieldEnforcer::is_distraction_process(
+            "java", "java -jar /opt/shinpo/shinpo-backend.jar", &blacklist, &allowed, &enforcer.protected_system_names
+        ));
+        // Ordinary node script without shinpo is blockable!
+        assert!(ShieldEnforcer::is_distraction_process(
+            "node", "node /home/user/other-project/server.js", &blacklist, &allowed, &enforcer.protected_system_names
         ));
     }
 

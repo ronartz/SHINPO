@@ -27,6 +27,11 @@ import java.util.HexFormat;
 public class JwtTokenService {
 
     public static final String KNOWN_DEV_SECRET = "shinpo_arise_master_key_secure_development_secret_2026_production_grade_32b";
+    private static final String LEGACY_COMPOSE_FALLBACK = "shinpo_default_super_secure_production_secret_key_2026";
+    private static final java.util.Set<String> FORBIDDEN_PRODUCTION_SECRETS = java.util.Set.of(
+            KNOWN_DEV_SECRET,
+            LEGACY_COMPOSE_FALLBACK
+    );
     private static final String ISSUER = "shinpo-arise";
     private static final Duration ACCESS_TOKEN_EXPIRY = Duration.ofMinutes(60);
     private static final Duration REFRESH_TOKEN_EXPIRY = Duration.ofDays(30);
@@ -43,16 +48,23 @@ public class JwtTokenService {
     ) {
         boolean isProduction = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+        boolean isDevOrTest = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("development") || p.equalsIgnoreCase("test"));
 
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "shinpo.jwt.secret must be configured via the SHINPO_JWT_SECRET environment variable. " +
                     "A hardcoded or empty secret is not permitted.");
         }
-        if (isProduction && KNOWN_DEV_SECRET.equals(secret)) {
+        if (isProduction && FORBIDDEN_PRODUCTION_SECRETS.contains(secret)) {
             throw new IllegalStateException(
                     "Default development JWT secret detected in production profile! " +
                     "You must provide a secure, unique SHINPO_JWT_SECRET in production.");
+        }
+        if (!isDevOrTest && FORBIDDEN_PRODUCTION_SECRETS.contains(secret)) {
+            throw new IllegalStateException(
+                    "Default development JWT secret is strictly forbidden outside dev/test profiles! " +
+                    "You must provide a secure, unique SHINPO_JWT_SECRET.");
         }
         if (secret.length() < 32) {
             throw new IllegalStateException(

@@ -28,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -162,9 +163,16 @@ class AdaptivePlanningTests {
     @Test
     @DisplayName("Adaptive Planning: detects schedule conflicts and automatically offsets with 10m buffers")
     void testScheduleConflictResolution() {
-        // Create an already scheduled focus session overlapping with the 9:00 AM circadian window
         ZoneId userZone = ZoneId.of("Asia/Kolkata");
-        Instant scheduledStart = LocalDate.now(userZone).atTime(9, 15).atZone(userZone).toInstant();
+        LocalTime now = LocalTime.now(userZone);
+        LocalTime testCursor;
+        if (now.isBefore(LocalTime.of(8, 30)) || now.isAfter(LocalTime.of(19, 0))) {
+            testCursor = LocalTime.of(9, 0);
+        } else {
+            int rem = now.getMinute() % 15;
+            testCursor = now.plusMinutes(15 - rem).withSecond(0).withNano(0);
+        }
+        Instant scheduledStart = LocalDate.now(userZone).atTime(testCursor.plusMinutes(5)).atZone(userZone).toInstant();
         FocusSession existing = new FocusSession();
         existing.setUser(testUser);
         existing.setName("Client Alignment Sync");

@@ -38,6 +38,9 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "enforcement_mode", nullable = false, length = 30)
+    private String enforcementMode = "STRICT";
+
     @OneToMany(mappedBy = "user")
     private List<Goal> goals = new ArrayList<>();
 
@@ -49,11 +52,16 @@ public class User {
     }
 
     public User(String username, String email, String passwordHash, String role, boolean isActive, Instant createdAt) {
+        this(username, email, passwordHash, role, isActive, "STRICT", createdAt);
+    }
+
+    public User(String username, String email, String passwordHash, String role, boolean isActive, String enforcementMode, Instant createdAt) {
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = (role != null && !role.isBlank()) ? role : "ROLE_USER";
         this.isActive = isActive;
+        this.enforcementMode = (enforcementMode != null && !enforcementMode.isBlank()) ? enforcementMode : "STRICT";
         this.createdAt = createdAt;
     }
 
@@ -87,6 +95,14 @@ public class User {
 
     public void setActive(boolean active) {
         this.isActive = active;
+    }
+
+    public String getEnforcementMode() {
+        return enforcementMode != null ? enforcementMode : "STRICT";
+    }
+
+    public void setEnforcementMode(String enforcementMode) {
+        this.enforcementMode = (enforcementMode != null && !enforcementMode.isBlank()) ? enforcementMode : "STRICT";
     }
 
     public Instant getCreatedAt() {

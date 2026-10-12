@@ -14,11 +14,6 @@ public class TaskManagerService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskManagerService.class);
 
-    private static final Set<String> PROTECTED_PROCESSES = Set.of(
-            "systemd", "init", "kthreadd", "dbus-daemon", "dbus", "xorg", "wayland",
-            "sway", "gnome-shell", "shinpo-shield", "shinpo", "sshd", "login",
-            "kernel", "bash", "zsh", "systemd-journald", "systemd-udevd", "cron", "crond"
-    );
 
     private static final Set<String> KNOWN_DISTRACTIONS = Set.of(
             "discord", "steam", "spotify", "telegram-desktop", "vlc", "obs",
@@ -83,7 +78,7 @@ public class TaskManagerService {
             String reason = "Standard workstation task";
             boolean canControl = true;
 
-            if (pid == myPid || pid == 1 || PROTECTED_PROCESSES.contains(lowerName) || lowerName.contains("shinpo")) {
+            if (pid == myPid || pid == 1 || SentinelEnforcementService.PROTECTED_PROCESSES.contains(lowerName) || lowerName.contains("shinpo")) {
                 policy = "PROTECTED";
                 reason = "Kernel / Core runtime subsystem (Shield locked)";
                 canControl = false;
@@ -155,7 +150,7 @@ public class TaskManagerService {
 
         ProcessHandle handle = handleOpt.get();
         String name = handle.info().command().map(c -> new File(c).getName()).orElse("PID " + pid);
-        if (PROTECTED_PROCESSES.contains(name.toLowerCase())) {
+        if (SentinelEnforcementService.PROTECTED_PROCESSES.contains(name.toLowerCase()) || name.toLowerCase().contains("shinpo")) {
             return new ProcessControlResult(pid, "TERMINATE", "REJECTED", "Cannot terminate protected system process: " + name);
         }
 

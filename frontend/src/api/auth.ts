@@ -161,3 +161,24 @@ export async function logout(): Promise<void> {
   }
   clearAuthSession()
 }
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) {
+      clearAuthSession()
+      return null
+    }
+    const data: AuthResponse = await res.json()
+    setAuthSession(data)
+    return data.accessToken
+  } catch {
+    return null
+  }
+}

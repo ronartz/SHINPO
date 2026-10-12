@@ -1,6 +1,7 @@
 package com.shinpo.service;
 
 import com.shinpo.dto.SentinelDtos.*;
+import com.shinpo.dto.SentinelWarningDtos.*;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.Mission;
@@ -33,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class SentinelEnforcementService {
@@ -40,10 +42,14 @@ public class SentinelEnforcementService {
     private static final Logger log = LoggerFactory.getLogger(SentinelEnforcementService.class);
 
     public static final Set<String> PROTECTED_PROCESSES = Set.of(
-            "systemd", "init", "kthreadd", "dbus-daemon", "dbus", "xorg", "wayland",
-            "sway", "gnome-shell", "shinpo-shield", "shinpo", "sshd", "login",
-            "kernel", "bash", "zsh", "systemd-journald", "systemd-udevd", "cron", "crond",
-            "postgres", "docker", "dockerd", "containerd", "idea", "code", "vscode", "java"
+            "systemd", "init", "kernel", "kthreadd",
+            "dbus-daemon", "dbus-broker", "dbus-broker-launch", "dbus",
+            "systemd-journald", "systemd-udevd", "systemd-logind",
+            "xorg", "xwayland", "wayland", "sway", "mutter", "kwin", "kwin_wayland", "plasma", "plasmashell", "gnome-shell",
+            "pipewire", "wireplumber", "pulseaudio",
+            "sshd", "login",
+            "shinpo", "shinpo-shield", "shinpo-desktop",
+            "postgres", "postgresql"
     );
 
     public static final Set<String> DEFAULT_DISTRACTIONS = Set.of(
@@ -68,6 +74,9 @@ public class SentinelEnforcementService {
 
     // Debounce cache: key = "userId_pid", value = Instant of last logged quarantine
     private final Map<String, Instant> debounceMap = new ConcurrentHashMap<>();
+
+    // Non-overlapping sweep guard to prevent concurrent execution pileup
+    private final AtomicBoolean isSweepRunning = new AtomicBoolean(false);
 
     private volatile Instant lastGlobalSweep = Instant.now();
 
@@ -96,8 +105,38 @@ public class SentinelEnforcementService {
         this.warningService = warningService;
     }
 
+    public boolean isSweepRunning() {
+        return isSweepRunning.get();
+    }
+
     public String getEnforcementMode(Long userId) {
-        return userEnforcementModes.getOrDefault(userId, "STRICT");
+        if (userId == null) {
+            return "STRICT";
+        }
+        String cached = userEnforcementModes.get(userId);
+        if (cached != null) {
+            return cached;
+        }
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            String mode = userOpt.get().getEnforcementMode();
+            if (mode != null && !mode.isBlank()) {
+                String upper = mode.toUpperCase();
+                if (List.of("STRICT", "AUDIT_ONLY", "CONTAINMENT").contains(upper)) {
+                    userEnforcementModes.put(userId, upper);
+                    return upper;
+                }
+            }
+            userEnforcementModes.put(userId, "STRICT");
+            return "STRICT";
+        }
+        return "STRICT";
+    }
+
+    public void invalidateEnforcementModeCache(Long userId) {
+        if (userId != null) {
+            userEnforcementModes.remove(userId);
+        }
     }
 
     @Transactional
@@ -131,6 +170,12 @@ public class SentinelEnforcementService {
             log.warn("SENTINEL_POLICY_GATE_BLOCKED: user={} activeSession={} attemptedMode={}",
                     userId, activeSession.getId(), upper);
             throw new IllegalStateException("Administrative Policy Gate: Enforcement mode cannot be downgraded during an active STRICT focus sprint. Execute emergency override with password verification.");
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null) {
+            user.setEnforcementMode(upper);
+            userRepository.save(user);
         }
 
         userEnforcementModes.put(userId, upper);
@@ -196,29 +241,37 @@ public class SentinelEnforcementService {
         return executeSweepForUser(user, activeSession);
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedDelay = 5000)
     public void periodicSentinelDaemon() {
-        List<FocusSession> activeSessions = focusSessionRepository.findAll().stream()
-                .filter(s -> s.getStatus() == FocusSessionStatus.ACTIVE)
-                .toList();
-
-        if (activeSessions.isEmpty()) {
+        if (!isSweepRunning.compareAndSet(false, true)) {
+            log.debug("Sentinel periodic sweep skipped: previous sweep still in progress");
             return;
         }
 
-        lastGlobalSweep = Instant.now();
+        try {
+            List<FocusSession> activeSessions = focusSessionRepository.findAllByStatus(FocusSessionStatus.ACTIVE);
 
-        Set<Long> processedUsers = new HashSet<>();
-        for (FocusSession session : activeSessions) {
-            User user = session.getUser();
-            if (user != null && processedUsers.add(user.getId())) {
-                try {
-                    executeSweepForUser(user, session);
-                } catch (Exception e) {
-                    log.error("SENTINEL_SWEEP_FAILED: user={} session={} error={}",
-                            user.getId(), session.getId(), e.getMessage());
+            if (activeSessions.isEmpty()) {
+                log.trace("Sentinel sweep idle: no active focus sessions");
+                return;
+            }
+
+            lastGlobalSweep = Instant.now();
+
+            Set<Long> processedUsers = new HashSet<>();
+            for (FocusSession session : activeSessions) {
+                User user = session.getUser();
+                if (user != null && processedUsers.add(user.getId())) {
+                    try {
+                        executeSweepForUser(user, session);
+                    } catch (Exception e) {
+                        log.error("SENTINEL_SWEEP_FAILED: user={} session={} error={}",
+                                user.getId(), session.getId(), e.getMessage());
+                    }
                 }
             }
+        } finally {
+            isSweepRunning.set(false);
         }
     }
 
@@ -226,14 +279,26 @@ public class SentinelEnforcementService {
         Long userId = user.getId();
         String mode = getEnforcementMode(userId);
         long myPid = ProcessHandle.current().pid();
+        Instant now = Instant.now();
+
+        // Safe Focus Session synchronization: if no active session, ignore distractions and release enforcement
+        if (activeSession == null) {
+            long totalProcs = ProcessHandle.allProcesses().count();
+            return new SentinelSweepResponse(
+                    (int) totalProcs,
+                    0,
+                    List.of(),
+                    List.of(),
+                    "Sentinel sweep clean: No active focus sprint. 0 restrictions active across " + totalProcs + " processes.",
+                    now
+            );
+        }
 
         Set<String> blockedPatterns = new HashSet<>(DEFAULT_DISTRACTIONS);
         Set<String> allowedPatterns = new HashSet<>();
 
         // Contextual policy: if there is an active session, its session exceptions take precedence over blocked rules
-        if (activeSession != null) {
-            allowedPatterns.addAll(exceptionService.getActiveProcessExceptionsForUser(userId));
-        }
+        allowedPatterns.addAll(exceptionService.getActiveProcessExceptionsForUser(userId));
 
         List<SentinelPolicyRule> userRules = policyRuleRepository.findAllByUser_IdOrderByCreatedAtDesc(userId);
         for (SentinelPolicyRule rule : userRules) {
@@ -248,7 +313,6 @@ public class SentinelEnforcementService {
         List<Long> interceptedPids = new ArrayList<>();
         List<String> interceptedNames = new ArrayList<>();
         int scannedCount = 0;
-        Instant now = Instant.now();
         String currentOsUser = System.getProperty("user.name");
 
         for (ProcessHandle handle : ProcessHandle.allProcesses().toList()) {
@@ -260,19 +324,13 @@ public class SentinelEnforcementService {
 
             ProcessHandle.Info info = handle.info();
             String rawCmd = info.command().orElse("");
-            String name = "";
-            if (!rawCmd.isBlank()) {
-                name = new File(rawCmd).getName();
-            } else {
-                name = info.commandLine().map(cl -> cl.split(" ")[0]).orElse("pid-" + pid);
-                if (name.contains("/")) {
-                    name = new File(name).getName();
-                }
-            }
-
+            String cmdLine = info.commandLine().orElse("");
+            String name = resolveProcessName(handle);
             String lowerName = name.toLowerCase();
+            String lowerCmd = (rawCmd + " " + cmdLine).toLowerCase();
 
-            if (PROTECTED_PROCESSES.contains(lowerName) || lowerName.contains("shinpo")) {
+            boolean isShinpoOwned = lowerName.contains("shinpo") || lowerCmd.contains("shinpo");
+            if (PROTECTED_PROCESSES.contains(lowerName) || isShinpoOwned) {
                 continue;
             }
 
@@ -310,32 +368,71 @@ public class SentinelEnforcementService {
                     tamperEventRepository.save(privilegeViolation);
                 }
             } else {
-                try {
-                    if (activeSession != null) {
-                        actionTaken = enforceProcess(handle, mode);
-                        if ("TERMINATED".equals(actionTaken)) {
-                            reason = "Autonomous sprint enforcement: process exit confirmed after forced termination";
-                        } else if ("TERMINATE_ATTEMPTED".equals(actionTaken)) {
-                            reason = "Autonomous sprint enforcement: process remained alive after forced termination request";
-                        } else if ("CONTAINED".equals(actionTaken)) {
-                            reason = "Autonomous sprint containment: process exit confirmed";
-                        } else if ("CONTAINMENT_FAILED".equals(actionTaken)) {
-                            reason = "Autonomous sprint containment: process remained alive after termination escalation";
-                        } else {
-                            reason = "Sentinel audit: distraction detected during focus window";
-                        }
+                CandidateProcessRequest candReq = new CandidateProcessRequest(name, info.commandLine().orElse(rawCmd), pid);
+                CandidateProcessResponse candResp = warningService.evaluateCandidate(userId, candReq);
+
+                if ("ALLOW".equals(candResp.decision())) {
+                    continue;
+                } else if ("DEFER_GRACE".equals(candResp.decision())) {
+                    actionTaken = "GRACE_ACTIVE";
+                    reason = candResp.reason() != null ? candResp.reason() : "Active grace window in effect";
+                } else if ("DEFER_WARNING".equals(candResp.decision())) {
+                    actionTaken = "WARNED";
+                    reason = candResp.reason() != null ? candResp.reason() : "Active warning awaiting user decision";
+                } else if ("ENFORCE_TERMINATE".equals(candResp.decision())) {
+                    // Revalidate process identity right before termination
+                    Optional<ProcessHandle> revalidatedOpt = ProcessHandle.of(pid);
+                    if (revalidatedOpt.isEmpty() || !revalidatedOpt.get().isAlive()) {
+                        actionTaken = "USER_CLOSED";
+                        reason = "Process closed naturally prior to enforcement";
+                        warningService.handleProcessUserClosed(activeSession.getId(), name);
                     } else {
-                        actionTaken = "WARNED";
-                        reason = "Sentinel audit: distraction detected during focus window";
+                        ProcessHandle revalidatedHandle = revalidatedOpt.get();
+                        String currentName = resolveProcessName(revalidatedHandle);
+                        if (!currentName.equalsIgnoreCase(name) && !currentName.toLowerCase().contains(lowerName)) {
+                            actionTaken = "REVALIDATION_FAILED";
+                            reason = "Process identity mismatch: PID " + pid + " now belongs to " + currentName + " (expected " + name + ")";
+                            if (shouldRecord) {
+                                SentinelTamperEvent tamper = new SentinelTamperEvent(
+                                        user,
+                                        activeSession,
+                                        "PROCESS_IDENTITY_REVALIDATION_FAILED",
+                                        "HIGH",
+                                        mode,
+                                        "PID reuse detected",
+                                        reason
+                                );
+                                tamperEventRepository.save(tamper);
+                            }
+                            log.error("SENTINEL_PID_REUSE_ABORT: pid={} expected={} current={}", pid, name, currentName);
+                        } else {
+                            try {
+                                actionTaken = enforceProcess(revalidatedHandle, mode);
+                                if ("TERMINATED".equals(actionTaken)) {
+                                    reason = "Autonomous sprint enforcement: process exit confirmed";
+                                } else if ("TERMINATE_ATTEMPTED".equals(actionTaken)) {
+                                    reason = "Autonomous sprint enforcement: process remained alive after forced termination request";
+                                } else if ("CONTAINED".equals(actionTaken)) {
+                                    reason = "Autonomous sprint containment: process exit confirmed";
+                                } else if ("CONTAINMENT_FAILED".equals(actionTaken)) {
+                                    reason = "Autonomous sprint containment: process remained alive after termination escalation";
+                                } else {
+                                    reason = "Sentinel audit: distraction detected during focus window";
+                                }
+                            } catch (SecurityException se) {
+                                actionTaken = "PERMISSION_DENIED";
+                                reason = "OS security policy denied termination: " + se.getMessage();
+                                log.error("SENTINEL_SECURITY_DENIAL: pid={} user={} error={}", pid, userId, se.getMessage());
+                            } catch (Exception ex) {
+                                actionTaken = "CONTAINMENT_FAILED";
+                                reason = "Process containment failed: " + ex.getMessage();
+                                log.error("SENTINEL_CONTAINMENT_EXCEPTION: pid={} user={} error={}", pid, userId, ex.getMessage());
+                            }
+                        }
                     }
-                } catch (SecurityException se) {
-                    actionTaken = "PERMISSION_DENIED";
-                    reason = "OS security policy denied termination: " + se.getMessage();
-                    log.error("SENTINEL_SECURITY_DENIAL: pid={} user={} error={}", pid, userId, se.getMessage());
-                } catch (Exception ex) {
-                    actionTaken = "CONTAINMENT_FAILED";
-                    reason = "Process containment failed: " + ex.getMessage();
-                    log.error("SENTINEL_CONTAINMENT_EXCEPTION: pid={} user={} error={}", pid, userId, ex.getMessage());
+                } else {
+                    actionTaken = "WARNED";
+                    reason = candResp.reason() != null ? candResp.reason() : "Candidate evaluation deferred";
                 }
             }
 
@@ -385,9 +482,13 @@ public class SentinelEnforcementService {
         );
     }
 
-    static String enforceProcess(ProcessHandle handle, String mode) {
-        if ("STRICT".equals(mode)) {
-            return requestTerminationAndVerify(handle, true);
+    public static String enforceProcess(ProcessHandle handle, String mode) {
+        return enforceProcess(handle, mode, true);
+    }
+
+    public static String enforceProcess(ProcessHandle handle, String mode, boolean allowForced) {
+        if ("AUDIT_ONLY".equals(mode)) {
+            return "WARNED";
         }
         if ("CONTAINMENT".equals(mode)) {
             String gracefulResult = requestTerminationAndVerify(handle, false);
@@ -395,10 +496,39 @@ public class SentinelEnforcementService {
                 return gracefulResult;
             }
 
+            if (!allowForced) {
+                return "CONTAINMENT_FAILED";
+            }
+
             String forcedResult = requestTerminationAndVerify(handle, true);
             return "TERMINATED".equals(forcedResult) ? "CONTAINED" : "CONTAINMENT_FAILED";
         }
+        if ("STRICT".equals(mode)) {
+            String gracefulResult = requestTerminationAndVerify(handle, false);
+            if ("CONTAINED".equals(gracefulResult)) {
+                return "TERMINATED";
+            }
+
+            if (!allowForced) {
+                return "CONTAINMENT_FAILED";
+            }
+
+            return requestTerminationAndVerify(handle, true);
+        }
         return "WARNED";
+    }
+
+    public static String resolveProcessName(ProcessHandle handle) {
+        ProcessHandle.Info info = handle.info();
+        String rawCmd = info.command().orElse("");
+        if (!rawCmd.isBlank()) {
+            return new File(rawCmd).getName();
+        }
+        String name = info.commandLine().map(cl -> cl.split(" ")[0]).orElse("pid-" + handle.pid());
+        if (name.contains("/")) {
+            return new File(name).getName();
+        }
+        return name;
     }
 
     static String requestTerminationAndVerify(ProcessHandle handle, boolean force) {
@@ -410,7 +540,7 @@ public class SentinelEnforcementService {
 
         boolean exited;
         try {
-            handle.onExit().get(100, TimeUnit.MILLISECONDS);
+            handle.onExit().get(150, TimeUnit.MILLISECONDS);
             exited = true;
         } catch (TimeoutException e) {
             exited = !handle.isAlive();
@@ -550,6 +680,8 @@ public class SentinelEnforcementService {
         );
         tamperEventRepository.save(overrideEvent);
 
+        user.setEnforcementMode(targetMode);
+        userRepository.save(user);
         userEnforcementModes.put(userId, targetMode);
         log.warn("SENTINEL_EMERGENCY_OVERRIDE_EXECUTED: user={} session={} targetMode={} reason={}",
                 userId, activeSession != null ? activeSession.getId() : null, targetMode, request.reason());
@@ -689,18 +821,19 @@ public class SentinelEnforcementService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SentinelDaemonSyncResponse getDaemonSyncState(Long userId) {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 
         Mission currentMission = activeSession != null ? activeSession.getMission() : null;
         Long currentMissionId = currentMission != null ? currentMission.getId() : null;
-        Long currentGoalId = currentMission != null
-            ? currentMission.getGoal().getId()
-            : activeSession != null && activeSession.getGoal() != null
-                ? activeSession.getGoal().getId()
-                : null;
+        Long currentGoalId = null;
+        if (currentMission != null && currentMission.getGoal() != null) {
+            currentGoalId = currentMission.getGoal().getId();
+        } else if (activeSession != null && activeSession.getGoal() != null) {
+            currentGoalId = activeSession.getGoal().getId();
+        }
 
         String mode = getEnforcementMode(userId);
         boolean isLocked = activeSession != null && "STRICT".equals(mode);

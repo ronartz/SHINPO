@@ -316,14 +316,24 @@ public class FocusSessionService {
     public FocusSessionResponse cancelSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
 
-        if (session.getStatus() != FocusSessionStatus.SCHEDULED && session.getStatus() != FocusSessionStatus.PAUSED) {
+        if (session.getStatus() != FocusSessionStatus.SCHEDULED
+                && session.getStatus() != FocusSessionStatus.ACTIVE
+                && session.getStatus() != FocusSessionStatus.PAUSED) {
             throw new IllegalStateException(
-                    "Focus session can only be cancelled from SCHEDULED or PAUSED"
+                    "Focus session can only be cancelled from SCHEDULED, ACTIVE, or PAUSED"
+            );
+        }
+
+        Instant now = Instant.now();
+        if (session.getStatus() == FocusSessionStatus.PAUSED && session.getPausedAt() != null) {
+            long finalPauseSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
+            session.setAccumulatedPausedSeconds(
+                    session.getAccumulatedPausedSeconds() + Math.max(0L, finalPauseSeconds)
             );
         }
 
         session.setStatus(FocusSessionStatus.CANCELLED);
-        session.setEndedAt(Instant.now());
+        session.setEndedAt(now);
         session.setPausedAt(null);
 
         FocusSession saved = focusSessionRepository.save(session);
@@ -339,6 +349,10 @@ public class FocusSessionService {
 
         if (userId == null || !session.getUser().getId().equals(userId)) {
             throw new IllegalArgumentException("Session not found: " + sessionId);
+        }
+
+        if (session.getStatus() == FocusSessionStatus.ACTIVE || session.getStatus() == FocusSessionStatus.PAUSED) {
+            throw new IllegalStateException("Active or paused focus session cannot be deleted. Cancel the session first.");
         }
 
         focusSessionRepository.delete(session);

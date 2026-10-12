@@ -28,6 +28,9 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, Long
     /** Efficient sweep query — only loads sessions in expirable statuses. */
     List<FocusSession> findAllByStatusIn(Collection<FocusSessionStatus> statuses);
 
+    /** Targeted query for Sentinel daemon sweep — only retrieves sessions with specified status. */
+    List<FocusSession> findAllByStatus(FocusSessionStatus status);
+
     @Query("""
         SELECT s FROM FocusSession s
         WHERE s.user.id = :userId
