@@ -10,6 +10,22 @@ jobs:
   backend:
     name: Backend Build & Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: shinpo_test
+          POSTGRES_USER: shinpo
+          POSTGRES_PASSWORD: shinpo_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
 
@@ -28,6 +44,13 @@ jobs:
     - name: Run Backend Tests
       run: ./mvnw -B test
       working-directory: backend
+      env:
+        POSTGRES_HOST: localhost
+        POSTGRES_PORT: 5432
+        POSTGRES_DB: shinpo_test
+        POSTGRES_USER: shinpo
+        POSTGRES_PASSWORD: shinpo_dev
+        SHINPO_JWT_SECRET: shinpo_test_secret_key_minimum_32_characters_for_hmac256_testing_only
 
   frontend:
     name: Frontend Lint & Build
