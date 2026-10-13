@@ -35,25 +35,26 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
 }) => {
   trackRender('TopBar')
   return (
-    <div className="cockpit-top-bar">
+    <header className="cockpit-top-bar" role="banner">
       <div className="page-header-info">
         <h1 className="top-brand-title">
           {getViewHeaderTitle(activeTab)}
         </h1>
       </div>
 
-      {/* Pill Search Input */}
-      <div className="top-search-command">
-        <Icon name="search" size={16} />
+      {/* Centered Search Input */}
+      <div className="top-search-command" role="search">
+        <Icon name="search" size={15} />
         <input
           type="text"
           className="top-search-input"
           placeholder="Search tasks, goals, or sessions..."
           value={topSearchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
+          aria-label="Global search"
         />
-        <button className="top-search-filter-btn" title="Filter & Focus">
-          <Icon name="sparkle" size={14} />
+        <button type="button" className="top-search-filter-btn" title="Filter & Focus" aria-label="Search filter">
+          <Icon name="sparkle" size={13} />
         </button>
       </div>
 
@@ -95,7 +96,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           <Icon name="power" size={14} />
         </button>
       </div>
-    </div>
+    </header>
   )
 })
 

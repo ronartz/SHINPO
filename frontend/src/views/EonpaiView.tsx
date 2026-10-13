@@ -65,9 +65,16 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
   const [localInput, setLocalInput] = useState('')
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false)
+  const [showMoreActions, setShowMoreActions] = useState(false)
   const [pendingActions, setPendingActions] = useState<AiActionDto[]>([])
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<Record<string, { status: string; message: string }>>({})
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const aiFeedRef = useRef<HTMLDivElement | null>(null)
+  const aiContentRef = useRef<HTMLDivElement | null>(null)
+  const autoFollowEnabledRef = useRef(true)
+  const lastScrollTopRef = useRef(0)
 
   const loadPendingActions = useCallback(async () => {
     try {
@@ -90,7 +97,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       const res = await confirmAiAction(actionId)
       setActionFeedback((prev) => ({
         ...prev,
-        [actionId]: { status: res.status, message: res.resultSummary || 'Action executed successfully' },
+        [actionId]: { status: res.status, message: res.resultSummary || 'Action applied successfully' },
       }))
       await loadPendingActions()
       onActionExecuted?.()
@@ -120,16 +127,29 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       setActionLoadingId(null)
     }
   }, [loadPendingActions])
-  const aiFeedRef = useRef<HTMLDivElement | null>(null)
-  const aiContentRef = useRef<HTMLDivElement | null>(null)
-  const autoFollowEnabledRef = useRef(true)
-  const lastScrollTopRef = useRef(0)
 
   const handleSend = useCallback(() => {
     if (!localInput.trim() || aiLoading) return
     handleAiSend(localInput.trim())
     setLocalInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
   }, [localInput, aiLoading, handleAiSend])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setLocalInput(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }
 
   const handleChatScroll = useCallback(() => {
     const feedEl = aiFeedRef.current
@@ -138,7 +158,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
     const { scrollTop, scrollHeight, clientHeight } = feedEl
     const distFromBottom = scrollHeight - scrollTop - clientHeight
 
-    if (scrollTop < lastScrollTopRef.current - 10) {
+    if (scrollTop < lastScrollTopRef.current - 12) {
       autoFollowEnabledRef.current = false
     }
 
@@ -192,129 +212,195 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   }, [chatMessages, aiLoading])
 
   return (
-    <div className="ai-bento-container">
-      <div className="ai-sidebar-card">
-        <div className="card-header-row" style={{ margin: 0 }}>
-          <h2 className="card-title">QUICK ACTIONS</h2>
-          <div className="ai-sparkle-icon">
-            <Icon name="sparkle" size={16} />
-          </div>
+    <div className="eonpai-workspace">
+      {/* Supporting Utility Panel */}
+      <aside className="eonpai-utility-panel" aria-label="EONPAI Supporting Tools">
+        <div className="eonpai-utility-header">
+          <span className="eonpai-utility-title">Quick Actions</span>
+          <span className="eonpai-utility-count">6</span>
         </div>
-        <p className="ai-sidebar-sub">
-          Ask for guidance, plan your schedule, or break down goals into tasks.
-        </p>
 
-        <div className="ai-preset-grid">
+        <nav className="eonpai-command-list" aria-label="Quick Actions">
           <button
             type="button"
-            className="ai-preset-btn"
+            className="eonpai-command-row"
             onClick={() => handleTriggerPresetAction('Plan my day based on scheduled tasks')}
           >
-            <span>Plan My Day</span>
-            <Icon name="arrow-up-right" size={14} />
+            <div className="command-row-main">
+              <Icon name="schedule" size={14} />
+              <span>Plan my day</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
           </button>
+
           <button
             type="button"
-            className="ai-preset-btn"
-            onClick={() => handleTriggerPresetAction('Analyze my last focus session and provide structured feedback')}
+            className="eonpai-command-row"
+            onClick={() => handleTriggerPresetAction('What is my next priority task?')}
           >
-            <span>Summarize Last Session</span>
-            <Icon name="arrow-up-right" size={14} />
+            <div className="command-row-main">
+              <Icon name="target" size={14} />
+              <span>Next priority task</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
           </button>
+
           <button
             type="button"
-            className="ai-preset-btn"
-            onClick={() => handleTriggerPresetAction('I need a short break. Guide me through a 5-minute recovery.')}
-          >
-            <span>Take a Break</span>
-            <Icon name="arrow-up-right" size={14} />
-          </button>
-          <button
-            type="button"
-            className="ai-preset-btn"
-            onClick={() => handleStartTutorial(0)}
-          >
-            <span>Start Guided Tour</span>
-            <Icon name="arrow-up-right" size={14} />
-          </button>
-          <button
-            type="button"
-            className="ai-preset-btn"
-            onClick={() => handleTriggerPresetAction('Check focus protection daemon status and active blocked applications')}
-          >
-            <span>Check Focus Protection</span>
-            <Icon name="arrow-up-right" size={14} />
-          </button>
-          <button
-            type="button"
-            className="ai-preset-btn"
-            onClick={() => handleTriggerPresetAction('Report an issue or bug')}
-          >
-            <span>Report an Issue / Bug</span>
-            <Icon name="arrow-up-right" size={14} />
-          </button>
-          <button
-            type="button"
-            className="ai-preset-btn"
-            onClick={() => handleTriggerPresetAction('What is my next priority action?')}
-          >
-            <span>What is My Next Action?</span>
-            <Icon name="arrow-up-right" size={14} />
-          </button>
-          <button
-            type="button"
-            className="ai-preset-btn"
+            className="eonpai-command-row"
             onClick={() => handleTriggerPresetAction('Break down my top priority goal into tasks')}
           >
-            <span>Break Down Top Goal</span>
-            <Icon name="arrow-up-right" size={14} />
+            <div className="command-row-main">
+              <Icon name="plus" size={14} />
+              <span>Break down goal</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
           </button>
-        </div>
-      </div>
 
-      <div className="ai-chat-card">
-        <div className="ai-chat-card-header">
-          <div className="ai-header-status-group">
-            <h2 className="ai-header-name">EONPAI CONVERSATION</h2>
-            <div className="eonpai-online-badge">
-              <span className="online-dot" />
-              <span>EONPAI ONLINE</span>
+          <button
+            type="button"
+            className="eonpai-command-row"
+            onClick={() => handleTriggerPresetAction('Analyze my last focus session and provide structured feedback')}
+          >
+            <div className="command-row-main">
+              <Icon name="clock" size={14} />
+              <span>Summarize session</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
+          </button>
+
+          <button
+            type="button"
+            className="eonpai-command-row"
+            onClick={() => handleTriggerPresetAction('Check focus protection status and active application policies')}
+          >
+            <div className="command-row-main">
+              <Icon name="shield" size={14} />
+              <span>Focus protection</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
+          </button>
+
+          <button
+            type="button"
+            className="eonpai-command-row"
+            onClick={() => handleStartTutorial(0)}
+          >
+            <div className="command-row-main">
+              <Icon name="sparkle" size={14} />
+              <span>Guided tour</span>
+            </div>
+            <Icon name="arrow-up-right" size={12} className="command-arrow" />
+          </button>
+
+          {showMoreActions && (
+            <div className="eonpai-command-more-group">
+              <button
+                type="button"
+                className="eonpai-command-row"
+                onClick={() => handleTriggerPresetAction('I need a short break. Guide me through a 5-minute recovery.')}
+              >
+                <div className="command-row-main">
+                  <Icon name="pause" size={14} />
+                  <span>Take a break</span>
+                </div>
+                <Icon name="arrow-up-right" size={12} className="command-arrow" />
+              </button>
+
+              <button
+                type="button"
+                className="eonpai-command-row"
+                onClick={() => handleTriggerPresetAction('Report an issue or bug')}
+              >
+                <div className="command-row-main">
+                  <Icon name="edit" size={14} />
+                  <span>Report issue</span>
+                </div>
+                <Icon name="arrow-up-right" size={12} className="command-arrow" />
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="eonpai-toggle-more-btn"
+            onClick={() => setShowMoreActions((prev) => !prev)}
+          >
+            <span>{showMoreActions ? 'Show less' : 'More actions (2)'}</span>
+            <Icon name={showMoreActions ? 'chevron' : 'chevron'} size={12} />
+          </button>
+        </nav>
+
+        <div className="eonpai-utility-footer">
+          <div className="eonpai-tip-box">
+            <span className="eonpai-tip-label">Quick Tip</span>
+            <p className="eonpai-tip-text">
+              Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for a new line.
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      {/* Primary Conversation Panel */}
+      <section className="eonpai-conversation-card" aria-label="EONPAI Conversation">
+        {/* Restrained Single Workspace Header */}
+        <header className="eonpai-chat-header">
+          <div className="eonpai-identity-wrap">
+            <div className="eonpai-avatar-badge">
+              <Icon name="sparkle" size={15} />
+            </div>
+            <div className="eonpai-title-meta">
+              <h2 className="eonpai-title">EONPAI</h2>
+              <span className="eonpai-subtitle">Personal execution assistant</span>
+            </div>
+            <div className="eonpai-status-badge" title="AI Provider: Ollama (qwen3:4b)">
+              <span className="eonpai-status-dot connected" />
+              <span className="eonpai-status-text">Local · qwen3:4b</span>
             </div>
           </div>
           <button
             type="button"
-            className="ai-clear-btn"
+            className="eonpai-new-chat-btn"
             onClick={handleClearChat}
             title="Start fresh conversation"
           >
             <Icon name="refresh" size={13} />
             <span>New Chat</span>
           </button>
-        </div>
+        </header>
 
-        <div className="ai-chat-feed" ref={aiFeedRef} onScroll={handleChatScroll}>
-          <div className="ai-chat-content-wrap" ref={aiContentRef}>
-            {/* Pending Controlled Actions Queue */}
+        {/* Scrollable Message Feed */}
+        <div
+          className="eonpai-chat-feed"
+          ref={aiFeedRef}
+          onScroll={handleChatScroll}
+          tabIndex={0}
+          role="region"
+          aria-label="Message Feed"
+        >
+          <div className="eonpai-chat-content-wrap" ref={aiContentRef}>
+            {/* Pending Controlled Actions Queue Banner */}
             {pendingActions.length > 0 && (
-              <div className="ai-pending-banner">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Icon name="shield" size={16} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#00e5ff' }}>
-                    {pendingActions.length} Controlled Action{pendingActions.length > 1 ? 's' : ''} Awaiting Confirmation
+              <div className="eonpai-pending-banner">
+                <div className="pending-banner-info">
+                  <Icon name="shield" size={15} />
+                  <span>
+                    {pendingActions.length} Controlled Action{pendingActions.length > 1 ? 's' : ''} Awaiting Review
                   </span>
                 </div>
               </div>
             )}
 
+            {/* Pending Controlled Actions */}
             {pendingActions.map((act) => (
               <div key={act.actionId} className="ai-bubble assistant">
                 <div className="ai-bubble-text">
-                  🛡️ <strong>EONPAI Proposed Controlled Action:</strong> Awaiting your review and explicit approval.
+                  <strong>Controlled Action Proposed:</strong> Awaiting your review and explicit approval.
                 </div>
                 <div className="ai-action-card">
                   <div className="ai-action-header">
                     <div className="ai-action-title-group">
-                      <Icon name="shield" size={15} />
+                      <Icon name="shield" size={14} />
                       <span className="ai-action-type">{act.actionType}</span>
                     </div>
                     <span className={`ai-risk-tag ${(act.riskLevel || 'LOW').toLowerCase()}`}>
@@ -359,6 +445,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               </div>
             ))}
 
+            {/* Main Chat Stream */}
             {chatMessages.map((msg, index) => (
               <div
                 key={msg.id ?? index}
@@ -366,12 +453,12 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               >
                 <div className="ai-bubble-text">{msg.text}</div>
 
-                {/* Controlled Action Proposal Card in message */}
+                {/* Controlled Action Proposal Card */}
                 {msg.actionProposal && (
                   <div className="ai-action-card">
                     <div className="ai-action-header">
                       <div className="ai-action-title-group">
-                        <Icon name="shield" size={15} />
+                        <Icon name="shield" size={14} />
                         <span className="ai-action-type">{msg.actionProposal.actionType}</span>
                       </div>
                       <span className={`ai-risk-tag ${(msg.actionProposal.riskLevel || 'LOW').toLowerCase()}`}>
@@ -415,7 +502,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Interactive Guided Tour Prompt Card */}
+                {/* Interactive Guided Tour Card */}
                 {msg.tutorial && (
                   <div className="ai-tutorial-card">
                     <div className="ai-tutorial-header">
@@ -430,6 +517,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                       {msg.tutorial.instruction}
                     </div>
                     <button
+                      type="button"
                       className="ai-tutorial-btn"
                       onClick={() => handleStartTutorial(0)}
                     >
@@ -439,7 +527,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Bug Report Diagnostics Card */}
+                {/* Bug Diagnostics Card */}
                 {msg.bugReport && (
                   <div className="ai-bug-card">
                     <div className="ai-bug-header">
@@ -463,12 +551,12 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Daily Agenda Plan */}
+                {/* Suggested Daily Plan */}
                 {msg.dailyPlan && (
                   <div className="ai-plan-card">
                     <div className="ai-plan-header">
                       <div className="ai-plan-title-group">
-                        <Icon name="schedule" size={16} />
+                        <Icon name="schedule" size={15} />
                         <span className="ai-plan-title">
                           {msg.dailyPlan.headline}
                         </span>
@@ -501,14 +589,15 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                             )}
                           </div>
                           <button
+                            type="button"
                             className="ai-arm-sprint-btn"
                             onClick={() =>
                               handleArmMissionAsSession(item.missionTitle, item.durationMinutes)
                             }
                             title="Start as focus session"
                           >
-                            <span>Start</span>
-                            <Icon name="play" size={12} />
+                            <span>Start Focus</span>
+                            <Icon name="play" size={11} />
                           </button>
                         </div>
                       ))}
@@ -516,13 +605,14 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
                     <div className="ai-plan-actions-row">
                       <button
+                        type="button"
                         className="ai-commit-plan-btn"
                         disabled={msg.committing || msg.committed}
                         onClick={() =>
                           handleCommitDailyPlan(msg.dailyPlan!, index, msg.suggestionId)
                         }
                       >
-                        <Icon name="check" size={14} />
+                        <Icon name="check" size={13} />
                         <span>
                           {msg.committed
                             ? 'Agenda Scheduled'
@@ -535,60 +625,57 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Structured Decomposition Cards */}
+                {/* Structured Decomposition Cards - Refined per Section 16 */}
                 {msg.missions && msg.missions.length > 0 && (
-                  <div className="ai-missions-wrapper">
-                    <div className="ai-missions-header">
-                      <span className="ai-missions-count">
-                        Proposed Tasks • {msg.missions.length} tasks
-                      </span>
+                  <div className="eonpai-tasks-block">
+                    <div className="eonpai-tasks-header">
+                      <div className="eonpai-tasks-title-group">
+                        <Icon name="target" size={14} />
+                        <span className="eonpai-tasks-title">Suggested Tasks</span>
+                        <span className="eonpai-tasks-count">{msg.missions.length}</span>
+                      </div>
                       <button
-                        className="ai-commit-all-btn"
+                        type="button"
+                        className="eonpai-commit-all-btn"
                         disabled={msg.committing || msg.committed}
                         onClick={() =>
                           handleCommitChatSuggestion(msg.suggestionId ?? 0, index)
                         }
                       >
-                        <Icon name="plus" size={13} />
+                        <Icon name="plus" size={12} />
                         <span>
                           {msg.committed
-                            ? 'All Tasks Added'
+                            ? 'Tasks Added'
                             : msg.committing
                             ? 'Adding Tasks...'
-                            : 'Add All to Backlog'}
+                            : 'Add All Tasks'}
                         </span>
                       </button>
                     </div>
 
-                    <div className="ai-missions-list">
+                    <div className="eonpai-tasks-list">
                       {msg.missions.map((m, mIdx) => (
-                        <div key={mIdx} className="ai-mission-card" role="group" aria-label={`Task: ${m.title}`}>
-                          <div className="ai-mission-main">
-                            <div className="ai-mission-title">{m.title}</div>
+                        <div key={mIdx} className="eonpai-task-row" role="group" aria-label={`Task: ${m.title}`}>
+                          <div className="eonpai-task-idx">{mIdx + 1}</div>
+                          <div className="eonpai-task-details">
+                            <div className="eonpai-task-name">{m.title}</div>
                             {m.description && (
-                              <div className="ai-mission-desc">{m.description}</div>
+                              <div className="eonpai-task-sub">{m.description}</div>
                             )}
                           </div>
-                          <div className="ai-mission-actions">
-                            <span className="ai-duration-tag">{m.estimatedMinutes}M</span>
+                          <div className="eonpai-task-meta">
+                            <span className="eonpai-task-duration">{m.estimatedMinutes} min</span>
                             <button
-                              className="ai-commit-btn"
+                              type="button"
+                              className="eonpai-task-add-btn"
                               disabled={msg.committing || msg.committed}
                               onClick={() =>
                                 handleCommitChatSuggestion(msg.suggestionId ?? 0, index, m)
                               }
-                              title="Add to Backlog"
+                              title="Add task to backlog"
                             >
-                              <span>+ Backlog</span>
-                            </button>
-                            <button
-                              className="ai-arm-sprint-btn"
-                              onClick={() =>
-                                handleArmMissionAsSession(m.title, m.estimatedMinutes)
-                              }
-                              title="Start as focus session"
-                            >
-                              <span>Start focus</span>
+                              <Icon name="plus" size={12} />
+                              <span>Add</span>
                             </button>
                           </div>
                         </div>
@@ -597,12 +684,12 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Session Debrief Analysis Card */}
+                {/* Session Feedback Debrief Card */}
                 {msg.debriefAnalysis && (
                   <div className="ai-debrief-card">
                     <div className="ai-debrief-header">
                       <div className="ai-debrief-title-group">
-                        <Icon name="sparkle" size={15} />
+                        <Icon name="sparkle" size={14} />
                         <span className="ai-debrief-title">
                           Session Feedback: {msg.debriefAnalysis.sessionName} ({msg.debriefAnalysis.actualMinutes}m)
                         </span>
@@ -626,8 +713,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                     {msg.debriefAnalysis.tacticalCritique && (
                       <div className="ai-debrief-critique-box">
                         <div className="ai-debrief-critique-header">
-                          <Icon name="target" size={13} />
-                          <span>Pacing Feedback</span>
+                          <Icon name="target" size={12} />
+                          <span>Pacing Review</span>
                         </div>
                         <p className="ai-debrief-text">{msg.debriefAnalysis.tacticalCritique}</p>
                       </div>
@@ -636,8 +723,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                     {msg.debriefAnalysis.nextSprintRecommendation && (
                       <div className="ai-debrief-recommendation-box">
                         <div className="ai-debrief-recommendation-header">
-                          <Icon name="zap" size={13} />
-                          <span>Next Step Recommendation</span>
+                          <Icon name="zap" size={12} />
+                          <span>Next Recommendation</span>
                         </div>
                         <p className="ai-debrief-text">{msg.debriefAnalysis.nextSprintRecommendation}</p>
                       </div>
@@ -654,12 +741,13 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                                 <span className="recovery-option-desc">{opt.suggestedAction}</span>
                               </div>
                               <button
+                                type="button"
                                 className="ai-arm-sprint-btn"
                                 onClick={() => handleRecoveryActionClick(opt)}
                                 title={`Activate ${opt.label}`}
                               >
                                 <span>Activate</span>
-                                <Icon name="arrow-up-right" size={12} />
+                                <Icon name="arrow-up-right" size={11} />
                               </button>
                             </div>
                           ))}
@@ -669,12 +757,12 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Session Recovery Protocol */}
+                {/* Session Interruption Recovery */}
                 {msg.sessionRecovery && (
                   <div className="ai-recovery-card">
                     <div className="ai-recovery-header">
                       <div className="ai-recovery-title-group">
-                        <Icon name="zap" size={16} />
+                        <Icon name="zap" size={15} />
                         <span className="ai-recovery-title">Session Interrupted: {msg.sessionRecovery.sessionName}</span>
                       </div>
                       <span className="ai-recovery-trigger-badge">
@@ -694,12 +782,13 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                             <span className="recovery-option-desc">{opt.suggestedAction}</span>
                           </div>
                           <button
+                            type="button"
                             className="ai-arm-sprint-btn"
                             onClick={() => handleRecoveryActionClick(opt)}
                             title={`Activate ${opt.label}`}
                           >
                             <span>Activate</span>
-                            <Icon name="arrow-up-right" size={12} />
+                            <Icon name="arrow-up-right" size={11} />
                           </button>
                         </div>
                       ))}
@@ -708,9 +797,11 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                 )}
               </div>
             ))}
+
             {aiLoading && (
-              <div className="ai-bubble assistant" style={{ fontStyle: 'italic' }}>
-                EONPAI formulating response...
+              <div className="ai-bubble assistant eonpai-thinking-bubble">
+                <span className="thinking-dot-pulse" />
+                <span>EONPAI is formulating a response...</span>
               </div>
             )}
           </div>
@@ -719,33 +810,43 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
         {/* Floating Scroll to Bottom Button */}
         {showScrollBottomBtn && (
           <button
+            type="button"
             className="ai-scroll-bottom-btn"
             onClick={handleScrollToBottom}
-            aria-label="Scroll to latest"
-            title="Scroll to latest"
+            aria-label="Jump to latest messages"
+            title="Jump to latest"
           >
             ↓
           </button>
         )}
 
-        <div className="ai-chat-input-bar">
-          <input
-            type="text"
-            className="ai-input-field ai-chat-input"
-            placeholder="Ask EONPAI anything (e.g. 'plan my day', 'break down a goal')..."
-            value={localInput}
-            onChange={(e) => setLocalInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          />
-          <button
-            className="ai-send-btn"
-            onClick={handleSend}
-            disabled={aiLoading || !localInput.trim()}
-          >
-            Send
-          </button>
-        </div>
-      </div>
+        {/* Fixed Modern Composer at Bottom */}
+        <footer className="eonpai-composer">
+          <div className="eonpai-composer-inner">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              className="eonpai-composer-input"
+              placeholder="Ask EONPAI anything (e.g. 'plan my day', 'break down a goal')... (Enter to send, Shift+Enter for new line)"
+              value={localInput}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              disabled={aiLoading}
+              aria-label="Message to EONPAI"
+            />
+            <button
+              type="button"
+              className="eonpai-composer-send-btn"
+              onClick={handleSend}
+              disabled={aiLoading || !localInput.trim()}
+              title="Send Message"
+            >
+              <span>Send</span>
+              <Icon name="arrow-up-right" size={13} />
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
   )
 })

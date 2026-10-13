@@ -21,10 +21,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
   modals,
 }) => {
+  const isAiView = topBarProps.activeTab === 'AI Assistant'
   return (
     <div className={`app-shell ${isDarkMode ? '' : 'theme-light'}`}>
       <Sidebar {...sidebarProps} />
-      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${isAiView ? 'app-main-ai' : ''}`}>
         <TopBar {...topBarProps} />
         {children}
       </main>

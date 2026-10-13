@@ -1871,7 +1871,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
         {/* Top Bar */}
         <TopBar
           activeTab={activeTab as AppView}
