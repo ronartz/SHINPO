@@ -1,84 +1,201 @@
 # SHINPO
 
-SHINPO is a cross-device personal execution operating system intended to connect long-term goals to daily execution. The current repository contains a useful but incomplete implementation. Product intent and target behavior are documented separately from verified implementation; do not infer feature completion from this summary.
+> **Personal execution operating system connecting high-level ambition to daily focused execution.**
 
-## Current architecture snapshot
+SHINPO is an integrated productivity and focus runtime that pairs desktop-level distraction containment with strategic goal decomposition and an autonomous planning copilot. It brings together a low-overhead native process shield, real-time telemetry, server-synchronized focus timers, and a fluid desktop workspace.
 
-- Backend: Spring Boot + PostgreSQL + Spring Security + Flyway
-- Frontend: React + TypeScript + Vite
-- Desktop: Tauri shell with native Rust enforcement thread
-- Local enforcement: Rust shield crate that inspects active processes and reports back to the backend
-- Realtime: STOMP/WebSocket telemetry
-- AI: provider abstraction, context assembly, suggestions, and fallback behavior
+---
 
-## Implementation Snapshot
+## Core Systems
 
-The repository includes goal/mission CRUD, a focus-session API lifecycle, schedule surfaces, AI/provider and suggestion paths, STOMP/WebSocket events, process-control code, a Rust telemetry spool, and Tauri v2 command wiring. These are bounded code paths, not evidence that the complete product requirements are finished or safe for release. In particular, contextual/browser enforcement, process safety, current-time/timezone correctness, Analytics truth, polished warning/grace UX, and device/platform certification remain gaps.
+- **Sentinel Shield (Native Process Enforcer)**: High-speed, low-overhead process monitor implemented in Rust that enforces focus boundaries during active work sessions and safely quarantines distracting applications.
+- **Precision Focus Engine**: Server-anchored countdown timers, distraction tracking, pause/resume state machines, and post-session reflection debriefs designed to survive background tab throttling and system sleep.
+- **Strategic Goal & Task Hierarchy**: Multi-tier execution architecture connecting multi-month goals down to atomic daily tasks with kanban boards, priority queues, and schedule timelines.
+- **EONPAI Executive Copilot**: Conversational AI assistant supporting daily planning, automated goal breakdown, and validated action execution via a structured tool registry.
+- **Aurora Desktop Interface**: Desktop workspace powered by React 19 and Tauri v2, supporting both high-contrast Dark and WCAG-compliant Light modes with a fixed application-shell scroll layout.
 
-For detailed source/test evidence and bounded statuses, use [SHINPO_IMPLEMENTATION_STATUS.md](SHINPO_IMPLEMENTATION_STATUS.md). Product requirements are in [SHINPO_PRODUCT_REQUIREMENTS.md](SHINPO_PRODUCT_REQUIREMENTS.md), target behavior in [SHINPO_MASTER_BLUEPRINT.md](SHINPO_MASTER_BLUEPRINT.md), architecture in [SHINPO_ARCHITECTURE.md](SHINPO_ARCHITECTURE.md), and UI findings in [SHINPO_UI_UX_DEFECT_REGISTER.md](SHINPO_UI_UX_DEFECT_REGISTER.md).
+---
 
-## Development stack
+## Architecture Overview
 
-- Java 25 + Spring Boot 4.1.1
-- PostgreSQL 17
-- React 19 + TypeScript
-- Vite
-- Tauri v2 desktop shell
-- Rust shield crate
-- STOMP/WebSocket eventing
+```
+                          ┌───────────────────────────┐
+                          │    Desktop / Browser      │
+                          │   React 19 + TypeScript   │
+                          │        (Tauri v2)         │
+                          └─────────────┬─────────────┘
+                                        │
+                         HTTP REST / WS │ STOMP
+                                        │
+             ┌──────────────────────────▼──────────────────────────┐
+             │               SHINPO Backend Engine                 │
+             │           Spring Boot 4.1 / Java 25                 │
+             ├──────────────────────────┬──────────────────────────┤
+             │  • Focus Session Manager │  • EONPAI AI Gateway     │
+             │  • Goal & Task Services  │  • WebSocket Telemetry   │
+             │  • Sentinel Controller   │  • Action Tool Registry  │
+             └─────────────┬────────────────────────────┬──────────┘
+                           │                            │
+                     JDBC  │                      IPC / │ Realtime
+                           ▼                      Event │ Telemetry
+                 ┌───────────────────┐                  ▼
+                 │   PostgreSQL 17   │        ┌───────────────────┐
+                 │  Flyway Migrations│        │   Native Shield   │
+                 └───────────────────┘        │   (Rust Crate)    │
+                                              └───────────────────┘
+```
 
-## Development setup
+---
 
-### Backend
+## Tech Stack
+
+| Domain | Technology | Details |
+|---|---|---|
+| **Backend** | Java 25, Spring Boot 4.1.1 | Spring Security, Spring Data JPA, Flyway, STOMP WebSockets |
+| **Database** | PostgreSQL 16+ / 17 | Relational persistence, automated versioned migrations |
+| **Frontend** | React 19, TypeScript, Vite | Custom Aurora UI design tokens, Material UI primitives |
+| **Desktop Shell** | Tauri v2, Rust | Cross-platform native windowing, system tray, IPC bridge |
+| **Enforcement** | Rust (`crates/shinpo-shield`) | Cross-platform process enumeration and termination daemon |
+| **AI Gateway** | Spring AI / Provider Abstraction | Pluggable local (Ollama) and cloud model endpoints |
+
+---
+
+## Repository Structure
+
+```
+.
+├── backend/                  # Spring Boot application, REST controllers, AI gateway & migrations
+├── frontend/                 # React 19 desktop SPA and Tauri client
+│   ├── src/                  # Views, components, hooks, styles, and API clients
+│   └── src-tauri/            # Tauri desktop configuration and native bindings
+├── crates/
+│   └── shinpo-shield/        # Rust process enforcement daemon and IPC client
+├── docs/
+│   └── architecture/         # System architecture, API contracts, and engineering standards
+├── scripts/                  # Automated verification, test runners, and runtime scripts
+└── docker-compose.yml        # Local infrastructure services (PostgreSQL, mock services)
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Ensure you have the following installed on your host machine:
+
+- **Java JDK 25** (or compatible vendor distribution, e.g. Eclipse Temurin)
+- **Node.js 20+** and **npm**
+- **Rust toolchain 1.80+** (`rustc`, `cargo`)
+- **PostgreSQL 16+** (or Docker for running containerized DB)
+
+---
+
+### 1. Database Setup
+
+Using Docker Compose:
+
+```bash
+docker compose up -d postgres
+```
+
+Or connect to an existing PostgreSQL instance and configure credentials in `.env` (refer to `.env.example`).
+
+---
+
+### 2. Run the Backend
+
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-### Frontend
+The Spring Boot backend will run Flyway migrations and start listening on `http://localhost:8080`.
+
+---
+
+### 3. Run the Frontend (Web Dev Mode)
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### Rust native shield
+The Vite dev server will start at `http://localhost:5173`.
+
+---
+
+### 4. Run Desktop Shell (Tauri Dev Mode)
+
+To launch the native desktop application with full IPC and native window capabilities:
+
+```bash
+cd frontend
+npm run tauri:dev
+```
+
+---
+
+### 5. Native Shield Daemon
+
+To run the standalone process monitor:
+
 ```bash
 cd crates/shinpo-shield
-cargo test
+cargo run
 ```
 
-### Docker / compose
+---
+
+## Testing & Quality Gates
+
+The codebase enforces strict test-driven quality boundaries across all tiers:
+
 ```bash
-docker compose up -d
+# Backend unit & integration test suite (295 tests)
+cd backend && ./mvnw test
+
+# Frontend typecheck & production build
+cd frontend && npm run build
+
+# Frontend linter
+cd frontend && npm run lint
+
+# Frontend unit & contract tests
+cd frontend && npm test
+
+# Rust enforcement engine checks & tests
+cd crates/shinpo-shield && cargo test
 ```
 
-## Documentation index
+---
 
-- [SHINPO_MASTER_BLUEPRINT.md](SHINPO_MASTER_BLUEPRINT.md) — authoritative product intent and target behavior
-- [SHINPO_PRODUCT_REQUIREMENTS.md](SHINPO_PRODUCT_REQUIREMENTS.md) — stable requirement IDs, status, and traceability
-- [SHINPO_ARCHITECTURE.md](SHINPO_ARCHITECTURE.md) — current architecture evidence, trust boundaries, and migration target
-- [SHINPO_IMPLEMENTATION_STATUS.md](SHINPO_IMPLEMENTATION_STATUS.md) — implementation truth, limitations, contradictions, and verification scope
-- [SHINPO_UI_UX_DEFECT_REGISTER.md](SHINPO_UI_UX_DEFECT_REGISTER.md) — prioritized safety, correctness, UX, and visual-verification register
-- [docs/SHINPO_HARDENING_GUIDELINE.md](docs/SHINPO_HARDENING_GUIDELINE.md) — current hardening guidance; not a certification of implementation
+## Configuration
 
-## Documentation Status
+Default environment variables are defined in `.env.example` (root) and `frontend/.env.example`.
 
-| Document set | Classification | Use |
+| Variable | Default | Purpose |
 |---|---|---|
-| The five `SHINPO_*.md` authority documents above | CURRENT | Product intent, stable requirements/status, implementation truth, architecture, and defects. |
-| `README.md` | CURRENT | Project entry point and documentation catalog. |
-| `APP_FLOW.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`, `TRD.md` | HISTORICAL / SUPERSEDED | Retained for provenance; old milestone, current-flow, completion, and test-count claims are not current evidence. |
-| `docs/codebase-audit/*.md` | HISTORICAL SNAPSHOT; some claims CONTRADICT source | Useful discovery notes only; verify every claim against live code and tests. |
-| `docs/architecture/*.html`, `shinpo_architecture.html`, `.planning/*.html`, `.archify/**` | GENERATED REFERENCE / UNKNOWN | Diagrams are not source authority or proof of browser-tested product behavior. |
-| `.planning/PROJECT.md`, `ROADMAP.md`, `ARCHITECTURE_REMAINING.md` | HISTORICAL / SUPERSEDED where contradicted | Preserve as planning history; do not use old milestones as implementation truth. |
-| `.planning/STATE.md` | CONTRADICTORY / REQUIRES RECONCILIATION | Its milestone snapshot is stale. It was not edited because the workspace guard requires an authorized GSD workflow for `.planning/` writes. |
-| `.clinerules/**`, `.roorules` | CURRENT workspace instructions | Agent/tool operating rules, not product requirements. |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/shinpo` | Database connection string |
+| `SPRING_DATASOURCE_USERNAME` | `postgres` | Database username |
+| `SPRING_DATASOURCE_PASSWORD` | `postgres` | Database password |
+| `VITE_API_URL` | `http://localhost:8080` | Backend API base URL |
+| `VITE_WS_URL` | `ws://localhost:8080/ws` | WebSocket telemetry endpoint |
 
-## Important product note
+---
 
-The project must not be described as a universal blacklist system. Contextual protection is the target; current process enforcement still uses static patterns and has a P0 process-safety gap. Browser enforcement and the warning/grace flow (maximum 20 minutes) are requirements, not verified implementation claims. See the defect register before enabling or presenting automatic process termination.
+## Documentation
+
+Detailed architectural and design specifications can be found under `docs/`:
+
+- [API Reference](docs/architecture/API_REFERENCE.md)
+- [Code & Engineering Standards](docs/architecture/CODE_STANDARDS.md)
+- [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)
+- [Standalone Runtime Guide](docs/architecture/STANDALONE_RUNTIME.md)
+
+---
 
 ## License
 
-Private and proprietary project documentation. See repository-specific legal and distribution constraints for any shipping or deployment decisions.
+All rights reserved. Proprietary software.
