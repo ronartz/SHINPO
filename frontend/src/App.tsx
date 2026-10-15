@@ -5,8 +5,13 @@ import { GoalsView } from './views/GoalsView'
 import { OverviewView } from './views/OverviewView'
 import { EonpaiView } from './views/EonpaiView'
 import { FocusView } from './views/FocusView'
+import { AuroraDashboardView } from './v2/dashboard/AuroraDashboardView'
+import { ThemeProvider } from '@mui/material'
+import { getAuroraTheme } from './v2/theme/auroraTheme'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
+
 
 import {
   cancelFocusSession,
@@ -17,6 +22,7 @@ import {
   pauseFocusSession,
   resumeFocusSession,
   startFocusSession,
+  updateFocusSession,
 } from './api/focusSessions'
 
 import type { FocusSession } from './api/focusSessions'
@@ -94,6 +100,7 @@ import { DistractionWarningModal } from './components/dialogs/DistractionWarning
 import { SessionSummaryModal } from './components/dialogs/SessionSummaryModal'
 import { CreateGoalModal } from './components/dialogs/CreateGoalModal'
 import { EditGoalModal } from './components/dialogs/EditGoalModal'
+import { CreateTaskModal } from './components/dialogs/CreateTaskModal'
 import { EditTaskModal } from './components/dialogs/EditTaskModal'
 import { ScheduleSessionModal } from './components/dialogs/ScheduleSessionModal'
 import { TelemetryDrawer } from './components/dialogs/TelemetryDrawer'
@@ -103,11 +110,17 @@ import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
 import { SHINPO_ONBOARDING_STEPS } from './tutorial/tutorialSteps'
 import { wsClient } from './api/websocket'
+import {
+  startNativeShield,
+  stopNativeShield,
+  isTauriEnvironment,
+} from './api/nativeShield'
 import type {
   SentinelQuarantineEvent,
   SentinelStatusEvent,
   FocusSessionEvent,
 } from './api/websocket'
+import { toSafeIsoString } from './api/eventNormalizer'
 
 import { getInitialShinpoMessage, getNextShinpoMessage } from './utils/shinpoMessages'
 import type { ShinpoMessage } from './utils/shinpoMessages'
@@ -115,8 +128,12 @@ import {
   calculateRemainingSeconds,
   pomodoroPlans,
 } from './utils/focusTimer'
+import { NAVIGATION_ITEMS } from './types/navigation'
 import type { AppView } from './types/navigation'
 import { trackRender } from './utils/renderTracker'
+
+const isAppView = (value: string): value is AppView =>
+  NAVIGATION_ITEMS.some((item) => item.id === value)
 
 import './App.css'
 
@@ -199,11 +216,26 @@ export function App() {
   const [selectedDuration, setSelectedDuration] = useState(30)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
-  const [activeTab, setActiveTab] = useState(() => {
-    return new URLSearchParams(window.location.search).get('tab') || 'Dashboard'
+  const [activeTab, setActiveTab] = useState<AppView>(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    return tab && isAppView(tab) ? tab : 'Dashboard'
   })
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return new URLSearchParams(window.location.search).get('theme') === 'light' ? false : true
+  })
+  const [isV2Preview, setIsV2Preview] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlV2 = new URLSearchParams(window.location.search).get('v2')
+      if (urlV2 === 'true') return true
+      if (urlV2 === 'false') return false
+      try {
+        const stored = localStorage.getItem('shinpo_v2_preview')
+        if (stored !== null) return stored === 'true'
+      } catch {
+        // ignore localStorage errors
+      }
+    }
+    return true
   })
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -361,7 +393,7 @@ export function App() {
     setTutorialStepIndex(initialStepIndex)
     const step = SHINPO_ONBOARDING_STEPS[initialStepIndex]
     if (step && step.targetTab) {
-      setActiveTab(step.targetTab)
+      if (isAppView(step.targetTab)) setActiveTab(step.targetTab)
     }
   }
 
@@ -371,7 +403,7 @@ export function App() {
       setTutorialStepIndex(nextIndex)
       const nextStep = SHINPO_ONBOARDING_STEPS[nextIndex]
       if (nextStep && nextStep.targetTab) {
-        setActiveTab(nextStep.targetTab)
+        if (isAppView(nextStep.targetTab)) setActiveTab(nextStep.targetTab)
       }
     } else {
       handleCompleteTutorial()
@@ -384,7 +416,7 @@ export function App() {
       setTutorialStepIndex(prevIndex)
       const prevStep = SHINPO_ONBOARDING_STEPS[prevIndex]
       if (prevStep && prevStep.targetTab) {
-        setActiveTab(prevStep.targetTab)
+        if (isAppView(prevStep.targetTab)) setActiveTab(prevStep.targetTab)
       }
     }
   }
@@ -456,6 +488,8 @@ export function App() {
   const [bookTime, setBookTime] = useState('09:00')
   const [bookDuration, setBookDuration] = useState(25)
   const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
+  const [editingScheduleSession, setEditingScheduleSession] = useState<FocusSession | null>(null)
+  const [markTaskCompleted, setMarkTaskCompleted] = useState<boolean>(true)
 
   // Device Task Manager Deck State (C-027)
   const [deviceSnapshot, setDeviceSnapshot] = useState<ProcessSnapshot | null>(null)
@@ -504,20 +538,35 @@ export function App() {
 
   const handleQuickCreateMission = async (e: FormEvent) => {
     e.preventDefault()
-    if (!quickMissionTitle.trim() || !quickMissionGoalId) return
+    const effectiveGoalId = quickMissionGoalId ?? (goals.length > 0 ? goals[0].id : null)
+    if (!quickMissionTitle.trim()) {
+      setQuickMissionError('Task title is required.')
+      return
+    }
+    if (!effectiveGoalId) {
+      setQuickMissionError('A goal is required to create a task. Please create a goal first.')
+      return
+    }
     setQuickMissionError(null)
     setIsSubmittingQuickMission(true)
     try {
       const today = localCalendarDate()
-      await createMission({
-        goalId: quickMissionGoalId,
+      const created = await createMission({
+        goalId: effectiveGoalId,
         title: quickMissionTitle.trim(),
         description: 'Focus session execution',
         scheduledDate: today,
         estimatedMinutes: quickMissionDuration,
       })
+      setMissions((prev) => [created, ...prev])
       setQuickMissionTitle('')
       setIsCreatingQuickMission(false)
+      pushToast({
+        title: 'Task Created',
+        description: `Created "${created.title}"`,
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
       await loadData()
     } catch (err) {
       console.error('Failed to create quick mission', err)
@@ -550,6 +599,19 @@ export function App() {
       document.body.classList.remove('theme-dark')
       document.body.classList.add('theme-light')
     }
+  }, [isDarkMode])
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const currentTheme = document.documentElement.getAttribute('data-theme')
+      if (currentTheme === 'light' && isDarkMode) {
+        setIsDarkMode(false)
+      } else if (currentTheme === 'dark' && !isDarkMode) {
+        setIsDarkMode(true)
+      }
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
   }, [isDarkMode])
  
   useEffect(() => {
@@ -585,24 +647,34 @@ export function App() {
     }
 
     try {
-      const [g, m, s, analytics, sentStatus, briefing, warnings] = await Promise.all([
-        getGoals(),
-        getMissions(),
-        getFocusSessions(),
-        fetchAnalyticsDashboard().catch(() => null),
-        fetchSentinelStatus().catch(() => null),
-        getExecutiveBriefing().catch(() => null),
-        fetchActiveWarnings().catch(() => []),
-      ])
-      setGoals(g)
-      setMissions(m)
-      setSessions(s)
+      const [goalsRes, missionsRes, sessionsRes, analytics, sentStatus, briefing, warnings] =
+        await Promise.all([
+          getGoals().catch((err) => {
+            console.error('Failed to fetch goals', err)
+            return null
+          }),
+          getMissions().catch((err) => {
+            console.error('Failed to fetch missions', err)
+            return null
+          }),
+          getFocusSessions().catch((err) => {
+            console.error('Failed to fetch focus sessions', err)
+            return null
+          }),
+          fetchAnalyticsDashboard().catch(() => null),
+          fetchSentinelStatus().catch(() => null),
+          getExecutiveBriefing().catch(() => null),
+          fetchActiveWarnings().catch(() => []),
+        ])
+      if (goalsRes !== null) setGoals(goalsRes)
+      if (missionsRes !== null) setMissions(missionsRes)
+      if (sessionsRes !== null) setSessions(sessionsRes)
       if (analytics) setAnalyticsData(analytics)
       if (sentStatus) setSentinelStatus(sentStatus)
       if (briefing) setExecutiveBriefing(briefing)
       if (warnings) setActiveWarnings(warnings)
-    } catch {
-      // Keep empty if backend offline
+    } catch (err) {
+      console.error('Failed during loadData execution', err)
     }
 
   }, [setSentinelStatus])
@@ -673,14 +745,60 @@ export function App() {
     return () => clearTimeout(timer)
   }, [currentUser, loadData, loadActiveConversation])
 
-  const addLiveAlert = useCallback((alert: LiveAlertItem) => {
-    setLiveAlerts((prev) => [alert, ...prev].slice(0, 50))
-    setToastAlerts((prev) => [alert, ...prev].slice(0, 4))
-    setUnreadAlertCount((prev) => prev + 1)
-    setTimeout(() => {
-      setToastAlerts((prev) => prev.filter((item) => item.id !== alert.id))
-    }, 6500)
+  const recentToastsTracker = useRef<Map<string, number>>(new Map())
+
+  const shouldSuppressToast = useCallback((key: string, cooldownMs = 2800): boolean => {
+    const now = Date.now()
+    const lastTime = recentToastsTracker.current.get(key)
+    if (lastTime && now - lastTime < cooldownMs) {
+      return true
+    }
+    recentToastsTracker.current.set(key, now)
+    if (recentToastsTracker.current.size > 50) {
+      for (const [k, v] of recentToastsTracker.current.entries()) {
+        if (now - v > 10000) recentToastsTracker.current.delete(k)
+      }
+    }
+    return false
   }, [])
+
+  const addLiveAlert = useCallback((alert: LiveAlertItem) => {
+    const safeTimestamp = toSafeIsoString(alert.timestamp)
+    const normalizedAlert = {
+      ...alert,
+      timestamp: safeTimestamp,
+    }
+    setLiveAlerts((prev) => [normalizedAlert, ...prev].slice(0, 50))
+    setUnreadAlertCount((prev) => prev + 1)
+
+    const dedupKey = `${alert.type}:${alert.title}`
+    if (shouldSuppressToast(dedupKey, 2800)) {
+      return
+    }
+
+    setToastAlerts((prev) => [normalizedAlert, ...prev].slice(0, 2))
+    setTimeout(() => {
+      setToastAlerts((prev) => prev.filter((item) => item.id !== normalizedAlert.id))
+    }, 4500)
+  }, [shouldSuppressToast])
+
+  const pushToast = useCallback((alert: Omit<LiveAlertItem, 'id'>) => {
+    const safeTimestamp = toSafeIsoString(alert.timestamp)
+    const dedupKey = `${alert.type}:${alert.title}`
+    if (shouldSuppressToast(dedupKey, 2800)) {
+      return
+    }
+
+    const item: LiveAlertItem = {
+      ...alert,
+      id: crypto.randomUUID(),
+      timestamp: safeTimestamp,
+    }
+    setToastAlerts((prev) => [item, ...prev].slice(0, 2))
+    window.setTimeout(() => {
+      setToastAlerts((prev) => prev.filter((current) => current.id !== item.id))
+    }, 4500)
+  }, [shouldSuppressToast])
 
   useEffect(() => {
     return wsClient.onConnectionChange((connected) => {
@@ -731,20 +849,25 @@ export function App() {
     const unsubStatus = wsClient.onSentinelStatus((event: SentinelStatusEvent) => {
       setSentinelStatus((prev) => {
         if (!prev) return prev
+        const modeChanged = prev.enforcementMode !== event.mode
+        const lockChanged = prev.isPolicyLocked !== event.isLocked
+
+        if (modeChanged || lockChanged) {
+          addLiveAlert({
+            id: `status-${Date.now()}`,
+            type: 'sentinel',
+            title: `Shield: ${event.mode} Mode`,
+            badge: event.isLocked ? 'STRICT LOCKED' : 'MONITORING',
+            description: `${event.blockedCount} blocked rules actively guarded.`,
+            timestamp: event.timestamp || new Date().toISOString(),
+          })
+        }
         return {
           ...prev,
           enforcementMode: event.mode,
           isPolicyLocked: event.isLocked,
           activePolicyRulesCount: event.blockedCount + event.allowedCount,
         }
-      })
-      addLiveAlert({
-        id: `status-${Date.now()}`,
-        type: 'sentinel',
-        title: `Protection Policy: ${event.mode}`,
-        badge: event.isLocked ? 'STRICT LOCKED' : 'PERMISSIVE',
-        description: `${event.blockedCount} blocked rules actively guarded.`,
-        timestamp: event.timestamp || new Date().toISOString(),
       })
     })
 
@@ -764,11 +887,14 @@ export function App() {
                 ? 'Cancelled'
                 : event.status
 
+      const sessLabel = event.id ? `Session #${event.id}` : 'Focus Sprint'
+      const durLabel = `${event.plannedDurationMinutes || 25}m`
+
       addLiveAlert({
-        id: `session-${event.id}-${Date.now()}`,
+        id: `session-${event.id || Date.now()}-${Date.now()}`,
         type: 'focus',
         title: `Focus Session ${statusLabel}`,
-        badge: `Session #${event.id} • ${event.plannedDurationMinutes}m`,
+        badge: `${sessLabel} • ${durLabel}`,
         description:
           event.status === 'ACTIVE'
             ? 'Focus protection active.'
@@ -845,7 +971,7 @@ export function App() {
       cancelLabel: 'Cancel',
       isDestructive: true,
       onConfirm: async () => {
-        const res = await terminateProcess(proc.pid, true)
+        const res = await terminateProcess(proc.pid, false)
         if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
           setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
           setTmRefreshKey((key) => key + 1)
@@ -898,6 +1024,9 @@ export function App() {
   }
 
   const handleLogout = useCallback(async () => {
+    if (isTauriEnvironment()) {
+      await stopNativeShield().catch(() => {})
+    }
     await logout()
     wsClient.disconnect()
     setIsWsConnected(false)
@@ -910,6 +1039,25 @@ export function App() {
     setGoals([])
     setMissions([])
   }, [])
+
+  useEffect(() => {
+    if (!currentUser) return
+    if (isTauriEnvironment()) {
+      startNativeShield().catch((err) => {
+        console.warn('Native shield auto-start encountered:', err)
+      })
+    }
+    const interval = setInterval(() => {
+      fetchSentinelStatus()
+        .then((st) => {
+          if (st) setSentinelStatus(st)
+        })
+        .catch(() => {})
+    }, 6000)
+    return () => {
+      clearInterval(interval)
+    }
+  }, [currentUser])
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarExpanded((prev) => !prev)
@@ -926,6 +1074,18 @@ export function App() {
 
   const handleToggleTheme = useCallback(() => {
     setIsDarkMode((prev) => !prev)
+  }, [])
+
+  const handleToggleV2Preview = useCallback(() => {
+    setIsV2Preview((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('shinpo_v2_preview', String(next))
+      } catch {
+        // ignore localStorage errors
+      }
+      return next
+    })
   }, [])
 
   const handleQuickDemoFill = () => {
@@ -949,12 +1109,24 @@ export function App() {
       setIsCreatingGoal(false)
       setNewGoalTitle('')
       setNewGoalDesc('')
-      loadData()
+      pushToast({
+        title: 'Goal Created',
+        description: `Created "${created.title}"`,
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
+      await loadData()
       if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === 'CREATE_GOAL') {
         handleNextTutorialStep()
       }
     } catch (err) {
-      console.error(err)
+      console.error('Failed to create goal', err)
+      pushToast({
+        title: 'Goal Creation Failed',
+        description: 'Could not create goal. Please try again.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -982,16 +1154,12 @@ export function App() {
       loadData()
     } catch (err) {
       console.error('Failed to update goal', err)
-      setToastAlerts((prev) => [
-        ...prev,
-        {
-          id: 'toast-err-' + Date.now(),
+      pushToast({
           title: 'Goal Update Failed',
           description: 'Could not update goal. Please try again.',
           type: 'focus',
           timestamp: new Date().toISOString(),
-        },
-      ])
+      })
     }
   }
 
@@ -1022,16 +1190,12 @@ export function App() {
       loadData()
     } catch (err) {
       console.error('Failed to update task', err)
-      setToastAlerts((prev) => [
-        ...prev,
-        {
-          id: 'toast-err-' + Date.now(),
+      pushToast({
           title: 'Task Update Failed',
           description: 'Could not update task. Please try again.',
           type: 'focus',
           timestamp: new Date().toISOString(),
-        },
-      ])
+      })
     }
   }
 
@@ -1151,9 +1315,21 @@ export function App() {
       setMissions((prev) =>
         prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
       )
-      loadData()
+      pushToast({
+        title: 'Task Completed',
+        description: 'Task marked as completed',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
+      await loadData()
     } catch (err) {
-      console.error(err)
+      console.error('Failed to complete task', err)
+      pushToast({
+        title: 'Task Completion Failed',
+        description: 'Could not complete task. Please try again.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -1174,10 +1350,21 @@ export function App() {
       cancelLabel: 'Cancel',
       isDestructive: true,
       onConfirm: async () => {
-        await deleteGoal(goalId)
-        setGoals((prev) => prev.filter((g) => g.id !== goalId))
-        setMissions((prev) => prev.filter((m) => m.goalId !== goalId))
-        await loadData()
+        try {
+          await deleteGoal(goalId)
+          setGoals((prev) => prev.filter((g) => g.id !== goalId))
+          setMissions((prev) => prev.filter((m) => m.goalId !== goalId))
+          await loadData()
+        } catch (err: unknown) {
+          console.error('Failed to delete goal:', err)
+          pushToast({
+            type: 'focus',
+            title: 'Delete Failed',
+            description: err instanceof Error ? err.message : 'Could not delete goal.',
+            timestamp: new Date().toISOString(),
+          })
+          await loadData()
+        }
       },
     })
   }
@@ -1201,10 +1388,21 @@ export function App() {
       cancelLabel: 'Cancel',
       isDestructive: true,
       onConfirm: async () => {
-        await deleteAllGoals()
-        setGoals([])
-        setMissions((prev) => prev.filter((mission) => !goals.some((goal) => goal.id === mission.goalId)))
-        await loadData()
+        try {
+          await deleteAllGoals()
+          setGoals([])
+          setMissions((prev) => prev.filter((mission) => !goals.some((goal) => goal.id === mission.goalId)))
+          await loadData()
+        } catch (err: unknown) {
+          console.error('Failed to delete all goals:', err)
+          pushToast({
+            type: 'focus',
+            title: 'Delete All Failed',
+            description: err instanceof Error ? err.message : 'Could not delete all goals.',
+            timestamp: new Date().toISOString(),
+          })
+          await loadData()
+        }
       },
     })
   }
@@ -1398,6 +1596,18 @@ export function App() {
   const handleStartSession = async () => {
     if (!currentUser) return
     const userId = currentUser.id
+
+    const conflict = sessions.find((s) => s.status === 'ACTIVE' || s.status === 'PAUSED')
+    if (conflict) {
+      pushToast({
+        type: 'focus',
+        title: 'Focus Session in Progress',
+        description: `"${conflict.name}" is already ${conflict.status.toLowerCase()}. Please complete or cancel it first.`,
+        timestamp: new Date().toISOString(),
+      })
+      return
+    }
+
     try {
       const created = await createFocusSession({
         userId,
@@ -1408,18 +1618,45 @@ export function App() {
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
       setSessionIntention('')
-    } catch (e) {
+      pushToast({
+        type: 'focus',
+        title: 'Session Started',
+        description: `Focus protection active for "${started.name}".`,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (e: unknown) {
       console.error(e)
+      pushToast({
+        type: 'focus',
+        title: 'Start Failed',
+        description: e instanceof Error ? e.message : 'Could not start focus session.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
   const handleEngageNextAction = async () => {
     if (!currentUser || !nextActionMission) return
     const userId = currentUser.id
+
+    const conflict = sessions.find((s) => s.status === 'ACTIVE' || s.status === 'PAUSED')
+    if (conflict) {
+      pushToast({
+        type: 'focus',
+        title: 'Focus Session in Progress',
+        description: `"${conflict.name}" is already ${conflict.status.toLowerCase()}.`,
+        timestamp: new Date().toISOString(),
+      })
+      setActiveTab('Focus Engine')
+      return
+    }
+
     const mins = nextActionMission.estimatedMinutes || 25
     try {
       const created = await createFocusSession({
         userId,
+        goalId: nextActionMission.goalId,
+        missionId: nextActionMission.id,
         name: nextActionMission.title,
         intention: nextActionMission.title,
         durationMinutes: mins,
@@ -1428,22 +1665,45 @@ export function App() {
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
       setSelectedDuration(mins)
       setSessionIntention(nextActionMission.title)
-    } catch (e) {
+      setActiveTab('Focus Engine')
+      pushToast({
+        type: 'focus',
+        title: 'Session Started',
+        description: `Working on next action: "${started.name}".`,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (e: unknown) {
       console.error(e)
+      pushToast({
+        type: 'focus',
+        title: 'Start Failed',
+        description: e instanceof Error ? e.message : 'Could not start focus session.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
    
   const handleArmMissionAsSession = async (missionTitle: string, estimatedMinutes?: number) => {
     if (!currentUser) return
-    if (sessions.some((session) => session.status === 'ACTIVE' || session.status === 'PAUSED')) {
+    const conflict = sessions.find((session) => session.status === 'ACTIVE' || session.status === 'PAUSED')
+    if (conflict) {
+      pushToast({
+        type: 'focus',
+        title: 'Focus Session in Progress',
+        description: `"${conflict.name}" is already in progress.`,
+        timestamp: new Date().toISOString(),
+      })
       setActiveTab('Focus Engine')
       return
     }
     const userId = currentUser.id
     const mins = estimatedMinutes || 25
+    const matchedMission = missions.find((m) => m.title === missionTitle)
     try {
       const created = await createFocusSession({
         userId,
+        goalId: matchedMission?.goalId,
+        missionId: matchedMission?.id,
         name: missionTitle,
         intention: missionTitle,
         durationMinutes: mins,
@@ -1453,8 +1713,20 @@ export function App() {
       setSelectedDuration(mins)
       setSessionIntention(missionTitle)
       setActiveTab('Focus Engine')
-    } catch (e) {
+      pushToast({
+        type: 'focus',
+        title: 'Session Started',
+        description: `Focus protection active for "${started.name}".`,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (e: unknown) {
       console.error('Failed to arm focus sprint:', e)
+      pushToast({
+        type: 'focus',
+        title: 'Arm Sprint Failed',
+        description: e instanceof Error ? e.message : 'Could not arm focus sprint.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -1493,18 +1765,32 @@ export function App() {
           quality: completionQuality,
           accomplishment,
           reflectionNote: reflectionNotes,
+          markMissionCompleted: markTaskCompleted,
         },
       )
       setSessions((prev) => prev.map((s) => (s.id === targetSessionId ? res : s)))
       setCompletingSessionId(null)
       setAccomplishment('')
       setReflectionNotes('')
+      pushToast({
+        type: 'focus',
+        title: 'Session Completed',
+        description: `Focus block recorded with quality rating ${completionQuality}/5.`,
+        timestamp: new Date().toISOString(),
+      })
+      await loadData()
       if (debriefWithAi) {
         setActiveTab('AI Assistant')
         handleAiSend(`Analyze session debrief for session #${targetSessionId}`, targetSessionId)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err)
+      pushToast({
+        type: 'focus',
+        title: 'Completion Failed',
+        description: err instanceof Error ? err.message : 'Could not save session completion.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -1675,14 +1961,45 @@ export function App() {
     handleAiSend(promptText)
   }
 
+  const getUpcomingBookingTime = (): string => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() + 15, 0, 0)
+    const hours = String(d.getHours()).padStart(2, '0')
+    const mins = String(d.getMinutes()).padStart(2, '0')
+    return `${hours}:${mins}`
+  }
+
   const handleOpenBookingModal = (defaultDate?: string, presetDuration?: number, presetPlan?: string) => {
-    setBookDate(defaultDate || selectedScheduleDate)
+    const todayStr = localCalendarDate()
+    const targetDate = defaultDate || selectedScheduleDate || todayStr
+    setBookDate(targetDate)
     setBookDuration(presetDuration || 25)
     setBookPlanName(presetPlan || 'Classic Pomodoro')
     setBookMissionId(null)
     setBookName('')
     setBookIntention('')
-    setBookTime('09:00')
+    setBookTime(targetDate === todayStr ? getUpcomingBookingTime() : '09:00')
+    setEditingScheduleSession(null)
+    setIsBookingSession(true)
+  }
+
+  const handleEditSessionFromSchedule = (session: FocusSession) => {
+    setEditingScheduleSession(session)
+    setBookName(session.name)
+    setBookIntention(session.intention || '')
+    setBookDuration(session.durationMinutes)
+    setBookMissionId(session.missionId ?? null)
+    setBookPlanName(null)
+    if (session.scheduledAt) {
+      const d = new Date(session.scheduledAt)
+      setBookDate(formatLocalCalendarDate(d))
+      const h = String(d.getHours()).padStart(2, '0')
+      const m = String(d.getMinutes()).padStart(2, '0')
+      setBookTime(`${h}:${m}`)
+    } else {
+      setBookDate(selectedScheduleDate)
+      setBookTime(getUpcomingBookingTime())
+    }
     setIsBookingSession(true)
   }
 
@@ -1697,46 +2014,102 @@ export function App() {
     let scheduledAt: string | undefined = undefined
     if (bookDate) {
       const timePart = bookTime ? (bookTime.length === 5 ? `${bookTime}:00` : bookTime) : '09:00:00'
-      scheduledAt = new Date(`${bookDate}T${timePart}`).toISOString()
+      const parsed = new Date(`${bookDate}T${timePart}`)
+      const now = new Date()
+      if (parsed.getTime() < now.getTime() - 60000 && bookDate === localCalendarDate()) {
+        const safeFuture = new Date(now.getTime() + 5 * 60000)
+        scheduledAt = safeFuture.toISOString()
+      } else {
+        scheduledAt = parsed.toISOString()
+      }
     }
 
     try {
-      const created = await createFocusSession({
-        userId,
-        goalId: mission?.goalId,
-        missionId: mission?.id,
-        name: sessionTitle,
-        intention,
-        durationMinutes: bookDuration,
-        scheduledAt,
-      })
-      setSessions((prev) => [created, ...prev])
-      setIsBookingSession(false)
-      loadData()
-    } catch (err) {
-      console.error('Failed to book session:', err)
-      setToastAlerts((prev) => [
-        ...prev,
-        {
-          id: 'toast-err-' + Date.now(),
-          title: 'Schedule Failed',
-          description: 'Could not schedule focus session. Check server logs.',
+      if (editingScheduleSession) {
+        const updated = await updateFocusSession(editingScheduleSession.id, {
+          name: sessionTitle,
+          intention,
+          durationMinutes: bookDuration,
+          scheduledAt,
+          missionId: bookMissionId,
+          goalId: mission?.goalId ?? null,
+          unlinkTask: !bookMissionId,
+        })
+        setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        setEditingScheduleSession(null)
+        setIsBookingSession(false)
+        pushToast({
           type: 'focus',
+          title: 'Session Updated',
+          description: `Scheduled focus block "${updated.name}" updated successfully.`,
           timestamp: new Date().toISOString(),
-        },
-      ])
+        })
+        await loadData()
+      } else {
+        const created = await createFocusSession({
+          userId,
+          goalId: mission?.goalId,
+          missionId: mission?.id,
+          name: sessionTitle,
+          intention,
+          durationMinutes: bookDuration,
+          scheduledAt,
+        })
+        setSessions((prev) => [created, ...prev])
+        setIsBookingSession(false)
+        pushToast({
+          type: 'focus',
+          title: 'Session Scheduled',
+          description: `Focus block "${created.name}" booked for ${bookDate}.`,
+          timestamp: new Date().toISOString(),
+        })
+        await loadData()
+      }
+    } catch (err: unknown) {
+      console.error('Failed to book or edit session:', err)
+      pushToast({
+        title: 'Schedule Action Failed',
+        description: err instanceof Error ? err.message : 'Could not save focus session.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
   const handleStartFromSchedule = async (sessionId: number) => {
     if (!currentUser) return
     const userId = currentUser.id
+
+    const conflict = sessions.find((s) => s.status === 'ACTIVE' || s.status === 'PAUSED')
+    if (conflict) {
+      pushToast({
+        type: 'focus',
+        title: 'Focus Session in Progress',
+        description: `"${conflict.name}" is already ${conflict.status.toLowerCase()}. Please complete or cancel it first.`,
+        timestamp: new Date().toISOString(),
+      })
+      setActiveTab('Focus Engine')
+      return
+    }
+
     try {
       const started = await startFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? started : s)))
       setActiveTab('Focus Engine')
-    } catch (err) {
+      pushToast({
+        type: 'focus',
+        title: 'Focus Started',
+        description: `Focus session "${started.name}" started from calendar.`,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (err: unknown) {
       console.error('Failed to start session from schedule:', err)
+      pushToast({
+        type: 'focus',
+        title: 'Start Failed',
+        description: err instanceof Error ? err.message : 'Could not start focus session.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -1746,9 +2119,21 @@ export function App() {
     try {
       const cancelled = await cancelFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? cancelled : s)))
-      loadData()
-    } catch (err) {
+      pushToast({
+        type: 'focus',
+        title: 'Session Cancelled',
+        description: `Focus session "${cancelled.name}" cancelled.`,
+        timestamp: new Date().toISOString(),
+      })
+      await loadData()
+    } catch (err: unknown) {
       console.error('Failed to cancel session:', err)
+      pushToast({
+        type: 'focus',
+        title: 'Cancel Failed',
+        description: err instanceof Error ? err.message : 'Could not cancel session.',
+        timestamp: new Date().toISOString(),
+      })
     }
   }
 
@@ -1761,7 +2146,7 @@ export function App() {
           <div className="auth-brand-row">
             <ShinpoLogo size={36} variant="full" />
             <div className="auth-system-badge">
-              <span>SYSTEM: ARISE • KERNEL ACCESS</span>
+              <span>SHINPO SECURE ACCESS</span>
             </div>
           </div>
 
@@ -1851,47 +2236,44 @@ export function App() {
     )
   }
 
-  return (
-    <div className={`app-shell ${isDarkMode ? '' : 'theme-light'}`}>
-
-
-      {/* Collapsible Sidebar */}
-      <Sidebar
-        sidebarExpanded={sidebarExpanded}
-        onToggleExpanded={handleToggleSidebar}
-        activeTab={activeTab as AppView}
-        onSelectTab={handleSelectTab}
-        scheduledCount={scheduledCount}
-        shinpoMessage={shinpoMessage}
-        onRefreshShinpoMessage={handleRefreshShinpoMessage}
-        pendingWarning={pendingWarning}
-        activeGraceWarning={activeGraceWarning}
-        activeSession={activeSession}
-        graceSecondsLeft={graceSecondsLeft}
-      />
-
-      {/* Main Content Area */}
-      <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
-        {/* Top Bar */}
-        <TopBar
-          activeTab={activeTab as AppView}
-          topSearchQuery={topSearchQuery}
-          onSearchChange={setTopSearchQuery}
-          unreadAlertCount={unreadAlertCount}
-          isAlertsDrawerOpen={isAlertsDrawerOpen}
-          onToggleAlertsDrawer={handleToggleAlertsDrawer}
-          isDarkMode={isDarkMode}
-          onToggleTheme={handleToggleTheme}
-          onRefreshData={loadData}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
-
-        {/* Dynamic Tab Render */}
-        {/* Dynamic Tab Render: Task Master 2x2 Bento Quadrant Dashboard */}
-        {/* Dynamic Tab Render: SHINPO Flight Deck Dashboard */}
-        {activeTab === 'Dashboard' && (
+  const renderTabContent = () => (
+    <>
+      {/* Dynamic Tab Render */}
+      {/* Dynamic Tab Render: Task Master 2x2 Bento Quadrant Dashboard */}
+      {/* Dynamic Tab Render: SHINPO Flight Deck Dashboard */}
+      {activeTab === 'Dashboard' && (
+        isV2Preview ? (
+          <AuroraDashboardView
+            currentUser={currentUser}
+            missions={missions}
+            goals={goals}
+            sessions={sessions}
+            activeSession={activeSession}
+            sentinelStatus={sentinelStatus}
+            analyticsData={analyticsData}
+            setActiveTab={handleSelectTab}
+            handleArmMissionAsSession={handleArmMissionAsSession}
+            handleToggleMissionComplete={handleToggleMissionComplete}
+            handleDeleteMission={handleDeleteMission}
+            handleStartFromSchedule={handleStartFromSchedule}
+            setIsCreatingQuickMission={setIsCreatingQuickMission}
+            setQuickMissionGoalId={setQuickMissionGoalId}
+            nextActionMission={nextActionMission}
+            handleEngageNextAction={handleEngageNextAction}
+            pendingWarning={pendingWarning}
+            activeGraceWarning={activeGraceWarning}
+            graceSecondsLeft={graceSecondsLeft}
+            timerSeconds={timerSeconds}
+            handlePause={handlePause}
+            handleResume={handleResume}
+            setCompletingSessionId={setCompletingSessionId}
+            topSearchQuery={topSearchQuery}
+            setTopSearchQuery={setTopSearchQuery}
+            isDarkMode={isDarkMode}
+          />
+        ) : (
           <OverviewView
+            currentUser={currentUser}
             missions={missions}
             goals={goals}
             sessions={sessions}
@@ -1910,18 +2292,8 @@ export function App() {
             handleDeleteMission={handleDeleteMission}
             deletingMissionId={deletingMissionId}
             handleStartFromSchedule={handleStartFromSchedule}
-            isCreatingQuickMission={isCreatingQuickMission}
             setIsCreatingQuickMission={setIsCreatingQuickMission}
-            quickMissionTitle={quickMissionTitle}
-            setQuickMissionTitle={setQuickMissionTitle}
-            quickMissionGoalId={quickMissionGoalId}
             setQuickMissionGoalId={setQuickMissionGoalId}
-            quickMissionDuration={quickMissionDuration}
-            setQuickMissionDuration={setQuickMissionDuration}
-            isSubmittingQuickMission={isSubmittingQuickMission}
-            quickMissionError={quickMissionError}
-            setQuickMissionError={setQuickMissionError}
-            handleQuickCreateMission={handleQuickCreateMission}
             inspectingMission={inspectingMission}
             setInspectingMission={setInspectingMission}
             activeTaskMenu={activeTaskMenu}
@@ -1938,7 +2310,8 @@ export function App() {
             setCompletingSessionId={setCompletingSessionId}
             nextActionMission={nextActionMission}
           />
-        )}
+        )
+      )}
 
 
         {/* Tab 2: Focus Engine */}
@@ -2004,16 +2377,12 @@ export function App() {
             quickMissionGoalId={quickMissionGoalId}
             setQuickMissionGoalId={setQuickMissionGoalId}
             onGoalRequired={() => {
-              setToastAlerts((prev) => [
-                ...prev,
-                {
-                  id: 'toast-info-' + Date.now(),
+              pushToast({
                   title: 'Goal Required',
                   description: 'Please create a goal first before adding a task.',
                   type: 'focus',
                   timestamp: new Date().toISOString(),
-                },
-              ])
+              })
               setIsCreatingGoal(true)
             }}
             openEditGoalModal={openEditGoalModal}
@@ -2032,6 +2401,7 @@ export function App() {
             handleStartFromSchedule={handleStartFromSchedule}
             handleCancelFromSchedule={handleCancelFromSchedule}
             handleDeleteSession={handleDeleteSession}
+            handleEditSession={handleEditSessionFromSchedule}
           />
         )}
 
@@ -2090,7 +2460,65 @@ export function App() {
               </p>
             </div>
           )}
-      </main>
+    </>
+  )
+
+  return (
+    <>
+      <div className={`app-shell ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''}`}>
+        {isV2Preview && (
+          <div className="aurora-ambient-glow" aria-hidden="true" />
+        )}
+
+        {/* Collapsible Sidebar */}
+        <Sidebar
+          sidebarExpanded={sidebarExpanded}
+          onToggleExpanded={handleToggleSidebar}
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          scheduledCount={scheduledCount}
+          shinpoMessage={shinpoMessage}
+          onRefreshShinpoMessage={handleRefreshShinpoMessage}
+          pendingWarning={pendingWarning}
+          activeGraceWarning={activeGraceWarning}
+          activeSession={activeSession}
+          graceSecondsLeft={graceSecondsLeft}
+          sentinelStatus={sentinelStatus}
+        />
+
+        {/* Main Content Area */}
+        <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
+          {/* Top Bar */}
+          <TopBar
+            activeTab={activeTab}
+            topSearchQuery={topSearchQuery}
+            onSearchChange={setTopSearchQuery}
+            unreadAlertCount={unreadAlertCount}
+            isAlertsDrawerOpen={isAlertsDrawerOpen}
+            onToggleAlertsDrawer={handleToggleAlertsDrawer}
+            isDarkMode={isDarkMode}
+            onToggleTheme={handleToggleTheme}
+            onRefreshData={loadData}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onToggleV2Preview={handleToggleV2Preview}
+            isV2Preview={isV2Preview}
+          />
+
+          {isV2Preview ? (
+            <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
+              <ErrorBoundary>
+                {renderTabContent()}
+              </ErrorBoundary>
+            </ThemeProvider>
+          ) : (
+            <ErrorBoundary>
+              {renderTabContent()}
+            </ErrorBoundary>
+          )}
+
+        </main>
+      </div>
 
       {/* Focus Protection Warning & Grace Period Modal */}
       <DistractionWarningModal
@@ -2104,17 +2532,26 @@ export function App() {
       />
 
       {/* Post-Session Reflection Modal */}
-      <SessionSummaryModal
-        completingSessionId={completingSessionId}
-        completionQuality={completionQuality}
-        setCompletionQuality={setCompletionQuality}
-        accomplishment={accomplishment}
-        setAccomplishment={setAccomplishment}
-        reflectionNotes={reflectionNotes}
-        setReflectionNotes={setReflectionNotes}
-        onCancel={() => setCompletingSessionId(null)}
-        onSubmit={handleCompleteSubmit}
-      />
+      {(() => {
+        const completingSession = sessions.find((s) => s.id === completingSessionId)
+        const completingTask = missions.find((m) => m.id === completingSession?.missionId)
+        return (
+          <SessionSummaryModal
+            completingSessionId={completingSessionId}
+            completionQuality={completionQuality}
+            setCompletionQuality={setCompletionQuality}
+            accomplishment={accomplishment}
+            setAccomplishment={setAccomplishment}
+            reflectionNotes={reflectionNotes}
+            setReflectionNotes={setReflectionNotes}
+            markTaskCompleted={markTaskCompleted}
+            setMarkTaskCompleted={setMarkTaskCompleted}
+            linkedTaskTitle={completingTask?.title}
+            onCancel={() => setCompletingSessionId(null)}
+            onSubmit={handleCompleteSubmit}
+          />
+        )
+      })()}
 
       {/* Create Goal Modal */}
       <CreateGoalModal
@@ -2127,6 +2564,22 @@ export function App() {
         targetDate={newGoalDate}
         setTargetDate={setNewGoalDate}
         onSubmit={handleCreateGoal}
+      />
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreatingQuickMission}
+        onClose={() => setIsCreatingQuickMission(false)}
+        goals={goals}
+        goalId={quickMissionGoalId}
+        setGoalId={setQuickMissionGoalId}
+        title={quickMissionTitle}
+        setTitle={setQuickMissionTitle}
+        duration={quickMissionDuration}
+        setDuration={setQuickMissionDuration}
+        isSubmitting={isSubmittingQuickMission}
+        error={quickMissionError}
+        onSubmit={handleQuickCreateMission}
       />
 
       {/* Edit Goal Modal */}
@@ -2186,6 +2639,7 @@ export function App() {
         duration={bookDuration}
         setDuration={setBookDuration}
         onSubmit={handleConfirmBookSession}
+        isEditing={Boolean(editingScheduleSession)}
       />
 
       {/* Interactive Guided Tour Spotlight Overlay */}
@@ -2266,8 +2720,7 @@ export function App() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirmation}
       />
-
-    </div>
+    </>
   )
 }
 

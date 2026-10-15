@@ -28,7 +28,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": ["rpm", "appimage", "nsis"],
+    "category": "Utility",
+    "shortDescription": "SHINPO Personal Execution Operating System",
+    "longDescription": "SHINPO is a disciplined personal execution operating system integrating goals, scheduled focus sessions, native Shield distraction enforcement, and EONPAI AI.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -36,6 +39,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "linux": {
+      "rpm": {
+        "release": "1"
+      }
+    },
     "windows": {
       "nsis": {
         "displayLanguageSelector": false,

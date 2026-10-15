@@ -11,6 +11,7 @@ export type IconName =
   | 'dashboard'
   | 'quests'
   | 'schedule'
+  | 'calendar'
   | 'goals'
   | 'focus'
   | 'analytics'
@@ -29,6 +30,7 @@ export type IconName =
   | 'play'
   | 'pause'
   | 'check'
+  | 'check-circle'
   | 'plus'
   | 'target'
   | 'clock'
@@ -42,7 +44,9 @@ export type IconName =
   | 'edit'
   | 'zap'
   | 'shield'
+  | 'shield-check'
   | 'lock'
+
 
 export interface NavItemConfig {
   id: AppView

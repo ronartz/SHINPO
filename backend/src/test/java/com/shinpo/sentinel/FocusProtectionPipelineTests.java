@@ -152,15 +152,8 @@ public class FocusProtectionPipelineTests {
     @Test
     @DisplayName("Scenario 5: Process identity revalidation fails (PID reuse) -> abort termination")
     void testScenario5_ProcessIdentityRevalidationFails_PIDReuse_AbortTermination() {
-        ProcessHandle currentHandle = ProcessHandle.current();
-        String currentName = SentinelEnforcementService.resolveProcessName(currentHandle);
-        String expectedOldName = "different_legacy_target_app";
-
-        assertFalse(currentName.equalsIgnoreCase(expectedOldName));
-
-        // When revalidation detects PID now belongs to currentName instead of expectedOldName, termination must abort
-        boolean revalidationMatches = currentName.equalsIgnoreCase(expectedOldName);
-        assertFalse(revalidationMatches, "Revalidation must flag PID reuse when name differs");
+        assertTrue(SentinelEnforcementService.matchesProcessIdentity("steam", "STEAM"));
+        assertFalse(SentinelEnforcementService.matchesProcessIdentity("steam", "steamwebhelper"));
     }
 
     @Test
@@ -286,4 +279,3 @@ public class FocusProtectionPipelineTests {
         assertTrue(records.stream().anyMatch(r -> r.getProcessName().equals("discord")));
     }
 }
-

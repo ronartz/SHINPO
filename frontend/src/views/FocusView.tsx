@@ -1,5 +1,5 @@
 import React from 'react'
-import type { FocusSession } from '../api/focusSessions'
+import type { FocusSession, FocusSessionStatus } from '../api/focusSessions'
 import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
 import {
@@ -7,6 +7,7 @@ import {
   durationPresets,
   pomodoroPlans,
 } from '../utils/focusTimer'
+import { formatSafeTimeString } from '../api/eventNormalizer'
 
 export interface FocusViewProps {
   activeSession?: FocusSession | null
@@ -32,6 +33,27 @@ export interface FocusViewProps {
 }
 
 import { trackRender } from '../utils/renderTracker'
+
+const getStatusClass = (status: FocusSessionStatus | string): string => {
+  switch (status) {
+    case 'COMPLETED':
+      return 'completed'
+    case 'ACTIVE':
+      return 'active'
+    case 'PAUSED':
+      return 'paused'
+    case 'SCHEDULED':
+      return 'scheduled'
+    case 'CANCELLED':
+      return 'cancelled'
+    case 'EXPIRED':
+      return 'expired'
+    case 'FAILED':
+      return 'failed'
+    default:
+      return 'pending'
+  }
+}
 
 export const FocusView: React.FC<FocusViewProps> = ({
   activeSession,
@@ -62,7 +84,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
       <div className="bento-card card-timer-hud">
         <div className="card-header-row">
           <div className="card-title-group">
-            <span className="card-title">Focus</span>
+            <span className="card-title">Focus Engine</span>
             <span className={`badge-tag ${
               pendingWarning
                 ? 'red'
@@ -75,12 +97,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 : 'blue'
             }`}>
               {pendingWarning
-                ? 'WARNING'
+                ? 'Warning'
                 : activeGraceWarning
-                ? `GRACE (${formatTimerDigits(graceSecondsLeft)})`
+                ? `Grace (${formatTimerDigits(graceSecondsLeft)})`
                 : activeSession
-                ? (activeSession.status === 'ACTIVE' && timerSeconds === 0 ? 'COMPLETE' : activeSession.status)
-                : 'STANDBY'}
+                ? (activeSession.status === 'ACTIVE' && timerSeconds === 0 ? 'Complete' : activeSession.status === 'ACTIVE' ? 'Active' : activeSession.status === 'PAUSED' ? 'Paused' : activeSession.status)
+                : 'Ready'}
             </span>
           </div>
           <Icon name="clock" size={20} />
@@ -106,48 +128,52 @@ export const FocusView: React.FC<FocusViewProps> = ({
           </div>
         )}
 
-        {activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
-          <div className="timer-ended-banner">
-            <Icon name="check" size={16} />
-            <span className="timer-ended-text">Session Complete — Debrief</span>
-          </div>
-        ) : (
-          <div
-            className={`timer-digits-display${activeSession?.status === 'PAUSED' ? ' timer-paused' : ''}`}
-          >
-            {formatTimerDigits(timerSeconds)}
-          </div>
-        )}
+        <div className="timer-hud-center">
+          {activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
+            <div className="timer-ended-banner">
+              <Icon name="check" size={16} />
+              <span className="timer-ended-text">Session Complete — Debrief</span>
+            </div>
+          ) : (
+            <div
+              className={`timer-digits-display${activeSession?.status === 'PAUSED' ? ' timer-paused' : ''}`}
+            >
+              {formatTimerDigits(timerSeconds)}
+            </div>
+          )}
 
-        {activeSession?.status === 'PAUSED' && (
-          <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11 }}>
-              PAUSED — Time frozen
-            </span>
-          </div>
-        )}
+          {activeSession?.status === 'PAUSED' && (
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
+              <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11 }}>
+                PAUSED — Time frozen
+              </span>
+            </div>
+          )}
 
-        {(activeSession?.intention || sessionIntention) && (
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <span className="active-intention-tag">
-              {activeSession?.intention || sessionIntention}
-            </span>
-          </div>
-        )}
+          {(activeSession?.intention || sessionIntention) && (
+            <div style={{ textAlign: 'center', marginTop: 10 }}>
+              <span className="active-intention-tag">
+                {activeSession?.intention || sessionIntention}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="timer-progress-track">
           <div
             className="timer-progress-fill"
             style={{
-              width: activeSession
-                ? `${Math.max(
-                    0,
-                    Math.min(
-                      100,
-                      (1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60)) * 100,
-                    ),
-                  )}%`
-                : '0%',
+              transform: `scaleX(${
+                activeSession
+                  ? Math.max(
+                      0,
+                      Math.min(
+                        1,
+                        1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60),
+                      ),
+                    )
+                  : 0
+              })`,
             }}
           />
         </div>
@@ -187,14 +213,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   <span>Cancel Session</span>
                 </button>
               )}
-              <button
-                className="btn-timer danger"
-                onClick={() => handleDeleteSession(activeSession.id)}
-                title="Discard and delete current focus session"
-              >
-                <Icon name="trash" size={16} />
-                <span>Delete</span>
-              </button>
             </>
           )}
 
@@ -224,14 +242,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   <span>Cancel Session</span>
                 </button>
               )}
-              <button
-                className="btn-timer danger"
-                onClick={() => handleDeleteSession(activeSession.id)}
-                title="Discard and delete current focus session"
-              >
-                <Icon name="trash" size={16} />
-                <span>Delete</span>
-              </button>
             </>
           )}
         </div>
@@ -241,8 +251,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
       <div className="bento-card card-session-creator">
         <div className="card-header-row">
           <div className="card-title-group">
-            <span className="card-title">Focus plan</span>
-            <span className="badge-tag">Presets & Custom</span>
+            <span className="card-title">Session Configuration</span>
+            <span className="badge-tag">Duration & Presets</span>
           </div>
           <Icon name="target" size={20} />
         </div>
@@ -349,8 +359,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
       <div className="bento-card card-session-history">
         <div className="card-header-row">
           <div className="card-title-group">
-            <span className="card-title">Recent sessions</span>
-            <span className="badge-tag">{sessions.length} Recorded</span>
+            <span className="card-title">Recent Sessions</span>
+            <span className="badge-tag">{sessions.length} {sessions.length === 1 ? 'Session' : 'Sessions'}</span>
           </div>
           <Icon name="clock" size={18} />
         </div>
@@ -375,45 +385,44 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 {sessions.map((sess) => (
                   <tr key={sess.id}>
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 14 }}>
                         {sess.name}
                       </div>
                       {sess.intention && (
-                        <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 3 }}>
                           {sess.intention}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className="badge-tag blue">{sess.durationMinutes}m</span>
+                      <span className="badge-tag blue">{sess.durationMinutes || 25}m</span>
                     </td>
                     <td>
-                      <span
-                        className={`status-indicator-pill ${
-                          sess.status === 'COMPLETED'
-                              ? 'completed'
-                              : sess.status === 'ACTIVE'
-                              ? 'active'
-                              : 'pending'
-                        }`}
-                      >
+                      <span className={`status-indicator-pill ${getStatusClass(sess.status)}`}>
                         {sess.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: 13, color: 'var(--text-3)' }}>
-                      {sess.startedAt
-                        ? new Date(sess.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : sess.createdAt
-                        ? new Date(sess.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—'}
+                    <td style={{ fontSize: 13, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatSafeTimeString(sess.startedAt || sess.createdAt)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button
                         className="btn-icon-delete"
-                        title="Delete Focus Session"
+                        title={
+                          sess.id === activeSession?.id || sess.status === 'ACTIVE' || sess.status === 'PAUSED'
+                            ? 'Active session cannot be deleted while running. Cancel or complete it first.'
+                            : 'Delete Focus Session'
+                        }
+                        aria-label="Delete Focus Session"
+                        disabled={sess.id === activeSession?.id || sess.status === 'ACTIVE' || sess.status === 'PAUSED'}
                         onClick={() => handleDeleteSession(sess.id)}
+                        style={
+                          sess.id === activeSession?.id || sess.status === 'ACTIVE' || sess.status === 'PAUSED'
+                            ? { opacity: 0.3, cursor: 'not-allowed' }
+                            : undefined
+                        }
                       >
-                        <Icon name="trash" size={14} />
+                        <Icon name="trash" size={15} />
                       </button>
                     </td>
                   </tr>

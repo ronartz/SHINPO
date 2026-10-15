@@ -6,7 +6,7 @@ declare global {
 }
 
 export function trackRender(componentName: string): void {
-  if (typeof window !== 'undefined') {
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
     window.__SHINPO_RENDER_COUNTS = window.__SHINPO_RENDER_COUNTS || {}
     window.__SHINPO_RENDER_COUNTS[componentName] =
       (window.__SHINPO_RENDER_COUNTS[componentName] || 0) + 1
@@ -14,10 +14,9 @@ export function trackRender(componentName: string): void {
 }
 
 export function trackApiCall(endpoint: string): void {
-  if (typeof window !== 'undefined') {
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
     window.__SHINPO_API_CALLS = window.__SHINPO_API_CALLS || {}
     window.__SHINPO_API_CALLS[endpoint] =
       (window.__SHINPO_API_CALLS[endpoint] || 0) + 1
   }
 }
-

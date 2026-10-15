@@ -52,9 +52,22 @@ public class AiToolRegistry {
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService,
             UserExecutionProfileService userExecutionProfileService,
-            @Autowired(required = false) SentinelEnforcementService sentinelEnforcementService
+            @Autowired(required = false) SentinelEnforcementService sentinelEnforcementService,
+            @Autowired(required = false) com.shinpo.ai.actions.AiActionService aiActionService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, sentinelEnforcementService, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, sentinelEnforcementService, aiActionService, List.of());
+    }
+
+    public AiToolRegistry(
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            FocusSessionRepository focusSessionRepository,
+            TaskManagerService taskManagerService,
+            UserExecutionProfileService userExecutionProfileService,
+            SentinelEnforcementService sentinelEnforcementService
+    ) {
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, sentinelEnforcementService, null, List.of());
     }
 
     public AiToolRegistry(
@@ -65,7 +78,7 @@ public class AiToolRegistry {
             TaskManagerService taskManagerService,
             UserExecutionProfileService userExecutionProfileService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, null, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, null, null, List.of());
     }
 
     public AiToolRegistry(
@@ -75,7 +88,7 @@ public class AiToolRegistry {
             FocusSessionRepository focusSessionRepository,
             TaskManagerService taskManagerService
     ) {
-        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, null, null, List.of());
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, null, null, null, List.of());
     }
 
     public AiToolRegistry(
@@ -88,6 +101,20 @@ public class AiToolRegistry {
             SentinelEnforcementService sentinelEnforcementService,
             List<AiTool> customTools
     ) {
+        this(userRepository, goalRepository, missionRepository, focusSessionRepository, taskManagerService, userExecutionProfileService, sentinelEnforcementService, null, customTools);
+    }
+
+    public AiToolRegistry(
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            FocusSessionRepository focusSessionRepository,
+            TaskManagerService taskManagerService,
+            UserExecutionProfileService userExecutionProfileService,
+            SentinelEnforcementService sentinelEnforcementService,
+            com.shinpo.ai.actions.AiActionService aiActionService,
+            List<AiTool> customTools
+    ) {
         this.userRepository = userRepository;
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
@@ -95,6 +122,7 @@ public class AiToolRegistry {
         this.taskManagerService = taskManagerService;
         this.userExecutionProfileService = userExecutionProfileService;
         this.sentinelEnforcementService = sentinelEnforcementService;
+        this.aiActionService = aiActionService;
 
         registerBuiltInTools();
         if (customTools != null) {
@@ -919,23 +947,23 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            if (aiActionService != null) {
-                try {
-                    String title = (String) parameters.get("title");
-                    var dto = aiActionService.proposeAction(authenticatedUserId, "CREATE_TASK", "Create task: " + title, parameters);
-                    return ToolResult.ok(getName(), Map.of(
-                            "status", "PROPOSED",
-                            "actionId", dto.actionId(),
-                            "actionType", dto.actionType(),
-                            "description", dto.description(),
-                            "requiresConfirmation", true,
-                            "message", "Task proposal generated. User must confirm before task is added to database."
-                    ));
-                } catch (Exception e) {
-                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
-                }
+            if (aiActionService == null) {
+                return ToolResult.error(getName(), "Action service unavailable: cannot create proposal without active persistence");
             }
-            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+            try {
+                String title = (String) parameters.get("title");
+                var dto = aiActionService.proposeAction(authenticatedUserId, "CREATE_TASK", "Create task: " + title, parameters);
+                return ToolResult.ok(getName(), Map.of(
+                        "status", "PROPOSED",
+                        "actionId", dto.actionId(),
+                        "actionType", dto.actionType(),
+                        "description", dto.description(),
+                        "requiresConfirmation", true,
+                        "message", "Task proposal generated. User must confirm before task is added to database."
+                ));
+            } catch (Exception e) {
+                return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+            }
         }
     }
 
@@ -960,24 +988,24 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            if (aiActionService != null) {
-                try {
-                    Long taskId = parseLong(parameters.get("taskId"));
-                    String date = (String) parameters.get("scheduledDate");
-                    var dto = aiActionService.proposeAction(authenticatedUserId, "RESCHEDULE_TASK", "Reschedule task " + taskId + " to " + date, parameters);
-                    return ToolResult.ok(getName(), Map.of(
-                            "status", "PROPOSED",
-                            "actionId", dto.actionId(),
-                            "actionType", dto.actionType(),
-                            "description", dto.description(),
-                            "requiresConfirmation", true,
-                            "message", "Reschedule proposal generated. User must confirm before task date is modified."
-                    ));
-                } catch (Exception e) {
-                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
-                }
+            if (aiActionService == null) {
+                return ToolResult.error(getName(), "Action service unavailable: cannot create proposal without active persistence");
             }
-            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+            try {
+                Long taskId = parseLong(parameters.get("taskId"));
+                String date = (String) parameters.get("scheduledDate");
+                var dto = aiActionService.proposeAction(authenticatedUserId, "RESCHEDULE_TASK", "Reschedule task " + taskId + " to " + date, parameters);
+                return ToolResult.ok(getName(), Map.of(
+                        "status", "PROPOSED",
+                        "actionId", dto.actionId(),
+                        "actionType", dto.actionType(),
+                        "description", dto.description(),
+                        "requiresConfirmation", true,
+                        "message", "Reschedule proposal generated. User must confirm before task date is modified."
+                ));
+            } catch (Exception e) {
+                return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+            }
         }
     }
 
@@ -1004,24 +1032,24 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            if (aiActionService != null) {
-                try {
-                    String name = (String) parameters.get("name");
-                    int duration = parseInteger(parameters.get("durationMinutes"), 25);
-                    var dto = aiActionService.proposeAction(authenticatedUserId, "START_FOCUS_SESSION", "Start focus session \"" + name + "\" (" + duration + "m)", parameters);
-                    return ToolResult.ok(getName(), Map.of(
-                            "status", "PROPOSED",
-                            "actionId", dto.actionId(),
-                            "actionType", dto.actionType(),
-                            "description", dto.description(),
-                            "requiresConfirmation", true,
-                            "message", "Focus session proposal generated. User must confirm before session begins."
-                    ));
-                } catch (Exception e) {
-                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
-                }
+            if (aiActionService == null) {
+                return ToolResult.error(getName(), "Action service unavailable: cannot create proposal without active persistence");
             }
-            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+            try {
+                String name = (String) parameters.get("name");
+                int duration = parseInteger(parameters.get("durationMinutes"), 25);
+                var dto = aiActionService.proposeAction(authenticatedUserId, "START_FOCUS_SESSION", "Start focus session \"" + name + "\" (" + duration + "m)", parameters);
+                return ToolResult.ok(getName(), Map.of(
+                        "status", "PROPOSED",
+                        "actionId", dto.actionId(),
+                        "actionType", dto.actionType(),
+                        "description", dto.description(),
+                        "requiresConfirmation", true,
+                        "message", "Focus session proposal generated. User must confirm before session begins."
+                ));
+            } catch (Exception e) {
+                return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+            }
         }
     }
 
@@ -1045,22 +1073,22 @@ public class AiToolRegistry {
 
         @Override
         public ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters) {
-            if (aiActionService != null) {
-                try {
-                    var dto = aiActionService.proposeAction(authenticatedUserId, "APPLY_DAILY_PLAN", "Apply proposed daily agenda", parameters);
-                    return ToolResult.ok(getName(), Map.of(
-                            "status", "PROPOSED",
-                            "actionId", dto.actionId(),
-                            "actionType", dto.actionType(),
-                            "description", dto.description(),
-                            "requiresConfirmation", true,
-                            "message", "Daily plan proposal generated. User must confirm before sessions are scheduled."
-                    ));
-                } catch (Exception e) {
-                    return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
-                }
+            if (aiActionService == null) {
+                return ToolResult.error(getName(), "Action service unavailable: cannot create proposal without active persistence");
             }
-            return ToolResult.ok(getName(), Map.of("status", "PROPOSED", "actionId", "act_preview", "parameters", parameters));
+            try {
+                var dto = aiActionService.proposeAction(authenticatedUserId, "APPLY_DAILY_PLAN", "Apply proposed daily agenda", parameters);
+                return ToolResult.ok(getName(), Map.of(
+                        "status", "PROPOSED",
+                        "actionId", dto.actionId(),
+                        "actionType", dto.actionType(),
+                        "description", dto.description(),
+                        "requiresConfirmation", true,
+                        "message", "Daily plan proposal generated. User must confirm before sessions are scheduled."
+                ));
+            } catch (Exception e) {
+                return ToolResult.error(getName(), "Proposal rejected: " + e.getMessage());
+            }
         }
     }
 }

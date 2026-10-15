@@ -133,8 +133,9 @@ public class SessionDebriefService {
 
                 if (res.successful() && res.content() != null) {
                     JsonNode node = objectMapper.readTree(cleanJson(res.content()));
-                    String critique = node.has("tacticalCritique") ? node.get("tacticalCritique").asText() : null;
-                    String recommendation = node.has("nextSprintRecommendation") ? node.get("nextSprintRecommendation").asText() : null;
+                    String critique = node.has("tacticalCritique") ? node.get("tacticalCritique").asString() : null;
+                    String recommendation = node.has("nextSprintRecommendation") ? node.get("nextSprintRecommendation").asString() : null;
+
 
                     if (critique != null && recommendation != null) {
                         return new SessionDebriefAnalysisResponse(

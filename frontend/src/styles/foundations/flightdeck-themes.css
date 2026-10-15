@@ -1,0 +1,188 @@
+/* Light Mode Overrides for Flight Deck */
+.theme-light .flight-deck-board-panel,
+html[data-theme='light'] .flight-deck-board-panel,
+.theme-light .cockpit-panel,
+html[data-theme='light'] .cockpit-panel {
+  background: rgba(255, 255, 255, 0.90);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .status-column,
+html[data-theme='light'] .status-column,
+.theme-light .flight-deck-card,
+html[data-theme='light'] .flight-deck-card,
+.theme-light .hero-idle-task-preview,
+html[data-theme='light'] .hero-idle-task-preview,
+.theme-light .timesheet-item,
+html[data-theme='light'] .timesheet-item,
+.theme-light .activity-feed-item,
+html[data-theme='light'] .activity-feed-item {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+.theme-light .flight-deck-card:hover,
+html[data-theme='light'] .flight-deck-card:hover {
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .flight-deck-card.is-active-sprint,
+html[data-theme='light'] .flight-deck-card.is-active-sprint {
+  background: linear-gradient(180deg, rgba(255, 77, 94, 0.05) 0%, #FFFFFF 100%);
+  border-color: rgba(255, 77, 94, 0.35);
+}
+
+.theme-light .timesheet-item.rank-first,
+html[data-theme='light'] .timesheet-item.rank-first {
+  background: linear-gradient(135deg, rgba(255, 77, 94, 0.08) 0%, #FFFFFF 100%);
+  border-color: rgba(255, 77, 94, 0.3);
+}
+
+.theme-light .hero-progress-track,
+html[data-theme='light'] .hero-progress-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .hero-btn.secondary,
+html[data-theme='light'] .hero-btn.secondary {
+  background: rgba(0, 0, 0, 0.06);
+  color: #17191F;
+}
+
+.theme-light .hero-idle-shield-tag,
+html[data-theme='light'] .hero-idle-shield-tag {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .card-menu-btn:hover,
+.theme-light .card-menu-btn.active,
+html[data-theme='light'] .card-menu-btn:hover,
+html[data-theme='light'] .card-menu-btn.active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.theme-light .flight-deck-card-menu,
+html[data-theme='light'] .flight-deck-card-menu,
+.theme-light .flight-deck-quick-modal-card,
+html[data-theme='light'] .flight-deck-quick-modal-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .flight-deck-card.has-open-menu,
+html[data-theme='light'] .flight-deck-card.has-open-menu {
+  border-color: rgba(255, 77, 94, 0.4);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .status-column-cards,
+html[data-theme='light'] .status-column-cards,
+.theme-light .timesheet-list,
+html[data-theme='light'] .timesheet-list,
+.theme-light .activity-feed-list,
+html[data-theme='light'] .activity-feed-list {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.theme-light .status-column-cards::-webkit-scrollbar-thumb,
+html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb,
+.theme-light .timesheet-list::-webkit-scrollbar-thumb,
+html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb,
+.theme-light .activity-feed-list::-webkit-scrollbar-thumb,
+html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .status-column-cards::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb:hover,
+.theme-light .timesheet-list::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb:hover,
+.theme-light .activity-feed-list::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.theme-light .card-menu-item:hover,
+html[data-theme='light'] .card-menu-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .card-goal-tag,
+html[data-theme='light'] .card-goal-tag {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .quick-field-input,
+.theme-light .quick-field-select,
+html[data-theme='light'] .quick-field-input,
+html[data-theme='light'] .quick-field-select,
+.theme-light .quick-preset-btn,
+html[data-theme='light'] .quick-preset-btn {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #17191F;
+}
+
+.theme-light .profile-badge-card,
+html[data-theme='light'] .profile-badge-card {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .profile-badge-card:hover,
+html[data-theme='light'] .profile-badge-card:hover {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .sidebar-eonpai-companion,
+html[data-theme='light'] .sidebar-eonpai-companion {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .eonpai-speech-bubble.bubble-short,
+html[data-theme='light'] .eonpai-speech-bubble.bubble-short {
+  background: #F1F5F9;
+  color: var(--text);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.theme-light .eonpai-speech-bubble.bubble-wide,
+html[data-theme='light'] .eonpai-speech-bubble.bubble-wide {
+  background: #FFFFFF;
+  color: var(--text);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .sidebar-quote-card,
+html[data-theme='light'] .sidebar-quote-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.theme-light .sidebar-quote-text,
+html[data-theme='light'] .sidebar-quote-text {
+  color: var(--text);
+}
+
+/* Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  .hero-pulse-dot,
+  .live-dot {
+    animation: none !important;
+  }
+  .flight-deck-card,
+  .board-action-btn,
+  .hero-arm-btn,
+  .hero-btn {
+    transition: none !important;
+    transform: none !important;
+  }
+}

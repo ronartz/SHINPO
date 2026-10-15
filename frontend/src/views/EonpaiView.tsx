@@ -617,8 +617,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                           {msg.committed
                             ? 'Agenda Scheduled'
                             : msg.committing
-                            ? 'Scheduling Agenda...'
-                            : 'Schedule Daily Agenda'}
+                              ? 'Scheduling Agenda...'
+                              : 'Schedule Daily Agenda'}
                         </span>
                       </button>
                     </div>
@@ -647,8 +647,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                           {msg.committed
                             ? 'Tasks Added'
                             : msg.committing
-                            ? 'Adding Tasks...'
-                            : 'Add All Tasks'}
+                              ? 'Adding Tasks...'
+                              : 'Add All Tasks'}
                         </span>
                       </button>
                     </div>
@@ -827,7 +827,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               ref={textareaRef}
               rows={1}
               className="eonpai-composer-input"
-              placeholder="Ask EONPAI anything (e.g. 'plan my day', 'break down a goal')... (Enter to send, Shift+Enter for new line)"
+              placeholder="Ask EONPAI to plan your day, decompose a goal, or review focus..."
               value={localInput}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}

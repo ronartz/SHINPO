@@ -58,163 +58,55 @@ export type MissionCompletionResponse = {
   totalUserXp: number
 }
 
-import { authHeaders, getAuthenticatedUserId } from './auth'
-import { getBackendBaseUrl } from './config'
-
-const API_BASE = `${getBackendBaseUrl()}/api`
-
-async function parseResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let msg = `Request failed: ${res.status}`
-    try {
-      const body = await res.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore JSON parse error, fallback to status
-    }
-    const error = new Error(msg) as Error & { status: number }
-    error.status = res.status
-    throw error
-  }
-  return res.json() as Promise<T>
-}
+import { getAuthenticatedUserId } from './auth'
+import { apiClient } from './client'
 
 export async function getGoals(): Promise<Goal[]> {
-  const res = await fetch(`${API_BASE}/goals`, {
-    headers: authHeaders(),
-  })
-  return parseResponse<Goal[]>(res)
+  return apiClient.get<Goal[]>('/goals')
 }
 
 export async function createGoal(payload: CreateGoalPayload): Promise<Goal> {
   const effectiveUserId = payload.userId ?? getAuthenticatedUserId() ?? undefined
   const body = effectiveUserId !== undefined ? { ...payload, userId: effectiveUserId } : payload
-  const res = await fetch(`${API_BASE}/goals`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  })
-  return parseResponse<Goal>(res)
+  return apiClient.post<Goal>('/goals', body)
 }
 
 export async function getMissions(): Promise<Mission[]> {
-  const res = await fetch(`${API_BASE}/missions`, {
-    headers: authHeaders(),
-  })
-  return parseResponse<Mission[]>(res)
+  return apiClient.get<Mission[]>('/missions')
 }
 
 export async function createMission(payload: CreateMissionPayload): Promise<Mission> {
-  const res = await fetch(`${API_BASE}/missions`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  })
-  return parseResponse<Mission>(res)
+  return apiClient.post<Mission>('/missions', payload)
 }
 
 export async function completeMission(
   missionId: number,
   actualMinutes: number = 25,
 ): Promise<MissionCompletionResponse> {
-  const res = await fetch(`${API_BASE}/missions/${missionId}/complete`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ actualMinutes }),
-  })
-  return parseResponse<MissionCompletionResponse>(res)
+  return apiClient.post<MissionCompletionResponse>(`/missions/${missionId}/complete`, { actualMinutes })
 }
 
 export async function updateGoal(goalId: number, payload: UpdateGoalPayload): Promise<Goal> {
-  const res = await fetch(`${API_BASE}/goals/${goalId}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  })
-  return parseResponse<Goal>(res)
+  return apiClient.put<Goal>(`/goals/${goalId}`, payload)
 }
 
 export async function deleteGoal(goalId: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/goals/${goalId}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
-  if (!res.ok) {
-    let msg = `Failed to delete goal: ${res.status}`
-    try {
-      const body = await res.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore JSON parse error, fallback to status
-    }
-    const error = new Error(msg) as Error & { status: number }
-    error.status = res.status
-    throw error
-  }
+  return apiClient.delete<void>(`/goals/${goalId}`)
 }
 
 export async function deleteAllGoals(): Promise<void> {
-  const res = await fetch(`${API_BASE}/goals/all`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
-  if (!res.ok) {
-    let msg = `Failed to delete all goals: ${res.status}`
-    try {
-      const body = await res.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore JSON parse error, fallback to status
-    }
-    const error = new Error(msg) as Error & { status: number }
-    error.status = res.status
-    throw error
-  }
+  return apiClient.delete<void>('/goals/all')
 }
 
 export async function updateMission(missionId: number, payload: UpdateMissionPayload): Promise<Mission> {
-  const res = await fetch(`${API_BASE}/missions/${missionId}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  })
-  return parseResponse<Mission>(res)
+  return apiClient.put<Mission>(`/missions/${missionId}`, payload)
 }
 
 export async function deleteMission(missionId: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/missions/${missionId}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
-  if (!res.ok) {
-    let msg = `Failed to delete mission: ${res.status}`
-    try {
-      const body = await res.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore JSON parse error, fallback to status
-    }
-    const error = new Error(msg) as Error & { status: number }
-    error.status = res.status
-    throw error
-  }
+  return apiClient.delete<void>(`/missions/${missionId}`)
 }
 
 export async function deleteAllMissions(): Promise<void> {
-  const res = await fetch(`${API_BASE}/missions/all`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
-  if (!res.ok) {
-    let msg = `Failed to clear all missions: ${res.status}`
-    try {
-      const body = await res.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore JSON parse error, fallback to status
-    }
-    const error = new Error(msg) as Error & { status: number }
-    error.status = res.status
-    throw error
-  }
+  return apiClient.delete<void>('/missions/all')
 }
+

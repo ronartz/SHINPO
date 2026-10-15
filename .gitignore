@@ -46,3 +46,8 @@ repomix-output.xml
 daemon/shinpo-shield
 daemon/quarantine_spool.jsonl
 *.jsonl
+
+# Backups and archives
+backups/
+*.dump
+*.tar.gz

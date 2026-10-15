@@ -1,6 +1,5 @@
 package com.shinpo.ai.orchestrator;
 
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shinpo.ai.actions.AiActionService;
 import com.shinpo.ai.config.AiProperties;
@@ -19,8 +18,6 @@ import com.shinpo.ai.tool.AiToolRegistry;
 import com.shinpo.dto.AiDtos.*;
 import com.shinpo.entity.AiSuggestion;
 import com.shinpo.entity.BugReport;
-import com.shinpo.entity.FocusSession;
-import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.User;
 import com.shinpo.repository.AiSuggestionRepository;
 import com.shinpo.repository.BugReportRepository;
@@ -31,12 +28,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -52,13 +45,10 @@ public class AiGateway {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final BugReportRepository bugReportRepository;
-    private final FocusSessionRepository focusSessionRepository;
-    private final ContextSynthesisService contextSynthesisService;
-    private final PromptEngineeringService promptEngineeringService;
     private final GoalDecompositionService goalDecompositionService;
     private final DailyPlanningService dailyPlanningService;
     private final SessionDebriefService sessionDebriefService;
-    private final AiActionService aiActionService;
+
 
     @Autowired
     public AiGateway(
@@ -86,12 +76,9 @@ public class AiGateway {
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.bugReportRepository = bugReportRepository;
-        this.focusSessionRepository = focusSessionRepository;
-        this.contextSynthesisService = contextSynthesisService;
-        this.promptEngineeringService = promptEngineeringService != null ? promptEngineeringService : new PromptEngineeringService();
-        this.aiActionService = aiActionService;
         this.goalDecompositionService = goalDecompositionService != null ? goalDecompositionService :
                 new GoalDecompositionService(providerRegistry, aiProperties, toolRegistry, aiSuggestionRepository, userRepository, objectMapper, aiActionService);
+
         this.dailyPlanningService = dailyPlanningService != null ? dailyPlanningService :
                 new DailyPlanningService(toolRegistry, aiSuggestionRepository, userRepository, objectMapper, aiActionService);
         this.sessionDebriefService = sessionDebriefService != null ? sessionDebriefService :
@@ -168,13 +155,21 @@ public class AiGateway {
      * Process general chat message through AI Gateway with tools & fallback.
      */
     public AiChatResponse processChat(AiChatRequest request) {
-        return processChat(request, List.of());
+        return processChat(request, List.of(), ZoneOffset.UTC);
     }
 
     /**
      * Process general chat message through AI Gateway with conversation continuity history.
      */
     public AiChatResponse processChat(AiChatRequest request, List<Map<String, String>> conversationHistory) {
+        return processChat(request, conversationHistory, ZoneOffset.UTC);
+    }
+
+    public AiChatResponse processChat(
+            AiChatRequest request,
+            List<Map<String, String>> conversationHistory,
+            ZoneId zoneId
+    ) {
         if (request == null || request.userId() == null) {
             throw new IllegalArgumentException("Authenticated userId is required to process chat");
         }
@@ -249,7 +244,7 @@ public class AiGateway {
                 logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
                 return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
             }
-            DailyPlanResponse plan = getDailyPlan(userId);
+            DailyPlanResponse plan = getDailyPlan(userId, zoneId);
             String reply = "Tactical daily itinerary assembled: " + plan.headline() + ". " + plan.rationale();
             logSuggestion(userId, "PLANNER", rawMsg, reply);
             return new AiChatResponse(reply, "PLANNER", plan);

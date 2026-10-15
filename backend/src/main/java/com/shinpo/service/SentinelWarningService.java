@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -362,7 +363,10 @@ public class SentinelWarningService {
         String canonical = request.processName().trim().toLowerCase();
 
         // SHINPO runtime processes (dev servers, daemons, backend/frontend) are unconditionally protected
-        if (canonical.contains("shinpo") || (request.commandLine() != null && request.commandLine().toLowerCase().contains("shinpo"))) {
+        String cmd = request.commandLine() != null ? request.commandLine().toLowerCase() : "";
+        if (Set.of("shinpo", "shinpo-shield", "shinpo-desktop").contains(canonical)
+                || canonical.contains("shinpo")
+                || cmd.contains("shinpo")) {
             return new CandidateProcessResponse("ALLOW", null, null, null, "SHINPO runtime process is protected");
         }
 

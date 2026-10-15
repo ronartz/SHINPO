@@ -172,8 +172,8 @@ export type AiChatResponse = {
   conversationId?: string
 }
 
-import { authHeaders, getAuthenticatedUserId } from './auth'
-import { getBackendBaseUrl } from './config'
+import { authHeaders, getAuthenticatedUserId } from './auth.ts'
+import { getBackendBaseUrl } from './config.ts'
 
 const API_BASE = `${getBackendBaseUrl()}/api/ai`
 
@@ -195,7 +195,10 @@ async function parseResponse<T>(res: Response): Promise<T> {
 
 export async function getActiveConversation(): Promise<Conversation> {
   const res = await fetch(`${API_BASE}/conversation/active`, {
-    headers: authHeaders(),
+    headers: {
+      ...authHeaders(),
+      'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
   })
   return parseResponse<Conversation>(res)
 }
@@ -339,7 +342,7 @@ export type ExecutiveBriefing = {
 }
 
 export async function getExecutiveBriefing(): Promise<ExecutiveBriefing> {
-  const res = await fetch(`${API_BASE}/ai/briefing`, {
+  const res = await fetch(`${API_BASE}/briefing`, {
     headers: authHeaders(),
   })
   return parseResponse<ExecutiveBriefing>(res)
@@ -373,7 +376,7 @@ export async function proposeAiAction(
   description: string,
   payload: Record<string, unknown>
 ): Promise<AiActionDto> {
-  const res = await fetch(`${API_BASE}/ai/actions/propose`, {
+  const res = await fetch(`${API_BASE}/actions/propose`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ actionType, description, payload }),
@@ -382,7 +385,7 @@ export async function proposeAiAction(
 }
 
 export async function confirmAiAction(actionId: string): Promise<AiActionExecutionResponse> {
-  const res = await fetch(`${API_BASE}/ai/actions/${actionId}/confirm`, {
+  const res = await fetch(`${API_BASE}/actions/${actionId}/confirm`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -390,7 +393,7 @@ export async function confirmAiAction(actionId: string): Promise<AiActionExecuti
 }
 
 export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
-  const res = await fetch(`${API_BASE}/ai/actions/${actionId}/reject`, {
+  const res = await fetch(`${API_BASE}/actions/${actionId}/reject`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -398,14 +401,14 @@ export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
 }
 
 export async function getPendingAiActions(): Promise<AiActionDto[]> {
-  const res = await fetch(`${API_BASE}/ai/actions/pending`, {
+  const res = await fetch(`${API_BASE}/actions/pending`, {
     headers: authHeaders(),
   })
   return parseResponse<AiActionDto[]>(res)
 }
 
 export async function getRecentAiActions(): Promise<AiActionDto[]> {
-  const res = await fetch(`${API_BASE}/ai/actions/recent`, {
+  const res = await fetch(`${API_BASE}/actions/recent`, {
     headers: authHeaders(),
   })
   return parseResponse<AiActionDto[]>(res)

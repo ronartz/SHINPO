@@ -297,6 +297,10 @@ public class AiService {
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AiChatResponse processChat(AiChatRequest request) {
+        return processChat(request, ZoneId.of("UTC"));
+    }
+
+    public AiChatResponse processChat(AiChatRequest request, ZoneId zoneId) {
         if (request == null || request.userId() == null) {
             throw new IllegalArgumentException("Authenticated userId is required to process chat");
         }
@@ -336,7 +340,7 @@ public class AiService {
             return new ChatContext(conversation.getId(), conversation.getConversationUuid(), historyList);
         });
 
-        AiChatResponse response = aiGateway.processChat(request, chatContext.history());
+        AiChatResponse response = aiGateway.processChat(request, chatContext.history(), zoneId);
 
         String metadataJson = null;
         try {

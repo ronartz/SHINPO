@@ -3,7 +3,7 @@
 
 export function getBackendBaseUrl(): string {
   // 1. Environment variable baked during build (e.g. VITE_SHINPO_SERVER_URL=https://api.yourdomain.com)
-  if (import.meta.env.VITE_SHINPO_SERVER_URL) {
+  if (import.meta.env?.VITE_SHINPO_SERVER_URL) {
     return (import.meta.env.VITE_SHINPO_SERVER_URL as string).replace(/\/+$/, '')
   }
 
@@ -25,6 +25,10 @@ export function getBackendBaseUrl(): string {
 }
 
 export function getWsBaseUrl(): string {
+  if (import.meta.env?.VITE_SHINPO_WS_URL) {
+    return (import.meta.env.VITE_SHINPO_WS_URL as string).replace(/\/+$/, '')
+  }
+
   const backendBase = getBackendBaseUrl()
   if (backendBase.startsWith('http://')) {
     return backendBase.replace('http://', 'ws://') + '/ws'
@@ -38,3 +42,4 @@ export function getWsBaseUrl(): string {
   }
   return 'ws://localhost:8080/ws'
 }
+

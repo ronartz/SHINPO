@@ -1,0 +1,376 @@
+/* ==========================================================================
+   RESPONSIVE DESIGN (DESKTOP, LAPTOP, TABLET, MOBILE)
+   ========================================================================== */
+/* ==========================================================================
+   EXPLICIT RESPONSIVE DESIGN TIERS
+   Tier 1: Wide Desktop (> 1200px) - Full brand lockup, quote, 260px sidebar
+   Tier 2: Medium Desktop (1001px – 1200px) - Tighter brand block, quote hidden, 200px sidebar
+   Tier 3: Narrow Restored Desktop (<= 1000px, down to 900px) - Icon-only rail (72px), mark only, 2-row topbar, stacked cards
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   TIER 2: MEDIUM DESKTOP (1001px – 1200px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+  :root,
+  html,
+  body,
+  .app-shell {
+    --sidebar-w: 200px;
+  }
+
+  .icon-sidebar.expanded {
+    width: 200px !important;
+    padding: 16px 10px !important;
+  }
+
+  .app-main.sidebar-expanded {
+    margin-left: 200px !important;
+    width: calc(100% - 200px) !important;
+    max-width: calc(100% - 200px) !important;
+    padding: 18px 22px 28px !important;
+  }
+
+  /* Medium Desktop Brand: Tighter brand block (hide subtitle row, keep mark + SHINPO) */
+  .shinpo-logo-sub-row {
+    display: none !important;
+  }
+
+  /* Collapsed rail hides quote; expanded sidebar displays quote */
+  .icon-sidebar:not(.expanded) .sidebar-upper-quote {
+    display: none !important;
+  }
+  .icon-sidebar.expanded .sidebar-upper-quote {
+    display: flex !important;
+  }
+
+  /* Compact topbar controls in Medium Desktop */
+  .cockpit-top-bar {
+    gap: 12px;
+  }
+
+  .top-search-command {
+    min-width: 130px;
+    max-width: 280px;
+    margin: 0 6px;
+    padding: 7px 14px;
+  }
+
+  .profile-role {
+    display: none !important;
+  }
+
+  .top-bar-actions {
+    gap: 8px;
+  }
+
+  .action-btn-circle {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Dashboard reflows earlier to prioritize readability over density */
+  .card-now-execution,
+  .dash-hero-side-stack,
+  .card-today-timeline,
+  .card-goals-summary,
+  .card-missions-table,
+  .card-overview,
+  .card-cadence,
+  .card-radar,
+  .card-distribution,
+  .card-timer-hud,
+  .card-session-creator,
+  .card-session-history {
+    grid-column: span 12;
+  }
+
+  .dash-hero-side-stack {
+    flex-direction: column;
+  }
+
+  .dash-hero-side-stack .card-next-action,
+  .dash-hero-side-stack .card-protection {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .flight-deck-board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tm-telemetry-grid,
+  .analytics-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .schedule-week-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .ai-bento-container {
+    grid-template-columns: 220px 1fr;
+    gap: 14px;
+    height: calc(100vh - 110px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   TIER 3: NARROW RESTORED DESKTOP (<= 1000px, including 900px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1000px) {
+  :root,
+  html,
+  body,
+  .app-shell {
+    --sidebar-w: var(--sidebar-w-collapsed);
+  }
+
+  /* Collapse sidebar to icon-only rail */
+  .icon-sidebar,
+  .icon-sidebar.expanded {
+    width: var(--sidebar-w-collapsed) !important;
+    padding: 16px 8px !important;
+  }
+
+  .icon-sidebar .sidebar-header,
+  .icon-sidebar.expanded .sidebar-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+  }
+
+  /* Branding in narrow rail: ONLY mark, absolutely no text, no overlap, centered */
+  .brand-badge {
+    justify-content: center !important;
+    align-items: center !important;
+    flex: initial !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .shinpo-logo-lockup {
+    gap: 0 !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .shinpo-logo-text-group,
+  .shinpo-logo-sub-row,
+  .shinpo-logo-wordmark,
+  .brand-meta {
+    display: none !important;
+  }
+
+  /* Toggle button centered in rail */
+  .sidebar-toggle-btn {
+    width: 32px !important;
+    height: 28px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Hide quote and text in rail */
+  .sidebar-upper-quote,
+  .sidebar-section-header,
+  .sidebar-btn span,
+  .sidebar-nav-badge,
+  .sidebar-active-arrow,
+  .sidebar-system-meta {
+    display: none !important;
+  }
+
+  .icon-sidebar .sidebar-btn,
+  .icon-sidebar.expanded .sidebar-btn {
+    justify-content: center !important;
+    padding: 11px 0 !important;
+    width: 100% !important;
+  }
+
+  /* Status footer: minimal centered indicator */
+  .sidebar-status-quiet {
+    justify-content: center !important;
+    padding: 8px !important;
+    width: 100% !important;
+  }
+
+  .status-quiet-text {
+    display: none !important;
+  }
+
+  /* Main workspace offset begins exactly after the 72px rail */
+  .app-main,
+  .app-main.sidebar-expanded {
+    margin-left: var(--sidebar-w-collapsed) !important;
+    width: calc(100% - var(--sidebar-w-collapsed)) !important;
+    max-width: calc(100% - var(--sidebar-w-collapsed)) !important;
+    padding: 14px 16px 24px !important;
+  }
+
+  /* Top Bar compaction: 2-tier card, no horizontal collision */
+  .cockpit-top-bar {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    border-radius: 18px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .page-header-info {
+    order: 1 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .page-heading {
+    font-size: 18px !important;
+  }
+
+  .top-bar-actions {
+    order: 2 !important;
+    margin-left: auto !important;
+    gap: 6px !important;
+  }
+
+  .action-btn-circle {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .profile-badge-card {
+    padding: 2px !important;
+    border-radius: 50% !important;
+  }
+
+  .profile-text-wrap {
+    display: none !important;
+  }
+
+  .top-search-command {
+    order: 3 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 4px 0 0 0 !important;
+    padding: 7px 14px !important;
+  }
+
+  /* Dashboard: all panels stack cleanly */
+  .flight-deck-board-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .fitpulse-row-upper,
+  .fitpulse-row-lower {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* AI Assistant: vertical stack with scrollable top actions */
+  .ai-bento-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 90px) !important;
+    min-height: 500px !important;
+    gap: 12px !important;
+  }
+
+  .ai-sidebar-card {
+    max-height: 180px !important;
+    flex-shrink: 0 !important;
+    overflow-y: auto !important;
+    padding: 14px 16px !important;
+  }
+
+  .ai-chat-card {
+    flex: 1 !important;
+    min-height: 320px !important;
+    height: 100% !important;
+    padding: 16px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    margin-left: 0;
+    padding: 16px 14px 40px;
+  }
+
+  .icon-sidebar {
+    display: none;
+  }
+
+  .cockpit-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .top-bar-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-now-execution {
+    grid-column: span 12;
+    padding: 18px 16px;
+  }
+
+  .now-header-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dash-hero-side-stack {
+    grid-column: span 12;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .dash-hero-side-stack .card-next-action,
+  .dash-hero-side-stack .card-protection {
+    width: 100%;
+  }
+
+  .card-today-timeline,
+  .card-goals-summary,
+  .card-missions-table,
+  .card-overview,
+  .card-cadence {
+    grid-column: span 12;
+  }
+
+  .now-digits-big {
+    font-size: 38px;
+  }
+
+  .now-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .now-preset-chips {
+    justify-content: space-between;
+  }
+
+  .now-preset-chip {
+    flex: 1;
+    text-align: center;
+  }
+
+  .btn-now-engage {
+    width: 100%;
+    justify-content: center;
+  }
+}

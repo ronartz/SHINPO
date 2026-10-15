@@ -2,7 +2,6 @@ package com.shinpo.ai.actions;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.shinpo.ai.actions.dto.*;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.Mission;
 import com.shinpo.repository.GoalRepository;
@@ -11,8 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Set;
+
 
 @Component
 public class AiActionValidator {
@@ -101,7 +100,7 @@ public class AiActionValidator {
     }
 
     private void validateCreateGoal(JsonNode root) {
-        String title = root.path("title").asText(null);
+        String title = root.path("title").asString(null);
         if (title == null || title.trim().isBlank()) {
             throw new IllegalArgumentException("Goal title is required");
         }
@@ -111,7 +110,7 @@ public class AiActionValidator {
     }
 
     private void validateCreateTask(Long userId, JsonNode root) {
-        String title = root.path("title").asText(null);
+        String title = root.path("title").asString(null);
         if (title == null || title.trim().isBlank()) {
             throw new IllegalArgumentException("Task title is required");
         }
@@ -140,7 +139,7 @@ public class AiActionValidator {
         validateTaskOwnership(userId, taskId);
 
         if (root.has("title")) {
-            String title = root.path("title").asText();
+            String title = root.path("title").asString();
             if (title != null && title.length() > 255) {
                 throw new IllegalArgumentException("Task title exceeds maximum length of 255 characters");
             }
@@ -168,17 +167,17 @@ public class AiActionValidator {
         Long taskId = root.path("taskId").asLong();
         validateTaskOwnership(userId, taskId);
 
-        if (!root.has("scheduledDate") || root.path("scheduledDate").asText().isBlank()) {
+        if (!root.has("scheduledDate") || root.path("scheduledDate").asString().isBlank()) {
             throw new IllegalArgumentException("scheduledDate is required to reschedule task");
         }
-        LocalDate date = LocalDate.parse(root.path("scheduledDate").asText());
+        LocalDate date = LocalDate.parse(root.path("scheduledDate").asString());
         if (date.isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("Cannot reschedule task into the past: " + date);
         }
     }
 
     private void validateStartFocusSession(Long userId, JsonNode root) {
-        String name = root.path("name").asText(null);
+        String name = root.path("name").asString(null);
         if (name == null || name.trim().isBlank()) {
             throw new IllegalArgumentException("Focus session name is required");
         }
@@ -196,7 +195,7 @@ public class AiActionValidator {
     }
 
     private void validateScheduleFocusSession(Long userId, JsonNode root) {
-        String name = root.path("name").asText(null);
+        String name = root.path("name").asString(null);
         if (name == null || name.trim().isBlank()) {
             throw new IllegalArgumentException("Focus session name is required");
         }
@@ -205,10 +204,11 @@ public class AiActionValidator {
             throw new IllegalArgumentException("Focus session duration must be between 1 and 720 minutes");
         }
 
-        if (!root.has("scheduledAt") || root.path("scheduledAt").asText().isBlank()) {
+        if (!root.has("scheduledAt") || root.path("scheduledAt").asString().isBlank()) {
             throw new IllegalArgumentException("scheduledAt timestamp is required for scheduled focus session");
         }
-        Instant scheduledAt = Instant.parse(root.path("scheduledAt").asText());
+        Instant scheduledAt = Instant.parse(root.path("scheduledAt").asString());
+
         if (scheduledAt.isBefore(Instant.now().minusSeconds(120))) {
             throw new IllegalArgumentException("Cannot schedule focus session in the past");
         }

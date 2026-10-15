@@ -39,7 +39,8 @@ public class AiController {
     @PostMapping("/chat")
     public ResponseEntity<AiChatResponse> chat(
             @RequestBody AiChatRequest request,
-            @AuthenticationPrincipal UserPrincipal principal
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone
     ) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
@@ -53,7 +54,7 @@ public class AiController {
                 request != null ? request.contextualSessionId() : null,
                 request != null ? request.conversationId() : null
         );
-        return ResponseEntity.ok(aiService.processChat(boundRequest));
+        return ResponseEntity.ok(aiService.processChat(boundRequest, parseTimezone(timezone)));
     }
 
     @GetMapping("/conversation/active")

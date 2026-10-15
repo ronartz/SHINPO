@@ -113,7 +113,7 @@ public class ApiErrorResponseTests {
         RegisterRequest registerRequest = new RegisterRequest(
                 "valid_user",
                 "valid@example.com",
-                "123"
+                "p_w_d"
         );
 
         HttpHeaders headers = new HttpHeaders();
@@ -140,7 +140,7 @@ public class ApiErrorResponseTests {
 
         assertNotNull(passwordError, "Password error item should be present");
         assertNull(passwordError.rejectedValue(), "Sensitive rejectedValue must be null / sanitized");
-        assertFalse(response.getBody().toString().contains("123"), "Password plaintext must not appear in response");
+        assertFalse(response.getBody().toString().contains("p_w_d"), "Password plaintext must not appear in response");
     }
 
     @Test

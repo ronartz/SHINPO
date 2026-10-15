@@ -1,0 +1,442 @@
+/* PANEL 1: ACTIVE EXECUTION COCKPIT HERO */
+.cockpit-hero-panel {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.hero-body-active {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hero-session-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--brand-coral-subtle);
+  border: 1px solid var(--brand-coral-border);
+  color: var(--primary-coral);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.hero-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-coral);
+  box-shadow: 0 0 8px var(--primary-coral);
+  animation: liveBlink 1.5s infinite ease-in-out;
+}
+
+.hero-session-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.hero-session-intention {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.hero-timer-display {
+  font-size: 34px;
+  font-weight: 900;
+  font-family: var(--font-mono, monospace);
+  color: var(--text);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.hero-progress-track {
+  width: 100%;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hero-progress-bar {
+  height: 100%;
+  background: var(--brand-coral-gradient);
+  border-radius: 999px;
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition-fast);
+}
+
+.hero-btn.primary {
+  background: var(--brand-coral-gradient);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(255, 77, 94, 0.3);
+}
+
+.hero-btn.primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.hero-btn.secondary {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.hero-btn.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+/* Idle / Ready Cockpit State */
+.hero-body-idle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero-idle-shield-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.hero-idle-headline {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.hero-idle-task-preview {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hero-preview-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--primary-coral);
+  letter-spacing: 0.5px;
+}
+
+.hero-preview-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-arm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 100px;
+  background: var(--brand-coral-gradient);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(255, 77, 94, 0.35);
+  transition: transform 0.2s, filter 0.2s;
+  margin-top: 4px;
+}
+
+.hero-arm-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+/* PANEL 2: SPRINT VELOCITY ARC GAUGE */
+.velocity-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: auto 0;
+}
+
+.velocity-score-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.velocity-score-num {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+
+.velocity-score-label {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.velocity-gauge-wrap {
+  width: 100%;
+  max-width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  margin-top: 4px;
+}
+
+.velocity-gauge-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.velocity-tick-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  padding: 0 10px;
+  margin-top: 2px;
+}
+
+/* PANEL 3: TIME SHEET / SCHEDULE */
+.timesheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: auto 0;
+  max-height: 190px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-right: 6px;
+}
+
+.timesheet-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.timesheet-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timesheet-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.timesheet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  transition: all 0.15s ease;
+}
+
+.timesheet-item:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.timesheet-item.rank-first {
+  background: var(--brand-coral-subtle);
+  border-color: var(--brand-coral-border);
+}
+
+.timesheet-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.timesheet-rank-pill {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.timesheet-item.rank-first .timesheet-rank-pill {
+  background: var(--primary-coral);
+  color: #FFFFFF;
+}
+
+.timesheet-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timesheet-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timesheet-sub {
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.timesheet-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.timesheet-duration-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+/* PANEL 4: ACTIVITY FEED */
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: auto 0;
+  max-height: 190px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  padding-right: 6px;
+}
+
+.activity-feed-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.activity-feed-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-feed-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.activity-feed-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 12px;
+}
+
+.activity-feed-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.activity-feed-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-feed-time {
+  font-size: 10px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.activity-feed-note {
+  font-size: 11.5px;
+  color: var(--text-2);
+  line-height: 1.35;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.activity-feed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-green);
+  margin-top: 2px;
+}

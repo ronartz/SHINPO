@@ -25,6 +25,7 @@ export interface ScheduleViewProps {
   handleStartFromSchedule: (sessionId: number) => void
   handleCancelFromSchedule: (sessionId: number) => void
   handleDeleteSession: (sessionId: number) => void
+  handleEditSession?: (session: FocusSession) => void
 }
 
 import { trackRender } from '../utils/renderTracker'
@@ -38,6 +39,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   handleStartFromSchedule,
   handleCancelFromSchedule,
   handleDeleteSession,
+  handleEditSession,
 }) => {
   trackRender('ScheduleView')
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState<number>(0)
@@ -106,7 +108,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
           <button
             type="button"
             className="schedule-nav-btn"
-            onClick={() => setScheduleWeekOffset((prev) => prev - 1)}
+            onClick={() => {
+              setScheduleWeekOffset((prev) => prev - 1)
+              const cur = new Date(`${selectedScheduleDate}T00:00:00`)
+              cur.setDate(cur.getDate() - 7)
+              setSelectedScheduleDate(formatLocalCalendarDate(cur))
+            }}
             title="Previous Week"
           >
             <Icon name="chevron-left" size={14} />
@@ -126,7 +133,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
           <button
             type="button"
             className="schedule-nav-btn"
-            onClick={() => setScheduleWeekOffset((prev) => prev + 1)}
+            onClick={() => {
+              setScheduleWeekOffset((prev) => prev + 1)
+              const cur = new Date(`${selectedScheduleDate}T00:00:00`)
+              cur.setDate(cur.getDate() + 7)
+              setSelectedScheduleDate(formatLocalCalendarDate(cur))
+            }}
             title="Next Week"
           >
             <span>Next Week</span>
@@ -257,6 +269,17 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                           <Icon name="play" size={13} />
                           <span>Start Now</span>
                         </button>
+                        {handleEditSession && (
+                          <button
+                            type="button"
+                            className="schedule-btn-edit"
+                            title="Edit Session"
+                            onClick={() => handleEditSession(session)}
+                          >
+                            <Icon name="edit" size={13} />
+                            <span>Edit</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="schedule-btn-cancel"
@@ -309,7 +332,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
               <button
                 type="button"
                 className="schedule-quick-btn"
-                onClick={() => handleOpenBookingModal(selectedScheduleDate, 50, 'Deep Work Session')}
+                onClick={() => handleOpenBookingModal(selectedScheduleDate, 50, 'Deep Work Sprint')}
               >
                 50m Focus Session
               </button>

@@ -74,7 +74,7 @@ export function authHeaders(customHeaders: Record<string, string> = {}): Record<
   return headers
 }
 
-import { getBackendBaseUrl } from './config'
+import { getBackendBaseUrl } from './config.ts'
 
 const API_BASE = `${getBackendBaseUrl()}/api`
 

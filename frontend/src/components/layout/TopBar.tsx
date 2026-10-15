@@ -16,6 +16,8 @@ export interface TopBarProps {
   onRefreshData: () => void
   currentUser: AuthUser | null
   onLogout: () => void
+  onToggleV2Preview?: () => void
+  isV2Preview?: boolean
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -32,6 +34,8 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   onRefreshData,
   currentUser,
   onLogout,
+  onToggleV2Preview,
+  isV2Preview,
 }) => {
   trackRender('TopBar')
   return (
@@ -67,6 +71,30 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           <Icon name="bell" size={16} />
           {unreadAlertCount > 0 && <span className="bell-red-dot" />}
         </button>
+        {onToggleV2Preview && (
+          <button
+            type="button"
+            className={`action-btn-pill v2-preview-btn ${isV2Preview ? 'active' : ''}`}
+            onClick={onToggleV2Preview}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: '1px solid #9757FA',
+              background: 'linear-gradient(135deg, rgba(151, 87, 250, 0.15) 0%, rgba(77, 119, 249, 0.15) 100%)',
+              color: isDarkMode ? '#F5F7FF' : '#17213A',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            title={isV2Preview ? 'Switch to Classic View' : 'Toggle V2 Cinematic Aurora Preview'}
+          >
+            <span>{isV2Preview ? '⇄' : '★'}</span>
+            <span>{isV2Preview ? 'Classic View' : 'V2 AURORA'}</span>
+          </button>
+        )}
         <button
           className="action-btn-circle"
           onClick={onToggleTheme}

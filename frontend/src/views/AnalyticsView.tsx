@@ -109,7 +109,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         <div className="analytics-card-header">
           <div>
             <h3 className="tm-table-title">7-Day Focus Activity</h3>
-            <span className="tm-table-count">Daily focus minutes completed</span>
+            <span className="analytics-subtitle">Daily focus minutes completed</span>
           </div>
           <button
             type="button"
@@ -121,6 +121,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             <span>{analyticsLoading ? 'Refreshing...' : 'Refresh Activity'}</span>
           </button>
         </div>
+
+        {analyticsData && analyticsData.weeklyVelocity.reduce((sum, v) => sum + v.focusMinutes, 0) === 0 && (
+          <div className="analytics-empty-hint">
+            <Icon name="clock" size={14} />
+            <span>No focus logged in the past 7 days. Completed focus sprints will display here.</span>
+          </div>
+        )}
 
         <div className="analytics-chart-container">
           {analyticsData && analyticsData.weeklyVelocity.length > 0 ? (
@@ -136,10 +143,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                     <div
                       className="analytics-bar bar-animated"
                       style={{
-                        height: `${pct}%`,
+                        transform: `scaleY(${Math.max(0.03, pct / 100)})`,
                         background:
                           day.focusMinutes > 0
-                            ? 'linear-gradient(180deg, #FF9060 0%, #FF7A45 100%)'
+                            ? 'var(--brand-coral-gradient, linear-gradient(180deg, #9757FA 0%, #4D77F9 100%))'
                             : 'var(--surface-hover)',
                       }}
                     />
@@ -161,7 +168,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         <div className="analytics-card-header">
           <div>
             <h3 className="tm-table-title">Recent Session Summaries</h3>
-            <span className="tm-table-count">Session reflections and feedback</span>
+            <span className="analytics-subtitle">Session reflections and feedback</span>
           </div>
         </div>
 

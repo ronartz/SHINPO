@@ -47,6 +47,16 @@ public interface AiTool {
      */
     ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters);
 
+    /**
+     * Executes the tool with the caller's time zone when supported.
+     * The default implementation ignores {@code zoneId} and delegates to the
+     * two-argument overload; zone-sensitive tools must override this method.
+     *
+     * @param authenticatedUserId the verified user ID
+     * @param parameters validated tool parameters
+     * @param zoneId the caller's time zone
+     * @return the tool result
+     */
     default ToolResult execute(Long authenticatedUserId, Map<String, Object> parameters, ZoneId zoneId) {
         return execute(authenticatedUserId, parameters);
     }

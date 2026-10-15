@@ -230,8 +230,9 @@ public class DailyPlanningService {
             }
         }
 
-        int totalPlanned = items.stream().mapToInt(DailyPlanItem::durationMinutes).sum();
-        int focusMinutes = items.stream().filter(it -> !Boolean.TRUE.equals(it.isRestorativeBreak())).mapToInt(DailyPlanItem::durationMinutes).sum();
+        int totalPlanned = items.stream().mapToInt(it -> it != null ? it.durationMinutes() : 0).sum();
+        int focusMinutes = items.stream().filter(it -> it != null && !Boolean.TRUE.equals(it.isRestorativeBreak())).mapToInt(it -> it != null ? it.durationMinutes() : 0).sum();
+
         int breakMinutes = totalPlanned - focusMinutes;
 
         String pacingStrategy = focusMinutes > 150 ? "ULTRADIAN_HIGH_THROUGHPUT" : "TACTICAL_LIGHT";

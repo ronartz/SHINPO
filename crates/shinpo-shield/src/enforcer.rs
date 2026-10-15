@@ -389,10 +389,23 @@ impl ShieldEnforcer {
         protected: &HashSet<String>,
     ) -> bool {
         let proc_lower = proc_name.to_lowercase();
-        let cmd_lower = raw_cmd.to_lowercase();
-
-        // 1. Never touch protected system processes or shinpo itself
-        if proc_lower.contains("shinpo") || cmd_lower.contains("shinpo") {
+        // 1. Never touch known SHINPO executables
+        let executable_name = raw_cmd
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or("")
+            .trim_end_matches(".exe")
+            .to_lowercase();
+        if matches!(
+            executable_name.as_str(),
+            "shinpo" | "shinpo-shield" | "shinpo-desktop"
+        ) || matches!(
+            proc_lower.as_str(),
+            "shinpo" | "shinpo-shield" | "shinpo-desktop"
+        ) {
             return false;
         }
         if protected.iter().any(|prot| proc_lower.contains(prot) || proc_lower.starts_with(prot)) {
@@ -461,7 +474,7 @@ where
         return true;
     }
 
-    for delay in [50, 50] {
+    for delay in [50, 100, 150, 200] {
         std::thread::sleep(Duration::from_millis(delay));
         if !target_is_running() {
             return true;
@@ -851,12 +864,12 @@ mod tests {
         let blacklist = vec!["node".to_string(), "java".to_string(), "python".to_string()];
         let allowed = HashSet::new();
 
-        // Node running shinpo frontend dev server has shinpo in cmdline: protected!
-        assert!(!ShieldEnforcer::is_distraction_process(
+        // A node process is not protected merely because its arguments mention shinpo.
+        assert!(ShieldEnforcer::is_distraction_process(
             "node", "node /home/user/Projects/SHINPO/frontend/node_modules/vite/bin/vite.js", &blacklist, &allowed, &enforcer.protected_system_names
         ));
-        // Java running shinpo backend has shinpo in cmdline: protected!
-        assert!(!ShieldEnforcer::is_distraction_process(
+        // A Java process is not protected merely because its arguments mention shinpo.
+        assert!(ShieldEnforcer::is_distraction_process(
             "java", "java -jar /opt/shinpo/shinpo-backend.jar", &blacklist, &allowed, &enforcer.protected_system_names
         ));
         // Ordinary node script without shinpo is blockable!
@@ -1096,4 +1109,3 @@ mod tests {
         assert!(!is_in_active_grace("slack", &sync, after_expiry));
     }
 }
-

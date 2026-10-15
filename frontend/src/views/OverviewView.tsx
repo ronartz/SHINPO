@@ -6,10 +6,14 @@ import type { ExecutiveBriefing } from '../api/ai'
 import type { AnalyticsDashboardResponse } from '../api/analytics'
 import type { SentinelStatus, SentinelWarningItem } from '../api/device'
 import type { AppView } from '../types/navigation'
+import type { AuthUser } from '../api/auth'
 import { Icon } from '../components/common/Icon'
+import { LiveClock } from '../components/common/LiveClock'
 import { formatTimerDigits } from '../utils/focusTimer'
+import { trackRender } from '../utils/renderTracker'
 
 export interface OverviewViewProps {
+  currentUser?: AuthUser | null
   missions: Mission[]
   goals: Goal[]
   sessions: FocusSession[]
@@ -28,18 +32,8 @@ export interface OverviewViewProps {
   handleDeleteMission: (id: number, title: string) => void
   deletingMissionId: number | null
   handleStartFromSchedule: (id: number) => void
-  isCreatingQuickMission: boolean
   setIsCreatingQuickMission: (creating: boolean) => void
-  quickMissionTitle: string
-  setQuickMissionTitle: (title: string) => void
-  quickMissionGoalId: number | null
   setQuickMissionGoalId: (goalId: number | null) => void
-  quickMissionDuration: number
-  setQuickMissionDuration: (duration: number) => void
-  isSubmittingQuickMission: boolean
-  quickMissionError: string | null
-  setQuickMissionError?: (err: string | null) => void
-  handleQuickCreateMission: (e: React.FormEvent) => void
   inspectingMission: Mission | null
   setInspectingMission: (mission: Mission | null) => void
   activeTaskMenu: { task: Mission; rect: DOMRect } | null
@@ -57,18 +51,13 @@ export interface OverviewViewProps {
   nextActionMission?: Mission | null
 }
 
-import { trackRender } from '../utils/renderTracker'
-
 export const OverviewView: React.FC<OverviewViewProps> = ({
+  currentUser,
   missions,
   goals,
   sessions,
   activeSession,
   sentinelStatus,
-  executiveBriefing,
-  isBriefingExpanded,
-  setIsBriefingExpanded,
-  briefingLoading,
   analyticsData,
   topSearchQuery,
   setTopSearchQuery,
@@ -78,24 +67,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   handleDeleteMission,
   deletingMissionId,
   handleStartFromSchedule,
-  isCreatingQuickMission,
   setIsCreatingQuickMission,
-  quickMissionTitle,
-  setQuickMissionTitle,
-  quickMissionGoalId,
   setQuickMissionGoalId,
-  quickMissionDuration,
-  setQuickMissionDuration,
-  isSubmittingQuickMission,
-  quickMissionError,
-  setQuickMissionError,
-  handleQuickCreateMission,
   inspectingMission,
   setInspectingMission,
   activeTaskMenu,
   setActiveTaskMenu,
   handleAiSend,
-  refreshBriefing,
   handleEngageNextAction,
   pendingWarning,
   activeGraceWarning,
@@ -107,14 +85,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   nextActionMission,
 }) => {
   trackRender('OverviewView')
+
   const totalMissionsCount = missions.length
   const completedMissionsCount = missions.filter((m) => m.status === 'COMPLETED').length
   const velocityRate = totalMissionsCount > 0
     ? Math.round((completedMissionsCount / totalMissionsCount) * 100)
     : (analyticsData?.summary?.completionRate ? Math.round(analyticsData.summary.completionRate) : 0)
 
-  const gaugeCircumference = 235.62
-  const gaugeOffset = gaugeCircumference * (1 - Math.min(100, Math.max(0, velocityRate)) / 100)
+  const totalFocusMinutesToday = analyticsData?.summary?.totalFocusMinutes ??
+    sessions.filter((s) => s.status === 'COMPLETED').reduce((acc, s) => acc + (s.durationMinutes || 0), 0)
+
+  const completedSessionsCount = analyticsData?.summary?.sessionsCompleted ??
+    sessions.filter((s) => s.status === 'COMPLETED').length
+
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const q = topSearchQuery.trim().toLowerCase()
   const searchFilter = (m: Mission) => {
@@ -142,6 +128,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     ? pendM.slice(1)
     : pendM
 
+  const primaryActionTask = activeSession
+    ? null
+    : (nextActionMission || (displayPending.length > 0 ? displayPending[0] : (missions.find((m) => m.status !== 'COMPLETED') || null)))
+  const primaryActionGoal = primaryActionTask ? goals.find((g) => g.id === primaryActionTask.goalId) : null
+
   const recentDebriefsList = analyticsData?.recentDebriefs && analyticsData.recentDebriefs.length > 0
     ? analyticsData.recentDebriefs
     : []
@@ -158,7 +149,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return (
       <div
         key={task.id}
-        className={`flight-deck-card ${isActive ? 'is-active-sprint' : ''} ${hasOpenMenu ? 'has-open-menu' : ''}`}
+        className={`flight-deck-card ${isActive ? 'is-active-sprint' : ''} ${hasOpenMenu ? 'has-open-menu' : ''} ${isDone ? 'is-completed' : ''}`}
         onClick={() => {
           if (hasOpenMenu) {
             setActiveTaskMenu(null)
@@ -169,9 +160,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         title="Click to view task details"
       >
         <div className="card-top-row">
-          <h3 className={`card-title ${isDone ? 'completed-title' : ''}`}>
-            {task.title}
-          </h3>
+          <div className="card-title-group">
+            <button
+              type="button"
+              className={`card-check-btn ${isDone ? 'checked' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleToggleMissionComplete(task.id)
+              }}
+              title={isDone ? 'Completed (click to toggle)' : 'Mark task complete'}
+              aria-label={isDone ? 'Completed' : 'Mark task complete'}
+            >
+              {isDone && <Icon name="check" size={14} />}
+            </button>
+            <h3 className={`card-title ${isDone ? 'completed-title' : ''}`}>
+              {task.title}
+            </h3>
+          </div>
           <div className="card-menu-container" onClick={(e) => e.stopPropagation()}>
             <button
               className={`card-menu-btn ${hasOpenMenu ? 'active' : ''}`}
@@ -191,24 +196,27 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         <div className="card-context-row">
           {parentGoal ? (
-            <span className="card-goal-tag">{parentGoal.title}</span>
+            <span className="card-goal-tag" title={`Goal: ${parentGoal.title}`}>
+              <Icon name="target" size={11} />
+              <span>{parentGoal.title}</span>
+            </span>
           ) : (
-            <span className="card-goal-tag">Task</span>
+            <span className="card-goal-tag">General</span>
           )}
         </div>
 
         <div className="card-meta-row">
           <div className="card-meta-left">
             <span className="card-duration-chip">
-              <Icon name="clock" size={11} />
+              <Icon name="clock" size={12} />
               <span>{task.estimatedMinutes || 25}m</span>
             </span>
-            <span className="card-priority-chip">
-              {isDone ? 'Completed' : isActive ? 'Active Focus' : 'High Priority'}
+            <span className={`card-priority-chip ${isDone ? 'done' : isActive ? 'active' : ''}`}>
+              {isDone ? 'Completed' : isActive ? 'Active' : 'Ready'}
             </span>
           </div>
 
-          {!isDone && (
+          {!isDone ? (
             <button
               className="card-quick-arm-btn"
               onClick={(e) => {
@@ -217,9 +225,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               }}
               title="Start Focus Session"
             >
-              <Icon name="play" size={11} />
-              <span>Focus</span>
+              <Icon name="play" size={12} />
+              <span>Start Focus</span>
             </button>
+          ) : (
+            <span className="card-done-badge" title="Task Completed">
+              <Icon name="check" size={12} />
+              <span>Done</span>
+            </span>
           )}
         </div>
       </div>
@@ -227,8 +240,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   }
 
   return (
-    <div className="shinpo-flight-deck">
-      {/* Task Actions Floating Portal Menu - Completely immune to overflow/scroll clipping */}
+    <div className="shinpo-flight-deck shinpo-dashboard">
+      {/* Floating Task Actions Portal Menu */}
       {activeTaskMenu && typeof document !== 'undefined' && createPortal(
         (() => {
           const { task, rect } = activeTaskMenu
@@ -315,244 +328,424 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         document.body
       )}
 
-      {/* AI.9: Executive Command Briefing Card */}
-      {executiveBriefing && (
-        <section
-          className="executive-briefing-banner"
-          aria-label="Executive Intelligence Briefing"
-          style={{
-            marginBottom: 20,
-            padding: '18px 24px',
-            borderRadius: 'var(--radius-lg, 16px)',
-            background: 'linear-gradient(135deg, rgba(255, 77, 94, 0.08) 0%, rgba(20, 22, 28, 0.95) 100%)',
-            border: '1px solid rgba(255, 77, 94, 0.22)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, var(--accent-coral, #FF4D5E), #D92B3E)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  boxShadow: '0 0 16px rgba(255, 77, 94, 0.35)',
-                }}
-              >
-                <Icon name="sparkle" size={18} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1, #fff)' }}>
-                    {executiveBriefing.executiveHeadline}
-                  </span>
-                  <span
-                    className={`badge-tag ${
-                      executiveBriefing.sentinelThreatPosture === 'SECURE'
-                        ? 'green'
-                        : executiveBriefing.sentinelThreatPosture === 'CONTAINED'
-                        ? 'blue'
-                        : 'coral'
-                    }`}
-                    style={{ fontSize: 11, padding: '2px 8px', fontWeight: 700 }}
-                  >
-                    PROTECTION: {executiveBriefing.sentinelThreatPosture}
-                  </span>
-                </div>
-                <span style={{ fontSize: 12, color: 'var(--text-3, #8E929E)' }}>
-                  EONPAI Executive Briefing • Generated {new Date(executiveBriefing.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            </div>
+      {/* 1. Header Bar: Compact Greeting, Live Clock & Direct Actions */}
+      <header className="dashboard-header-bar">
+        <div className="header-greeting-block">
+          <h1 className="header-greeting-title">
+            {greeting}, <span className="greeting-highlight">{currentUser?.username || 'Executive'}</span>
+            {currentUser?.username?.startsWith('user_s1_') && (
+              <span className="test-data-badge" title="Automated Verification Account">Test Account</span>
+            )}
+          </h1>
+          <p className="header-greeting-sub">
+            Here is your priority focus and execution plan for today.
+          </p>
+        </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                className="btn-timer secondary"
-                style={{ padding: '6px 12px', fontSize: 12 }}
-                onClick={refreshBriefing}
-                disabled={briefingLoading}
-                title="Refresh Briefing"
-              >
-                <Icon name="refresh" size={12} />
-                <span>{briefingLoading ? 'Refreshing...' : 'Refresh'}</span>
-              </button>
-              <button
-                className="sidebar-toggle-btn"
-                onClick={() => setIsBriefingExpanded((prev) => !prev)}
-                title={isBriefingExpanded ? 'Collapse Briefing' : 'Expand Briefing'}
-              >
-                <Icon name={isBriefingExpanded ? 'chevron' : 'chevron-right'} size={14} />
-              </button>
+        <LiveClock />
+
+        <div className="header-actions-group">
+          {sentinelStatus && (
+            <div
+              className={`sentinel-badge-pill ${sentinelStatus.status === 'ACTIVE_DEFENSE' ? 'active-defense' : 'standby'}`}
+              onClick={() => setActiveTab('Task Manager')}
+              title={`Focus Protection: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today`}
+            >
+              <span className="sentinel-mini-dot" />
+              <span>
+                {sentinelStatus.status === 'ACTIVE_DEFENSE'
+                  ? 'Protection: Active Defense'
+                  : 'Protection: Standby'}
+              </span>
+            </div>
+          )}
+
+          <button
+            className="btn-header-action secondary"
+            onClick={() => {
+              if (goals.length > 0) {
+                setQuickMissionGoalId(goals[0].id)
+                setIsCreatingQuickMission(true)
+              } else {
+                setActiveTab('Goals & Missions')
+              }
+            }}
+            title="Create a new task"
+          >
+            <Icon name="plus" size={13} />
+            <span>New Task</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 2. Performance Summary Metrics (4 Balanced Cards) */}
+      <section className="dashboard-metrics-grid" aria-label="Performance Metrics">
+        {/* Metric 1: Active Goals */}
+        <div
+          className="dashboard-metric-card"
+          onClick={() => setActiveTab('Goals & Missions')}
+          title="View all goals"
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Active Goals</span>
+            <div className="metric-icon-box coral">
+              <Icon name="target" size={16} />
             </div>
           </div>
+          <div className="metric-card-value">{goals.length}</div>
+          <div className="metric-card-footer">
+            <span className="metric-card-sub">
+              {completedMissionsCount} {completedMissionsCount === 1 ? 'task' : 'tasks'} completed
+            </span>
+          </div>
+        </div>
 
-          {isBriefingExpanded && (
-            <div style={{ marginTop: 14 }}>
-              <p style={{ fontSize: 14, color: 'var(--text-2, #C5C8D4)', lineHeight: 1.55, margin: '0 0 14px' }}>
-                {executiveBriefing.tacticalSummary}
-              </p>
+        {/* Metric 2: Focus Logged */}
+        <div
+          className="dashboard-metric-card"
+          onClick={() => setActiveTab('Analytics')}
+          title="View Focus Analytics"
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Focus Logged</span>
+            <div className="metric-icon-box green">
+              <Icon name="focus" size={16} />
+            </div>
+          </div>
+          <div className="metric-card-value">{totalFocusMinutesToday}m</div>
+          <div className="metric-card-footer">
+            <span className="metric-card-sub">{completedSessionsCount} sessions completed</span>
+          </div>
+        </div>
 
-              {/* Executive Vital Metrics */}
+        {/* Metric 3: Tasks in Queue */}
+        <div
+          className="dashboard-metric-card"
+          onClick={() => {
+            const board = document.querySelector('.flight-deck-board-panel')
+            if (board) board.scrollIntoView({ behavior: 'smooth' })
+          }}
+          title="View Tasks Board"
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Tasks In Queue</span>
+            <div className="metric-icon-box cyan">
+              <Icon name="clock" size={16} />
+            </div>
+          </div>
+          <div className="metric-card-value">{displayInProgress.length + displayPending.length}</div>
+          <div className="metric-card-footer">
+            <span className="metric-card-sub">{compM.length} finished today</span>
+          </div>
+        </div>
+
+        {/* Metric 4: Task Completion Rate */}
+        <div
+          className="dashboard-metric-card"
+          onClick={() => setActiveTab('Analytics')}
+          title="View Execution Analytics"
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Completion Rate</span>
+            <div className="metric-icon-box purple">
+              <Icon name="analytics" size={16} />
+            </div>
+          </div>
+          <div className="metric-card-value">{velocityRate}%</div>
+          <div className="metric-card-footer">
+            <div className="metric-progress-track">
               <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                  gap: 10,
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 10,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Active Goals
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1, #fff)', marginTop: 2 }}>
-                    {executiveBriefing.activeGoalsCount}
-                  </div>
-                </div>
+                className="metric-progress-fill"
+                style={{ width: `${Math.min(100, Math.max(0, velocityRate))}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 10,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Queued Tasks
+      {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
+      <section className="dashboard-cockpit-grid" aria-label="Execution Cockpit">
+        {/* Priority Hero Card (Primary Execution Anchor) */}
+        <section className="priority-hero-card" aria-label="Today's Priority">
+            {activeSession ? (
+              <div className="hero-content active-sprint">
+                <div className="hero-card-header">
+                  <div className="hero-tag-group">
+                    <span className="hero-status-pill active">
+                      <span className="hero-pulse-dot" />
+                      <span>{activeSession.status === 'PAUSED' ? 'PAUSED' : 'ACTIVE FOCUS SPRINT'}</span>
+                    </span>
+                    {activeGraceWarning && (
+                      <span className="hero-status-pill grace">
+                        <Icon name="clock" size={12} />
+                        <span>Grace: {formatTimerDigits(graceSecondsLeft)} ({activeGraceWarning.processName})</span>
+                      </span>
+                    )}
+                    {pendingWarning && (
+                      <span className="hero-status-pill warning">
+                        <span>Tamper Alert</span>
+                      </span>
+                    )}
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#38bdf8', marginTop: 2 }}>
-                    {executiveBriefing.pendingMissionsCount}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 10,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Focus Logged
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80', marginTop: 2 }}>
-                    {executiveBriefing.focusMinutesToday}m
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 10,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Goal Progress
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#a78bfa', marginTop: 2 }}>
-                    {executiveBriefing.goalProgressAveragePct}%
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 10,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--text-3, #8E929E)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Blocked Distractions
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: executiveBriefing.quarantinedDistractionsToday > 0 ? '#fb7185' : 'var(--text-2, #C5C8D4)', marginTop: 2 }}>
-                    {executiveBriefing.quarantinedDistractionsToday}
-                  </div>
-                </div>
-              </div>
-
-              {/* Primary Recommendation Banner */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  background: 'rgba(255, 77, 94, 0.06)',
-                  border: '1px solid rgba(255, 77, 94, 0.16)',
-                  borderRadius: 10,
-                  marginBottom: 14,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Icon name="target" size={16} />
-                  <span style={{ fontSize: 13, color: 'var(--text-1, #fff)' }}>
-                    <strong style={{ color: 'var(--accent-coral, #FF4D5E)' }}>Priority Action:</strong> {executiveBriefing.primaryRecommendation}
+                  <span className="hero-duration-chip">
+                    {activeSession.durationMinutes || 25}m Sprint
                   </span>
                 </div>
-                <button
-                  className="btn-timer primary"
-                  style={{ padding: '6px 14px', fontSize: 12 }}
-                  onClick={() => {
-                    if (executiveBriefing.pendingMissionsCount > 0) {
-                      setActiveTab('Focus Engine')
-                    } else {
-                      setActiveTab('Goals & Missions')
-                    }
-                  }}
-                >
-                  <Icon name="play" size={12} />
-                  <span>Start</span>
-                </button>
-              </div>
 
-              {/* Key Action Items */}
-              {executiveBriefing.keyActionItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {executiveBriefing.keyActionItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 12,
-                        color: 'var(--text-3, #8E929E)',
-                      }}
+                <div className="hero-session-info">
+                  <h2 className="hero-session-title">{activeSession.name}</h2>
+                  {activeSession.intention && (
+                    <p className="hero-session-intention">{activeSession.intention}</p>
+                  )}
+                </div>
+
+                <div className="hero-timer-block">
+                  <div className="hero-timer-display">
+                    {formatTimerDigits(timerSeconds)}
+                  </div>
+                  <div className="hero-timer-meta">
+                    <span>remaining</span>
+                  </div>
+                </div>
+
+                <div className="hero-progress-track">
+                  <div
+                    className="hero-progress-bar"
+                    style={{
+                      width: `${Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          (1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60)) * 100,
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="hero-actions-row">
+                  {activeSession.status === 'ACTIVE' && (
+                    <button
+                      className="btn-hero-action secondary"
+                      onClick={() => handlePause(activeSession.id)}
+                      title="Pause focus session"
                     >
-                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent-coral, #FF4D5E)' }} />
-                      <span>{item}</span>
+                      <Icon name="pause" size={13} />
+                      <span>Pause</span>
+                    </button>
+                  )}
+                  {activeSession.status === 'PAUSED' && (
+                    <button
+                      className="btn-hero-action primary"
+                      onClick={() => handleResume(activeSession.id)}
+                      title="Resume focus session"
+                    >
+                      <Icon name="play" size={13} />
+                      <span>Resume</span>
+                    </button>
+                  )}
+                  <button
+                    className="btn-hero-action primary"
+                    onClick={() => setCompletingSessionId(activeSession.id)}
+                    title="Complete and record summary"
+                  >
+                    <Icon name="check" size={13} />
+                    <span>Complete & Summarize</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="hero-content idle-priority">
+                <div className="hero-card-header">
+                  <div className="hero-tag-group">
+                    <span className="hero-status-pill priority">
+                      <Icon name="target" size={12} />
+                      <span>Today's Priority</span>
+                    </span>
+                  </div>
+                  {primaryActionTask && (
+                    <span className="hero-duration-chip">
+                      <Icon name="clock" size={12} />
+                      <span>{primaryActionTask.estimatedMinutes || 25}m estimated</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="hero-session-info">
+                  {primaryActionTask ? (
+                    <>
+                      <h2 className="hero-session-title">{primaryActionTask.title}</h2>
+                      {primaryActionTask.description ? (
+                        <p className="hero-session-desc">{primaryActionTask.description}</p>
+                      ) : (
+                        <p className="hero-session-desc">Ready for focused execution. Block distraction apps and start your timer.</p>
+                      )}
+                      <div className="hero-context-line">
+                        <span className="hero-goal-tag">
+                          <Icon name="target" size={12} />
+                          <span>Goal: {primaryActionGoal?.title || 'Execution System'}</span>
+                        </span>
+                        <span className="hero-scheduled-date">
+                          Scheduled for today
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="hero-session-title">All Planned Tasks Complete</h2>
+                      <p className="hero-session-desc">
+                        You're all caught up! Add a new task or review your goals to maintain momentum.
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <div className="hero-actions-row">
+                  {primaryActionTask ? (
+                    <button
+                      className="btn-hero-action primary"
+                      onClick={() => {
+                        if (handleEngageNextAction) {
+                          handleEngageNextAction()
+                        } else if (primaryActionTask) {
+                          handleArmMissionAsSession(primaryActionTask.title, primaryActionTask.estimatedMinutes || undefined)
+                        }
+                      }}
+                      title="Start focus session on this task"
+                    >
+                      <Icon name="play" size={14} />
+                      <span>Start Focus Session</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-hero-action primary"
+                      onClick={() => {
+                        if (goals.length > 0) {
+                          setQuickMissionGoalId(goals[0].id)
+                          setIsCreatingQuickMission(true)
+                        } else {
+                          setActiveTab('Goals & Missions')
+                        }
+                      }}
+                      title="Add new task"
+                    >
+                      <Icon name="plus" size={14} />
+                      <span>Add New Task</span>
+                    </button>
+                  )}
+                  <button
+                    className="btn-hero-action secondary"
+                    onClick={() => {
+                      const board = document.getElementById('tasks-board')
+                      if (board) {
+                        board.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        setActiveTab('Goals & Missions')
+                      }
+                    }}
+                    title="View all tasks in board"
+                  >
+                    <span>View All Tasks</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Today's Schedule Card */}
+          <section className="dashboard-sidecar-card schedule-card" aria-label="Today's Schedule">
+            <div className="sidecar-card-header">
+              <div className="sidecar-header-left">
+                <div className="sidecar-icon-box blue">
+                  <Icon name="schedule" size={16} />
+                </div>
+                <h3 className="sidecar-card-title">Today's Schedule</h3>
+              </div>
+              <button
+                className="sidecar-icon-btn"
+                onClick={() => setActiveTab('Schedule')}
+                title="Open Schedule"
+              >
+                <Icon name="arrow-up-right" size={13} />
+              </button>
+            </div>
+
+            <div className="sidecar-body">
+              {sessions.length > 0 ? (
+                <div className="schedule-sessions-list">
+                  {sessions.slice(0, 3).map((s, idx) => {
+                    const canStart = s.status === 'SCHEDULED' && !activeSession
+                    const isDone = s.status === 'COMPLETED'
+                    return (
+                      <div
+                        key={s.id}
+                        className={`schedule-session-item ${canStart ? 'is-startable' : ''} ${isDone ? 'is-completed' : ''}`}
+                        onClick={() => {
+                          if (canStart) void handleStartFromSchedule(s.id)
+                        }}
+                        title={`${s.name}${s.intention ? ` — ${s.intention}` : ''}${canStart ? ' • Click to start' : ''}`}
+                      >
+                        <div className="schedule-item-time">
+                          <span className="schedule-time-pill">{idx + 1}</span>
+                        </div>
+                        <div className="schedule-item-details">
+                          <span className="schedule-session-name" title={s.name}>{s.name}</span>
+                          <span className="schedule-session-sub" title={s.intention || (isDone ? 'Completed' : 'Focus Session')}>
+                            {s.intention || (isDone ? 'Completed' : 'Focus Session')}
+                          </span>
+                        </div>
+                        <div className="schedule-item-badge">
+                          <span className={`duration-pill ${isDone ? 'done' : ''}`}>
+                            {isDone ? 'Done' : `${s.durationMinutes}m`}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : recentDebriefsList.length > 0 ? (
+                <div className="schedule-sessions-list">
+                  {recentDebriefsList.slice(0, 3).map((d) => (
+                    <div
+                      key={d.sessionId}
+                      className="schedule-session-item is-completed"
+                      title={`${d.sessionName}${d.accomplishment ? ` — ${d.accomplishment}` : ''}`}
+                    >
+                      <div className="schedule-item-time">
+                        <span className="schedule-time-pill">✓</span>
+                      </div>
+                      <div className="schedule-item-details">
+                        <span className="schedule-session-name" title={d.sessionName}>{d.sessionName}</span>
+                        <span className="schedule-session-sub" title={d.accomplishment || 'Completed Focus Sprint'}>
+                          {d.accomplishment || 'Completed Focus Sprint'}
+                        </span>
+                      </div>
+                      <div className="schedule-item-badge">
+                        <span className="duration-pill done">{d.durationMinutes}m</span>
+                      </div>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className="sidecar-empty-state">
+                  <span>No scheduled sessions today</span>
+                  <button
+                    className="empty-action-link"
+                    onClick={() => setActiveTab('Schedule')}
+                  >
+                    Schedule Focus Block
+                  </button>
+                </div>
               )}
             </div>
-          )}
-        </section>
-      )}
+          </section>
+      </section>
 
-      {/* Top Tier: Multi-Column Kanban Work Board */}
-      <section className="flight-deck-board-panel" aria-label="Tasks Board">
+      {/* 4. Full-Width Tasks Board (Uses 100% available width beneath priority & schedule) */}
+      <section className="flight-deck-board-panel full-width-board" id="tasks-board" aria-label="Tasks Board">
         <div className="board-panel-header">
           <div className="board-header-left">
-            <h2 className="board-panel-title">All Tasks</h2>
+            <h2 className="board-panel-title">Tasks Board</h2>
             <div className="board-status-summary">
               <span className="summary-pill active">
                 {displayInProgress.length + displayPending.length} in progress & ready
@@ -560,22 +753,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span className="summary-pill completed">
                 {compM.length} completed
               </span>
-              {sentinelStatus && (
-                <span
-                  className={`summary-pill sentinel-pill ${sentinelStatus.status === 'ACTIVE_DEFENSE' ? 'active-defense' : 'standby'}`}
-                  title={`Focus Protection: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today.`}
-                  onClick={() => setActiveTab('Task Manager')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="sentinel-mini-dot" />
-                  <span>Protection: {sentinelStatus.status.replace('_', ' ')}</span>
-                  {sentinelStatus.totalInterceptedToday > 0 && (
-                    <span className="sentinel-interception-badge">
-                      {sentinelStatus.totalInterceptedToday}
-                    </span>
-                  )}
-                </span>
-              )}
             </div>
           </div>
 
@@ -591,7 +768,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onClick={() => {
                 if (goals.length > 0) {
                   setQuickMissionGoalId(goals[0].id)
-                  setQuickMissionError?.(null)
                   setIsCreatingQuickMission(true)
                 } else {
                   setActiveTab('Goals & Missions')
@@ -621,7 +797,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 displayInProgress.map((t) => renderFlightDeckCard(t))
               ) : (
                 <div className="status-column-empty">
-                  <span>No task currently running</span>
+                  <span className="empty-title">No active focus session</span>
+                  <span className="empty-subtitle">Select a ready task below or start your priority session.</span>
                   {displayPending.length > 0 && (
                     <button
                       className="empty-action-link"
@@ -650,7 +827,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 displayPending.map((t) => renderFlightDeckCard(t))
               ) : (
                 <div className="status-column-empty">
-                  <span>No tasks queued</span>
+                  <span className="empty-title">No tasks queued</span>
+                  <span className="empty-subtitle">Create a task to plan your next session.</span>
                 </div>
               )}
             </div>
@@ -671,405 +849,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 compM.map((t) => renderFlightDeckCard(t))
               ) : (
                 <div className="status-column-empty">
-                  <span>No completed tasks yet</span>
+                  <span className="empty-title">No completed tasks yet today</span>
+                  <span className="empty-subtitle">Finished tasks will be cataloged here.</span>
                 </div>
               )}
             </div>
           </div>
         </div>
       </section>
-
-      {/* Bottom Tier: Supporting Cockpit Panels (4 Bento Cards) */}
-      <section className="flight-deck-cockpit-grid" aria-label="Supporting Overview Panels">
-        {/* PANEL 1: CURRENT FOCUS HERO */}
-        <div className="cockpit-panel cockpit-hero-panel">
-          <div className="cockpit-panel-header">
-            <div className="cockpit-panel-header-left">
-              <div className="cockpit-panel-icon">
-                <Icon name="focus" size={16} />
-              </div>
-              <h3 className="cockpit-panel-title">Current Focus</h3>
-            </div>
-            {pendingWarning ? (
-              <span className="hero-session-tag" style={{ background: 'rgba(255, 77, 94, 0.2)', border: '1px solid #FF4D5E', color: '#FF4D5E' }}>
-                <span className="hero-pulse-dot" style={{ background: '#FF4D5E' }} />
-                <span>WARNING</span>
-              </span>
-            ) : activeGraceWarning ? (
-              <span className="hero-session-tag" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #F59E0B', color: '#F59E0B' }}>
-                <span className="hero-pulse-dot" style={{ background: '#F59E0B' }} />
-                <span>GRACE PERIOD ({formatTimerDigits(graceSecondsLeft)})</span>
-              </span>
-            ) : activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
-              <span className="hero-session-tag" style={{ background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #A855F7', color: '#A855F7' }}>
-                <span>COMPLETE</span>
-              </span>
-            ) : activeSession ? (
-              <span className="hero-session-tag">
-                <span className="hero-pulse-dot" />
-                <span>{activeSession.status === 'PAUSED' ? 'PAUSED' : 'PROTECTION ACTIVE'}</span>
-              </span>
-            ) : (
-              <span className="hero-idle-shield-tag">
-                <span>PROTECTION READY</span>
-              </span>
-            )}
-          </div>
-
-          {activeSession ? (
-            <div className="hero-body-active">
-              <div className="hero-session-name">{activeSession.name}</div>
-              {activeSession.intention && (
-                <div className="hero-session-intention">{activeSession.intention}</div>
-              )}
-
-              {/* Live Grace Period Countdown Banner in Cockpit */}
-              {activeGraceWarning && (
-                <div className="sentinel-grace-banner">
-                  <div className="grace-banner-left">
-                    <span className="grace-banner-icon"><Icon name="clock" size={14} /></span>
-                    <div>
-                      <div className="grace-banner-title">
-                        Grace Window: {activeGraceWarning.processName}
-                      </div>
-                      <div className="grace-banner-subtitle">
-                        Distraction app allowed until countdown expires.
-                      </div>
-                    </div>
-                  </div>
-                  <div className="grace-banner-countdown">
-                    {formatTimerDigits(graceSecondsLeft)}
-                  </div>
-                </div>
-              )}
-
-              {activeSession.status === 'ACTIVE' && timerSeconds === 0 ? (
-                <div className="hero-timer-display" style={{ fontSize: 13, color: 'var(--accent-coral, #FF4D5E)' }}>
-                  Session Complete
-                </div>
-              ) : (
-                <div className={`hero-timer-display${activeSession.status === 'PAUSED' ? ' timer-paused' : ''}`}>
-                  {formatTimerDigits(timerSeconds)}
-                </div>
-              )}
-              <div className="hero-progress-track">
-                <div
-                  className="hero-progress-bar"
-                  style={{
-                    width: `${Math.max(
-                      0,
-                      Math.min(
-                        100,
-                        (1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60)) * 100,
-                      ),
-                    )}%`,
-                  }}
-                />
-              </div>
-              <div className="hero-actions-row">
-                {activeSession.status === 'ACTIVE' && (
-                  <button
-                    className="hero-btn secondary"
-                    onClick={() => handlePause(activeSession.id)}
-                  >
-                    <Icon name="pause" size={12} />
-                    <span>Pause</span>
-                  </button>
-                )}
-                {activeSession.status === 'PAUSED' && (
-                  <button
-                    className="hero-btn primary"
-                    onClick={() => handleResume(activeSession.id)}
-                  >
-                    <Icon name="play" size={12} />
-                    <span>Resume</span>
-                  </button>
-                )}
-                <button
-                  className="hero-btn primary"
-                  onClick={() => setCompletingSessionId(activeSession.id)}
-                >
-                  <Icon name="check" size={12} />
-                  <span>Summarize</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="hero-body-idle">
-              <div className="hero-idle-headline">Focus Protection Ready</div>
-              <div className="hero-idle-task-preview">
-                <span className="hero-preview-label">Next Task</span>
-                <span className="hero-preview-title">
-                  {nextActionMission?.title || (missions.length > 0 ? missions[0].title : 'Plan your next session')}
-                </span>
-              </div>
-              <button
-                className="hero-arm-btn"
-                onClick={handleEngageNextAction}
-                title="Start focus on highest priority task"
-              >
-                <Icon name="play" size={13} />
-                <span>Start Focus</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* PANEL 2: TASK COMPLETION RATE GAUGE */}
-        <div className="cockpit-panel cockpit-velocity-panel">
-          <div className="cockpit-panel-header">
-            <div className="cockpit-panel-header-left">
-              <div className="cockpit-panel-icon">
-                <Icon name="analytics" size={16} />
-              </div>
-              <h3 className="cockpit-panel-title">Task Completion Rate</h3>
-            </div>
-            <button
-              className="cockpit-panel-action-icon"
-              onClick={() => setActiveTab('Analytics')}
-              title="View Analytics"
-            >
-              <Icon name="arrow-up-right" size={13} />
-            </button>
-          </div>
-
-          <div className="velocity-body">
-            <div className="velocity-score-row">
-              <div className="velocity-score-num">{velocityRate}%</div>
-              <div className="velocity-score-label">Task Completion Rate</div>
-            </div>
-
-            <div className="velocity-gauge-wrap">
-              <svg className="velocity-gauge-svg" viewBox="0 0 200 115" width="100%" height="115">
-                <defs>
-                  <linearGradient id="velocityGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#38BDF8" />
-                    <stop offset="50%" stopColor="#F59E0B" />
-                    <stop offset="100%" stopColor="#FF4D5E" />
-                  </linearGradient>
-                </defs>
-                {/* Background track arc */}
-                <path
-                  d="M 25 95 A 75 75 0 0 1 175 95"
-                  fill="none"
-                  stroke="rgba(255, 255, 255, 0.08)"
-                  strokeWidth="11"
-                  strokeLinecap="round"
-                />
-                {/* Foreground progress arc */}
-                <path
-                  d="M 25 95 A 75 75 0 0 1 175 95"
-                  fill="none"
-                  stroke="url(#velocityGaugeGrad)"
-                  strokeWidth="11"
-                  strokeLinecap="round"
-                  strokeDasharray={gaugeCircumference}
-                  strokeDashoffset={gaugeOffset}
-                  style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
-                />
-              </svg>
-              <div className="velocity-tick-labels">
-                <span>• Mon</span>
-                <span>• Tue</span>
-                <span>• Wed</span>
-                <span>• Thu</span>
-                <span>• Fri</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* PANEL 3: SCHEDULE */}
-        <div className="cockpit-panel cockpit-timesheet-panel">
-          <div className="cockpit-panel-header">
-            <div className="cockpit-panel-header-left">
-              <div className="cockpit-panel-icon">
-                <Icon name="schedule" size={16} />
-              </div>
-              <h3 className="cockpit-panel-title">Schedule</h3>
-            </div>
-            <button
-              className="cockpit-panel-action-icon"
-              onClick={() => setActiveTab('Schedule')}
-              title="Open Calendar"
-            >
-              <Icon name="arrow-up-right" size={13} />
-            </button>
-          </div>
-
-          <div className="timesheet-list">
-            {sessions.length > 0 ? (
-              sessions.slice(0, 4).map((s, idx) => {
-                const canStart = s.status === 'SCHEDULED' && !activeSession
-                const title = canStart
-                  ? 'Click to start session'
-                  : s.status === 'COMPLETED'
-                    ? 'Completed session'
-                    : activeSession
-                      ? 'Finish the active focus session before starting another'
-                      : `Session is ${s.status.toLowerCase()}`
-                return (
-                <div
-                  key={s.id}
-                  className={`timesheet-item ${idx === 0 ? 'rank-first' : ''}`}
-                  onClick={() => {
-                    if (canStart) void handleStartFromSchedule(s.id)
-                  }}
-                  style={{ cursor: canStart ? 'pointer' : 'default' }}
-                  title={title}
-                >
-                  <div className="timesheet-item-left">
-                    <span className="timesheet-rank-pill">{idx + 1}</span>
-                    <div className="timesheet-meta">
-                      <span className="timesheet-name">{s.name}</span>
-                      <span className="timesheet-sub">{s.intention || 'Focus Session'}</span>
-                    </div>
-                  </div>
-                  <div className="timesheet-item-right">
-                    <span className="timesheet-duration-badge">{s.durationMinutes}m</span>
-                  </div>
-                </div>
-                )
-              })
-            ) : (
-              <div className="status-column-empty" style={{ padding: '16px' }}>
-                <span>No focus sessions recorded yet</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* PANEL 4: ACTIVITY FEED */}
-        <div className="cockpit-panel cockpit-activity-panel">
-          <div className="cockpit-panel-header">
-            <div className="cockpit-panel-header-left">
-              <div className="cockpit-panel-icon">
-                <Icon name="sparkle" size={16} />
-              </div>
-              <h3 className="cockpit-panel-title">Activity</h3>
-            </div>
-            <span className="card-goal-tag" style={{ fontSize: '10.5px' }}>Today</span>
-          </div>
-
-          <div className="activity-feed-list">
-            {recentDebriefsList.length > 0 ? (
-              recentDebriefsList.slice(0, 3).map((d) => (
-                <div key={d.sessionId} className="activity-feed-item">
-                  <div className="activity-feed-top">
-                    <span className="activity-feed-name">{d.sessionName}</span>
-                    <span className="activity-feed-time">
-                      {d.completedAt ? new Date(d.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
-                    </span>
-                  </div>
-                  <span className="activity-feed-note">
-                    {d.accomplishment || d.reflectionNote || 'Completed focus session and recorded summary'}
-                  </span>
-                  <span className="activity-feed-tag">Session Summary ({d.durationMinutes}m)</span>
-                </div>
-              ))
-            ) : sessions.filter((s) => s.status === 'COMPLETED').length > 0 ? (
-              sessions
-                .filter((s) => s.status === 'COMPLETED')
-                .slice(0, 3)
-                .map((s) => (
-                  <div key={s.id} className="activity-feed-item">
-                    <div className="activity-feed-top">
-                      <span className="activity-feed-name">{s.name}</span>
-                      <span className="activity-feed-time">Completed</span>
-                    </div>
-                    <span className="activity-feed-note">{s.intention || 'Focus session completed successfully'}</span>
-                    <span className="activity-feed-tag">{s.durationMinutes}m Focus Completed</span>
-                  </div>
-                ))
-            ) : (
-              <div className="status-column-empty" style={{ padding: '16px' }}>
-                <span>No recent session summaries</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Task Creator Modal */}
-      {isCreatingQuickMission && (
-        <div className="flight-deck-quick-modal-overlay" onClick={() => setIsCreatingQuickMission(false)}>
-          <div className="flight-deck-quick-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="quick-modal-header">
-              <h3 className="quick-modal-title">Create Task</h3>
-              <button className="quick-modal-close" onClick={() => setIsCreatingQuickMission(false)}>
-                <Icon name="close" size={14} />
-              </button>
-            </div>
-
-            <form className="quick-modal-form" onSubmit={handleQuickCreateMission}>
-              {quickMissionError && (
-                <div className="quick-modal-error" role="alert">{quickMissionError}</div>
-              )}
-              <div className="quick-field-group">
-                <label className="quick-field-label">Associated Goal</label>
-                <select
-                  className="quick-field-select"
-                  value={quickMissionGoalId ?? ''}
-                  onChange={(e) => setQuickMissionGoalId(Number(e.target.value))}
-                  required
-                >
-                  {goals.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="quick-field-group">
-                <label className="quick-field-label">Task Title</label>
-                <input
-                  type="text"
-                  className="quick-field-input"
-                  placeholder="e.g. Refactor API endpoint, Write test suite..."
-                  value={quickMissionTitle}
-                  onChange={(e) => setQuickMissionTitle(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="quick-field-group">
-                <label className="quick-field-label">Estimated Duration</label>
-                <div className="quick-duration-presets">
-                  {[15, 25, 45, 60].map((dur) => (
-                    <button
-                      type="button"
-                      key={dur}
-                      className={`quick-preset-btn ${quickMissionDuration === dur ? 'active' : ''}`}
-                      onClick={() => setQuickMissionDuration(dur)}
-                    >
-                      {dur}m
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="quick-modal-actions">
-                <button
-                  type="button"
-                  className="board-action-btn secondary"
-                  onClick={() => setIsCreatingQuickMission(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="board-action-btn primary"
-                  disabled={isSubmittingQuickMission || !quickMissionTitle.trim()}
-                >
-                  {isSubmittingQuickMission ? 'Creating...' : 'Create Task'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Task Details Modal */}
       {inspectingMission && (

@@ -1,0 +1,1455 @@
+/* ==========================================================================
+   EONPAI WORKSPACE (SLICE 7.2 PROFESSIONAL DESKTOP REBUILD)
+   ========================================================================== */
+.eonpai-workspace,
+.ai-bento-container {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* --- Left Utility Panel (Restrained 210-250px) --- */
+.eonpai-utility-panel,
+.ai-sidebar-card {
+  width: 230px;
+  min-width: 210px;
+  max-width: 250px;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  box-sizing: border-box;
+}
+
+.eonpai-utility-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.eonpai-utility-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.eonpai-utility-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+}
+
+.eonpai-command-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eonpai-command-row,
+.ai-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.eonpai-command-row:hover,
+.ai-preset-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
+  color: var(--text);
+  transform: none;
+}
+
+.command-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-arrow {
+  opacity: 0.35;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.eonpai-command-row:hover .command-arrow {
+  opacity: 0.9;
+  transform: translate(1px, -1px);
+}
+
+.eonpai-command-more-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+  margin-top: 2px;
+}
+
+.eonpai-toggle-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.eonpai-toggle-more-btn:hover {
+  color: var(--text-2);
+  background: var(--surface-subtle);
+}
+
+.eonpai-utility-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.eonpai-tip-box {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.eonpai-tip-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.eonpai-tip-text {
+  font-size: 12px;
+  color: var(--text-1);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.eonpai-tip-text kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+}
+
+/* --- Right Conversation Panel (Flexible, Fixed-Height Shell) --- */
+.eonpai-conversation-card,
+.ai-chat-card {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Restrained Header */
+.eonpai-chat-header,
+.ai-chat-card-header {
+  flex-shrink: 0;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-card);
+}
+
+.eonpai-identity-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eonpai-avatar-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.28));
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: #a78bfa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.eonpai-title-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.eonpai-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.eonpai-subtitle {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.eonpai-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  margin-left: 8px;
+}
+
+.eonpai-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.6);
+  flex-shrink: 0;
+}
+
+.eonpai-status-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-family: var(--font-mono, monospace);
+}
+
+.eonpai-new-chat-btn,
+.ai-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eonpai-new-chat-btn:hover,
+.ai-clear-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* Scrollable Message Feed (The ONLY container that vertically scrolls) */
+.eonpai-chat-feed,
+.ai-chat-feed,
+.ai-messages-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+  scroll-padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  box-sizing: border-box;
+}
+
+.eonpai-chat-content-wrap,
+.ai-chat-content-wrap,
+.ai-messages-content {
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+/* Pending Banner */
+.eonpai-pending-banner,
+.ai-pending-banner {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pending-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #00e5ff;
+}
+
+/* Message Bubbles */
+.ai-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+}
+
+.ai-bubble.user {
+  align-self: flex-end;
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 12px 12px 2px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme='light'] .ai-bubble.user,
+.theme-light .ai-bubble.user {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #1E293B;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.theme-aurora .ai-bubble.user {
+  background: rgba(151, 87, 250, 0.12);
+  border-color: rgba(151, 87, 250, 0.28);
+  color: #F5F7FF;
+}
+
+.theme-aurora.theme-light .ai-bubble.user,
+html[data-theme='light'] .theme-aurora .ai-bubble.user {
+  background: #F5F3FF;
+  border-color: rgba(151, 87, 250, 0.25);
+  color: #17213A;
+}
+
+.ai-bubble.assistant {
+  align-self: flex-start;
+  max-width: 100%;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px 12px 12px 2px;
+  background: var(--surface-subtle, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ai-bubble-text {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.ai-bubble-text p {
+  margin: 0 0 10px 0;
+}
+
+.ai-bubble-text p:last-child {
+  margin-bottom: 0;
+}
+
+.eonpai-thinking-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-style: italic;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.thinking-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00e5ff;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Structured Suggested Tasks List (Section 16) */
+.eonpai-tasks-block,
+.ai-missions-wrapper {
+  margin-top: 8px;
+  border-radius: 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.eonpai-tasks-header,
+.ai-missions-header {
+  padding: 8px 14px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eonpai-tasks-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.eonpai-tasks-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.eonpai-tasks-count,
+.ai-missions-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-2);
+}
+
+.eonpai-commit-all-btn,
+.ai-commit-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: var(--primary-green);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eonpai-commit-all-btn:hover:not(:disabled),
+.ai-commit-all-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.eonpai-commit-all-btn:disabled,
+.ai-commit-all-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.eonpai-tasks-list,
+.ai-missions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.eonpai-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s ease;
+}
+
+.eonpai-task-row:last-child {
+  border-bottom: none;
+}
+
+.eonpai-task-row:hover {
+  background: var(--surface-subtle);
+}
+
+.eonpai-task-idx {
+  width: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.eonpai-task-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.eonpai-task-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.eonpai-task-sub {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 1px;
+  line-height: 1.3;
+}
+
+.eonpai-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.eonpai-task-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.eonpai-task-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eonpai-task-add-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.eonpai-task-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Suggested Daily Plan Card */
+.ai-plan-card {
+  margin-top: 10px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-plan-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ai-plan-energy-badge {
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ai-plan-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-timeline-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+
+.ai-timeline-block:hover {
+  background: var(--surface-hover);
+}
+
+.timeline-block-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 50px;
+  text-align: center;
+}
+
+.timeline-time-str {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.timeline-duration-badge {
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.timeline-block-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-mission-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-mission-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-window-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(53, 227, 111, 0.12);
+  color: var(--primary-green);
+  border: 1px solid rgba(53, 227, 111, 0.25);
+}
+
+.timeline-mission-desc {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.timeline-arm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(53, 227, 111, 0.12);
+  border: 1px solid rgba(53, 227, 111, 0.3);
+  color: var(--primary-green);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.timeline-arm-btn:hover {
+  background: var(--primary-green);
+  color: #04180b;
+}
+
+.ai-plan-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+.ai-commit-plan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #9757FA);
+  color: #FFFFFF;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+html[data-theme='light'] .ai-commit-plan-btn {
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #7932E6);
+  color: #FFFFFF;
+}
+
+.ai-commit-plan-btn:hover:not(:disabled) {
+  background: var(--brand-coral-hover, #AB75FC);
+}
+
+.ai-commit-plan-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Fixed Modern Composer (Section 13) */
+.eonpai-composer,
+.ai-chat-input-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface-card);
+  padding: 10px 18px;
+  box-sizing: border-box;
+}
+
+.eonpai-composer-inner {
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.eonpai-composer-input {
+  flex: 1;
+  min-height: 38px;
+  max-height: 120px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.eonpai-composer-input:focus {
+  border-color: var(--brand-coral);
+  box-shadow: 0 0 0 2px var(--brand-coral-subtle);
+}
+
+.eonpai-composer-send-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #9757FA);
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+html[data-theme='light'] .eonpai-composer-send-btn {
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #7932E6);
+  color: #FFFFFF;
+}
+
+.eonpai-composer-send-btn:hover:not(:disabled) {
+  background: var(--brand-coral-hover, #AB75FC);
+  transform: translateY(-1px);
+}
+
+.theme-aurora .eonpai-composer-send-btn,
+.theme-aurora .ai-commit-plan-btn {
+  background: linear-gradient(135deg, #9757FA 0%, #4D77F9 100%) !important;
+  background-color: #9757FA !important;
+  color: #FFFFFF !important;
+}
+
+.theme-aurora .eonpai-composer-send-btn:hover:not(:disabled),
+.theme-aurora .ai-commit-plan-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #A86CFB 0%, #638BFA 100%) !important;
+}
+
+.eonpai-composer-send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+html[data-theme='light'] .eonpai-composer-send-btn:disabled,
+.theme-light .eonpai-composer-send-btn:disabled {
+  background: var(--surface-subtle);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  opacity: 1;
+}
+
+.ai-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-quick-chip {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.ai-quick-chip:hover {
+  background: var(--brand-coral-subtle);
+  border-color: var(--brand-coral);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.ai-tutorial-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--surface-card);
+  border: 1px solid rgba(77, 124, 255, 0.3);
+  border-radius: 10px;
+}
+
+.ai-bug-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--surface-card);
+  border: 1px solid rgba(53, 227, 111, 0.3);
+  border-radius: 10px;
+}
+
+.ai-messages-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ai-scroll-bottom-btn {
+  position: absolute;
+  bottom: 74px;
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  z-index: 25;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  animation: scrollBtnFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scrollBtnFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ai-scroll-bottom-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 14px rgba(53, 227, 111, 0.3);
+}
+
+.ai-scroll-bottom-btn:active {
+  transform: scale(0.92);
+}
+
+html[data-theme='light'] .ai-scroll-bottom-btn {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #1E293B;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme='light'] .ai-scroll-bottom-btn:hover {
+  background: #F8FAFC;
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+}
+
+/* Bento Empty States */
+.bento-empty-inline-state {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border);
+  text-align: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.bento-empty-text {
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.bento-timeline-empty-lane {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   SHINPO EONPAI GUIDED TOUR OVERLAY & SPOTLIGHT STYLES
+   ============================================================ */
+
+.shinpo-tutorial-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.shinpo-backdrop-quad {
+  position: fixed;
+  background: rgba(10, 10, 14, 0.74);
+  backdrop-filter: blur(2.5px);
+  pointer-events: auto;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.shinpo-spotlight-ring {
+  position: fixed;
+  border: 2px solid #35E36F;
+  box-shadow: 0 0 0 3px rgba(53, 227, 111, 0.2), 0 0 22px rgba(53, 227, 111, 0.55);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: shinpo-pulse-ring 2s infinite ease-in-out;
+}
+
+@keyframes shinpo-pulse-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(53, 227, 111, 0.2), 0 0 18px rgba(53, 227, 111, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(53, 227, 111, 0.35), 0 0 28px rgba(53, 227, 111, 0.8);
+  }
+}
+
+.shinpo-coachmark-card {
+  position: fixed;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface-card);
+  border: 1px solid rgba(53, 227, 111, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 25px rgba(53, 227, 111, 0.15);
+  padding: 18px 20px;
+  z-index: 10001;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: top 0.24s cubic-bezier(0.16, 1, 0.3, 1), left 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.coachmark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coachmark-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coachmark-eonpai-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #8B6CFF 0%, #6366F1 100%);
+  color: #FFFFFF;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(139, 108, 255, 0.35);
+}
+
+.coachmark-eonpai-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent-purple);
+}
+
+.coachmark-step-counter {
+  display: block;
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.coachmark-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.coachmark-close-btn:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.coachmark-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coachmark-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.coachmark-dialogue {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--surface-subtle);
+  border-left: 1px solid var(--accent-purple);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.coachmark-instruction {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.instruction-arrow {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--primary-green);
+  font-weight: 700;
+}
+
+.coachmark-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.coachmark-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.coachmark-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.2s ease;
+}
+
+.coachmark-dot.completed {
+  background: var(--primary-green);
+  opacity: 0.6;
+}
+
+.coachmark-dot.active {
+  width: 14px;
+  border-radius: 4px;
+  background: var(--primary-green);
+}
+
+.coachmark-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-coachmark {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.btn-coachmark.primary {
+  background: var(--primary-green);
+  color: #06080A;
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(53, 227, 111, 0.3);
+}
+
+.btn-coachmark.primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px rgba(53, 227, 111, 0.45);
+}
+
+.btn-coachmark.secondary {
+  background: var(--surface-subtle);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-coachmark.secondary:hover {
+  background: var(--surface-card);
+  border-color: var(--text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-spotlight-ring {
+    animation: none !important;
+    transition: none !important;
+  }
+  .shinpo-coachmark-card,
+  .shinpo-backdrop-quad {
+    transition: none !important;
+  }
+}
+
+.ai-cards-container {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.ai-card-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.ai-card-header-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.02em;
+}
+
+.ai-commit-all-btn {
+  background: linear-gradient(135deg, #35E36F 0%, #27C95C 100%);
+  color: #06080A;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(53, 227, 111, 0.25);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.ai-commit-all-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(53, 227, 111, 0.4);
+  filter: brightness(1.08);
+}
+
+.ai-commit-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ai-commit-single-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ai-commit-single-btn:hover:not(:disabled) {
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+  background: var(--primary-green-subtle);
+}
+
+.ai-commit-single-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-cards-container:focus-within {
+  border-color: var(--border-strong);
+}
+
+.ai-commit-all-btn:focus-visible,
+.ai-commit-single-btn:focus-visible,
+.ai-arm-sprint-btn:focus-visible {
+  outline: 2px solid var(--primary-green);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-cards-container,
+  .ai-commit-all-btn,
+  .ai-commit-single-btn,
+  .ai-arm-sprint-btn {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.ai-cards-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ai-mission-card {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.ai-arm-sprint-btn {
+  background-color: var(--accent-green-subtle);
+  background: var(--accent-green-subtle);
+  border: 1px solid var(--accent-green-border);
+  color: var(--accent-green);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.ai-arm-sprint-btn:hover {
+  background-color: var(--accent-green);
+  background: var(--accent-green);
+  color: #FFFFFF;
+  border-color: var(--accent-green);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.ai-chat-input-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.ai-input-field {
+  flex: 1;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  transition: var(--transition);
+}
+
+.ai-input-field:focus {
+  border-color: var(--primary-green);
+  box-shadow: 0 0 12px rgba(53, 227, 111, 0.22);
+}
+
+.ai-send-btn {
+  background: var(--primary-green);
+  color: #05180B;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ai-send-btn:hover {
+  background: var(--primary-green-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(53, 227, 111, 0.35);
+}

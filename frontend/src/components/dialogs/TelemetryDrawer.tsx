@@ -1,6 +1,7 @@
 import React from 'react'
 import type { LiveAlertItem } from '../../types/telemetry'
 import { Icon } from '../common/Icon'
+import { formatSafeTimeString } from '../../api/eventNormalizer'
 
 export interface TelemetryDrawerProps {
   isOpen: boolean
@@ -66,7 +67,7 @@ export const TelemetryDrawer: React.FC<TelemetryDrawerProps> = ({
                   </div>
                   {item.description && <div className="telemetry-item-desc">{item.description}</div>}
                   <span className="telemetry-item-time">
-                    {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    {formatSafeTimeString(item.timestamp)}
                   </span>
                 </div>
               </div>

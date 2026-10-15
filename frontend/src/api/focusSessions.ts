@@ -28,8 +28,8 @@ export type FocusSession = {
   pausedAt: string | null
   accumulatedPausedSeconds: number
   activeSeconds: number
-  remainingSeconds: number
-  serverTime: string
+  remainingSeconds?: number
+  serverTime?: string
   endedAt: string | null
   createdAt: string
   updatedAt: string
@@ -43,6 +43,17 @@ export type CompleteFocusSessionPayload = {
   quality?: number
   reflectionNote?: string
   accomplishment?: string
+  markMissionCompleted?: boolean
+}
+
+export type UpdateFocusSessionPayload = {
+  goalId?: number | null
+  missionId?: number | null
+  unlinkTask?: boolean
+  name?: string
+  intention?: string
+  durationMinutes?: number
+  scheduledAt?: string
 }
 
 export type CreateFocusSessionRequest = {
@@ -56,132 +67,77 @@ export type CreateFocusSessionRequest = {
   scheduledAt?: string
 }
 
-import { authHeaders, getAuthenticatedUserId } from './auth'
-import { getBackendBaseUrl } from './config'
+import { getAuthenticatedUserId } from './auth'
+import { apiClient } from './client'
 
-const API_BASE = `${getBackendBaseUrl()}/api/focus-sessions`
 const timezoneHeader = () => ({
   'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
 })
-
-async function parseResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let message = `Request failed: ${response.status}`
-
-    try {
-      const errorBody = await response.json()
-
-      if (errorBody.message) {
-        message = errorBody.message
-      }
-    } catch {
-      // Keep the HTTP status message when the response is not JSON.
-    }
-
-    throw new Error(message)
-  }
-
-  return response.json() as Promise<T>
-}
 
 export async function createFocusSession(
   request: CreateFocusSessionRequest,
 ): Promise<FocusSession> {
   const effectiveUserId = request.userId ?? getAuthenticatedUserId() ?? undefined
   const payload = effectiveUserId !== undefined ? { ...request, userId: effectiveUserId } : request
-  const response = await fetch(API_BASE, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  })
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.post<FocusSession>('/focus-sessions', payload)
 }
 
 export async function getFocusSessions(
   _userId?: number,
 ): Promise<FocusSession[]> {
-  const response = await fetch(API_BASE, {
-    headers: authHeaders(),
-  })
-
-  return parseResponse<FocusSession[]>(response)
+  return apiClient.get<FocusSession[]>('/focus-sessions')
 }
 
 export async function getFocusSessionsByDate(date: string): Promise<FocusSession[]> {
-  const response = await fetch(`${API_BASE}/by-date?date=${encodeURIComponent(date)}`, {
-    headers: { ...authHeaders(), ...timezoneHeader() },
+  return apiClient.get<FocusSession[]>('/focus-sessions/by-date', {
+    params: { date },
+    headers: timezoneHeader(),
   })
-  return parseResponse<FocusSession[]>(response)
 }
 
 export async function getFocusSessionsAgenda(
   startDate: string,
   endDate: string,
 ): Promise<FocusSession[]> {
-  const response = await fetch(
-    `${API_BASE}/agenda?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
-    {
-      headers: { ...authHeaders(), ...timezoneHeader() },
-    },
-  )
-  return parseResponse<FocusSession[]>(response)
+  return apiClient.get<FocusSession[]>('/focus-sessions/agenda', {
+    params: { startDate, endDate },
+    headers: timezoneHeader(),
+  })
 }
 
 export async function getFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    headers: authHeaders(),
-  })
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.get<FocusSession>(`/focus-sessions/${id}`)
 }
 
 export async function startFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(
-    `${API_BASE}/${id}/start`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-    },
-  )
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/start`)
 }
 
 export async function pauseFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(
-    `${API_BASE}/${id}/pause`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-    },
-  )
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/pause`)
 }
 
 export async function resumeFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(
-    `${API_BASE}/${id}/resume`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-    },
-  )
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/resume`)
+}
 
-  return parseResponse<FocusSession>(response)
+export async function updateFocusSession(
+  id: number,
+  payload: UpdateFocusSessionPayload,
+): Promise<FocusSession> {
+  return apiClient.put<FocusSession>(`/focus-sessions/${id}`, payload)
 }
 
 export async function completeFocusSession(
@@ -189,49 +145,19 @@ export async function completeFocusSession(
   _userId?: number,
   payload?: CompleteFocusSessionPayload,
 ): Promise<FocusSession> {
-  const response = await fetch(
-    `${API_BASE}/${id}/complete`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-      body: payload ? JSON.stringify(payload) : undefined,
-    },
-  )
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/complete`, payload)
 }
 
 export async function cancelFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
-  const response = await fetch(
-    `${API_BASE}/${id}/cancel`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-    },
-  )
-
-  return parseResponse<FocusSession>(response)
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/cancel`)
 }
 
 export async function deleteFocusSession(
   id: number,
   _userId?: number,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
-  if (!response.ok) {
-    let msg = `Failed to delete session ${id}: ${response.status}`
-    try {
-      const body = await response.json()
-      if (body.message) msg = body.message
-    } catch {
-      // ignore parse error, fallback to status
-    }
-    throw new Error(msg)
-  }
+  return apiClient.delete<void>(`/focus-sessions/${id}`)
 }

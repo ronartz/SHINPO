@@ -20,7 +20,7 @@ export function calculateRemainingSeconds(
     return Math.max(0, fallbackDurationMinutes * 60)
   }
 
-  const totalBudgetSec = (session.durationMinutes || fallbackDurationMinutes) * 60
+  const totalBudgetSec = (session.durationMinutes ?? fallbackDurationMinutes) * 60
 
   // 1. Terminal states
   if (
@@ -37,7 +37,6 @@ export function calculateRemainingSeconds(
     if (session.remainingSeconds !== undefined && session.remainingSeconds !== null) {
       return Math.max(0, session.remainingSeconds)
     }
-    // Fallback if remainingSeconds wasn't serialized
     const activeSec = session.activeSeconds ?? 0
     return Math.max(0, totalBudgetSec - activeSec)
   }
@@ -52,7 +51,7 @@ export function calculateRemainingSeconds(
     ) {
       const serverAnchorMs = new Date(session.serverTime).getTime()
       if (!Number.isNaN(serverAnchorMs)) {
-        const elapsedSinceServerMs = timerNowMs - serverAnchorMs
+        const elapsedSinceServerMs = Math.max(0, timerNowMs - serverAnchorMs)
         const elapsedSinceSec = Math.max(0, Math.floor(elapsedSinceServerMs / 1000))
         return Math.max(0, session.remainingSeconds - elapsedSinceSec)
       }
@@ -110,5 +109,3 @@ export const pomodoroPlans: PomodoroPlan[] = [
     schedule: '45m Focus • 15m Rest • 30m Focus',
   },
 ]
-
-

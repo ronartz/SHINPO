@@ -82,20 +82,20 @@ public class AiActionExecutor {
 
             switch (actionType) {
                 case "CREATE_GOAL" -> {
-                    String title = payload.path("title").asText();
-                    String description = payload.path("description").asText(null);
+                    String title = payload.path("title").asString();
+                    String description = payload.path("description").asString(null);
                     LocalDate targetDate = payload.has("targetDate") && !payload.path("targetDate").isNull()
-                            ? LocalDate.parse(payload.path("targetDate").asText())
+                            ? LocalDate.parse(payload.path("targetDate").asString())
                             : null;
                     GoalResponse created = goalService.createGoal(userId, new CreateGoalRequest(userId, title, description, LocalDate.now(), targetDate));
                     summary = "Successfully created goal \"" + created.title() + "\" (ID: " + created.id() + ").";
                 }
                 case "CREATE_TASK" -> {
                     Long goalId = payload.path("goalId").asLong();
-                    String title = payload.path("title").asText();
-                    String description = payload.path("description").asText("");
+                    String title = payload.path("title").asString();
+                    String description = payload.path("description").asString("");
                     LocalDate schedDate = payload.has("scheduledDate") && !payload.path("scheduledDate").isNull()
-                            ? LocalDate.parse(payload.path("scheduledDate").asText())
+                            ? LocalDate.parse(payload.path("scheduledDate").asString())
                             : LocalDate.now();
                     Integer estMinutes = payload.has("estimatedMinutes") && !payload.path("estimatedMinutes").isNull()
                             ? payload.path("estimatedMinutes").asInt()
@@ -106,11 +106,11 @@ public class AiActionExecutor {
                 case "UPDATE_TASK" -> {
                     Long taskId = payload.path("taskId").asLong();
                     MissionResponse existing = missionService.getMission(taskId, userId);
-                    String title = payload.has("title") ? payload.path("title").asText() : existing.title();
-                    String description = payload.has("description") ? payload.path("description").asText() : existing.description();
+                    String title = payload.has("title") ? payload.path("title").asString() : existing.title();
+                    String description = payload.has("description") ? payload.path("description").asString() : existing.description();
                     Integer estMinutes = payload.has("estimatedMinutes") ? payload.path("estimatedMinutes").asInt() : existing.estimatedMinutes();
-                    LocalDate schedDate = payload.has("scheduledDate") ? LocalDate.parse(payload.path("scheduledDate").asText()) : existing.scheduledDate();
-                    String status = payload.has("status") ? payload.path("status").asText() : existing.status();
+                    LocalDate schedDate = payload.has("scheduledDate") ? LocalDate.parse(payload.path("scheduledDate").asString()) : existing.scheduledDate();
+                    String status = payload.has("status") ? payload.path("status").asString() : existing.status();
 
                     MissionResponse updated = missionService.updateMission(taskId, userId,
                             new UpdateMissionRequest(existing.goalId(), title, description, schedDate, estMinutes, status));
@@ -124,14 +124,14 @@ public class AiActionExecutor {
                 }
                 case "RESCHEDULE_TASK" -> {
                     Long taskId = payload.path("taskId").asLong();
-                    LocalDate newDate = LocalDate.parse(payload.path("scheduledDate").asText());
+                    LocalDate newDate = LocalDate.parse(payload.path("scheduledDate").asString());
                     MissionResponse existing = missionService.getMission(taskId, userId);
                     MissionResponse updated = missionService.updateMission(taskId, userId,
                             new UpdateMissionRequest(existing.goalId(), existing.title(), existing.description(), newDate, existing.estimatedMinutes(), existing.status()));
                     summary = "Successfully rescheduled task \"" + updated.title() + "\" from " + existing.scheduledDate() + " to " + newDate + ".";
                 }
                 case "START_FOCUS_SESSION" -> {
-                    String name = payload.path("name").asText("Focus Sprint");
+                    String name = payload.path("name").asString("Focus Sprint");
                     int duration = payload.path("durationMinutes").asInt(25);
                     Long taskId = payload.has("taskId") && !payload.path("taskId").isNull() ? payload.path("taskId").asLong() : null;
                     Long goalId = payload.has("goalId") && !payload.path("goalId").isNull() ? payload.path("goalId").asLong() : null;
@@ -149,9 +149,9 @@ public class AiActionExecutor {
                     summary = "Started active focus session \"" + started.getName() + "\" (" + started.getDurationMinutes() + " minutes, ID: " + started.getId() + ").";
                 }
                 case "SCHEDULE_FOCUS_SESSION" -> {
-                    String name = payload.path("name").asText("Scheduled Focus");
+                    String name = payload.path("name").asString("Scheduled Focus");
                     int duration = payload.path("durationMinutes").asInt(25);
-                    Instant scheduledAt = Instant.parse(payload.path("scheduledAt").asText());
+                    Instant scheduledAt = Instant.parse(payload.path("scheduledAt").asString());
                     Long taskId = payload.has("taskId") && !payload.path("taskId").isNull() ? payload.path("taskId").asLong() : null;
                     Long goalId = payload.has("goalId") && !payload.path("goalId").isNull() ? payload.path("goalId").asLong() : null;
 
@@ -170,14 +170,14 @@ public class AiActionExecutor {
                     JsonNode items = payload.path("items");
                     int total = items.size();
                     for (JsonNode item : items) {
-                        String itemTitle = item.path("title").asText("Plan Item");
+                        String itemTitle = item.path("title").asString("Plan Item");
                         try {
-                            String itemActionType = item.path("actionType").asText("SCHEDULE_SESSION");
+                            String itemActionType = item.path("actionType").asString("SCHEDULE_SESSION");
                             if ("CREATE_TASK".equalsIgnoreCase(itemActionType)) {
                                 Long goalId = item.has("goalId") ? item.path("goalId").asLong() : null;
-                                String desc = item.path("description").asText("");
+                                String desc = item.path("description").asString("");
                                 Integer est = item.has("estimatedMinutes") ? item.path("estimatedMinutes").asInt(30) : 30;
-                                LocalDate sDate = item.has("scheduledDate") ? LocalDate.parse(item.path("scheduledDate").asText()) : LocalDate.now();
+                                LocalDate sDate = item.has("scheduledDate") ? LocalDate.parse(item.path("scheduledDate").asString()) : LocalDate.now();
                                 if (goalId != null) {
                                     missionService.createMission(userId, new CreateMissionRequest(goalId, itemTitle, desc, sDate, est));
                                     completedItems.add("Created task: " + itemTitle);
@@ -190,8 +190,9 @@ public class AiActionExecutor {
                                 Long taskId = item.has("taskId") ? item.path("taskId").asLong() : null;
                                 Long goalId = item.has("goalId") ? item.path("goalId").asLong() : null;
                                 Instant scheduledAt = item.has("scheduledAt")
-                                        ? Instant.parse(item.path("scheduledAt").asText())
+                                        ? Instant.parse(item.path("scheduledAt").asString())
                                         : Instant.now().plusSeconds(300);
+
 
                                 CreateFocusSessionRequest req = new CreateFocusSessionRequest();
                                 req.setUserId(userId);

@@ -6,7 +6,7 @@ import { Icon } from '../common/Icon'
 import type { ShinpoMessage } from '../../utils/shinpoMessages'
 import { formatTimerDigits } from '../../utils/focusTimer'
 import type { FocusSession } from '../../api/focusSessions'
-import type { SentinelWarningItem } from '../../api/device'
+import type { SentinelWarningItem, SentinelStatus } from '../../api/device'
 
 export interface SidebarProps {
   sidebarExpanded: boolean
@@ -20,6 +20,7 @@ export interface SidebarProps {
   activeGraceWarning?: SentinelWarningItem | null
   activeSession?: FocusSession | null
   graceSecondsLeft?: number
+  sentinelStatus?: SentinelStatus | null
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -36,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   activeGraceWarning,
   activeSession,
   graceSecondsLeft = 0,
+  sentinelStatus,
 }) => {
   trackRender('Sidebar')
   return (
@@ -48,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         >
           <ShinpoLogo
-            size={sidebarExpanded ? 28 : 34}
+            size={sidebarExpanded ? 30 : 34}
             variant={sidebarExpanded ? 'full' : 'icon'}
           />
         </div>
@@ -97,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             data-tooltip={item.label}
             data-tutorial={item.tut}
           >
-            <Icon name={item.icon} size={18} />
+            <Icon name={item.icon} size={19} />
             {sidebarExpanded && <span>{item.label}</span>}
             {sidebarExpanded && item.hasBadge && scheduledCount > 0 && (
               <span className="sidebar-nav-badge">
@@ -112,52 +114,66 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       </nav>
 
       <div className="sidebar-footer">
-        <div
-          className="sidebar-status-quiet"
-          title={
-            pendingWarning
-              ? 'Focus Protection: Distraction detected'
-              : activeGraceWarning
-              ? 'Focus Protection: Grace period active'
-              : activeSession
-              ? 'Focus Protection: Distractions blocked'
-              : 'Focus Protection: Standby'
+        {(() => {
+          const isWarning = !!pendingWarning
+          const isGrace = !isWarning && !!activeGraceWarning
+          const isSessionActive = !isWarning && !isGrace && !!activeSession
+          const isDaemonConnected = Boolean(sentinelStatus?.daemonConnected)
+          const sentinelState = sentinelStatus?.status
+
+          let statusTitle: string
+          let statusSub: string
+          let dotClass: string
+          let statusTooltip: string
+
+          if (isWarning) {
+            statusTitle = 'Warning'
+            statusSub = `${pendingWarning?.processName} detected`
+            dotClass = 'warning-engaged'
+            statusTooltip = `Focus Protection: Distraction detected (${pendingWarning?.processName})`
+          } else if (isGrace) {
+            statusTitle = 'Grace Period'
+            statusSub = `${formatTimerDigits(graceSecondsLeft)} left`
+            dotClass = 'grace-engaged'
+            statusTooltip = 'Focus Protection: Grace period active'
+          } else if (isSessionActive) {
+            if (isDaemonConnected || sentinelState === 'ACTIVE') {
+              statusTitle = 'Protection Active'
+              statusSub = 'Distractions blocked'
+              dotClass = 'focus-engaged'
+              statusTooltip = 'Focus Protection: Active (Shield enforcer engaged)'
+            } else {
+              statusTitle = 'Protection Degraded'
+              statusSub = 'Daemon disconnected'
+              dotClass = 'status-dot-degraded'
+              statusTooltip = 'Focus Protection: Degraded (Session active, daemon offline)'
+            }
+          } else {
+            if (isDaemonConnected || sentinelState === 'READY' || sentinelState === 'STANDBY') {
+              statusTitle = sentinelState === 'STANDBY' ? 'Protection Standby' : 'Protection Ready'
+              statusSub = 'Ready'
+              dotClass = 'status-dot-ready'
+              statusTooltip = 'Focus Protection: Ready (Shield enforcer standby)'
+            } else {
+              statusTitle = 'Protection Unavailable'
+              statusSub = 'Daemon offline'
+              dotClass = 'status-dot-unavailable'
+              statusTooltip = 'Focus Protection: Unavailable (Shield daemon offline)'
+            }
           }
-        >
-          <span
-            className={`status-dot-active ${
-              pendingWarning
-                ? 'warning-engaged'
-                : activeGraceWarning
-                ? 'grace-engaged'
-                : activeSession
-                ? 'focus-engaged'
-                : ''
-            }`}
-          />
-          {sidebarExpanded && (
-            <div className="status-quiet-text">
-              <span className="status-quiet-title">
-                {pendingWarning
-                  ? 'Warning'
-                  : activeGraceWarning
-                  ? 'Grace Period'
-                  : activeSession
-                  ? 'Protection Active'
-                  : 'Protection Standby'}
-              </span>
-              <span className="status-quiet-sub">
-                {pendingWarning
-                  ? `${pendingWarning.processName} detected`
-                  : activeGraceWarning
-                  ? `${formatTimerDigits(graceSecondsLeft)} left`
-                  : activeSession
-                  ? 'Distractions blocked'
-                  : 'Ready'}
-              </span>
+
+          return (
+            <div className="sidebar-status-quiet" title={statusTooltip}>
+              <span className={`status-dot-active ${dotClass}`} />
+              {sidebarExpanded && (
+                <div className="status-quiet-text">
+                  <span className="status-quiet-title">{statusTitle}</span>
+                  <span className="status-quiet-sub">{statusSub}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          )
+        })()}
       </div>
     </aside>
   )

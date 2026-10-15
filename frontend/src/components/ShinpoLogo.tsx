@@ -29,20 +29,20 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
     >
       <defs>
         <linearGradient id="shinpoTopShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#4D8DFF" />
-          <stop offset="45%" stopColor="#7C5CFC" />
-          <stop offset="100%" stopColor="#FF4054" />
+          <stop offset="0%" stopColor="#1BC9DE" />
+          <stop offset="48%" stopColor="#4D77F9" />
+          <stop offset="100%" stopColor="#9757FA" />
         </linearGradient>
         <linearGradient id="shinpoBotShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#3B82F6" />
-          <stop offset="55%" stopColor="#7C5CFC" />
-          <stop offset="100%" stopColor="#FF4054" />
+          <stop offset="0%" stopColor="#1BC9DE" />
+          <stop offset="52%" stopColor="#4D77F9" />
+          <stop offset="100%" stopColor="#9757FA" />
         </linearGradient>
       </defs>
 
       {/* Top Arm: 45° Shear Kinematic */}
       <polygon
-        points="44,5 95,5 95,21 60,21 37,44 5,44"
+        points="44,5 95,svg5,21 60,21 37,44 5,44"
         fill={monochrome ? 'currentColor' : 'url(#shinpoTopShear)'}
       />
 
@@ -78,58 +78,36 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
           lineHeight: 1,
         }}
       >
-        <div
-          className="shinpo-logo-wordmark"
-          style={{
-            fontFamily:
-              "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif",
-            fontSize: Math.round(size * 0.58),
-            fontWeight: 800,
-            letterSpacing: '0.12em',
-            color: 'var(--text)',
-            textTransform: 'uppercase',
-          }}
-        >
-          SHINPO
-        </div>
-        {variant === 'full' && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <div
-            className="shinpo-logo-sub-row"
+            className="shinpo-logo-wordmark"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              marginTop: 3,
+              fontFamily:
+                "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif",
+              fontSize: Math.round(size * 0.62),
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              color: 'var(--text)',
+              textTransform: 'uppercase',
             }}
           >
+            SHINPO
+          </div>
+          {variant === 'full' && (
             <span
               className="shinpo-logo-kanji"
               style={{
                 fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
-                fontSize: Math.round(size * 0.28),
+                fontSize: Math.max(12, Math.round(size * 0.36)),
                 fontWeight: 700,
-                color: 'var(--accent-purple)',
+                color: 'var(--primary-violet, #9757FA)',
                 letterSpacing: '0.04em',
               }}
             >
               進歩
             </span>
-            <span
-              className="shinpo-logo-tagline"
-              style={{
-                fontFamily:
-                  "-apple-system, BlinkMacSystemFont, 'SF Pro Display', monospace",
-                fontSize: Math.max(9, Math.round(size * 0.24)),
-                fontWeight: 600,
-                letterSpacing: '0.16em',
-                color: 'var(--text-3)',
-                textTransform: 'uppercase',
-              }}
-            >
-              Personal Execution System
-            </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

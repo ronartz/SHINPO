@@ -3,6 +3,7 @@ package com.shinpo.controller;
 import com.shinpo.dto.CompleteFocusSessionRequest;
 import com.shinpo.dto.CreateFocusSessionRequest;
 import com.shinpo.dto.FocusSessionResponse;
+import com.shinpo.dto.UpdateFocusSessionRequest;
 import com.shinpo.security.UserPrincipal;
 import com.shinpo.service.FocusSessionService;
 import jakarta.validation.Valid;
@@ -78,6 +79,15 @@ public class FocusSessionController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(focusSessionService.getSession(sessionId, principal.getUserId()));
+    }
+
+    @PutMapping("/{sessionId}")
+    public ResponseEntity<FocusSessionResponse> updateSession(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateFocusSessionRequest request
+    ) {
+        return ResponseEntity.ok(focusSessionService.updateSession(sessionId, principal.getUserId(), request));
     }
 
     @PostMapping("/{sessionId}/start")

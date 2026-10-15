@@ -36,6 +36,18 @@ textarea {
   font: inherit;
 }
 
+input,
+textarea {
+  caret-color: var(--primary-violet, #9757FA);
+}
+
+.theme-light input,
+.theme-light textarea,
+html[data-theme='light'] input,
+html[data-theme='light'] textarea {
+  caret-color: var(--primary-violet, #7932E6);
+}
+
 button {
   color: inherit;
   cursor: pointer;
@@ -46,9 +58,25 @@ button:disabled {
   opacity: 0.55;
 }
 
+:focus-visible {
+  outline: 2px solid var(--primary-violet, #9757FA);
+  outline-offset: 2px;
+}
+
+.theme-light :focus-visible,
+html[data-theme='light'] :focus-visible {
+  outline-color: var(--primary-violet, #7932E6);
+}
+
 ::selection {
   color: #ffffff;
-  background: rgba(255, 77, 94, 0.4);
+  background: rgba(151, 87, 250, 0.4);
+}
+
+.theme-light ::selection,
+html[data-theme='light'] ::selection {
+  color: #17213A;
+  background: rgba(121, 50, 230, 0.22);
 }
 
 * {

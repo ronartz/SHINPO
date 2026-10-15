@@ -3,6 +3,7 @@ package com.shinpo.service;
 import com.shinpo.dto.CompleteFocusSessionRequest;
 import com.shinpo.dto.CreateFocusSessionRequest;
 import com.shinpo.dto.FocusSessionResponse;
+import com.shinpo.dto.UpdateFocusSessionRequest;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.Goal;
@@ -16,6 +17,8 @@ import com.shinpo.repository.SessionPlanRepository;
 import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,7 @@ public class FocusSessionService {
     private final MissionRepository missionRepository;
     private final SessionPlanRepository sessionPlanRepository;
     private final WebSocketEventService webSocketEventService;
+    private final MissionCompletionService missionCompletionService;
 
     public FocusSessionService(
             FocusSessionRepository focusSessionRepository,
@@ -48,12 +52,26 @@ public class FocusSessionService {
             SessionPlanRepository sessionPlanRepository,
             WebSocketEventService webSocketEventService
     ) {
+        this(focusSessionRepository, userRepository, goalRepository, missionRepository, sessionPlanRepository, webSocketEventService, null);
+    }
+
+    @Autowired
+    public FocusSessionService(
+            FocusSessionRepository focusSessionRepository,
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            SessionPlanRepository sessionPlanRepository,
+            WebSocketEventService webSocketEventService,
+            @Lazy MissionCompletionService missionCompletionService
+    ) {
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.sessionPlanRepository = sessionPlanRepository;
         this.webSocketEventService = webSocketEventService;
+        this.missionCompletionService = missionCompletionService;
     }
 
     @Transactional
@@ -196,8 +214,55 @@ public class FocusSessionService {
     public FocusSessionResponse getSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
         checkAndApplyExpiration(session, Instant.now());
-
         return FocusSessionResponse.from(session);
+    }
+
+    @Transactional
+    public FocusSessionResponse updateSession(Long sessionId, Long userId, UpdateFocusSessionRequest request) {
+        FocusSession session = getSessionEntity(sessionId, userId);
+
+        if (session.getStatus() != FocusSessionStatus.SCHEDULED) {
+            throw new IllegalStateException("Only SCHEDULED sessions can be edited");
+        }
+
+        if (request.name() != null && !request.name().trim().isEmpty()) {
+            session.setName(request.name().trim());
+        }
+        if (request.intention() != null) {
+            session.setIntention(request.intention().trim());
+        }
+        if (request.durationMinutes() != null && request.durationMinutes() > 0) {
+            session.setDurationMinutes(request.durationMinutes());
+        }
+        if (request.scheduledAt() != null) {
+            session.setScheduledAt(request.scheduledAt());
+        }
+
+        if (Boolean.TRUE.equals(request.unlinkTask())) {
+            session.setMission(null);
+            session.setGoal(null);
+        } else if (request.missionId() != null) {
+            Mission mission = missionRepository.findById(request.missionId())
+                    .orElseThrow(() -> new IllegalArgumentException("Mission not found: " + request.missionId()));
+            if (!mission.getGoal().getUser().getId().equals(userId)) {
+                throw new IllegalArgumentException("Mission does not belong to user");
+            }
+            session.setMission(mission);
+            session.setGoal(mission.getGoal());
+        } else if (request.goalId() != null) {
+            Goal goal = goalRepository.findById(request.goalId())
+                    .orElseThrow(() -> new IllegalArgumentException("Goal not found: " + request.goalId()));
+            if (!goal.getUser().getId().equals(userId)) {
+                throw new IllegalArgumentException("Goal does not belong to user");
+            }
+            session.setGoal(goal);
+            session.setMission(null);
+        }
+
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+
+        return FocusSessionResponse.from(saved);
     }
 
     @Transactional
@@ -304,6 +369,23 @@ public class FocusSessionService {
             session.setCompletionQuality(request.quality());
             session.setReflectionNote(request.reflectionNote());
             session.setAccomplishment(request.accomplishment());
+
+            if (Boolean.TRUE.equals(request.markMissionCompleted()) && session.getMission() != null) {
+                Mission mission = session.getMission();
+                if (!"COMPLETED".equalsIgnoreCase(mission.getStatus()) && missionCompletionService != null) {
+                    try {
+                        long activeSeconds = session.calculateActiveSeconds(now);
+                        int actualMins = (int) Math.max(1, activeSeconds / 60);
+                        missionCompletionService.completeMission(
+                                mission.getId(),
+                                userId,
+                                new com.shinpo.dto.CompleteMissionRequest(actualMins)
+                        );
+                    } catch (Exception e) {
+                        log.warn("Auto-completion of linked mission {} skipped: {}", mission.getId(), e.getMessage());
+                    }
+                }
+            }
         }
 
         FocusSession saved = focusSessionRepository.save(session);

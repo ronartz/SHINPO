@@ -1,0 +1,330 @@
+/* ==========================================================================
+   FITPULSE 2-TIER COMMAND DASHBOARD DESIGN SYSTEM
+   Row 1: 8/4 Asymmetric Split (Autonomous Execution Cockpit + Today's Schedule)
+   Row 2: 4/4/4 Asymmetric Split (Performance + Strategic Goals + Flight Deck)
+   ========================================================================== */
+.fitpulse-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.fitpulse-row-upper {
+  display: grid;
+  grid-template-columns: 8fr 4fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.fitpulse-row-lower {
+  display: grid;
+  grid-template-columns: 4fr 4fr 4fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* ==========================================================================
+   TASK MASTER HERO SALUTATION BANNER (Glassmorphic + Opaque Accent)
+   ========================================================================== */
+/* ==========================================================================
+   TASK MASTER SIDEBAR COMPONENTS (Hero Greeting, Shifted Quote, Avatars, Companion)
+   ========================================================================== */
+
+/* 1. Hero Greeting */
+/* 1. Restrained Upper Motivational Quote (Comfortable Typography & Full Wrapping) */
+.sidebar-upper-quote {
+  padding: 18px 20px;
+  margin: 0 0 16px 0;
+  background: var(--sidebar-quote-bg);
+  border: var(--sidebar-quote-border);
+  border-radius: var(--radius-md, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  user-select: none;
+  min-height: auto;
+}
+
+.sidebar-upper-quote-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-upper-quote-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--sidebar-quote-tag);
+  text-transform: uppercase;
+}
+
+.sidebar-upper-quote-text {
+  font-size: 18px;
+  line-height: 1.55;
+  letter-spacing: -0.2px;
+  color: var(--sidebar-quote-text);
+  font-weight: 550;
+  margin: 0;
+  font-style: italic;
+  display: block;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+}
+
+.sidebar-quote-refresh-btn {
+  background: transparent;
+  border: none;
+  color: var(--sidebar-quote-btn);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sidebar-quote-refresh-btn:hover {
+  background: var(--sidebar-btn-hover-bg);
+  color: var(--sidebar-quote-btn-hover);
+}
+
+/* 3. Team Avatar Cluster Row from Reference */
+.sidebar-avatars-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.cluster-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #10141D;
+  background: #1C2330;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-right: -8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  transition: transform 0.2s;
+}
+
+.cluster-avatar:hover {
+  transform: translateY(-2px) scale(1.08);
+  z-index: 5;
+}
+
+.cluster-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  background: #1E2738;
+  color: #F1F5F9;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 4. Eonpai Tactical Companion Card (Reference "Michie" Style) */
+.sidebar-eonpai-companion {
+  background: rgba(22, 27, 36, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  margin-top: 10px;
+  flex-shrink: 0;
+}
+
+.eonpai-comp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eonpai-comp-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.eonpai-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary-coral);
+  box-shadow: 0 0 8px rgba(255, 77, 94, 0.6);
+}
+
+.eonpai-bubble-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bubble-time-ext {
+  font-size: 10.5px;
+  color: #64748B;
+  font-weight: 600;
+  user-select: none;
+}
+
+.eonpai-speech-bubble {
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+}
+
+.eonpai-speech-bubble.bubble-short {
+  background: #FFFFFF;
+  color: #0F172A;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.eonpai-speech-bubble.bubble-wide {
+  background: #242A38;
+  color: #F1F5F9;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.35;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.bubble-time {
+  font-size: 10px;
+  color: #64748B;
+  font-weight: 500;
+  align-self: flex-end;
+}
+
+.eonpai-comp-action-btn {
+  background: var(--brand-coral-gradient) !important;
+  color: #FFFFFF !important;
+  border: none;
+  border-radius: 100px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--brand-coral-glow) !important;
+  text-align: center;
+}
+
+.eonpai-comp-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 77, 94, 0.45) !important;
+  filter: brightness(1.06);
+}
+
+.eonpai-comp-action-btn:active {
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
+   TOP BAR (Task Master Style)
+   ========================================================================== */
+.top-brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.top-search-filter-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #94A3B8;
+  border-radius: 8px;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.top-search-filter-btn:hover {
+  color: #FF5252;
+  background: rgba(255, 82, 82, 0.15);
+}
+
+.profile-badge-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px 4px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile-badge-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
+}
+
+.profile-avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4D7CFF 0%, #2563EB 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(77, 124, 255, 0.35);
+}
+
+.profile-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-username {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.profile-role {
+  font-size: 10.5px;
+  color: var(--text-2);
+  line-height: 1.2;
+}

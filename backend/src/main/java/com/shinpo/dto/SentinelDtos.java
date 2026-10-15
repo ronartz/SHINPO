@@ -22,8 +22,27 @@ public class SentinelDtos {
             long tamperEventsCount,
             boolean isPolicyLocked,
             List<SentinelQuarantineItem> recentQuarantines,
-            Instant lastSweepAt
-    ) {}
+            Instant lastSweepAt,
+            Boolean daemonConnected,
+            Instant lastDaemonSyncAt
+    ) {
+        public SentinelStatusResponse(
+                String status,
+                Long activeFocusSessionId,
+                String activeFocusSessionName,
+                String enforcementMode,
+                long totalInterceptedToday,
+                long activePolicyRulesCount,
+                long tamperEventsCount,
+                boolean isPolicyLocked,
+                List<SentinelQuarantineItem> recentQuarantines,
+                Instant lastSweepAt
+        ) {
+            this(status, activeFocusSessionId, activeFocusSessionName, enforcementMode,
+                    totalInterceptedToday, activePolicyRulesCount, tamperEventsCount,
+                    isPolicyLocked, recentQuarantines, lastSweepAt, false, null);
+        }
+    }
 
     public record SentinelQuarantineItem(
             Long id,

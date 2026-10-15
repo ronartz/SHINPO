@@ -54,16 +54,18 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
 
   return (
-    <div className="bento-grid">
+    <div className="goals-view-deck">
       {/* Goals Header */}
-      <div className="deck-section-header" style={{ marginBottom: 12 }}>
+      <div className="deck-section-header">
         <div className="deck-section-title">
-          <Icon name="goals" size={18} />
+          <Icon name="goals" size={17} />
           <span>Goals</span>
+          <span className="deck-counter-badge">{goals.length}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             className="btn-timer primary"
+            onClick={() => setIsCreatingGoal(true)}
             data-tutorial="new-goal"
           >
             <Icon name="plus" size={14} />
@@ -72,7 +74,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           {goals.length > 0 && (
             <button className="btn-timer danger" onClick={handleDeleteAllGoals}>
               <Icon name="trash" size={13} />
-              <span>Delete All Goals</span>
+              <span>Delete All</span>
             </button>
           )}
         </div>
@@ -145,16 +147,15 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
 
       <div className="goals-grid">
         {goals.length === 0 ? (
-          <div
-            className="bento-card"
-            style={{ gridColumn: 'span 12', padding: 32, textAlign: 'center' }}
-          >
-            <p style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 12 }}>
-              No goals created yet. Create a goal to get started.
+          <div className="goals-empty-card">
+            <Icon name="goals" size={28} />
+            <p className="empty-title">No Active Goals</p>
+            <p className="empty-desc">
+              Create your primary objectives, then let EONPAI break them down into actionable execution tasks.
             </p>
             <button className="btn-timer primary" onClick={() => setIsCreatingGoal(true)}>
               <Icon name="plus" size={14} />
-              <span>Create Goal</span>
+              <span>Create First Goal</span>
             </button>
           </div>
         ) : (
@@ -212,7 +213,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                   <div className="goal-progress-bar-bg">
                     <div
                       className="goal-progress-bar-fill"
-                      style={{ width: `${progressPct}%` }}
+                      style={{ transform: `scaleX(${progressPct / 100})` }}
                     />
                   </div>
                 </div>
@@ -240,10 +241,11 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       </div>
 
       {/* Section 2: Tasks List */}
-      <div className="deck-section-header" style={{ marginTop: 12 }} data-tutorial="missions-queue">
+      <div className="deck-section-header" data-tutorial="missions-queue">
         <div className="deck-section-title">
-          <Icon name="target" size={18} />
+          <Icon name="target" size={17} />
           <span>Tasks</span>
+          <span className="deck-counter-badge">{missions.length}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
@@ -271,7 +273,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               title="Clear all tasks"
             >
               <Icon name="trash" size={13} />
-              <span>Clear All Tasks</span>
+              <span>Clear All</span>
             </button>
           )}
           <div style={{ display: 'flex', gap: 6 }}>
@@ -289,13 +291,27 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       </div>
 
       <div className="missions-list-container">
-        {missions
-          .filter((m) => {
+        {(() => {
+          const visibleMissions = missions.filter((m) => {
             if (missionsFilter === 'PENDING') return m.status !== 'COMPLETED'
             if (missionsFilter === 'COMPLETED') return m.status === 'COMPLETED'
             return true
           })
-          .map((m) => {
+
+          if (visibleMissions.length === 0) {
+            return (
+              <div className="missions-empty-row">
+                <Icon name="target" size={16} />
+                <span>
+                  {missions.length === 0
+                    ? 'No tasks in the execution queue. Create a task or use Plan Tasks from a goal.'
+                    : 'No tasks matching the selected filter.'}
+                </span>
+              </div>
+            )
+          }
+
+          return visibleMissions.map((m) => {
             const parentGoal = goals.find((g) => g.id === m.goalId)
             const isDone = m.status === 'COMPLETED'
 
@@ -358,7 +374,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 </div>
               </div>
             )
-          })}
+          })
+        })()}
       </div>
     </div>
   )

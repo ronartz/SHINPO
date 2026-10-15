@@ -1,0 +1,728 @@
+/* ==========================================================================
+   SHINPO GLASS SURFACES — shared finish for the product shell and major panels
+   ========================================================================== */
+.app-shell:not(.theme-light) {
+  background-color: var(--bg);
+  background-image: var(--bg-gradient, none);
+}
+
+.app-shell:not(.theme-light) .icon-sidebar {
+  background: var(--sidebar-bg);
+  border-right: var(--sidebar-border);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+}
+
+.cockpit-top-bar {
+  padding: 0 16px;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface);
+  box-shadow: var(--shadow-glass);
+}
+
+.bento-card,
+.ai-sidebar-card,
+.ai-chat-card,
+.auth-card,
+.taskmaster-active-session-banner {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.bento-task-subcard,
+.bento-bottom-pill-bar {
+  background: var(--glass-surface-elevated, rgba(24, 30, 38, 0.86));
+  border-color: var(--border, rgba(255, 255, 255, 0.08));
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  backdrop-filter: blur(16px) saturate(125%);
+}
+
+.bento-card:hover,
+.bento-task-subcard:hover {
+  border: var(--glass-border-hover, 1px solid rgba(255, 255, 255, 0.16));
+}
+
+.auth-fullscreen-container.theme-dark {
+  background-image:
+    radial-gradient(ellipse at 76% 18%, rgba(255, 122, 24, 0.11), transparent 38%),
+    radial-gradient(ellipse at 22% 82%, rgba(53, 227, 111, 0.08), transparent 42%);
+}
+
+@media (max-width: 768px) {
+  .cockpit-top-bar {
+    border-radius: 22px;
+    padding: 14px;
+  }
+}
+
+/* Sentinel Active Pulse (Coral Protocol) */
+.sentinel-radar-container.active-pulse .sentinel-radar-core {
+  background: var(--accent-coral, #FF4D5E);
+  box-shadow: 0 0 12px var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-radar-container.active-pulse .sentinel-radar-ring {
+  border-color: var(--accent-coral, #FF4D5E);
+  animation: radarRingPulseCoral 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes radarRingPulseCoral {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.sentinel-mode-badge {
+  background: var(--accent-red-subtle);
+  border: 1px solid var(--accent-red-border);
+  color: var(--accent-red);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+html[data-theme='light'] .sentinel-mode-badge,
+.theme-light .sentinel-mode-badge {
+  background: rgba(185, 28, 28, 0.10);
+  border-color: rgba(185, 28, 28, 0.3);
+  color: #B91C1C;
+}
+
+.sentinel-mode-badge:hover {
+  background: rgba(255, 77, 94, 0.25);
+  border-color: var(--accent-red);
+}
+
+.summary-pill.sentinel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.summary-pill.sentinel-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.summary-pill.sentinel-pill.active-defense {
+  border-color: rgba(255, 77, 94, 0.4);
+  background: rgba(255, 77, 94, 0.08);
+  color: var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.sentinel-interception-badge {
+  background: var(--accent-coral, #FF4D5E);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+/* Sentinel Control & Audit Panel */
+.sentinel-panel {
+  background: var(--surface-card, #12151C);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg, 16px);
+  padding: 20px 24px;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sentinel-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sentinel-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1, #F3F4F6);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.sentinel-rules-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sentinel-rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.25);
+  color: var(--text-1, #F3F4F6);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.sentinel-rule-chip.allowed {
+  background: rgba(46, 213, 115, 0.08);
+  border-color: rgba(46, 213, 115, 0.25);
+}
+
+.sentinel-rule-del-btn {
+  background: none;
+  border: none;
+  color: var(--text-3, #565D6D);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sentinel-rule-del-btn:hover {
+  color: var(--accent-coral, #FF4D5E);
+}
+
+.sentinel-audit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.sentinel-audit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 12px;
+}
+
+.sentinel-audit-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sentinel-audit-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 77, 94, 0.15);
+  color: var(--accent-coral, #FF4D5E);
+  letter-spacing: 0.02em;
+}
+
+.sentinel-audit-badge.warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #F59E0B;
+}
+
+.sentinel-audit-badge.blocked {
+  background: rgba(239, 68, 68, 0.16);
+  color: #EF4444;
+}
+
+.sentinel-audit-badge.terminated {
+  background: rgba(220, 38, 38, 0.18);
+  color: #EF4444;
+}
+
+/* Phase 3.3: Sentinel Administrative Policy Gate & Tamper Resistance */
+.sentinel-policy-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 77, 94, 0.16);
+  border: 1px solid rgba(255, 77, 94, 0.4);
+  color: var(--accent-coral, #FF4D5E);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(255, 77, 94, 0.2);
+  letter-spacing: 0.03em;
+}
+
+.sentinel-rule-locked-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--accent-coral, #FF4D5E);
+  opacity: 0.85;
+  cursor: help;
+}
+
+.emergency-override-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--accent-red-subtle);
+  background: var(--accent-red-subtle);
+  border: 1px solid var(--accent-red-border);
+  color: var(--accent-red);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.emergency-override-btn:hover {
+  background-color: var(--brand-red);
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(185, 28, 28, 0.25);
+  transform: translateY(-1px);
+}
+
+.emergency-override-btn:active {
+  transform: translateY(0);
+}
+
+.override-modal-warning {
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  border-radius: var(--radius-sm, 8px);
+  padding: 12px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2, #94A3B8);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.override-modal-warning strong {
+  color: var(--accent-coral, #FF4D5E);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.override-char-counter {
+  font-size: 11px;
+  font-weight: 600;
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+.override-char-counter.valid {
+  color: var(--accent-emerald, #2ED573);
+}
+
+.override-char-counter.invalid {
+  color: var(--accent-coral, #FF4D5E);
+}
+
+.override-error-banner {
+  background: rgba(255, 77, 94, 0.15);
+  border: 1px solid var(--accent-coral, #FF4D5E);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 14px;
+  color: #FF6E7D;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sentinel-tamper-section {
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 16px;
+}
+
+.sentinel-tamper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sentinel-tamper-header:hover .sentinel-tamper-title {
+  color: var(--text-1, #F3F4F6);
+}
+
+.sentinel-tamper-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2, #94A3B8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s ease;
+}
+
+.sentinel-tamper-badge-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Sentinel Discipline Warning & Grace Period Styles (Requirement 3 & 4) */
+.sentinel-warning-overlay {
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.sentinel-warning-card {
+  max-width: 480px;
+  animation: tmModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sentinel-warning-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sentinel-warning-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.warning-proc-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-coral, #FF4D5E);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.warning-cmdline {
+  font-size: 11.5px;
+  font-family: monospace;
+  color: var(--text-3);
+  word-break: break-all;
+  max-height: 48px;
+  overflow-y: auto;
+}
+
+.sentinel-warning-countdown-box {
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.warning-countdown-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent-coral, #FF4D5E);
+  margin-bottom: 4px;
+}
+
+.warning-countdown-digits {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--accent-coral, #FF4D5E);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+
+.warning-countdown-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+.grace-selector-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.grace-chip {
+  flex: 1;
+  min-width: 50px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.grace-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.grace-chip.selected {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-yellow, #F59E0B);
+  color: var(--accent-yellow, #F59E0B);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* Live Grace Banner in Execution Cockpit and Focus Engine */
+.sentinel-grace-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  animation: graceBannerGlow 2s ease-in-out infinite;
+}
+
+@keyframes graceBannerGlow {
+
+  0%,
+  100% {
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  50% {
+    border-color: rgba(245, 158, 11, 0.7);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+  }
+}
+
+.grace-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.grace-banner-icon {
+  font-size: 20px;
+}
+
+.grace-banner-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-yellow, #F59E0B);
+}
+
+.grace-banner-subtitle {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.grace-banner-countdown {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--accent-yellow, #F59E0B);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Status indicator colors in sidebar */
+.status-dot-active.warning-engaged {
+  background: var(--accent-coral, #FF4D5E);
+  box-shadow: 0 0 8px #FF4D5E;
+  animation: pulseDot 1s infinite;
+}
+
+.status-dot-active.grace-engaged {
+  background: var(--accent-yellow, #F59E0B);
+  box-shadow: 0 0 8px #F59E0B;
+  animation: pulseDot 1.5s infinite;
+}
+
+.badge-tag.yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow, #F59E0B);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-tag.amber {
+  background: rgba(217, 119, 6, 0.15);
+  color: #D97706;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.sentinel-tamper-badge-count.clean {
+  background: var(--accent-green-subtle);
+  border: 1px solid var(--accent-green-border);
+  color: var(--accent-green);
+}
+
+.sentinel-tamper-badge-count.alert {
+  background: var(--accent-red-subtle);
+  border: 1px solid var(--accent-red-border);
+  color: var(--accent-red);
+}
+
+html[data-theme='light'] .sentinel-tamper-badge-count.clean,
+.theme-light .sentinel-tamper-badge-count.clean {
+  background: rgba(21, 128, 61, 0.10);
+  border-color: rgba(21, 128, 61, 0.3);
+  color: #15803D;
+}
+
+html[data-theme='light'] .sentinel-tamper-badge-count.alert,
+.theme-light .sentinel-tamper-badge-count.alert {
+  background: rgba(185, 28, 28, 0.10);
+  border-color: rgba(185, 28, 28, 0.3);
+  color: #B91C1C;
+}
+
+.sentinel-tamper-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.sentinel-tamper-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.sentinel-tamper-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sentinel-tamper-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sentinel-tamper-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sentinel-severity-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sentinel-severity-badge.critical {
+  background: rgba(255, 77, 94, 0.3);
+  border: 1px solid var(--accent-coral, #FF4D5E);
+  color: #fff;
+}
+
+.sentinel-severity-badge.high {
+  background: rgba(255, 126, 80, 0.25);
+  border: 1px solid #FF7E50;
+  color: #FF9F7A;
+}
+
+.sentinel-severity-badge.medium {
+  background: rgba(255, 177, 66, 0.2);
+  border: 1px solid #FFB142;
+  color: #FFC048;
+}
+
+.sentinel-severity-badge.low {
+  background: rgba(46, 213, 115, 0.15);
+  border: 1px solid #2ED573;
+  color: #2ED573;
+}
+
+.sentinel-tamper-justification {
+  font-size: 11px;
+  color: var(--text-2, #94A3B8);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border-left: 1px solid var(--accent-coral, #FF4D5E);
+}
+
+/* Light Theme overrides for Phase 3.3 */
+.theme-light .sentinel-tamper-section {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .sentinel-tamper-item {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.theme-light .sentinel-tamper-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .sentinel-tamper-justification {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-2);
+}
+
+.theme-light .override-modal-warning {
+  background: rgba(255, 77, 94, 0.05);
+  border-color: rgba(255, 77, 94, 0.25);
+}

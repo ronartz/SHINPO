@@ -1,10 +1,16 @@
 package com.shinpo.service;
 
+import com.shinpo.dto.CompleteFocusSessionRequest;
 import com.shinpo.dto.FocusSessionResponse;
+import com.shinpo.dto.UpdateFocusSessionRequest;
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
+import com.shinpo.entity.Goal;
+import com.shinpo.entity.Mission;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
+import com.shinpo.repository.GoalRepository;
+import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,6 +48,12 @@ class FocusSessionTimingTests {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private GoalRepository goalRepository;
+
+    @Autowired
+    private MissionRepository missionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -72,16 +85,16 @@ class FocusSessionTimingTests {
     @DisplayName("Active session correctly calculates active and remaining seconds")
     void activeSessionCalculatesActiveAndRemainingSeconds() {
         FocusSession session = createTestSession(FocusSessionStatus.ACTIVE, 25);
-        Instant startedAt = Instant.now().minus(Duration.ofMinutes(10));
+        Instant startedAt = Instant.parse("2026-01-01T10:00:00Z");
         session.setStartedAt(startedAt);
 
-        Instant checkTime = Instant.now();
+        Instant checkTime = Instant.parse("2026-01-01T10:10:00Z");
         long activeSeconds = session.calculateActiveSeconds(checkTime);
         long remainingSeconds = session.calculateRemainingSeconds(checkTime);
 
         // 10 minutes = 600s active, 25m budget = 1500s total, remaining = 900s
-        assertEquals(600L, activeSeconds, 2L);
-        assertEquals(900L, remainingSeconds, 2L);
+        assertEquals(600L, activeSeconds);
+        assertEquals(900L, remainingSeconds);
     }
 
     @Test
@@ -217,5 +230,104 @@ class FocusSessionTimingTests {
         assertEquals(0L, response.getActiveSeconds());
         assertEquals(0L, response.getAccumulatedPausedSeconds());
     }
-}
 
+    @Test
+    @DisplayName("updateSession allows updating scheduled session details and linking/unlinking tasks")
+    void updateSession_allowsEditingDetailsAndLinkedTask() {
+        Goal goal = goalRepository.save(new Goal(
+                "Goal A",
+                "Description A",
+                LocalDate.now(),
+                LocalDate.now().plusDays(30),
+                testUser
+        ));
+
+        Mission mission = missionRepository.save(new Mission(
+                "Mission 1",
+                "Description 1",
+                LocalDate.now(),
+                25,
+                goal
+        ));
+
+        FocusSession session = createTestSession(FocusSessionStatus.SCHEDULED, 25);
+        assertEquals("Timing Regression Session", session.getName());
+
+        Instant newScheduledAt = Instant.now().plus(Duration.ofHours(2));
+        UpdateFocusSessionRequest updateReq = new UpdateFocusSessionRequest(
+                goal.getId(),
+                mission.getId(),
+                false,
+                "Edited Deep Work Block",
+                "New Intention",
+                50,
+                newScheduledAt
+        );
+
+        FocusSessionResponse updated = focusSessionService.updateSession(session.getId(), testUser.getId(), updateReq);
+        assertEquals("Edited Deep Work Block", updated.getName());
+        assertEquals("New Intention", updated.getIntention());
+        assertEquals(50, updated.getDurationMinutes());
+        assertEquals(mission.getId(), updated.getMissionId());
+        assertEquals(goal.getId(), updated.getGoalId());
+
+        // Now test unlinking task
+        UpdateFocusSessionRequest unlinkReq = new UpdateFocusSessionRequest(
+                null,
+                null,
+                true,
+                "Independent Block",
+                null,
+                30,
+                null
+        );
+        FocusSessionResponse unlinked = focusSessionService.updateSession(session.getId(), testUser.getId(), unlinkReq);
+        assertEquals("Independent Block", unlinked.getName());
+        assertNull(unlinked.getMissionId());
+        assertNull(unlinked.getGoalId());
+    }
+
+    @Test
+    @DisplayName("completeSession with markMissionCompleted marks linked task completed and awards progress")
+    void completeSession_withMarkMissionCompleted_completesMissionAndAwardsProgress() {
+        Goal goal = goalRepository.save(new Goal(
+                "Infrastructure Scaling",
+                "Description",
+                LocalDate.now(),
+                LocalDate.now().plusDays(30),
+                testUser
+        ));
+
+        Mission mission = missionRepository.save(new Mission(
+                "Pool Tuning",
+                "Task description",
+                LocalDate.now(),
+                25,
+                goal
+        ));
+
+        FocusSession session = createTestSession(FocusSessionStatus.SCHEDULED, 25);
+        session.setMission(mission);
+        session.setGoal(goal);
+        focusSessionRepository.save(session);
+
+        // Start session
+        focusSessionService.startSession(session.getId(), testUser.getId());
+
+        // Complete session with markMissionCompleted = true
+        CompleteFocusSessionRequest completeReq = new CompleteFocusSessionRequest(
+                5,
+                "Everything tuned smoothly",
+                "Connection pool max fixed to 20",
+                true
+        );
+
+        FocusSessionResponse completed = focusSessionService.completeSession(session.getId(), testUser.getId(), completeReq);
+        assertEquals(FocusSessionStatus.COMPLETED, completed.getStatus());
+        assertEquals("Connection pool max fixed to 20", completed.getResult().accomplishment());
+
+        // Verify that the linked mission is now COMPLETED
+        Mission reloadedMission = missionRepository.findById(mission.getId()).orElseThrow();
+        assertEquals("COMPLETED", reloadedMission.getStatus());
+    }
+}

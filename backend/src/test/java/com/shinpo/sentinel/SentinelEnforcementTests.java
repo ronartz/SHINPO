@@ -70,18 +70,26 @@ public class SentinelEnforcementTests {
     }
 
     @Test
-    @DisplayName("Status reports IDLE and unlocked when no active focus sprint is running")
+    @DisplayName("Status reports UNAVAILABLE without daemon, and READY when daemon connected and unlocked")
     void testStatusWhenIdle() {
+        SentinelStatusResponse statusNoDaemon = sentinelService.getSentinelStatus(testUser.getId());
+        assertNotNull(statusNoDaemon);
+        assertEquals("UNAVAILABLE", statusNoDaemon.status());
+        assertFalse(statusNoDaemon.daemonConnected());
+
+        // Simulate daemon sync
+        sentinelService.getDaemonSyncState(testUser.getId());
         SentinelStatusResponse status = sentinelService.getSentinelStatus(testUser.getId());
         assertNotNull(status);
-        assertEquals("IDLE", status.status());
+        assertEquals("READY", status.status());
         assertNull(status.activeFocusSessionName());
         assertNotNull(status.enforcementMode());
-        assertFalse(status.isPolicyLocked(), "Policy should not be locked when IDLE");
+        assertFalse(status.isPolicyLocked(), "Policy should not be locked when IDLE/READY");
+        assertTrue(status.daemonConnected());
     }
 
     @Test
-    @DisplayName("Status reports ACTIVE_DEFENSE and isPolicyLocked when an ACTIVE focus session exists in STRICT mode")
+    @DisplayName("Status reports DEGRADED without daemon, and ACTIVE and isPolicyLocked when daemon connected during active sprint")
     void testStatusWhenSprintActive() {
         FocusSession session = new FocusSession();
         session.setUser(testUser);
@@ -91,11 +99,19 @@ public class SentinelEnforcementTests {
         session.setStartedAt(Instant.now());
         sessionRepository.save(session);
 
+        SentinelStatusResponse statusDegraded = sentinelService.getSentinelStatus(testUser.getId());
+        assertNotNull(statusDegraded);
+        assertEquals("DEGRADED", statusDegraded.status());
+        assertFalse(statusDegraded.daemonConnected());
+
+        // Simulate daemon sync
+        sentinelService.getDaemonSyncState(testUser.getId());
         SentinelStatusResponse status = sentinelService.getSentinelStatus(testUser.getId());
         assertNotNull(status);
-        assertEquals("ACTIVE_DEFENSE", status.status());
+        assertEquals("ACTIVE", status.status());
         assertEquals("Validate Consensus Protocol Stability", status.activeFocusSessionName());
         assertTrue(status.isPolicyLocked(), "Policy must be locked during active STRICT sprint");
+        assertTrue(status.daemonConnected());
     }
 
     @Test

@@ -1,4 +1,5 @@
 import type { IconName } from '../../types/navigation'
+export type { IconName }
 
 export interface IconProps {
   name: IconName
@@ -58,6 +59,7 @@ export function Icon({
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
       )
+    case 'calendar':
     case 'schedule':
       return (
         <svg {...common}>
@@ -151,6 +153,7 @@ export function Icon({
           <rect x="14" y="4" width="4" height="16" rx="1" />
         </svg>
       )
+    case 'check-circle':
     case 'check':
       return (
         <svg {...common}>
@@ -244,6 +247,7 @@ export function Icon({
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       )
+    case 'shield-check':
     case 'shield':
       return (
         <svg {...common}>

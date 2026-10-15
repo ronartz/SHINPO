@@ -9,6 +9,9 @@ export interface SessionSummaryModalProps {
   setAccomplishment: (val: string) => void
   reflectionNotes: string
   setReflectionNotes: (val: string) => void
+  markTaskCompleted?: boolean
+  setMarkTaskCompleted?: (val: boolean) => void
+  linkedTaskTitle?: string | null
   onCancel: () => void
   onSubmit: (e: React.FormEvent, triggerAiDebrief?: boolean) => void
 }
@@ -21,6 +24,9 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
   setAccomplishment,
   reflectionNotes,
   setReflectionNotes,
+  markTaskCompleted,
+  setMarkTaskCompleted,
+  linkedTaskTitle,
   onCancel,
   onSubmit,
 }) => {
@@ -47,6 +53,34 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
               </button>
             ))}
           </div>
+
+          {linkedTaskTitle && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-hover)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: 14,
+                fontSize: 13,
+                color: 'var(--text-1)',
+              }}
+            >
+              <input
+                type="checkbox"
+                id="mark-task-completed-check"
+                checked={markTaskCompleted ?? true}
+                onChange={(e) => setMarkTaskCompleted?.(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent-red)' }}
+              />
+              <label htmlFor="mark-task-completed-check" style={{ cursor: 'pointer', flex: 1 }}>
+                Mark connected task <strong style={{ color: 'var(--accent-coral)' }}>"{linkedTaskTitle}"</strong> as completed
+              </label>
+            </div>
+          )}
 
           <input
             type="text"
@@ -79,7 +113,11 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
             <button
               type="button"
               className="btn-timer debrief-ai-btn"
-              onClick={(e) => onSubmit(e, true)}
+              onClick={(e) => {
+                const form = e.currentTarget.form
+                if (!form?.reportValidity()) return
+                onSubmit(e, true)
+              }}
               title="Save session summary and ask EONPAI for feedback"
             >
               <Icon name="sparkle" size={13} />
@@ -91,4 +129,3 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
     </div>
   )
 }
-

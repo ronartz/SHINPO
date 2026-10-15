@@ -34,9 +34,18 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import com.shinpo.ai.tool.AiToolRegistry;
+import com.shinpo.repository.FocusSessionRepository;
+import com.shinpo.service.TaskManagerService;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,8 +60,6 @@ class Slice7ControlledActionTests {
     @Autowired
     private AiActionValidator aiActionValidator;
 
-    @Autowired
-    private AiActionExecutor aiActionExecutor;
 
     @Autowired
     private AiActionRepository aiActionRepository;
@@ -77,6 +84,15 @@ class Slice7ControlledActionTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private FocusSessionRepository focusSessionRepository;
+
+    @Autowired
+    private TaskManagerService taskManagerService;
+
+    @Autowired
+    private AiToolRegistry aiToolRegistry;
 
     private User userA;
     private User userB;
@@ -315,6 +331,172 @@ class Slice7ControlledActionTests {
         );
         assertEquals(HttpStatus.OK, confirmResp.getStatusCode());
         assertEquals("COMPLETED", confirmResp.getBody().status());
+    }
+
+    @Test
+    @DisplayName("Concurrency protection: Simultaneous confirmation requests execute domain mutation exactly once")
+    void testConcurrentConfirmationPreventsDuplicateExecution() throws Exception {
+        CreateGoalPayload payload = new CreateGoalPayload("Concurrent Test Goal", "Testing race conditions", LocalDate.now().plusDays(10));
+        AiActionDto proposed = aiActionService.proposeAction(
+                userA.getId(),
+                "CREATE_GOAL",
+                "Concurrent goal proposal",
+                payload
+        );
+
+        long initialGoalCount = goalRepository.findAllByUser_Id(userA.getId()).size();
+
+        int threads = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threads);
+        List<AiActionExecutionResponse> responses = Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threads; i++) {
+            executorService.submit(() -> {
+                try {
+                    startLatch.await();
+                    AiActionExecutionResponse res = aiActionService.confirmAndExecute(proposed.actionId(), userA.getId());
+                    responses.add(res);
+                } catch (Throwable t) {
+                    errors.add(t);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        assertTrue(doneLatch.await(10, TimeUnit.SECONDS), "Concurrent confirmation requests timed out");
+        executorService.shutdown();
+
+        // Exactly 1 goal should be added to userA's goals
+        List<Goal> currentGoals = goalRepository.findAllByUser_Id(userA.getId());
+        assertEquals(initialGoalCount + 1, currentGoals.size(), "Domain mutation must occur exactly once under concurrent confirmation");
+
+        // Both calls should either succeed with COMPLETED status
+        assertTrue(errors.isEmpty(), "Unexpected errors during concurrent confirmation: " + errors);
+        assertEquals(2, responses.size());
+        for (AiActionExecutionResponse res : responses) {
+            assertEquals("COMPLETED", res.status());
+            assertEquals(proposed.actionId(), res.actionId());
+        }
+
+        // Verify persisted status in repository is COMPLETED
+        AiAction persisted = aiActionRepository.findByActionId(proposed.actionId()).orElseThrow();
+        assertEquals("COMPLETED", persisted.getStatus());
+    }
+
+    @Test
+    @DisplayName("End-to-end proposal, confirmation, and task manager integration for CREATE_TASK")
+    void testCreateTaskE2EAndAppearanceInTaskManager() {
+        Goal goal = goalRepository.save(new Goal("Project Phoenix", "Key Goal", LocalDate.now(), LocalDate.now().plusMonths(1), userA));
+
+        Map<String, Object> taskPayload = Map.of(
+                "goalId", goal.getId(),
+                "title", "Implement Security Filter",
+                "description", "Add STOMP JWT authentication interceptor",
+                "scheduledDate", LocalDate.now().plusDays(1).toString(),
+                "estimatedMinutes", 45
+        );
+
+        // 1. Propose task
+        AiActionDto proposed = aiActionService.proposeAction(
+                userA.getId(),
+                "CREATE_TASK",
+                "Create task for Project Phoenix",
+                taskPayload
+        );
+        assertNotNull(proposed.actionId());
+        assertEquals("PROPOSED", proposed.status());
+
+        // 2. Pending list check
+        List<AiActionDto> pending = aiActionService.getPendingActions(userA.getId());
+        assertTrue(pending.stream().anyMatch(a -> a.actionId().equals(proposed.actionId())));
+
+        // 3. Confirm
+        AiActionExecutionResponse confirmed = aiActionService.confirmAndExecute(proposed.actionId(), userA.getId());
+        assertEquals("COMPLETED", confirmed.status());
+        assertNotNull(confirmed.executedAt());
+
+        // 4. Verify task exists in MissionRepository
+        List<Mission> missions = missionRepository.findAllByGoal_User_Id(userA.getId());
+        Mission createdMission = missions.stream()
+                .filter(m -> "Implement Security Filter".equals(m.getTitle()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(createdMission, "EONPAI-created task must be present in user's mission list");
+        assertEquals("Add STOMP JWT authentication interceptor", createdMission.getDescription());
+        assertEquals(45, createdMission.getEstimatedMinutes());
+        assertEquals(goal.getId(), createdMission.getGoal().getId());
+
+        // 5. Verify pending list no longer includes the confirmed action
+        List<AiActionDto> pendingAfter = aiActionService.getPendingActions(userA.getId());
+        assertFalse(pendingAfter.stream().anyMatch(a -> a.actionId().equals(proposed.actionId())));
+
+        // 6. Verify recent list includes it
+        List<AiActionDto> recent = aiActionService.getRecentActions(userA.getId());
+        assertTrue(recent.stream().anyMatch(a -> a.actionId().equals(proposed.actionId()) && "COMPLETED".equals(a.status())));
+    }
+
+    @Test
+    @DisplayName("AiToolRegistry proposal tools fail explicitly when AiActionService is unavailable")
+    void testAiToolRegistryProposalToolFailsWhenServiceUnavailable() {
+        // Construct tool registry without AiActionService
+        AiToolRegistry unconfiguredRegistry = new AiToolRegistry(
+                userRepository,
+                goalRepository,
+                missionRepository,
+                focusSessionRepository,
+                taskManagerService,
+                null,
+                null
+        );
+
+        var tool = unconfiguredRegistry.getTool("propose_create_task").orElseThrow();
+        var result = tool.execute(userA.getId(), Map.of("goalId", 1, "title", "Test"));
+        assertFalse(result.success(), "Tool execution must fail when required action service is unavailable");
+        assertNotNull(result.errorMessage());
+        assertTrue(result.errorMessage().contains("Action service unavailable"), "Error message must indicate service unavailable");
+        assertNull(result.data(), "Must never return fake actionId preview");
+    }
+
+    @Test
+    @DisplayName("AiToolRegistry proposal tools generate real persisted proposal when service is wired")
+    @SuppressWarnings("unchecked")
+    void testAiToolRegistryProposalToolPersistsWhenServiceWired() {
+        assertNotNull(aiToolRegistry);
+        var tool = aiToolRegistry.getTool("propose_create_task").orElseThrow();
+        Goal goal = goalRepository.save(new Goal("Wired Goal", "Desc", LocalDate.now(), LocalDate.now().plusMonths(1), userA));
+
+        var result = tool.execute(userA.getId(), Map.of("goalId", goal.getId(), "title", "Tool Generated Task"));
+        assertTrue(result.success(), "Tool execution must succeed when action service is wired");
+        Map<String, Object> data = (Map<String, Object>) result.data();
+        assertEquals("PROPOSED", data.get("status"));
+        String actionId = (String) data.get("actionId");
+        assertNotNull(actionId);
+        assertNotEquals("act_preview", actionId, "Must be a genuine persisted actionId, not act_preview");
+
+        // Verify it was actually saved in DB
+        AiAction inDb = aiActionRepository.findByActionId(actionId).orElse(null);
+        assertNotNull(inDb, "Tool-generated action must be persisted in database");
+        assertEquals(userA.getId(), inDb.getUser().getId());
+    }
+
+    @Test
+    @DisplayName("Malformed action requests return HTTP 400 Bad Request")
+    void testMalformedActionRequestsReturnBadRequest() {
+        HttpHeaders headers = createAuthHeaders(userA);
+
+        // Missing actionType
+        ResponseEntity<String> resp = restTemplate.exchange(
+                "/api/ai/actions/propose",
+                HttpMethod.POST,
+                new HttpEntity<>("{\"description\":\"Missing actionType\"}", headers),
+                String.class
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
     }
 }
 

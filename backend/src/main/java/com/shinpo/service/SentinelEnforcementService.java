@@ -75,6 +75,9 @@ public class SentinelEnforcementService {
     // Debounce cache: key = "userId_pid", value = Instant of last logged quarantine
     private final Map<String, Instant> debounceMap = new ConcurrentHashMap<>();
 
+    // Daemon heartbeat tracking: key = userId, value = Instant of last sync/telemetry
+    private final Map<Long, Instant> lastDaemonHeartbeat = new ConcurrentHashMap<>();
+
     // Non-overlapping sweep guard to prevent concurrent execution pileup
     private final AtomicBoolean isSweepRunning = new AtomicBoolean(false);
 
@@ -189,15 +192,22 @@ public class SentinelEnforcementService {
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 
+        Instant lastHeartbeat = lastDaemonHeartbeat.get(userId);
+        boolean daemonConnected = lastHeartbeat != null && Duration.between(lastHeartbeat, now).getSeconds() <= 12;
+
         String status;
         if (activeSession != null) {
-            status = "ACTIVE_DEFENSE";
+            status = daemonConnected ? "ACTIVE" : "DEGRADED";
         } else {
             Instant threshold = now.plus(Duration.ofMinutes(30));
             List<FocusSession> scheduledSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.SCHEDULED);
             boolean upcoming = scheduledSessions.stream()
                     .anyMatch(s -> s.getScheduledAt() != null && s.getScheduledAt().isBefore(threshold) && s.getScheduledAt().isAfter(now.minusSeconds(60)));
-            status = upcoming ? "STANDBY" : "IDLE";
+            if (daemonConnected) {
+                status = upcoming ? "STANDBY" : "READY";
+            } else {
+                status = upcoming ? "STANDBY_UNAVAILABLE" : "UNAVAILABLE";
+            }
         }
 
         Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
@@ -225,7 +235,9 @@ public class SentinelEnforcementService {
                 tamperEventsCount,
                 isPolicyLocked,
                 recent,
-                lastGlobalSweep
+                lastGlobalSweep,
+                daemonConnected,
+                lastHeartbeat
         );
     }
 
@@ -324,12 +336,10 @@ public class SentinelEnforcementService {
 
             ProcessHandle.Info info = handle.info();
             String rawCmd = info.command().orElse("");
-            String cmdLine = info.commandLine().orElse("");
             String name = resolveProcessName(handle);
             String lowerName = name.toLowerCase();
-            String lowerCmd = (rawCmd + " " + cmdLine).toLowerCase();
 
-            boolean isShinpoOwned = lowerName.contains("shinpo") || lowerCmd.contains("shinpo");
+            boolean isShinpoOwned = isShinpoProcess(rawCmd, name);
             if (PROTECTED_PROCESSES.contains(lowerName) || isShinpoOwned) {
                 continue;
             }
@@ -389,7 +399,11 @@ public class SentinelEnforcementService {
                     } else {
                         ProcessHandle revalidatedHandle = revalidatedOpt.get();
                         String currentName = resolveProcessName(revalidatedHandle);
-                        if (!currentName.equalsIgnoreCase(name) && !currentName.toLowerCase().contains(lowerName)) {
+                        Optional<Instant> revalidatedStart = revalidatedHandle.info().startInstant();
+                        if (!matchesProcessIdentity(name, currentName)
+                                || info.startInstant().isEmpty()
+                                || revalidatedStart.isEmpty()
+                                || !revalidatedStart.get().equals(info.startInstant().get())) {
                             actionTaken = "REVALIDATION_FAILED";
                             reason = "Process identity mismatch: PID " + pid + " now belongs to " + currentName + " (expected " + name + ")";
                             if (shouldRecord) {
@@ -404,6 +418,7 @@ public class SentinelEnforcementService {
                                 );
                                 tamperEventRepository.save(tamper);
                             }
+
                             log.error("SENTINEL_PID_REUSE_ABORT: pid={} expected={} current={}", pid, name, currentName);
                         } else {
                             try {
@@ -480,6 +495,22 @@ public class SentinelEnforcementService {
                 msg,
                 now
         );
+    }
+
+    public static boolean matchesProcessIdentity(String expectedName, String currentName) {
+        return expectedName != null && currentName != null && expectedName.equalsIgnoreCase(currentName);
+    }
+
+    private static boolean isShinpoProcess(String command, String processName) {
+        String executable = command == null ? "" : command;
+        String name = processName == null ? "" : processName;
+        return Set.of("shinpo", "shinpo-shield", "shinpo-desktop").contains(name.toLowerCase())
+                || executable.endsWith("/shinpo")
+                || executable.endsWith("/shinpo-shield")
+                || executable.endsWith("/shinpo-desktop")
+                || executable.endsWith("\\shinpo.exe")
+                || executable.endsWith("\\shinpo-shield.exe")
+                || executable.endsWith("\\shinpo-desktop.exe");
     }
 
     public static String enforceProcess(ProcessHandle handle, String mode) {
@@ -717,6 +748,9 @@ public class SentinelEnforcementService {
 
     @Transactional
     public SentinelQuarantineItem recordExternalQuarantine(Long userId, RecordQuarantineRequest request) {
+        if (userId != null) {
+            lastDaemonHeartbeat.put(userId, Instant.now());
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -823,6 +857,9 @@ public class SentinelEnforcementService {
 
     @Transactional
     public SentinelDaemonSyncResponse getDaemonSyncState(Long userId) {
+        if (userId != null) {
+            lastDaemonHeartbeat.put(userId, Instant.now());
+        }
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
 

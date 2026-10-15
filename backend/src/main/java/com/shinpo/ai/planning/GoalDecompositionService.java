@@ -31,6 +31,7 @@ public class GoalDecompositionService {
     private final AiSuggestionRepository aiSuggestionRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    @SuppressWarnings("unused")
     private final AiActionService aiActionService;
 
     public GoalDecompositionService(

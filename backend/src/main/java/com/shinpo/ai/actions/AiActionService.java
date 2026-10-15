@@ -87,7 +87,7 @@ public class AiActionService {
             throw new IllegalArgumentException("actionId and userId are required");
         }
 
-        AiAction action = actionRepository.findByActionId(actionId)
+        AiAction action = actionRepository.findByActionIdForUpdate(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Action not found: " + actionId));
 
         if (!action.getUser().getId().equals(userId)) {
@@ -99,8 +99,16 @@ public class AiActionService {
             return AiActionExecutionResponse.success(action.getActionId(), action.getResultSummary(), action.getExecutedAt());
         }
 
+        if ("FAILED".equals(action.getStatus())) {
+            return AiActionExecutionResponse.failure(action.getActionId(), action.getErrorMessage());
+        }
+
         if ("REJECTED".equals(action.getStatus())) {
             throw new IllegalStateException("Cannot execute rejected action: " + actionId);
+        }
+
+        if ("EXECUTING".equals(action.getStatus()) || "APPROVED".equals(action.getStatus())) {
+            throw new IllegalStateException("Action is already executing: " + actionId);
         }
 
         if (action.getExpiresAt() != null && Instant.now().isAfter(action.getExpiresAt())) {
@@ -121,7 +129,7 @@ public class AiActionService {
             throw new IllegalArgumentException("actionId and userId are required");
         }
 
-        AiAction action = actionRepository.findByActionId(actionId)
+        AiAction action = actionRepository.findByActionIdForUpdate(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Action not found: " + actionId));
 
         if (!action.getUser().getId().equals(userId)) {
@@ -130,6 +138,14 @@ public class AiActionService {
 
         if ("COMPLETED".equals(action.getStatus())) {
             throw new IllegalStateException("Cannot reject an already completed action: " + actionId);
+        }
+
+        if ("REJECTED".equals(action.getStatus())) {
+            return toDto(action);
+        }
+
+        if ("EXECUTING".equals(action.getStatus()) || "APPROVED".equals(action.getStatus())) {
+            throw new IllegalStateException("Cannot reject an action currently executing: " + actionId);
         }
 
         action.setStatus("REJECTED");

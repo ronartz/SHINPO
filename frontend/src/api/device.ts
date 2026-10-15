@@ -101,7 +101,7 @@ export interface SentinelQuarantineItem {
 }
 
 export interface SentinelStatus {
-  status: 'ACTIVE_DEFENSE' | 'STANDBY' | 'IDLE' | string
+  status: 'ACTIVE_DEFENSE' | 'STANDBY' | 'IDLE' | 'ACTIVE' | 'DEGRADED' | 'UNAVAILABLE' | 'READY' | string
   activeFocusSessionId: number | null
   activeFocusSessionName: string | null
   enforcementMode: 'STRICT' | 'AUDIT_ONLY' | 'CONTAINMENT' | string
@@ -111,6 +111,8 @@ export interface SentinelStatus {
   isPolicyLocked?: boolean
   recentQuarantines: SentinelQuarantineItem[]
   lastSweepAt: string | null
+  daemonConnected?: boolean
+  lastDaemonSyncAt?: string | null
 }
 
 export interface SentinelTamperEventItem {

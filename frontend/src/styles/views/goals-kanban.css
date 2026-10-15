@@ -1,0 +1,634 @@
+/* ==========================================================================
+   SHINPO FLIGHT DECK — REFERENCE-LED COCKPIT (Coral Protocol & Dark Glass)
+   ========================================================================== */
+
+.shinpo-flight-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   FLIGHT DECK WORK BOARD (Top Tier: Multi-Column Status Kanban)
+   -------------------------------------------------------------------------- */
+.flight-deck-board-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: visible;
+}
+
+.board-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.board-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.board-panel-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text);
+  margin: 0;
+}
+
+.board-status-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+}
+
+.summary-pill.active {
+  background: var(--brand-coral-subtle);
+  color: var(--brand-coral);
+  border-color: var(--brand-coral-border);
+}
+
+.summary-pill.completed {
+  background: var(--accent-green-subtle);
+  color: var(--accent-green);
+  border-color: var(--accent-green-border);
+}
+
+
+.board-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.board-filter-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.board-filter-indicator button {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.board-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  text-decoration: none;
+}
+
+.board-action-btn.primary {
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #9757FA);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(151, 87, 250, 0.32);
+}
+
+html[data-theme='light'] .board-action-btn.primary {
+  background: var(--brand-coral-gradient);
+  background-color: var(--primary-coral, #7932E6);
+  color: #FFFFFF;
+}
+
+.board-action-btn.primary:hover {
+  background: var(--brand-coral-hover, #AB75FC);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(151, 87, 250, 0.42);
+  filter: brightness(1.05);
+}
+
+.board-action-btn.secondary {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.board-action-btn.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+/* 3-Column Kanban Board Layout */
+.flight-deck-board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .flight-deck-board-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.status-column {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 280px;
+  transition: border-color 0.2s ease;
+}
+
+.status-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.column-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.column-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.column-status-dot.dot-coral {
+  background: var(--primary-coral);
+  box-shadow: 0 0 8px var(--primary-coral);
+}
+
+.column-status-dot.dot-cyan {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.column-status-dot.dot-emerald {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+}
+
+.column-title-text {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.column-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.status-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  max-height: 460px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-right: 8px;
+}
+
+.status-column-cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.status-column-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.status-column-cards::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.status-column-cards::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+.status-column-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--text-3);
+  text-align: center;
+  font-size: 12.5px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  margin: auto 0;
+}
+
+.status-column-empty .empty-action-link {
+  background: none;
+  border: none;
+  color: var(--primary-coral);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: opacity 0.2s;
+}
+
+.status-column-empty .empty-action-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* Individual Mission Card */
+.flight-deck-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.flight-deck-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-card);
+}
+
+.flight-deck-card.has-open-menu {
+  z-index: 50;
+  border-color: rgba(255, 77, 94, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.flight-deck-card.is-active-sprint {
+  border-color: var(--brand-coral-border);
+  background: linear-gradient(180deg, rgba(255, 77, 94, 0.06) 0%, var(--surface) 100%);
+  box-shadow: 0 0 16px rgba(255, 77, 94, 0.15);
+}
+
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.card-title.completed-title {
+  text-decoration: line-through;
+  color: var(--text-3);
+}
+
+.card-menu-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.card-menu-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  font-size: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.card-menu-btn:hover,
+.card-menu-btn.active {
+  background: var(--surface-hover);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Task Menu Click-Catcher Invisible Backdrop */
+.card-menu-backdrop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+  cursor: default;
+}
+
+/* Card Dropdown Menu */
+.flight-deck-card-menu {
+  position: absolute;
+  right: 0;
+  width: 180px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--shadow-elevated), 0 12px 36px rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-deck-card-menu.portal-menu {
+  position: fixed;
+  right: auto;
+  width: 180px;
+}
+
+.flight-deck-card-menu.menu-open-up {
+  transform-origin: bottom right;
+  animation: menuPopUp 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flight-deck-card-menu.menu-open-down {
+  transform-origin: top right;
+  animation: menuPopDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes menuPopUp {
+  from { opacity: 0; transform: scale(0.95) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes menuPopDown {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: var(--transition-fast);
+}
+
+.card-menu-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.card-menu-item.action-delete {
+  color: #EF4444;
+}
+
+.card-menu-item.action-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #F87171;
+}
+
+.card-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.card-context-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+  flex-wrap: wrap;
+}
+
+.card-goal-tag {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: var(--text-2);
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.card-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-duration-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: var(--accent-cyan-subtle);
+  border: 1px solid var(--accent-cyan-border);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.card-priority-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.card-quick-arm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--primary-coral);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.card-quick-arm-btn:hover {
+  background: var(--brand-coral-gradient);
+  color: #FFFFFF;
+  border-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   FLIGHT DECK SUPPORTING COCKPIT PANELS (Bottom Tier Bento Grid)
+   -------------------------------------------------------------------------- */
+.flight-deck-cockpit-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.95fr 0.95fr 0.9fr;
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .flight-deck-cockpit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cockpit-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  position: relative;
+  min-height: 260px;
+}
+
+.cockpit-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cockpit-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cockpit-panel-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-coral);
+  flex-shrink: 0;
+}
+
+.cockpit-panel-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--text);
+  margin: 0;
+}
+
+.cockpit-panel-action-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+
+.cockpit-panel-action-icon:hover {
+  color: var(--text);
+}

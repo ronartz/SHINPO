@@ -1,6 +1,11 @@
 import { Client } from '@stomp/stompjs'
 import { getAuthToken, getAuthenticatedUserId } from './auth'
 import { getWsBaseUrl } from './config'
+import {
+  normalizeFocusSessionEvent,
+  normalizeSentinelQuarantineEvent,
+  normalizeSentinelStatusEvent,
+} from './eventNormalizer'
 
 export interface SentinelQuarantineEvent {
   id: number
@@ -102,7 +107,8 @@ class ShinpoWebSocketClient {
       // 1. Subscribe to Quarantine Events (User-specific + Broadcast)
       this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/quarantine`, (message) => {
         try {
-          const payload: SentinelQuarantineEvent = JSON.parse(message.body)
+          const raw = JSON.parse(message.body)
+          const payload = normalizeSentinelQuarantineEvent(raw)
           this.quarantineListeners.forEach((listener) => listener(payload))
         } catch (err) {
           console.error('[STOMP] Failed to parse quarantine event:', err)
@@ -112,7 +118,8 @@ class ShinpoWebSocketClient {
       // 2. Subscribe to Sentinel Status Events
       this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/status`, (message) => {
         try {
-          const payload: SentinelStatusEvent = JSON.parse(message.body)
+          const raw = JSON.parse(message.body)
+          const payload = normalizeSentinelStatusEvent(raw)
           this.statusListeners.forEach((listener) => listener(payload))
         } catch (err) {
           console.error('[STOMP] Failed to parse status event:', err)
@@ -122,7 +129,8 @@ class ShinpoWebSocketClient {
       // 3. Subscribe to Focus Session Events (Real-time sprint lockdown sync across tabs)
       this.client?.subscribe(`/topic/users/${targetUserId}/focus-session`, (message) => {
         try {
-          const payload: FocusSessionEvent = JSON.parse(message.body)
+          const raw = JSON.parse(message.body)
+          const payload = normalizeFocusSessionEvent(raw)
           this.focusSessionListeners.forEach((listener) => listener(payload))
         } catch (err) {
           console.error('[STOMP] Failed to parse focus session event:', err)

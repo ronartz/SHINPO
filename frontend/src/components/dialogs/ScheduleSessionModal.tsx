@@ -24,6 +24,7 @@ export interface ScheduleSessionModalProps {
   duration: number
   setDuration: (val: number) => void
   onSubmit: (e: React.FormEvent) => void
+  isEditing?: boolean
 }
 
 export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
@@ -47,15 +48,18 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
   duration,
   setDuration,
   onSubmit,
+  isEditing = false,
 }) => {
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 'min(520px, calc(100vw - 32px))' }}>
-        <h3 className="modal-title">Schedule Focus Session</h3>
+        <h3 className="modal-title">{isEditing ? 'Edit Scheduled Session' : 'Schedule Focus Session'}</h3>
         <p className="modal-sub">
-          Schedule a dedicated focus session on your calendar. Focus protection will activate automatically when the session starts.
+          {isEditing
+            ? 'Update the timing, task connection, or intention for this scheduled focus session.'
+            : 'Schedule a dedicated focus session on your calendar. Focus protection will activate automatically when the session starts.'}
         </p>
 
         <form onSubmit={onSubmit}>
@@ -202,7 +206,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
             </button>
             <button type="submit" className="btn-timer primary">
               <Icon name="check" size={14} />
-              <span>Schedule Session</span>
+              <span>{isEditing ? 'Save Changes' : 'Schedule Session'}</span>
             </button>
           </div>
         </form>
