@@ -15,6 +15,23 @@ import {
   emergencyOverride,
 } from '../api/device'
 import { Icon } from '../components/common/Icon'
+import { ShinpoSelect } from '../components/ui'
+import type { SelectOption } from '../components/ui/Select/types'
+import {
+  mapEnforcementOutcome,
+  deriveOverallProtectionStatus,
+  groupQuarantineEvents,
+} from '../utils/focusProtectionStatus'
+
+const RULE_POLICY_OPTIONS: SelectOption<'BLOCKED' | 'ALLOWED'>[] = [
+  { value: 'BLOCKED', label: 'BLOCKED (Close during focus sessions)' },
+  { value: 'ALLOWED', label: 'ALLOWED (Allow during focus sessions)' },
+]
+
+const OVERRIDE_MODE_OPTIONS: SelectOption<'CONTAINMENT' | 'AUDIT_ONLY'>[] = [
+  { value: 'CONTAINMENT', label: 'CONTAINMENT (Allow launch with warning logs)' },
+  { value: 'AUDIT_ONLY', label: 'AUDIT_ONLY (Passive telemetry monitoring only)' },
+]
 
 export interface TaskManagerViewProps {
   deviceSnapshot: ProcessSnapshot | null
@@ -76,6 +93,16 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   const [overrideTargetMode, setOverrideTargetMode] = useState<'CONTAINMENT' | 'AUDIT_ONLY'>('CONTAINMENT')
   const [overrideLoading, setOverrideLoading] = useState(false)
   const [overrideError, setOverrideError] = useState<string | null>(null)
+  const [expandedActivityKeys, setExpandedActivityKeys] = useState<Set<string>>(new Set())
+
+  const toggleActivityDetail = (key: string) => {
+    setExpandedActivityKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -474,198 +501,417 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       </div>
 
       {/* Focus Protection Policy Rules & Activity Feed */}
-      <div className="sentinel-panel">
-        <div className="sentinel-panel-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Icon name="focus" size={16} />
-            <h3 className="sentinel-panel-title">Focus Protection Rules & History</h3>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-            {sentinelRules.length} Custom Rules • Mode: {sentinelStatus?.enforcementMode ?? 'STRICT'}
-          </div>
-        </div>
+      {(() => {
+        const protectionInfo = deriveOverallProtectionStatus(sentinelStatus)
+        const groupedActivities = groupQuarantineEvents(sentinelStatus?.recentQuarantines ?? [])
+        const customRules = sentinelRules.filter((r) => r.isCustom)
 
-        {/* Rules list */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.05em', marginBottom: 8 }}>
-            BLOCKED APPLICATIONS
-          </div>
-          <div className="sentinel-rules-list">
-            {sentinelRules.length > 0 ? (
-              sentinelRules.map((rule) => (
-                <span key={rule.id} className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}>
-                  <span>{rule.processNamePattern}</span>
-                  {rule.isCustom && (
-                    sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? (
-                      <span
-                        className="sentinel-rule-locked-indicator"
-                        title="Focus protection rules are locked during an active session."
-                        onClick={() => {
-                          setTmToast('Focus protection rules are locked during active sessions. Use Emergency Override if needed.')
-                          setTimeout(() => setTmToast(null), 4000)
-                        }}
-                      >
-                        <Icon name="lock" size={11} />
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="sentinel-rule-del-btn"
-                        onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
-                        title="Remove rule"
-                      >
-                        ×
-                      </button>
-                    )
-                  )}
-                </span>
-              ))
-            ) : (
-              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                Default heuristics active (discord, steam, spotify, telegram, games, etc.)
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Quarantines if any */}
-        {sentinelStatus?.recentQuarantines && sentinelStatus.recentQuarantines.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.05em', marginBottom: 8 }}>
-              RECENT BLOCKED ATTEMPTS
-            </div>
-            <div className="sentinel-audit-timeline">
-              {sentinelStatus.recentQuarantines.map((item) => {
-                const actionLabel = item.policyAction === 'TERMINATE_ATTEMPTED'
-                  ? 'Terminated'
-                  : item.policyAction === 'WARNED'
-                  ? 'Warning'
-                  : item.policyAction === 'QUARANTINED'
-                  ? 'Blocked'
-                  : item.policyAction
-                const cleanReason = item.reason
-                  ? item.reason.replace(/\[WARNING_EXPIRED\]/g, '(Expired)').replace(/\[.*?\]/g, '').trim()
-                  : ''
-
-                return (
-                  <div key={item.id} className="sentinel-audit-item">
-                    <div className="sentinel-audit-left">
-                      <span className={`sentinel-audit-badge ${actionLabel.toLowerCase()}`}>{actionLabel}</span>
-                      <strong style={{ color: 'var(--text-1)' }}>{item.processName}</strong>
-                      <span style={{ color: 'var(--text-3)' }}>(PID {item.pid})</span>
-                    </div>
-                    {cleanReason && (
-                      <div style={{ color: 'var(--text-2)', fontSize: 11 }}>
-                        {cleanReason}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Protection Audit Feed */}
-        <div className="sentinel-tamper-section">
-          <div
-            className="sentinel-tamper-header"
-          >
-            <div className="sentinel-tamper-title">
-              <Icon name="shield" size={15} />
-              <span>PROTECTION AUDIT LOG</span>
-              <span
-                className={`sentinel-tamper-badge-count ${
-                  tamperEvents.length === 0 ? 'clean' : 'alert'
-                }`}
-              >
-                {tamperEvents.length === 0
-                  ? 'Protected'
-                  : `${tamperEvents.length} Event${tamperEvents.length > 1 ? 's' : ''}`}
-              </span>
-            </div>
-            <button
-              type="button"
-              aria-expanded={tamperEventsExpanded}
-              onClick={() => setTamperEventsExpanded((prev) => !prev)}
-              title="Toggle audit events"
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-3)',
-                cursor: 'pointer',
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span>{tamperEventsExpanded ? 'Collapse' : 'Expand Audit Log'}</span>
-              <Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} />
-            </button>
-          </div>
-
-          {tamperEventsExpanded && (
-            <div className="sentinel-tamper-timeline">
-              {tamperEventsLoading ? (
-                <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>
-                  Loading audit logs...
+        return (
+          <div className="sentinel-panel">
+            {/* Header: Title, Description, Operational Badges */}
+            <div className="sentinel-panel-header">
+              <div className="sentinel-title-block">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon name="shield" size={18} />
+                  <h3 className="sentinel-panel-title">Focus Protection</h3>
                 </div>
-              ) : tamperEvents.length === 0 ? (
+                <p className="sentinel-panel-subtitle">
+                  Real-time workstation distraction defense and process containment.
+                </p>
+              </div>
+
+              <div className="sentinel-header-badges">
+                {/* Overall Operational Status Pill */}
                 <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--accent-emerald)',
-                    padding: '10px 12px',
-                    background: 'rgba(46, 213, 115, 0.05)',
-                    borderRadius: 'var(--radius-sm, 8px)',
-                    border: '1px solid rgba(46, 213, 115, 0.15)',
-                  }}
+                  className={`sentinel-status-pill ${protectionInfo.badgeVariant}`}
+                  title={protectionInfo.description}
                 >
-                  No unauthorized override attempts detected. Focus protection is operating normally.
+                  <span
+                    className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
+                  />
+                  <span>{protectionInfo.badgeText}</span>
                 </div>
-              ) : (
-                tamperEvents.map((evt) => (
-                  <div key={evt.id} className="sentinel-tamper-item">
-                    <div className="sentinel-tamper-item-top">
-                      <div className="sentinel-tamper-item-left">
-                        <span
-                          className={`sentinel-severity-badge ${evt.severity.toLowerCase()}`}
-                        >
-                          {evt.severity}
-                        </span>
-                        <strong style={{ color: 'var(--text-1)' }}>
-                          {evt.eventType.replace(/_/g, ' ')}
-                        </strong>
-                        <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
-                          [{evt.enforcementMode}]
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        {new Date(evt.createdAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </div>
-                    </div>
-                    {evt.justification && (
-                      <div className="sentinel-tamper-justification">
-                        <strong>Justification:</strong> {evt.justification}
-                      </div>
-                    )}
-                    {evt.details && (
-                      <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
-                        {evt.details}
-                      </div>
-                    )}
-                  </div>
-                ))
+
+                {/* Mode Selector Pill */}
+                <button
+                  type="button"
+                  className="sentinel-mode-badge"
+                  title={
+                    sentinelStatus?.isPolicyLocked
+                      ? 'Protection Locked: Click to request Emergency Override'
+                      : 'Click to cycle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT'
+                  }
+                  onClick={handleToggleSentinelMode}
+                >
+                  <span>{protectionInfo.mode}</span>
+                  {sentinelStatus?.isPolicyLocked && <Icon name="lock" size={11} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Overview Summary Strip */}
+            <div className="sentinel-overview-strip">
+              <div className="sentinel-overview-item">
+                <span
+                  className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
+                />
+                <span>
+                  Native Shield:{' '}
+                  <strong style={{ color: protectionInfo.shieldConnected ? 'var(--text-1)' : 'var(--text-3)' }}>
+                    {protectionInfo.shieldConnected ? 'Connected (Verified)' : 'Disconnected (Offline)'}
+                  </strong>
+                </span>
+              </div>
+
+              <div className="sentinel-overview-item">
+                <Icon name="target" size={14} />
+                <span>
+                  <strong style={{ color: 'var(--text-1)' }}>{customRules.length}</strong> Custom Rule
+                  {customRules.length === 1 ? '' : 's'} Active
+                </span>
+              </div>
+
+              <div className="sentinel-overview-item">
+                <Icon name="sparkle" size={14} />
+                <span>
+                  <strong style={{ color: 'var(--text-1)' }}>{sentinelStatus?.totalInterceptedToday ?? 0}</strong> Intercepted Today
+                </span>
+              </div>
+
+              {sentinelStatus?.isPolicyLocked && (
+                <button
+                  type="button"
+                  className="emergency-override-btn"
+                  style={{ padding: '4px 10px', fontSize: 11 }}
+                  onClick={() => {
+                    setOverrideError(null)
+                    setShowOverrideModal(true)
+                    setShowAddRuleModal(false)
+                  }}
+                  title="Protection is locked during sprint. Click to request override."
+                >
+                  <Icon name="lock" size={12} />
+                  <span>Override Locked</span>
+                </button>
               )}
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Protection Rules Section */}
+            <div className="sentinel-section-box">
+              <div className="sentinel-section-top">
+                <div className="sentinel-section-heading">Configured Distraction Rules</div>
+                <button
+                  type="button"
+                  className="tm-refresh-btn btn-spring"
+                  style={{ padding: '4px 12px', fontSize: 12, height: 'auto' }}
+                  onClick={() => {
+                    setShowAddRuleModal(true)
+                    setShowOverrideModal(false)
+                  }}
+                  title="Add custom application rule"
+                >
+                  <Icon name="plus" size={12} />
+                  <span>Block App</span>
+                </button>
+              </div>
+
+              <div className="sentinel-rules-explainer">
+                Built-in protection automatically suppresses known gaming platforms (Steam, Lutris, Epic). Custom rules target specific distracting workstation apps during active Focus sprints. Essential development, accessibility, and recording tools (OBS, IDEs, Terminal, Git) are never blocked by default.
+              </div>
+
+              <div className="sentinel-rules-list">
+                {customRules.length > 0 ? (
+                  customRules.map((rule) => (
+                    <span
+                      key={rule.id}
+                      className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}
+                    >
+                      <span className="sentinel-rule-action-tag">
+                        {rule.policyType}
+                      </span>
+                      <span>{rule.processNamePattern}</span>
+                      {sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? (
+                        <span
+                          className="sentinel-rule-locked-indicator"
+                          title="Focus protection rules are locked during an active session."
+                          onClick={() => {
+                            setTmToast('Focus protection rules are locked during active sessions. Use Emergency Override if needed.')
+                            setTimeout(() => setTmToast(null), 4000)
+                          }}
+                        >
+                          <Icon name="lock" size={11} />
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="sentinel-rule-del-btn"
+                          onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
+                          title={`Remove rule "${rule.processNamePattern}"`}
+                          aria-label={`Remove rule "${rule.processNamePattern}"`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ fontSize: 12.5, color: 'var(--text-3)', padding: '4px 0' }}>
+                    No custom application rules configured yet. Click "+ Block App" to target specific workstation apps.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Activity Section */}
+            <div className="sentinel-section-box" style={{ marginTop: 4 }}>
+              <div className="sentinel-section-top">
+                <div className="sentinel-section-heading">Recent Enforcement Activity</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+                  {groupedActivities.length} Unique Event{groupedActivities.length === 1 ? '' : 's'}
+                </div>
+              </div>
+
+              {groupedActivities.length === 0 ? (
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: 'var(--text-3)',
+                    padding: '14px 16px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: 8,
+                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Icon name="check-circle" size={15} />
+                  <span>No distraction applications intercepted recently. Focus workspace is clear.</span>
+                </div>
+              ) : (
+                <div className="sentinel-activity-timeline">
+                  {groupedActivities.map((group) => {
+                    const outcome = mapEnforcementOutcome(
+                      group.primaryItem.policyAction,
+                      group.primaryItem.reason
+                    )
+                    const isExpanded = expandedActivityKeys.has(group.groupKey)
+                    const timeFormatted = new Date(group.primaryItem.detectedAt).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })
+
+                    return (
+                      <div key={group.groupKey} className="sentinel-activity-card">
+                        <div
+                          className="sentinel-activity-main"
+                          onClick={() => toggleActivityDetail(group.groupKey)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              toggleActivityDetail(group.groupKey)
+                            }
+                          }}
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="sentinel-activity-left">
+                            <strong className="sentinel-activity-app-name">{group.processName}</strong>
+                            {group.count > 1 && (
+                              <span className="sentinel-activity-count-badge" title={`${group.count} attempts intercepted`}>
+                                ×{group.count}
+                              </span>
+                            )}
+                            <span className={`sentinel-activity-badge ${outcome.statusType}`}>
+                              {outcome.badgeLabel}
+                            </span>
+                          </div>
+
+                          <div className="sentinel-activity-summary" title={group.primaryItem.reason}>
+                            {outcome.summaryExplanation}
+                          </div>
+
+                          <div className="sentinel-activity-right">
+                            <span>{timeFormatted}</span>
+                            <Icon name={isExpanded ? 'chevron' : 'chevron-right'} size={13} />
+                          </div>
+                        </div>
+
+                        {/* Expandable Diagnostic Details Panel */}
+                        {isExpanded && (
+                          <div className="sentinel-activity-details-panel">
+                            <div className="activity-detail-field">
+                              <span className="activity-detail-label">PROCESS ID (PID)</span>
+                              <span className="activity-detail-val">
+                                {group.allPids.join(', ')}
+                              </span>
+                            </div>
+
+                            <div className="activity-detail-field">
+                              <span className="activity-detail-label">RAW BACKEND ACTION</span>
+                              <span className="activity-detail-val">
+                                {outcome.fullTechnicalAction}
+                              </span>
+                            </div>
+
+                            <div className="activity-detail-field">
+                              <span className="activity-detail-label">ENFORCEMENT MODE</span>
+                              <span className="activity-detail-val">
+                                {group.primaryItem.enforcementMode || 'STRICT'}
+                              </span>
+                            </div>
+
+                            <div className="activity-detail-field">
+                              <span className="activity-detail-label">ASSOCIATED FOCUS SESSION</span>
+                              <span className="activity-detail-val">
+                                {group.primaryItem.focusSessionId ? `#${group.primaryItem.focusSessionId}` : 'None'}
+                              </span>
+                            </div>
+
+                            <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
+                              <span className="activity-detail-label">FULL TECHNICAL REASON</span>
+                              <span className="activity-detail-val" style={{ fontFamily: 'inherit', fontSize: '11.5px' }}>
+                                {group.primaryItem.reason || 'No extended reason reported by backend'}
+                              </span>
+                            </div>
+
+                            {group.primaryItem.commandLine && (
+                              <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
+                                <span className="activity-detail-label">EXECUTABLE COMMAND LINE</span>
+                                <span className="activity-detail-val">
+                                  {group.primaryItem.commandLine}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
+                              <span className="activity-detail-label">LAST DETECTED AT</span>
+                              <span className="activity-detail-val">
+                                {new Date(group.primaryItem.detectedAt).toLocaleString()} ({group.primaryItem.detectedAt})
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Technical Security & Tamper Audit Log Section */}
+            <div className="sentinel-tamper-section">
+              <div
+                className="sentinel-tamper-header"
+                onClick={() => setTamperEventsExpanded((prev) => !prev)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setTamperEventsExpanded((prev) => !prev)
+                  }
+                }}
+                aria-expanded={tamperEventsExpanded}
+              >
+                <div className="sentinel-tamper-title">
+                  <Icon name="shield" size={15} />
+                  <span>Technical Security & Tamper Audit Log</span>
+                  <span
+                    className={`sentinel-tamper-badge-count ${
+                      tamperEvents.length === 0 ? 'clean' : 'alert'
+                    }`}
+                  >
+                    {tamperEvents.length === 0
+                      ? '0 Events Logged'
+                      : `${tamperEvents.length} Event${tamperEvents.length > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-expanded={tamperEventsExpanded}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-3)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                  tabIndex={-1}
+                >
+                  <span>{tamperEventsExpanded ? 'Collapse' : 'Expand Audit Log'}</span>
+                  <Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} />
+                </button>
+              </div>
+
+              {tamperEventsExpanded && (
+                <div className="sentinel-tamper-timeline">
+                  {tamperEventsLoading ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>
+                      Loading audit logs...
+                    </div>
+                  ) : tamperEvents.length === 0 ? (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-2)',
+                        padding: '10px 14px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: 'var(--radius-sm, 8px)',
+                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                      }}
+                    >
+                      No administrative override or policy tamper events recorded in current audit window.
+                    </div>
+                  ) : (
+                    tamperEvents.map((evt) => (
+                      <div key={evt.id} className="sentinel-tamper-item">
+                        <div className="sentinel-tamper-item-top">
+                          <div className="sentinel-tamper-item-left">
+                            <span
+                              className={`sentinel-severity-badge ${evt.severity.toLowerCase()}`}
+                            >
+                              {evt.severity}
+                            </span>
+                            <strong style={{ color: 'var(--text-1)' }}>
+                              {evt.eventType.replace(/_/g, ' ')}
+                            </strong>
+                            <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
+                              [{evt.enforcementMode}]
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                            {new Date(evt.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
+                          </div>
+                        </div>
+                        {evt.justification && (
+                          <div className="sentinel-tamper-justification">
+                            <strong>Justification:</strong> {evt.justification}
+                          </div>
+                        )}
+                        {evt.details && (
+                          <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                            {evt.details}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Add Rule Modal */}
       {showAddRuleModal && (
@@ -693,15 +939,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               </div>
 
               <div className="quick-form-group">
-                <label className="quick-form-label">POLICY ACTION</label>
-                <select
-                  className="quick-form-input"
+                <ShinpoSelect<'BLOCKED' | 'ALLOWED'>
+                  label="POLICY ACTION"
                   value={newRuleType}
-                  onChange={(e) => setNewRuleType(e.target.value as 'BLOCKED' | 'ALLOWED')}
-                >
-                  <option value="BLOCKED">BLOCKED (Close during focus sessions)</option>
-                  <option value="ALLOWED">ALLOWED (Allow during focus sessions)</option>
-                </select>
+                  onChange={setNewRuleType}
+                  options={RULE_POLICY_OPTIONS}
+                />
               </div>
 
               <div className="quick-modal-actions">
@@ -779,22 +1022,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               )}
 
               <div className="quick-form-group">
-                <label className="quick-form-label">DESIRED ENFORCEMENT MODE</label>
-                <select
-                  className="quick-form-input"
+                <ShinpoSelect<'CONTAINMENT' | 'AUDIT_ONLY'>
+                  label="DESIRED ENFORCEMENT MODE"
                   value={overrideTargetMode}
-                  onChange={(e) =>
-                    setOverrideTargetMode(e.target.value as 'CONTAINMENT' | 'AUDIT_ONLY')
-                  }
+                  onChange={setOverrideTargetMode}
+                  options={OVERRIDE_MODE_OPTIONS}
                   disabled={overrideLoading}
-                >
-                  <option value="CONTAINMENT">
-                    CONTAINMENT (Allow launch with warning logs)
-                  </option>
-                  <option value="AUDIT_ONLY">
-                    AUDIT_ONLY (Passive telemetry monitoring only)
-                  </option>
-                </select>
+                />
               </div>
 
               <div className="quick-form-group">

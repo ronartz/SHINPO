@@ -81,6 +81,10 @@ public class FocusProtectionPipelineTests {
         activeSession.setStatus(FocusSessionStatus.ACTIVE);
         activeSession.setStartedAt(Instant.now());
         activeSession = sessionRepository.save(activeSession);
+
+        // Communication tools are no longer unsafe global defaults. This
+        // pipeline intentionally exercises an explicit app-level user rule.
+        enforcementService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("discord", "BLOCKED"));
     }
 
     @Test

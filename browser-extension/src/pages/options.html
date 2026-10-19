@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SHINPO Browser Companion setup</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <main style="max-width: 760px; margin: 40px auto;">
+    <div class="eyebrow">SHINPO Browser Companion</div>
+    <h1>Setup and privacy</h1>
+    <section class="card">
+      <h2>Pairing</h2>
+      <p>The pairing code is created locally by the native host installer. It is never included in the extension source or sent to a webpage.</p>
+      <label for="pairing-code">One-time pairing code</label>
+      <input id="pairing-code" type="text" autocomplete="off" spellcheck="false" maxlength="128">
+      <div class="actions"><button id="pair" class="primary">Pair this browser</button></div>
+    </section>
+    <section class="card">
+      <h2>Focus Rules destination</h2>
+      <p class="muted">HTTPS is required except for a localhost SHINPO development installation.</p>
+      <label for="review-url">SHINPO Focus page</label>
+      <input id="review-url" type="url" value="http://127.0.0.1:5173/focus">
+      <div class="actions"><button id="save-url">Save</button></div>
+    </section>
+    <section class="card">
+      <h2>Why these permissions are requested</h2>
+      <ul class="permissions">
+        <li><strong>Native messaging:</strong> communicates only with the per-user SHINPO host.</li>
+        <li><strong>Tabs and web navigation:</strong> evaluates top-level destinations and redirects an explicitly restricted route without closing the browser.</li>
+        <li><strong>Storage:</strong> retains the pairing proof and only an unexpired policy snapshot.</li>
+        <li><strong>Alarms:</strong> refreshes policy and removes restrictions at lease expiry.</li>
+      </ul>
+      <p class="muted">There is no browsing-history, cookies, downloads, webRequest, clipboard, camera, microphone, or notification permission. The only content script runs on YouTube and reads the route, not page content.</p>
+    </section>
+    <p id="message" class="message" role="status"></p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

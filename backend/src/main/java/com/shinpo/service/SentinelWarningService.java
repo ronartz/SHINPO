@@ -370,20 +370,20 @@ public class SentinelWarningService {
             return new CandidateProcessResponse("ALLOW", null, null, null, "SHINPO runtime process is protected");
         }
 
-        // 1. Contextual policy check (protected processes, session exceptions, user allowed/blocked rules)
-        ContextualEnforcementDecisionService.PolicyDecision policyDecision =
-                contextualDecisionService.evaluateProcess(userId, canonical);
-        if (policyDecision == ContextualEnforcementDecisionService.PolicyDecision.ALLOW) {
-            return new CandidateProcessResponse("ALLOW", null, null, null, "Process permitted by contextual policy");
-        }
-
-        // 2. Active FocusSession resolution (scoped strictly to authenticated user)
+        // 1. Active FocusSession resolution (scoped strictly to authenticated user)
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         if (activeSessions.isEmpty()) {
             // Fail-closed: no active focus session means no destructive enforcement
             return new CandidateProcessResponse("ALLOW", null, null, null, "No active focus session");
         }
         FocusSession session = activeSessions.get(0);
+
+        // 2. Contextual policy check (protected processes, session exceptions, user allowed/blocked rules)
+        ContextualEnforcementDecisionService.PolicyDecision policyDecision =
+                contextualDecisionService.evaluateProcess(userId, canonical);
+        if (policyDecision == ContextualEnforcementDecisionService.PolicyDecision.ALLOW) {
+            return new CandidateProcessResponse("ALLOW", null, null, null, "Process permitted by contextual policy");
+        }
 
         // 3. Expire stale warnings and grace windows
         expireStaleItems();

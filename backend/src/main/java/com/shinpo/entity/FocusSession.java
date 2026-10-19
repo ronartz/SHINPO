@@ -56,6 +56,25 @@ public class FocusSession {
 
     @Column(name = "ended_at")
     private Instant endedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "study_mode", nullable = false, length = 20)
+    private ContextualFocusMode studyMode = ContextualFocusMode.PROTECTED;
+
+    @Column(name = "context_policy_revision", nullable = false)
+    private Long contextPolicyRevision = 1L;
+
+    @Column(name = "restrict_youtube_shorts", nullable = false)
+    private boolean restrictYoutubeShorts;
+
+    @Column(name = "restrict_youtube_home", nullable = false)
+    private boolean restrictYoutubeHome;
+
+    @Column(name = "restrict_unapproved_youtube", nullable = false)
+    private boolean restrictUnapprovedYoutube;
+
+    @Column(name = "hide_youtube_recommendations", nullable = false)
+    private boolean hideYoutubeRecommendations;
     
         @Column(name = "completion_quality")
     private Integer completionQuality;
@@ -79,6 +98,12 @@ public class FocusSession {
         updatedAt = now;
         if (accumulatedPausedSeconds == null) {
             accumulatedPausedSeconds = 0L;
+        }
+        if (studyMode == null) {
+            studyMode = ContextualFocusMode.PROTECTED;
+        }
+        if (contextPolicyRevision == null || contextPolicyRevision < 1L) {
+            contextPolicyRevision = 1L;
         }
     }
 
@@ -219,6 +244,38 @@ public class FocusSession {
     public void setEndedAt(Instant endedAt) {
         this.endedAt = endedAt;
     }
+
+    public ContextualFocusMode getStudyMode() {
+        return studyMode != null ? studyMode : ContextualFocusMode.PROTECTED;
+    }
+
+    public void setStudyMode(ContextualFocusMode studyMode) {
+        this.studyMode = studyMode != null ? studyMode : ContextualFocusMode.PROTECTED;
+    }
+
+    public Long getContextPolicyRevision() {
+        return contextPolicyRevision != null ? contextPolicyRevision : 1L;
+    }
+
+    public void setContextPolicyRevision(Long contextPolicyRevision) {
+        this.contextPolicyRevision = contextPolicyRevision != null && contextPolicyRevision > 0
+                ? contextPolicyRevision
+                : 1L;
+    }
+
+    public long incrementContextPolicyRevision() {
+        contextPolicyRevision = getContextPolicyRevision() + 1L;
+        return contextPolicyRevision;
+    }
+
+    public boolean isRestrictYoutubeShorts() { return restrictYoutubeShorts; }
+    public void setRestrictYoutubeShorts(boolean restrictYoutubeShorts) { this.restrictYoutubeShorts = restrictYoutubeShorts; }
+    public boolean isRestrictYoutubeHome() { return restrictYoutubeHome; }
+    public void setRestrictYoutubeHome(boolean restrictYoutubeHome) { this.restrictYoutubeHome = restrictYoutubeHome; }
+    public boolean isRestrictUnapprovedYoutube() { return restrictUnapprovedYoutube; }
+    public void setRestrictUnapprovedYoutube(boolean restrictUnapprovedYoutube) { this.restrictUnapprovedYoutube = restrictUnapprovedYoutube; }
+    public boolean isHideYoutubeRecommendations() { return hideYoutubeRecommendations; }
+    public void setHideYoutubeRecommendations(boolean hideYoutubeRecommendations) { this.hideYoutubeRecommendations = hideYoutubeRecommendations; }
 
     public Instant getCreatedAt() {
         return createdAt;

@@ -53,9 +53,7 @@ public class SentinelEnforcementService {
     );
 
     public static final Set<String> DEFAULT_DISTRACTIONS = Set.of(
-            "discord", "steam", "telegram-desktop", "obs",
-            "game", "lutris", "heroic", "battlenet", "riotclientservices", "epicgameslauncher",
-            "tiktok", "netflix", "youtube"
+            "steam", "lutris", "heroic", "battlenet", "riotclientservices", "epicgameslauncher"
     );
 
     private final FocusSessionRepository focusSessionRepository;

@@ -1,0 +1,962 @@
+/* ==========================================================================
+   SHINPO UI CORE — AUTHORITATIVE REUSABLE DESIGN SYSTEM (SLICE 8.2)
+   Aurora Violet (#9757FA) | Electric Blue (#4D77F9) | Glacial Cyan (#1BC9DE)
+   Light Alternatives: #7932E6 | #2B58E6 | #008CA3
+   Cross-Platform: Linux + Windows (Zero Native OS Popup Reliance)
+   ========================================================================== */
+
+/* Layer Hierarchy */
+:root {
+  --z-popover: 1000;
+  --z-dialog: 9000;
+  --z-dialog-popover: 9500;
+  --z-toast: 99999;
+}
+
+/* ==========================================================================
+   1. TRIGGER BASICS & FIELD WRAPPER
+   ========================================================================== */
+
+.shinpo-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+
+.shinpo-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2, #B0B5C2);
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+html[data-theme='light'] .shinpo-field-label,
+.theme-light .shinpo-field-label {
+  color: var(--text-2, #484C56);
+}
+
+.shinpo-field-required {
+  color: var(--brand-red, #F87171);
+  margin-left: 3px;
+}
+
+.shinpo-field-helper {
+  font-size: 11.5px;
+  color: var(--text-3, #9096A4);
+  line-height: 1.4;
+}
+
+html[data-theme='light'] .shinpo-field-helper,
+.theme-light .shinpo-field-helper {
+  color: var(--text-3, #5C616D);
+}
+
+.shinpo-field-error {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brand-red, #F87171);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   2. SHINPO SELECT TRIGGER & POPOVER
+   ========================================================================== */
+
+.shinpo-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  background-color: var(--surface-card, #1D1E24);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 10px);
+  color: var(--text, #F3F4F6);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+html[data-theme='light'] .shinpo-select-trigger,
+.theme-light .shinpo-select-trigger {
+  background-color: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #18191B;
+}
+
+.shinpo-select-trigger:hover:not(:disabled) {
+  border-color: rgba(151, 87, 250, 0.45);
+  background-color: var(--surface-hover, #262730);
+}
+
+html[data-theme='light'] .shinpo-select-trigger:hover:not(:disabled),
+.theme-light .shinpo-select-trigger:hover:not(:disabled) {
+  border-color: rgba(121, 50, 230, 0.45);
+  background-color: #F8FAFC;
+}
+
+.shinpo-select-trigger:focus-visible,
+.shinpo-select-trigger.is-open {
+  border-color: var(--primary-violet, #9757FA);
+  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+}
+
+html[data-theme='light'] .shinpo-select-trigger:focus-visible,
+html[data-theme='light'] .shinpo-select-trigger.is-open,
+.theme-light .shinpo-select-trigger:focus-visible,
+.theme-light .shinpo-select-trigger.is-open {
+  border-color: var(--primary-violet, #7932E6);
+  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+}
+
+.shinpo-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.shinpo-select-trigger.has-error {
+  border-color: var(--brand-red, #F87171) !important;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2) !important;
+}
+
+/* Size Variants */
+.shinpo-select-trigger.size-sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.shinpo-select-trigger.size-lg {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+  border-radius: var(--radius-lg, 12px);
+}
+
+.shinpo-select-value-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shinpo-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shinpo-select-placeholder {
+  color: var(--text-3, #9096A4);
+}
+
+html[data-theme='light'] .shinpo-select-placeholder,
+.theme-light .shinpo-select-placeholder {
+  color: #94A3B8;
+}
+
+.shinpo-select-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  color: var(--text-3, #9096A4);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.shinpo-select-trigger.is-open .shinpo-select-arrow {
+  transform: rotate(180deg);
+  color: var(--primary-violet, #9757FA);
+}
+
+html[data-theme='light'] .shinpo-select-trigger.is-open .shinpo-select-arrow,
+.theme-light .shinpo-select-trigger.is-open .shinpo-select-arrow {
+  color: var(--primary-violet, #7932E6);
+}
+
+/* ==========================================================================
+   3. FLOATING POPOVER CONTAINER (PORTAL SURFACE)
+   ========================================================================== */
+
+.shinpo-popover-surface {
+  background-color: var(--surface-elevated, #24252D);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: shinpo-popover-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme='light'] .shinpo-popover-surface,
+.theme-light .shinpo-popover-surface {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes shinpo-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-popover-surface,
+  .shinpo-dialog-card,
+  .shinpo-select-arrow {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Search input inside Select */
+.shinpo-select-search-wrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme='light'] .shinpo-select-search-wrap,
+.theme-light .shinpo-select-search-wrap {
+  border-bottom-color: #E2E8F0;
+  background-color: #F8FAFC;
+}
+
+.shinpo-select-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--surface-card, #1D1E24);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text, #F3F4F6);
+  font-size: 12.5px;
+  outline: none;
+}
+
+html[data-theme='light'] .shinpo-select-search-input,
+.theme-light .shinpo-select-search-input {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #18191B;
+}
+
+.shinpo-select-search-input:focus {
+  border-color: var(--primary-violet, #9757FA);
+}
+
+html[data-theme='light'] .shinpo-select-search-input:focus,
+.theme-light .shinpo-select-search-input:focus {
+  border-color: var(--primary-violet, #7932E6);
+}
+
+/* Select List & Options */
+.shinpo-select-options-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  max-height: 260px;
+  outline: none;
+}
+
+.shinpo-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #F3F4F6);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  user-select: none;
+}
+
+html[data-theme='light'] .shinpo-select-option,
+.theme-light .shinpo-select-option {
+  color: #1E293B;
+}
+
+.shinpo-select-option:hover,
+.shinpo-select-option.is-highlighted {
+  background-color: rgba(151, 87, 250, 0.14);
+  color: #FFFFFF;
+}
+
+html[data-theme='light'] .shinpo-select-option:hover,
+html[data-theme='light'] .shinpo-select-option.is-highlighted,
+.theme-light .shinpo-select-option:hover,
+.theme-light .shinpo-select-option.is-highlighted {
+  background-color: #F1EAFF;
+  color: #7932E6;
+}
+
+.shinpo-select-option.is-selected {
+  background-color: rgba(151, 87, 250, 0.22);
+  color: var(--primary-violet, #9757FA);
+  font-weight: 600;
+}
+
+html[data-theme='light'] .shinpo-select-option.is-selected,
+.theme-light .shinpo-select-option.is-selected {
+  background-color: #EDE4FF;
+  color: #7932E6;
+}
+
+.shinpo-select-option.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.shinpo-select-option-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shinpo-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shinpo-select-option-secondary {
+  font-size: 11px;
+  color: var(--text-3, #9096A4);
+  margin-left: 6px;
+}
+
+.shinpo-select-check-icon {
+  color: var(--primary-violet, #9757FA);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+html[data-theme='light'] .shinpo-select-check-icon,
+.theme-light .shinpo-select-check-icon {
+  color: #7932E6;
+}
+
+.shinpo-select-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-3, #9096A4);
+}
+
+/* ==========================================================================
+   4. SHINPO DATE PICKER
+   ========================================================================== */
+
+.shinpo-datepicker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  background-color: var(--surface-card, #1D1E24);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 10px);
+  color: var(--text, #F3F4F6);
+  font-size: 13.5px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+html[data-theme='light'] .shinpo-datepicker-trigger,
+.theme-light .shinpo-datepicker-trigger {
+  background-color: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #18191B;
+}
+
+.shinpo-datepicker-trigger:hover:not(:disabled) {
+  border-color: rgba(151, 87, 250, 0.45);
+  background-color: var(--surface-hover, #262730);
+}
+
+html[data-theme='light'] .shinpo-datepicker-trigger:hover:not(:disabled),
+.theme-light .shinpo-datepicker-trigger:hover:not(:disabled) {
+  border-color: rgba(121, 50, 230, 0.45);
+  background-color: #F8FAFC;
+}
+
+.shinpo-datepicker-trigger:focus-visible,
+.shinpo-datepicker-trigger.is-open {
+  border-color: var(--primary-violet, #9757FA);
+  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+}
+
+html[data-theme='light'] .shinpo-datepicker-trigger:focus-visible,
+html[data-theme='light'] .shinpo-datepicker-trigger.is-open,
+.theme-light .shinpo-datepicker-trigger:focus-visible,
+.theme-light .shinpo-datepicker-trigger.is-open {
+  border-color: var(--primary-violet, #7932E6);
+  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+}
+
+.shinpo-calendar-panel {
+  width: 288px;
+  padding: 14px;
+}
+
+.shinpo-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.shinpo-calendar-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text, #F3F4F6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+html[data-theme='light'] .shinpo-calendar-nav-btn,
+.theme-light .shinpo-calendar-nav-btn {
+  border-color: #E2E8F0;
+  color: #1E293B;
+}
+
+.shinpo-calendar-nav-btn:hover {
+  background-color: rgba(151, 87, 250, 0.14);
+  border-color: var(--primary-violet, #9757FA);
+  color: #FFFFFF;
+}
+
+html[data-theme='light'] .shinpo-calendar-nav-btn:hover,
+.theme-light .shinpo-calendar-nav-btn:hover {
+  background-color: #F1EAFF;
+  border-color: #7932E6;
+  color: #7932E6;
+}
+
+.shinpo-calendar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #F3F4F6);
+  letter-spacing: -0.01em;
+}
+
+html[data-theme='light'] .shinpo-calendar-title,
+.theme-light .shinpo-calendar-title {
+  color: #18191B;
+}
+
+.shinpo-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3, #9096A4);
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+.shinpo-calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.shinpo-calendar-day-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text, #F3F4F6);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+html[data-theme='light'] .shinpo-calendar-day-btn,
+.theme-light .shinpo-calendar-day-btn {
+  color: #1E293B;
+}
+
+.shinpo-calendar-day-btn:hover:not(:disabled) {
+  background-color: rgba(151, 87, 250, 0.16);
+  color: #FFFFFF;
+}
+
+html[data-theme='light'] .shinpo-calendar-day-btn:hover:not(:disabled),
+.theme-light .shinpo-calendar-day-btn:hover:not(:disabled) {
+  background-color: #F1EAFF;
+  color: #7932E6;
+}
+
+.shinpo-calendar-day-btn.is-today {
+  border-color: var(--primary-cyan, #1BC9DE);
+  font-weight: 700;
+}
+
+html[data-theme='light'] .shinpo-calendar-day-btn.is-today,
+.theme-light .shinpo-calendar-day-btn.is-today {
+  border-color: var(--primary-cyan, #008CA3);
+}
+
+.shinpo-calendar-day-btn.is-selected {
+  background: linear-gradient(135deg, var(--primary-violet, #9757FA) 0%, var(--primary-blue, #4D77F9) 100%) !important;
+  color: #FFFFFF !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(151, 87, 250, 0.35);
+}
+
+.shinpo-calendar-day-btn.is-outside-month {
+  opacity: 0.3;
+}
+
+.shinpo-calendar-day-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.shinpo-calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+html[data-theme='light'] .shinpo-calendar-footer,
+.theme-light .shinpo-calendar-footer {
+  border-top-color: #E2E8F0;
+}
+
+/* ==========================================================================
+   5. SHINPO TIME PICKER
+   ========================================================================== */
+
+.shinpo-timepicker-panel {
+  width: 240px;
+  padding: 12px;
+}
+
+.shinpo-timepicker-columns {
+  display: flex;
+  gap: 8px;
+  height: 180px;
+}
+
+.shinpo-timepicker-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 6px);
+  padding: 4px;
+}
+
+html[data-theme='light'] .shinpo-timepicker-col,
+.theme-light .shinpo-timepicker-col {
+  border-color: #E2E8F0;
+}
+
+.shinpo-timepicker-unit-btn {
+  height: 28px;
+  min-height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text, #F3F4F6);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+html[data-theme='light'] .shinpo-timepicker-unit-btn,
+.theme-light .shinpo-timepicker-unit-btn {
+  color: #1E293B;
+}
+
+.shinpo-timepicker-unit-btn:hover {
+  background-color: rgba(151, 87, 250, 0.14);
+}
+
+.shinpo-timepicker-unit-btn.is-selected {
+  background-color: var(--primary-violet, #9757FA) !important;
+  color: #FFFFFF !important;
+  font-weight: 700;
+}
+
+html[data-theme='light'] .shinpo-timepicker-unit-btn.is-selected,
+.theme-light .shinpo-timepicker-unit-btn.is-selected {
+  background-color: #7932E6 !important;
+}
+
+/* ==========================================================================
+   6. SHINPO DIALOG SYSTEM
+   ========================================================================== */
+
+.shinpo-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  z-index: var(--z-dialog, 9000);
+  box-sizing: border-box;
+}
+
+.shinpo-dialog-card {
+  position: relative;
+  width: 100%;
+  margin: auto;
+  background-color: var(--surface-card, #1D1E24);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: shinpo-dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+}
+
+html[data-theme='light'] .shinpo-dialog-card,
+.theme-light .shinpo-dialog-card {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes shinpo-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Sizing */
+.shinpo-dialog-card.size-sm {
+  max-width: min(400px, calc(100vw - 32px));
+}
+
+.shinpo-dialog-card.size-md {
+  max-width: min(540px, calc(100vw - 32px));
+}
+
+.shinpo-dialog-card.size-lg {
+  max-width: min(720px, calc(100vw - 32px));
+}
+
+.shinpo-dialog-card.size-xl {
+  max-width: min(900px, calc(100vw - 32px));
+}
+
+.shinpo-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  gap: 16px;
+}
+
+html[data-theme='light'] .shinpo-dialog-header,
+.theme-light .shinpo-dialog-header {
+  border-bottom-color: #F1F5F9;
+}
+
+.shinpo-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #F3F4F6);
+  letter-spacing: -0.02em;
+}
+
+html[data-theme='light'] .shinpo-dialog-title,
+.theme-light .shinpo-dialog-title {
+  color: #0F172A;
+}
+
+.shinpo-dialog-description {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--text-2, #B0B5C2);
+  line-height: 1.4;
+}
+
+html[data-theme='light'] .shinpo-dialog-description,
+.theme-light .shinpo-dialog-description {
+  color: #64748B;
+}
+
+.shinpo-dialog-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  border: none;
+  color: var(--text-3, #9096A4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.shinpo-dialog-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text, #F3F4F6);
+}
+
+html[data-theme='light'] .shinpo-dialog-close-btn:hover,
+.theme-light .shinpo-dialog-close-btn:hover {
+  background-color: #F1F5F9;
+  color: #0F172A;
+}
+
+.shinpo-dialog-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shinpo-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background-color: rgba(0, 0, 0, 0.12);
+  border-radius: 0 0 var(--radius-xl, 16px) var(--radius-xl, 16px);
+}
+
+html[data-theme='light'] .shinpo-dialog-footer,
+.theme-light .shinpo-dialog-footer {
+  border-top-color: #F1F5F9;
+  background-color: #F8FAFC;
+}
+
+/* ==========================================================================
+   7. SHARED BUTTONS & INPUT PRIMITIVES
+   ========================================================================== */
+
+.shinpo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.shinpo-btn.size-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.shinpo-btn.size-md {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13.5px;
+}
+
+.shinpo-btn.size-lg {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+/* Variants */
+.shinpo-btn.variant-primary {
+  background: linear-gradient(135deg, var(--primary-violet, #9757FA) 0%, var(--primary-blue, #4D77F9) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 2px 12px rgba(151, 87, 250, 0.32);
+}
+
+.shinpo-btn.variant-primary:hover:not(:disabled) {
+  opacity: 0.94;
+  box-shadow: 0 4px 18px rgba(151, 87, 250, 0.45);
+  transform: translateY(-1px);
+}
+
+.shinpo-btn.variant-secondary {
+  background-color: var(--surface-subtle, #24252D);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.12));
+  color: var(--text, #F3F4F6);
+}
+
+html[data-theme='light'] .shinpo-btn.variant-secondary,
+.theme-light .shinpo-btn.variant-secondary {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #1E293B;
+}
+
+.shinpo-btn.variant-secondary:hover:not(:disabled) {
+  background-color: var(--surface-hover, #2D2F39);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme='light'] .shinpo-btn.variant-secondary:hover:not(:disabled),
+.theme-light .shinpo-btn.variant-secondary:hover:not(:disabled) {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+.shinpo-btn.variant-ghost {
+  background: transparent;
+  color: var(--text-2, #B0B5C2);
+}
+
+.shinpo-btn.variant-ghost:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text, #F3F4F6);
+}
+
+html[data-theme='light'] .shinpo-btn.variant-ghost:hover:not(:disabled),
+.theme-light .shinpo-btn.variant-ghost:hover:not(:disabled) {
+  background-color: #F1F5F9;
+  color: #0F172A;
+}
+
+.shinpo-btn.variant-danger {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  color: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+}
+
+.shinpo-btn.variant-danger:hover:not(:disabled) {
+  opacity: 0.92;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+}
+
+.shinpo-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Text Input & TextArea */
+.shinpo-input,
+.shinpo-textarea {
+  width: 100%;
+  background-color: var(--surface-card, #1D1E24);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 10px);
+  color: var(--text, #F3F4F6);
+  font-family: inherit;
+  font-size: 13.5px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html[data-theme='light'] .shinpo-input,
+html[data-theme='light'] .shinpo-textarea,
+.theme-light .shinpo-input,
+.theme-light .shinpo-textarea {
+  background-color: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #18191B;
+}
+
+.shinpo-input {
+  height: 40px;
+  padding: 0 14px;
+}
+
+.shinpo-textarea {
+  padding: 10px 14px;
+  min-height: 80px;
+  resize: vertical;
+}
+
+.shinpo-input:focus,
+.shinpo-textarea:focus {
+  border-color: var(--primary-violet, #9757FA);
+  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+}
+
+html[data-theme='light'] .shinpo-input:focus,
+html[data-theme='light'] .shinpo-textarea:focus,
+.theme-light .shinpo-input:focus,
+.theme-light .shinpo-textarea:focus {
+  border-color: var(--primary-violet, #7932E6);
+  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+}
+

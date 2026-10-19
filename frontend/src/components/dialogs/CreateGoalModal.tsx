@@ -1,5 +1,6 @@
 import React from 'react'
 import { Icon } from '../common/Icon'
+import { ShinpoDatePicker } from '../ui'
 
 export interface CreateGoalModalProps {
   isOpen: boolean
@@ -54,23 +55,10 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
           />
 
           <div style={{ marginBottom: 20 }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'var(--text-3)',
-                marginBottom: 6,
-              }}
-            >
-              Target Date
-            </label>
-            <input
-              type="date"
+            <ShinpoDatePicker
+              label="Target Date"
               value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="modal-field"
-              style={{ marginBottom: 0 }}
+              onChange={setTargetDate}
             />
           </div>
 

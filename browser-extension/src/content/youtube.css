@@ -1,0 +1,6 @@
+html.shinpo-hide-youtube-recommendations ytd-watch-next-secondary-results-renderer,
+html.shinpo-hide-youtube-recommendations #related,
+html.shinpo-hide-youtube-recommendations ytd-rich-grid-renderer,
+html.shinpo-hide-youtube-recommendations ytd-mini-guide-renderer a[title="Shorts"] {
+  display: none !important;
+}

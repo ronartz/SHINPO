@@ -56,7 +56,11 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            "http://localhost:3000"
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));

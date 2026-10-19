@@ -14,4 +14,5 @@ export * from './analytics'
 export * from './websocket'
 export * from './eventNormalizer'
 export * from './config'
+export * from './contextualFocus'
 

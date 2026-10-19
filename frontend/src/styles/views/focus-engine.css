@@ -1,4 +1,48 @@
 /* ==========================================================================
+   FOCUS ENGINE WORKSPACE LAYOUT (2-COLUMN HERO SPLIT OVER FULL-WIDTH HISTORY)
+   ========================================================================== */
+.focus-workspace-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.focus-hero-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+.focus-hero-split .card-timer-hud,
+.focus-hero-split .card-session-creator {
+  grid-column: auto;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.focus-workspace-container .card-session-history {
+  grid-column: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .focus-hero-split {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* ==========================================================================
    LIVE TIMER HUD & ACTIVE SESSION WIDGET
    ========================================================================== */
 .card-timer-hud {
@@ -14,18 +58,19 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 20px 0;
-  min-height: 180px;
+  padding: 24px 0;
+  min-height: 160px;
 }
 
 .timer-digits-display {
-  font-size: 54px;
-  font-weight: 900;
+  font-size: 64px;
+  font-weight: 800;
   letter-spacing: -2px;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   text-align: center;
   margin: 0;
+  line-height: 1.1;
   transition: color 0.3s;
 }
 
@@ -93,6 +138,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .btn-timer {

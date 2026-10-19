@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Return to your Focus plan · SHINPO</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <main class="intervention-shell">
+    <section class="card intervention-card">
+      <div class="eyebrow">Contextual Focus Protection</div>
+      <h1>This page is outside your current focus plan</h1>
+      <p>Current task: <strong id="task-title">Loading…</strong></p>
+      <p id="reason" class="muted"></p>
+      <p class="destination">Destination: <span id="destination"></span></p>
+
+      <div class="actions">
+        <button id="return" class="primary">Return to Study</button>
+        <button id="allow">Allow for 5 Minutes</button>
+        <button id="review">Review Focus Rules</button>
+      </div>
+
+      <div id="confirmation" class="confirmation hidden">
+        <p>This grants this resource—not the whole website—for five minutes.</p>
+        <button id="confirm-allow">Confirm 5-minute exception</button>
+      </div>
+      <p id="message" class="message" role="status"></p>
+    </section>
+  </main>
+  <script src="intervention.js"></script>
+</body>
+</html>

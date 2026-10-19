@@ -4,6 +4,7 @@ import com.shinpo.dto.FocusSessionExceptionDtos.CreateFocusSessionExceptionReque
 import com.shinpo.dto.SentinelDtos.RecordQuarantineRequest;
 import com.shinpo.dto.SentinelDtos.SentinelDaemonSyncResponse;
 import com.shinpo.dto.SentinelDtos.SentinelQuarantineItem;
+import com.shinpo.dto.SentinelDtos.AddPolicyRuleRequest;
 import com.shinpo.dto.SentinelWarningDtos.*;
 import com.shinpo.entity.*;
 import com.shinpo.repository.FocusSessionRepository;
@@ -121,6 +122,12 @@ public class SentinelWarningServiceTests {
         activeSessionUser2.setStatus(FocusSessionStatus.ACTIVE);
         activeSessionUser2.setStartedAt(Instant.now());
         activeSessionUser2 = sessionRepository.save(activeSessionUser2);
+
+        // Context-aware/browser/content tools require an explicit app-level
+        // native rule; they are intentionally absent from unsafe defaults.
+        sentinelService.addPolicyRule(user1.getId(), new AddPolicyRuleRequest("discord", "BLOCKED"));
+        sentinelService.addPolicyRule(user2.getId(), new AddPolicyRuleRequest("discord", "BLOCKED"));
+        sentinelService.addPolicyRule(user1.getId(), new AddPolicyRuleRequest("obs", "BLOCKED"));
     }
 
     @Test

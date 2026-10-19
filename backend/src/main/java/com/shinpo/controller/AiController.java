@@ -251,4 +251,14 @@ public class AiController {
         }
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getAiStatus(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(aiService.getProviderStatus());
+    }
 }

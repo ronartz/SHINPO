@@ -3,6 +3,7 @@ import type {
   ProposedMission,
   TutorialStep,
   BugReportInfo,
+  BugReportDraft,
   SessionDebriefAnalysis,
   SessionRecovery,
   DailyPlan,
@@ -15,6 +16,7 @@ import {
   getPendingAiActions,
 } from '../api/ai'
 import { Icon } from '../components/common/Icon'
+import { MarkdownRenderer } from '../components/common'
 import { trackRender } from '../utils/renderTracker'
 
 export interface ChatMessage {
@@ -24,6 +26,8 @@ export interface ChatMessage {
   missions?: ProposedMission[]
   tutorial?: TutorialStep | null
   bugReport?: BugReportInfo | null
+  bugReportDraft?: BugReportDraft | null
+  structuredCard?: any
   suggestionType?: string
   suggestionId?: number
   committed?: boolean
@@ -46,6 +50,188 @@ export interface EonpaiViewProps {
   handleRecoveryActionClick: (opt: RecoveryOption) => void
   handleAiSend: (messageText?: string, contextualSessionId?: number) => void | Promise<void>
   onActionExecuted?: () => void
+}
+
+const BUG_FEATURE_OPTIONS = [
+  { value: 'FOCUS_ENGINE', label: 'Focus Engine' },
+  { value: 'GOALS_KANBAN', label: 'Goals & Tasks' },
+  { value: 'CALENDAR_SCHEDULER', label: 'Calendar' },
+  { value: 'SENTINEL_SHIELD', label: 'Sentinel Protection' },
+  { value: 'EONPAI_AI', label: 'EONPAI Assistant' },
+  { value: 'GENERAL', label: 'General / Other' },
+]
+
+function formatJson(raw?: string): string {
+  if (!raw) return '{}'
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return raw
+  }
+}
+
+interface BugReportDraftItemProps {
+  draft: BugReportDraft
+  onSubmit: (feature: string, description: string) => void
+}
+
+const BugReportDraftItem: React.FC<BugReportDraftItemProps> = ({ draft, onSubmit }) => {
+  const [selectedFeature, setSelectedFeature] = useState(draft.feature || 'FOCUS_ENGINE')
+  const [description, setDescription] = useState(draft.summary || '')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCancelled, setIsCancelled] = useState(false)
+
+  if (isCancelled) {
+    return (
+      <div className="ai-bug-card cancelled">
+        <span className="ai-bug-cancelled-text">Bug report draft dismissed.</span>
+      </div>
+    )
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!description.trim() || isSubmitting) return
+    setIsSubmitting(true)
+    onSubmit(selectedFeature, description.trim())
+  }
+
+  return (
+    <form className="ai-bug-draft-card" onSubmit={handleSubmit} role="region" aria-label="Bug Report Draft">
+      <div className="ai-bug-header">
+        <div className="ai-bug-title-group">
+          <Icon name="shield" size={15} />
+          <span className="ai-bug-title">VERIFIED BUG REPORT DRAFT</span>
+        </div>
+        <span className="ai-bug-badge draft">DRAFT</span>
+      </div>
+
+      <div className="ai-bug-form-section">
+        <label className="ai-bug-field-label">Affected Feature Area</label>
+        <div className="ai-bug-chips-row" role="radiogroup" aria-label="Feature Area">
+          {BUG_FEATURE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`ai-bug-chip ${selectedFeature === opt.value ? 'selected' : ''}`}
+              onClick={() => setSelectedFeature(opt.value)}
+              role="radio"
+              aria-checked={selectedFeature === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="ai-bug-form-section">
+        <label className="ai-bug-field-label" htmlFor="bug-description-input">
+          Issue Description <span className="ai-bug-required">*</span>
+        </label>
+        <textarea
+          id="bug-description-input"
+          className="ai-bug-textarea"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe what occurred, unexpected behavior, or steps to reproduce..."
+          rows={3}
+          required
+        />
+      </div>
+
+      {draft.diagnosticSummary && (
+        <div className="ai-bug-telemetry-section">
+          <div className="ai-bug-field-label">Attached Runtime Diagnostics</div>
+          <div className="ai-bug-telemetry-grid">
+            <div className="ai-bug-telemetry-pill">
+              <span className="pill-label">OS:</span>
+              <span className="pill-val">{draft.diagnosticSummary.os || 'Linux / Windows'}</span>
+            </div>
+            <div className="ai-bug-telemetry-pill">
+              <span className="pill-label">Runtime:</span>
+              <span className="pill-val">{draft.diagnosticSummary.jvm || 'JVM 21'}</span>
+            </div>
+            <div className="ai-bug-telemetry-pill">
+              <span className="pill-label">Memory:</span>
+              <span className="pill-val">{draft.diagnosticSummary.memory || 'Healthy'}</span>
+            </div>
+            <div className="ai-bug-telemetry-pill">
+              <span className="pill-label">Session:</span>
+              <span className="pill-val">{draft.diagnosticSummary.session || 'None'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {draft.diagnosticsJson && draft.diagnosticsJson !== '{}' && (
+        <details className="ai-bug-details">
+          <summary className="ai-bug-details-summary">Inspect Sanitized Technical Telemetry</summary>
+          <pre className="ai-bug-diagnostics-pre">{formatJson(draft.diagnosticsJson)}</pre>
+        </details>
+      )}
+
+      <div className="ai-bug-actions-row">
+        <button
+          type="button"
+          className="ai-bug-btn-cancel"
+          onClick={() => setIsCancelled(true)}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="ai-bug-btn-submit"
+          disabled={!description.trim() || isSubmitting}
+        >
+          {isSubmitting ? (
+            <span>Filing Report...</span>
+          ) : (
+            <>
+              <Icon name="check" size={13} />
+              <span>Submit Verified Bug Report</span>
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+const BugReportReceiptItem: React.FC<{ report: BugReportInfo }> = ({ report }) => {
+  return (
+    <div className="ai-bug-receipt-card" role="region" aria-label="Bug Report Confirmation Receipt">
+      <div className="ai-bug-header">
+        <div className="ai-bug-title-group">
+          <Icon name="check" size={15} />
+          <span className="ai-bug-title">BUG REPORT FILED</span>
+        </div>
+        <div className="ai-bug-header-badges">
+          <span className="ai-bug-id-badge">{report.bugId}</span>
+          <span className="ai-bug-badge open">{report.status || 'OPEN'}</span>
+        </div>
+      </div>
+
+      <div className="ai-bug-receipt-body">
+        <div className="ai-bug-receipt-row">
+          <span className="ai-bug-receipt-label">Feature Area:</span>
+          <span className="ai-bug-feature-tag">{report.feature}</span>
+        </div>
+        <div className="ai-bug-receipt-row">
+          <span className="ai-bug-receipt-label">Summary:</span>
+          <span className="ai-bug-receipt-desc">{report.summary}</span>
+        </div>
+      </div>
+
+      {report.diagnostics && report.diagnostics !== '{}' && (
+        <details className="ai-bug-details">
+          <summary className="ai-bug-details-summary">Inspect Attached Runtime Telemetry</summary>
+          <pre className="ai-bug-diagnostics-pre">{formatJson(report.diagnostics)}</pre>
+        </details>
+      )}
+    </div>
+  )
 }
 
 export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
@@ -86,10 +272,23 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   }, [])
 
   useEffect(() => {
-    loadPendingActions()
-    const interval = setInterval(loadPendingActions, 8000)
-    return () => clearInterval(interval)
-  }, [loadPendingActions])
+    let isCancelled = false
+    const refresh = () => {
+      getPendingAiActions()
+        .then((list) => {
+          if (!isCancelled) {
+            setPendingActions(list)
+          }
+        })
+        .catch(() => {})
+    }
+    refresh()
+    const interval = setInterval(refresh, 8000)
+    return () => {
+      isCancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleConfirmAction = useCallback(async (actionId: string) => {
     setActionLoadingId(actionId)
@@ -350,7 +549,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               <Icon name="sparkle" size={15} />
             </div>
             <div className="eonpai-title-meta">
-              <h2 className="eonpai-title">EONPAI</h2>
+              <span className="eonpai-session-title">Executive Session</span>
               <span className="eonpai-subtitle">Personal execution assistant</span>
             </div>
             <div className="eonpai-status-badge" title="AI Provider: Ollama (qwen3:4b)">
@@ -451,7 +650,9 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                 key={msg.id ?? index}
                 className={`ai-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`}
               >
-                <div className="ai-bubble-text">{msg.text}</div>
+                <div className="ai-bubble-text">
+                  <MarkdownRenderer content={msg.text} />
+                </div>
 
                 {/* Controlled Action Proposal Card */}
                 {msg.actionProposal && (
@@ -527,28 +728,19 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                   </div>
                 )}
 
-                {/* Bug Diagnostics Card */}
+                {/* Verified Bug Report Draft Card */}
+                {msg.bugReportDraft && (
+                  <BugReportDraftItem
+                    draft={msg.bugReportDraft}
+                    onSubmit={(feat, desc) => {
+                      void handleAiSend(`Submit bug report: [${feat}] ${desc}`)
+                    }}
+                  />
+                )}
+
+                {/* Bug Diagnostics Confirmation Receipt Card */}
                 {msg.bugReport && (
-                  <div className="ai-bug-card">
-                    <div className="ai-bug-header">
-                      <Icon name="shield" size={14} />
-                      <span>DIAGNOSTIC SNAPSHOT: {msg.bugReport.bugId}</span>
-                    </div>
-                    <div className="ai-bug-field">
-                      <strong>Feature:</strong> {msg.bugReport.feature}
-                    </div>
-                    <div className="ai-bug-field">
-                      <strong>Summary:</strong> {msg.bugReport.summary}
-                    </div>
-                    <div className="ai-bug-field">
-                      <strong>Status:</strong> {msg.bugReport.status}
-                    </div>
-                    {msg.bugReport.diagnostics && (
-                      <div className="ai-bug-field">
-                        <strong>Diagnostics:</strong> {msg.bugReport.diagnostics}
-                      </div>
-                    )}
-                  </div>
+                  <BugReportReceiptItem report={msg.bugReport} />
                 )}
 
                 {/* Suggested Daily Plan */}

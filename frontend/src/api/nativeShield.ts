@@ -1,4 +1,5 @@
 import { getAuthToken } from './auth'
+import { getBackendBaseUrl } from './config'
 
 export interface NativeShieldStatus {
   isActive: boolean
@@ -44,8 +45,9 @@ export async function startNativeShield(apiUrl?: string): Promise<string | null>
   }
   try {
     const token = getAuthToken() || undefined
+    const targetUrl = apiUrl || getBackendBaseUrl() || 'http://localhost:8080'
     const res = await invokeTauriCommand<string>('start_shield_service', {
-      apiUrl: apiUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080'),
+      apiUrl: targetUrl,
       token,
     })
     console.info('[NativeShield] Shield service started:', res)

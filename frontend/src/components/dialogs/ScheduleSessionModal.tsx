@@ -2,6 +2,7 @@ import React from 'react'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { PomodoroPlan } from '../../utils/focusTimer'
 import { Icon } from '../common/Icon'
+import { ShinpoSelect, ShinpoDatePicker, ShinpoTimePicker } from '../ui'
 
 export interface ScheduleSessionModalProps {
   isOpen: boolean
@@ -50,12 +51,47 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
   onSubmit,
   isEditing = false,
 }) => {
+  const taskOptions = React.useMemo(() => {
+    const list: Array<{ value: number | ''; label: string; secondaryLabel?: string }> = [
+      { value: '', label: '-- Independent Session --' },
+    ]
+    missions
+      .filter((m) => m.status !== 'COMPLETED')
+      .forEach((m) => {
+        const g = goals.find((item) => item.id === m.goalId)
+        list.push({
+          value: m.id,
+          label: m.title,
+          secondaryLabel: g ? `Goal: ${g.title}` : undefined,
+        })
+      })
+    return list
+  }, [missions, goals])
+
+  const handleTaskChange = (val: number | '') => {
+    const id = val === '' ? null : Number(val)
+    setMissionId(id)
+    const m = missions.find((item) => item.id === id)
+    if (m) {
+      setName(m.title)
+      setIntention(m.title)
+      if (m.estimatedMinutes) setDuration(m.estimatedMinutes)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 'min(520px, calc(100vw - 32px))' }}>
-        <h3 className="modal-title">{isEditing ? 'Edit Scheduled Session' : 'Schedule Focus Session'}</h3>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal-box"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-session-heading"
+        style={{ maxWidth: 'min(520px, calc(100vw - 32px))' }}
+      >
+        <h3 id="schedule-session-heading" className="modal-title">{isEditing ? 'Edit Scheduled Session' : 'Schedule Focus Session'}</h3>
         <p className="modal-sub">
           {isEditing
             ? 'Update the timing, task connection, or intention for this scheduled focus session.'
@@ -64,35 +100,14 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
 
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-              Associated Task (Optional)
-            </label>
-            <select
-              className="modal-field"
+            <ShinpoSelect<number | ''>
+              id="schedule-session-task-select"
+              label="Associated Task (Optional)"
               value={missionId ?? ''}
-              onChange={(e) => {
-                const id = e.target.value ? Number(e.target.value) : null
-                setMissionId(id)
-                const m = missions.find((item) => item.id === id)
-                if (m) {
-                  setName(m.title)
-                  setIntention(m.title)
-                  if (m.estimatedMinutes) setDuration(m.estimatedMinutes)
-                }
-              }}
-            >
-              <option value="">-- Independent Session --</option>
-              {missions
-                .filter((m) => m.status !== 'COMPLETED')
-                .map((m) => {
-                  const g = goals.find((item) => item.id === m.goalId)
-                  return (
-                    <option key={m.id} value={m.id}>
-                      {m.title} {g ? `(Goal: ${g.title})` : ''}
-                    </option>
-                  )
-                })}
-            </select>
+              onChange={handleTaskChange}
+              options={taskOptions}
+              searchable
+            />
           </div>
 
           <div style={{ marginBottom: 14 }}>
@@ -124,26 +139,20 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Date
-              </label>
-              <input
-                type="date"
+              <ShinpoDatePicker
+                id="schedule-session-date-picker"
+                label="Date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="modal-field"
+                onChange={setDate}
                 required
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Time
-              </label>
-              <input
-                type="time"
+              <ShinpoTimePicker
+                id="schedule-session-time-picker"
+                label="Time"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="modal-field"
+                onChange={setTime}
               />
             </div>
           </div>

@@ -1,6 +1,14 @@
 import React from 'react'
 import type { Goal } from '../../api/goalsAndMissions'
 import { Icon } from '../common/Icon'
+import { ShinpoSelect, ShinpoDatePicker } from '../ui'
+
+const GOAL_STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'PAUSED', label: 'Paused' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'ARCHIVED', label: 'Archived' },
+]
 
 export interface EditGoalModalProps {
   editingGoal: Goal | null
@@ -32,19 +40,29 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   if (!editingGoal) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Edit Goal</h3>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal-box"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-goal-heading"
+      >
+        <h3 id="edit-goal-heading" className="modal-title">Edit Goal</h3>
         <p className="modal-sub">
           Update the goal details, target date, or status.
         </p>
 
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label
+              htmlFor="edit-goal-title-input"
+              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+            >
               Goal Title
             </label>
             <input
+              id="edit-goal-title-input"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -55,10 +73,14 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label
+              htmlFor="edit-goal-desc-input"
+              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+            >
               Description
             </label>
             <textarea
+              id="edit-goal-desc-input"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="modal-field"
@@ -68,32 +90,21 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Target Date
-              </label>
-              <input
-                type="date"
+              <ShinpoDatePicker
+                id="edit-goal-date-input"
+                label="Target Date"
                 value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                className="modal-field"
-                style={{ marginBottom: 0 }}
+                onChange={setTargetDate}
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Status
-              </label>
-              <select
-                className="modal-field"
-                style={{ marginBottom: 0 }}
+              <ShinpoSelect
+                id="edit-goal-status-select"
+                label="Status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="PAUSED">PAUSED</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="ARCHIVED">ARCHIVED</option>
-              </select>
+                onChange={setStatus}
+                options={GOAL_STATUS_OPTIONS}
+              />
             </div>
           </div>
 

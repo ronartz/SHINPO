@@ -13,6 +13,7 @@
 @import './styles/views/goals-kanban.css';
 @import './styles/views/cockpit-panels.css';
 @import './styles/components/modals-sentinel.css';
+@import './styles/components/shinpo-ui.css';
 @import './styles/foundations/flightdeck-themes.css';
 @import './styles/views/flightdeck-cards.css';
 
@@ -22,6 +23,7 @@
 @import './styles/views/eonpai.css';
 @import './styles/components/session-reflection.css';
 @import './styles/views/goals.css';
+@import './styles/views/study-resources.css';
 
 /* 4. Global Responsive Tiers */
 @import './styles/responsive.css';

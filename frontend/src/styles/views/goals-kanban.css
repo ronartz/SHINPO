@@ -182,6 +182,8 @@ html[data-theme='light'] .board-action-btn.primary {
   justify-content: space-between;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .column-header-title {

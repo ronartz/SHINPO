@@ -158,6 +158,34 @@ public class OllamaProvider implements AIProvider {
         }
     }
 
+    public boolean isModelInstalled() {
+        try {
+            String baseUrl = aiProperties.getOllama().getBaseUrl();
+            String healthUrl = baseUrl.replaceAll("/+$", "") + "/api/tags";
+            ResponseEntity<String> response = healthRestTemplate.getForEntity(healthUrl, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String configuredModel = aiProperties.getOllama().getModel();
+                if (configuredModel == null || configuredModel.isBlank()) {
+                    return true;
+                }
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode models = root.get("models");
+                if (models != null && models.isArray()) {
+                    for (JsonNode m : models) {
+                        JsonNode name = m.get("name");
+                        if (name != null && name.asString().toLowerCase().contains(configuredModel.toLowerCase())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override
     public String getProviderName() {
         return "ollama";

@@ -324,8 +324,9 @@ public class FocusSessionEnforcementExceptionTests {
     @Test
     @DisplayName("Scenario 16: The same blocked activity remains enforceable outside that active FocusSession")
     void testSameBlockedActivityRemainsEnforceableOutsideActiveSession() {
-        // user1 has global rule blocking discord
+        // user1 and user2 have global rules blocking discord
         policyRuleRepository.save(new SentinelPolicyRule(user1, "discord", "BLOCKED"));
+        policyRuleRepository.save(new SentinelPolicyRule(user2, "discord", "BLOCKED"));
 
         // Exception added to a SCHEDULED session (not active)
         exceptionService.createException(
@@ -361,6 +362,26 @@ public class FocusSessionEnforcementExceptionTests {
 
         assertEquals(PolicyDecision.ALLOW, decisionService.evaluateProcess(user1.getId(), "spotify"));
         assertEquals(PolicyDecision.ALLOW, decisionService.evaluateProcess(user1.getId(), "vlc"));
+    }
+
+    @Test
+    @DisplayName("Contextual browser/content tools are never unsafe default process blocks")
+    void testContextualToolsAbsentFromDefaultBlocked() {
+        for (String process : List.of(
+                "discord", "youtube", "obs", "game", "chrome", "chromium", "firefox"
+        )) {
+            assertFalse(SentinelEnforcementService.DEFAULT_DISTRACTIONS.contains(process));
+            assertEquals(PolicyDecision.ALLOW, decisionService.evaluateProcess(user1.getId(), process));
+        }
+    }
+
+    @Test
+    @DisplayName("A user can still explicitly configure app-level blocking")
+    void testExplicitAppLevelBlockingStillWorksForRemovedDefaults() {
+        for (String process : List.of("discord", "obs", "chrome")) {
+            policyRuleRepository.save(new SentinelPolicyRule(user1, process, "BLOCKED"));
+            assertEquals(PolicyDecision.ENFORCE, decisionService.evaluateProcess(user1.getId(), process));
+        }
     }
 
     @Test

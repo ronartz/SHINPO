@@ -67,8 +67,9 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           className={`action-btn-circle ${unreadAlertCount > 0 ? 'has-badge' : ''} ${isAlertsDrawerOpen ? 'active' : ''}`}
           title="Notifications & Activity"
           onClick={onToggleAlertsDrawer}
+          aria-label="Notifications"
         >
-          <Icon name="bell" size={16} />
+          <Icon name="bell" size={17} />
           {unreadAlertCount > 0 && <span className="bell-red-dot" />}
         </button>
         {onToggleV2Preview && (
@@ -76,19 +77,6 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
             type="button"
             className={`action-btn-pill v2-preview-btn ${isV2Preview ? 'active' : ''}`}
             onClick={onToggleV2Preview}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: '1px solid #9757FA',
-              background: 'linear-gradient(135deg, rgba(151, 87, 250, 0.15) 0%, rgba(77, 119, 249, 0.15) 100%)',
-              color: isDarkMode ? '#F5F7FF' : '#17213A',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
             title={isV2Preview ? 'Switch to Classic View' : 'Toggle V2 Cinematic Aurora Preview'}
           >
             <span>{isV2Preview ? '⇄' : '★'}</span>
@@ -99,11 +87,17 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           className="action-btn-circle"
           onClick={onToggleTheme}
           title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          <Icon name={isDarkMode ? 'sun' : 'moon'} size={16} />
+          <Icon name={isDarkMode ? 'sun' : 'moon'} size={17} />
         </button>
-        <button className="action-btn-circle" onClick={onRefreshData} title="Refresh Data">
-          <Icon name="settings" size={16} />
+        <button
+          className="action-btn-circle"
+          onClick={onRefreshData}
+          title="Refresh Data"
+          aria-label="Refresh Data"
+        >
+          <Icon name="settings" size={17} />
         </button>
         {currentUser && (
           <div className="profile-badge-card" title={`Signed in as ${currentUser.username} (${currentUser.email})`}>
@@ -120,8 +114,9 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           className="action-btn-circle"
           onClick={onLogout}
           title="Sign Out"
+          aria-label="Sign Out"
         >
-          <Icon name="power" size={14} />
+          <Icon name="power" size={15} />
         </button>
       </div>
     </header>

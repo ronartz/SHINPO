@@ -84,6 +84,30 @@
   border-color: var(--primary-coral, #FF4D5E);
 }
 
+select.quick-form-input,
+.quick-field-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239096A4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+select.quick-form-input:focus,
+.quick-field-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239757FA' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+select.quick-form-input option,
+.quick-field-select option {
+  background-color: #18191E;
+  color: #F3F4F6;
+  padding: 8px 12px;
+}
+
 .quick-form-input:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -153,6 +177,32 @@ html[data-theme='light'] .quick-form-input {
 .theme-light .quick-form-input:focus,
 html[data-theme='light'] .quick-form-input:focus {
   border-color: #FF4D5E;
+}
+
+.theme-light select.quick-form-input,
+html[data-theme='light'] select.quick-form-input,
+.theme-light .quick-field-select,
+html[data-theme='light'] .quick-field-select {
+  background-color: #F8FAFC;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.theme-light select.quick-form-input:focus,
+html[data-theme='light'] select.quick-form-input:focus,
+.theme-light .quick-field-select:focus,
+html[data-theme='light'] .quick-field-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237932E6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  border-color: var(--primary-coral, #7932E6);
+}
+
+.theme-light select.quick-form-input option,
+html[data-theme='light'] select.quick-form-input option,
+.theme-light .quick-field-select option,
+html[data-theme='light'] .quick-field-select option {
+  background-color: #FFFFFF;
+  color: #0F172A;
 }
 
 .theme-light .quick-btn-cancel,

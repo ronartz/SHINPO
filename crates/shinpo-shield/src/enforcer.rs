@@ -774,17 +774,44 @@ mod tests {
     }
 
     #[test]
-    fn test_spotify_and_vlc_are_not_distractions_by_default() {
+    fn test_contextual_and_creator_apps_are_not_distractions_by_default() {
         let enforcer = ShieldEnforcer::new();
         let config = crate::config::ShieldConfig::default();
         let allowed = HashSet::new();
 
-        for process_name in ["spotify", "vlc"] {
+        for process_name in [
+            "chrome",
+            "chromium",
+            "firefox",
+            "discord",
+            "obs",
+            "obs-studio",
+            "spotify",
+            "telegram-desktop",
+            "vlc",
+        ] {
             assert!(!config.fallback_blacklist.contains(&process_name.to_string()));
             assert!(!ShieldEnforcer::is_distraction_process(
                 process_name,
                 &format!("/usr/bin/{process_name}"),
                 &config.fallback_blacklist,
+                &allowed,
+                &enforcer.protected_system_names
+            ));
+        }
+    }
+
+    #[test]
+    fn test_contextual_apps_remain_explicitly_user_blockable() {
+        let enforcer = ShieldEnforcer::new();
+        let allowed = HashSet::new();
+
+        for process_name in ["discord", "obs", "firefox"] {
+            let explicit_policy = vec![process_name.to_string()];
+            assert!(ShieldEnforcer::is_distraction_process(
+                process_name,
+                &format!("/usr/bin/{process_name}"),
+                &explicit_policy,
                 &allowed,
                 &enforcer.protected_system_names
             ));

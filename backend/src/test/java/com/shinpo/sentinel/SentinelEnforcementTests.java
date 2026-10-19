@@ -349,7 +349,7 @@ public class SentinelEnforcementTests {
     }
 
     @Test
-    @DisplayName("Native Shield: neutral media defaults stay user-blockable in daemon sync")
+    @DisplayName("Native Shield: contextual tools stay opt-in and explicitly blockable in daemon sync")
     void testDaemonSyncState() {
         Goal goal = goalRepository.save(
             new Goal("Context Goal", "Goal linked to the active session", LocalDate.now(), null, testUser)
@@ -372,11 +372,15 @@ public class SentinelEnforcementTests {
         SentinelDaemonSyncResponse defaultsOnly = sentinelService.getDaemonSyncState(testUser.getId());
         assertFalse(defaultsOnly.blockedPatterns().contains("spotify"));
         assertFalse(defaultsOnly.blockedPatterns().contains("vlc"));
-        assertTrue(defaultsOnly.blockedPatterns().contains("discord"));
+        assertFalse(defaultsOnly.blockedPatterns().contains("discord"));
+        assertFalse(defaultsOnly.blockedPatterns().contains("youtube"));
+        assertFalse(defaultsOnly.blockedPatterns().contains("obs"));
+        assertFalse(defaultsOnly.blockedPatterns().contains("game"));
         assertEquals(mission.getId(), defaultsOnly.currentMissionId());
         assertEquals(goal.getId(), defaultsOnly.currentGoalId());
 
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("steam", "BLOCKED"));
+        sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("discord", "BLOCKED"));
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("spotify", "BLOCKED"));
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("vlc", "BLOCKED"));
         sentinelService.addPolicyRule(testUser.getId(), new AddPolicyRuleRequest("slack", "ALLOWED"));
@@ -390,7 +394,7 @@ public class SentinelEnforcementTests {
         assertEquals("Zero Distraction Code Sprint", sync.intention());
         assertEquals(45, sync.durationMinutes());
         assertTrue(sync.blockedPatterns().contains("steam"));
-        assertTrue(sync.blockedPatterns().contains("discord")); // Default
+        assertTrue(sync.blockedPatterns().contains("discord")); // Explicit user BLOCKED rule
         assertEquals(mission.getId(), sync.currentMissionId());
         assertEquals(goal.getId(), sync.currentGoalId());
         assertTrue(sync.blockedPatterns().contains("spotify")); // Explicit user BLOCKED rule

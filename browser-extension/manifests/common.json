@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "SHINPO Browser Companion",
+  "version": "0.1.0",
+  "description": "Context-aware Focus protection for resources approved in SHINPO.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "alarms",
+    "nativeMessaging",
+    "scripting",
+    "storage",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_title": "SHINPO Browser Companion",
+    "default_popup": "pages/popup.html"
+  },
+  "options_ui": {
+    "page": "pages/options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://youtube.com/*",
+        "https://*.youtube.com/*"
+      ],
+      "js": ["content/youtube.js"],
+      "css": ["content/youtube.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": []
+}

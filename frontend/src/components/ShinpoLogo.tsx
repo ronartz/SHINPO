@@ -42,7 +42,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
 
       {/* Top Arm: 45° Shear Kinematic */}
       <polygon
-        points="44,5 95,svg5,21 60,21 37,44 5,44"
+        points="44,5 95,5 95,21 60,21 37,44 5,44"
         fill={monochrome ? 'currentColor' : 'url(#shinpoTopShear)'}
       />
 

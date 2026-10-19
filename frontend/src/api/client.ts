@@ -4,8 +4,8 @@
  * unified error handling, and timeout safeguards.
  */
 
-import { authHeaders } from './auth'
-import { getBackendBaseUrl } from './config'
+import { authHeaders } from './auth.ts'
+import { getBackendBaseUrl } from './config.ts'
 
 /**
  * Standardized API Error matching backend ApiErrorResponse

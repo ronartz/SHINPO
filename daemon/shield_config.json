@@ -2,12 +2,9 @@
   "api_url": "http://localhost:8080",
   "poll_interval_seconds": 2,
   "fallback_blacklist": [
-    "discord",
     "steam",
-    "spotify",
-    "telegram-desktop",
-    "vlc",
-    "obs",
+    "lutris",
+    "heroic",
     "epicgameslauncher",
     "riotclientux",
     "battlenet"

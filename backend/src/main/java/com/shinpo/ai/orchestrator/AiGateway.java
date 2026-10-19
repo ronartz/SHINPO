@@ -151,6 +151,10 @@ public class AiGateway {
         return providerRegistry != null ? providerRegistry.getActiveProvider() : null;
     }
 
+    public boolean isAiEnabled() {
+        return aiProperties != null && aiProperties.isEnabled();
+    }
+
     /**
      * Process general chat message through AI Gateway with tools & fallback.
      */
@@ -199,6 +203,9 @@ public class AiGateway {
 
         // 5. BUG REPORT INTENT
         if (isBugReportIntent(msgLower)) {
+            if (isVagueBugReport(rawMsg)) {
+                return buildBugReportDraftResponse(userId, rawMsg);
+            }
             return buildBugReportResponse(userId, rawMsg);
         }
 
@@ -567,6 +574,22 @@ public class AiGateway {
         return hasBugTerm && hasAction;
     }
 
+    private boolean isVagueBugReport(String msg) {
+        String m = msg.trim().toLowerCase(Locale.ROOT);
+        if (m.startsWith("submit bug report:") || m.startsWith("submit issue:") || m.startsWith("bug report:")) {
+            return false;
+        }
+        return m.equals("report an issue or bug")
+                || m.equals("report issue")
+                || m.equals("report a bug")
+                || m.equals("report bug")
+                || m.equals("bug report")
+                || m.equals("i want to report a bug")
+                || m.equals("found a bug")
+                || (m.startsWith("report") && m.length() < 24)
+                || m.length() < 12;
+    }
+
     private boolean isPlanIntent(String msg) {
         String m = msg.toLowerCase(Locale.ROOT);
         if (m.contains("plan my day") || m.contains("daily plan") || m.equals("plan") || m.equals("plann")
@@ -672,22 +695,22 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = timeOfDay + nameClause + ". 🛡️ Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Shield active. What quick assistance do you need to stay in flow?";
+            String reply = timeOfDay + nameClause + ". Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Sentinel protection is active. What assistance do you need to maintain your flow?";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
 
         String sessionNote = "";
         if (activeSession != null && (Boolean.TRUE.equals(activeSession.get("hasActiveSession")) || activeSession.containsKey("name"))) {
-            sessionNote = "\n\n💡 *Active focus session:* **" + activeSession.get("name") + "** is currently active.";
+            sessionNote = "\n\n*Active focus session:* **" + activeSession.get("name") + "** is currently active.";
         }
 
-        String reply = timeOfDay + nameClause + "! 👋 I'm **EONPAI**, your personal execution companion.\n\n"
-                + "How can I support your focus today? Feel free to ask me:\n"
-                + "• `Plan my day` — structured focus itinerary\n"
-                + "• `What should I work on now?` — immediate tactical priority\n"
-                + "• `How do I use SHINPO?` — interactive walkthrough\n"
-                + "• `Why is YouTube blocked?` — inspect Sentinel enforcement status"
+        String reply = timeOfDay + nameClause + ". I'm **EONPAI**, your personal execution assistant.\n\n"
+                + "How can I support your focus today? Available actions:\n"
+                + "• `Plan my day` — generate a structured focus itinerary\n"
+                + "• `What should I work on now?` — identify your immediate priority task\n"
+                + "• `How do I use SHINPO?` — interactive feature walkthrough\n"
+                + "• `Why is YouTube blocked?` — check Sentinel focus protection status"
                 + sessionNote;
 
         logSuggestion(userId, "GREETING", rawMsg, reply);
@@ -695,14 +718,14 @@ public class AiGateway {
     }
 
     private AiChatResponse buildIdentityResponse(Long userId, String rawMsg) {
-        String reply = "I am **EONPAI** (SHINPO Personal AI) — your JARVIS-like execution companion.\n\n"
-                + "Unlike generic chatbots, I live inside SHINPO and observe your actual productivity ecosystem in real-time:\n\n"
-                + "🎯 **Strategic Goal Deconstruction**: Turn broad objectives into 25-50 minute focus sprints.\n"
-                + "🛡️ **Sentinel Enforcement Explanations**: Explain why distraction apps/sites are restricted.\n"
-                + "🗺️ **Interactive Walkthroughs**: Guide you through onboarding and features.\n"
-                + "🛠️ **Sanitized Bug Reporting**: Directly log diagnostics to the development team without leaking secrets.\n"
-                + "⚡ **Execution Next Action**: Tell you the single highest ROI task to do right now.\n\n"
-                + "What would you like to execute?";
+        String reply = "I am **EONPAI**, the embedded execution assistant for SHINPO.\n\n"
+                + "I integrate directly with your local tasks, focus sessions, and Sentinel protection policies:\n\n"
+                + "• **Goal Deconstruction**: Break broad strategic objectives into 25–45 minute actionable tasks.\n"
+                + "• **Tactical Priority**: Recommend high-impact tasks based on your deadlines and active goals.\n"
+                + "• **Sentinel Transparency**: Explain why specific applications or web routes are restricted during sprints.\n"
+                + "• **Interactive Walkthroughs**: Guide you through onboarding and core workflows.\n"
+                + "• **Verified Bug Reporting**: Collect and submit non-sensitive host diagnostics for technical issues.\n\n"
+                + "How can I assist your workflow today?";
         logSuggestion(userId, "IDENTITY", rawMsg, reply);
         return AiChatResponse.conversational(reply, "IDENTITY");
     }
@@ -715,7 +738,7 @@ public class AiGateway {
                 "Let's start with your first goal. Click '+ New Strategic Goal' to establish your objective boundary.",
                 "GOAL_CREATED"
         );
-        String reply = "Sure. I'll walk you through it.\n\nLet's start with your first goal.";
+        String reply = "I will guide you through the initial setup.\n\nLet's start by defining your first goal.";
         logSuggestion(userId, "TUTORIAL", rawMsg, reply);
         return AiChatResponse.withTutorial(reply, step);
     }
@@ -729,22 +752,68 @@ public class AiGateway {
         if (activeBlock) {
             Long remSec = (Long) explanation.get("remainingSeconds");
             long remMin = remSec != null ? remSec / 60 : 0;
-            sb.append("🛡️ **Sentinel Enforcement Active**\n\n");
+            sb.append("**Sentinel Enforcement Active**\n\n");
             sb.append("You currently have an active focus session (**").append(explanation.get("sessionName")).append("**)");
             sb.append(" with approximately **").append(remMin).append(" minutes** remaining.\n\n");
-            sb.append("SHINPO enforces process restrictions during active sprints to safeguard cognitive flow. Once the timer reaches 0 or you explicitly pause/complete the sprint, restrictions will release.");
+            sb.append("SHINPO applies process and URL restrictions during active sessions to minimize distractions. When the session concludes or is paused, standard access resumes.");
         } else {
-            sb.append("ℹ️ **Sentinel System Status**\n\n");
+            sb.append("**Sentinel System Status**\n\n");
             sb.append(reason).append("\n\n");
-            sb.append("*Note: EONPAI never fabricates enforcement events. If an external application closed unexpectedly outside an active session, SHINPO Sentinel was not responsible.*");
+            sb.append("*Note: Sentinel enforcement is only engaged during active focus sessions. If an external application closed outside a session, Sentinel was not responsible.*");
         }
 
         logSuggestion(userId, "ENFORCEMENT_EXPLANATION", rawMsg, sb.toString());
         return AiChatResponse.conversational(sb.toString(), "ENFORCEMENT_EXPLANATION");
     }
 
-    private AiChatResponse buildBugReportResponse(Long userId, String rawMsg) {
+    private AiChatResponse buildBugReportDraftResponse(Long userId, String rawMsg) {
         String feature = extractFeature(rawMsg.toLowerCase(Locale.ROOT));
+        Map<String, Object> diag = toolRegistry.getSanitizedDiagnostics(userId, feature);
+        String diagJson = "{}";
+        try {
+            diagJson = objectMapper.writeValueAsString(diag);
+        } catch (Exception ignored) {}
+
+        Map<String, Object> draft = new LinkedHashMap<>();
+        draft.put("feature", feature);
+        draft.put("summary", "");
+        draft.put("diagnosticsJson", diagJson);
+        draft.put("diagnosticSummary", Map.of(
+                "os", String.valueOf(diag.getOrDefault("os", "Linux / Windows")),
+                "jvm", String.valueOf(diag.getOrDefault("javaVersion", "JVM 21")),
+                "memory", diag.getOrDefault("freeMemoryMB", "0") + "MB free of " + diag.getOrDefault("maxMemoryMB", "0") + "MB",
+                "session", String.valueOf(diag.getOrDefault("activeFocusSession", "None"))
+        ));
+
+        String reply = "**Bug Report Draft**\n\n"
+                + "Please provide a specific description of the issue and verify the target feature area. "
+                + "You can review the attached host diagnostics below before confirming submission.";
+
+        logSuggestion(userId, "BUG_REPORT_DRAFT", rawMsg, reply);
+        return new AiChatResponse(reply, "BUG_REPORT_DRAFT", draft);
+    }
+
+    private AiChatResponse buildBugReportResponse(Long userId, String rawMsg) {
+        String feature = "FOCUS_ENGINE";
+        String description = rawMsg.trim();
+
+        if (description.startsWith("Submit bug report:") || description.startsWith("Submit issue:") || description.startsWith("Bug report:")) {
+            String content = description.substring(description.indexOf(':') + 1).trim();
+            if (content.startsWith("[") && content.contains("]")) {
+                int endBracket = content.indexOf(']');
+                feature = content.substring(1, endBracket).trim();
+                description = content.substring(endBracket + 1).trim();
+            } else {
+                description = content;
+            }
+        } else {
+            feature = extractFeature(rawMsg.toLowerCase(Locale.ROOT));
+        }
+
+        if (description.isBlank()) {
+            description = "Issue reported in " + feature;
+        }
+
         String bugId = "BUG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         Map<String, Object> diag = toolRegistry.getSanitizedDiagnostics(userId, feature);
         String diagJson = "{}";
@@ -754,17 +823,16 @@ public class AiGateway {
 
         if (bugReportRepository != null) {
             User user = userRepository.findById(userId).orElse(null);
-            BugReport entity = new BugReport(bugId, user, rawMsg, feature, diagJson);
+            BugReport entity = new BugReport(bugId, user, description, feature, diagJson);
             bugReportRepository.save(entity);
         }
 
-        BugReportInfo info = new BugReportInfo(bugId, rawMsg, feature, "OPEN", diagJson);
-        String reply = "✅ **Bug Report Filed Successfully** (`" + bugId + "`)\n\n"
+        BugReportInfo info = new BugReportInfo(bugId, description, feature, "OPEN", diagJson);
+        String reply = "**Bug Report Filed** (`" + bugId + "`)\n\n"
                 + "• **Feature Area:** `" + feature + "`\n"
-                + "• **Summary:** " + rawMsg + "\n"
-                + "• **Diagnostics:** Host telemetry attached (OS, JVM, active session, memory status).\n"
-                + "• **Security:** Tokens, passwords, and sensitive keys were strictly scrubbed.\n\n"
-                + "The engineering log has received this report.";
+                + "• **Summary:** " + description + "\n"
+                + "• **Status:** Received\n\n"
+                + "Non-sensitive runtime telemetry (OS, memory, session status) was attached to this report.";
 
         logSuggestion(userId, "BUG_REPORT", rawMsg, reply);
         return AiChatResponse.withBugReport(reply, info);
@@ -777,19 +845,36 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = "🛡️ Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
-                    + "I'm keeping interruptions minimal so you can maintain flow. Stay focused on your mission; when your session concludes, we'll log your debrief.";
+            String reply = "Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
+                    + "I am keeping notifications minimal to maintain flow. You can pause or complete your session from the Focus view when ready.";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
 
-        String reply = "I understand you're asking about: \"" + rawMsg + "\".\n\n"
-                + "I am continuously monitoring your execution loop. You can ask me to:\n"
-                + "• **`Plan my day`** — generate a structured sprint block itinerary\n"
-                + "• **`What should I work on now?`** — get immediate tactical recommendation\n"
-                + "• **`How do I use SHINPO?`** — start the guided tutorial walkthrough\n"
-                + "• **`Why is YouTube blocked?`** — query real Sentinel enforcement status";
+        AIProvider provider = getActiveProvider();
+        boolean isOffline = provider != null && !provider.isAvailable();
+
+        StringBuilder sb = new StringBuilder();
+        if (isOffline) {
+            sb.append("**Local AI Model Offline**\n\n")
+              .append("The local language model (Ollama) is currently offline or unreachable. ")
+              .append("EONPAI is operating in deterministic rule-based assistant mode.\n\n");
+        } else {
+            sb.append("**EONPAI Execution Assistant**\n\n")
+              .append("I can assist with your workflow, goal decomposition, and focus management.\n\n");
+        }
+
+        sb.append("Here is how I can assist you directly:\n")
+          .append("• **Focus Planning**: Request a structured daily focus itinerary based on your active goals.\n")
+          .append("• **Tactical Priority**: Identify the immediate high-impact task to work on next.\n")
+          .append("• **Goal Decomposition**: Break broad strategic objectives into actionable 25–45 minute tasks.\n")
+          .append("• **Sentinel Protection**: Inspect active application shields or study resource access rules.\n")
+          .append("• **Issue Reporting**: File a verified defect report with non-sensitive runtime diagnostics.\n\n")
+          .append("To enable full generative conversational responses, ensure your local Ollama daemon is running with an installed model (`ollama run qwen2.5:3b` or `llama3.2`).");
+
+        String reply = sb.toString();
         logSuggestion(userId, "COACH", rawMsg, reply);
         return AiChatResponse.conversational(reply, "TACTICAL_ASSISTANT");
     }
 }
+

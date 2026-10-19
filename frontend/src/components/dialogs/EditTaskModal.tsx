@@ -1,6 +1,14 @@
 import React from 'react'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import { Icon } from '../common/Icon'
+import { ShinpoSelect, ShinpoDatePicker } from '../ui'
+
+const MISSION_STATUS_OPTIONS = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+]
 
 export interface EditTaskModalProps {
   editingMission: Mission | null
@@ -42,38 +50,40 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   if (!editingMission) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Edit Task</h3>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal-box"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-task-heading"
+      >
+        <h3 id="edit-task-heading" className="modal-title">Edit Task</h3>
         <p className="modal-sub">
           Update task details, associated goal, estimated duration, or status.
         </p>
 
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-              Associated Goal
-            </label>
-            <select
-              className="modal-field"
-              style={{ marginBottom: 0 }}
-              value={goalId ?? ''}
-              onChange={(e) => setGoalId(Number(e.target.value))}
+            <ShinpoSelect<number>
+              id="edit-task-goal-select"
+              label="Associated Goal"
+              value={goalId ?? goals[0]?.id ?? 0}
+              onChange={setGoalId}
+              options={goals.map((g) => ({ value: g.id, label: g.title }))}
               required
-            >
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label
+              htmlFor="edit-task-title-input"
+              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+            >
               Task Title
             </label>
             <input
+              id="edit-task-title-input"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -84,10 +94,14 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label
+              htmlFor="edit-task-desc-input"
+              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+            >
               Task Notes (optional)
             </label>
             <textarea
+              id="edit-task-desc-input"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="modal-field"
@@ -97,23 +111,23 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Scheduled Date
-              </label>
-              <input
-                type="date"
+              <ShinpoDatePicker
+                id="edit-task-date-input"
+                label="Scheduled Date"
                 value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="modal-field"
-                style={{ marginBottom: 0 }}
+                onChange={setScheduledDate}
                 required
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+              <label
+                htmlFor="edit-task-duration-input"
+                style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+              >
                 Estimated Minutes
               </label>
               <input
+                id="edit-task-duration-input"
                 type="number"
                 min={5}
                 max={480}
@@ -125,20 +139,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-                Status
-              </label>
-              <select
-                className="modal-field"
-                style={{ marginBottom: 0 }}
+              <ShinpoSelect
+                id="edit-task-status-select"
+                label="Status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="PENDING">PENDING</option>
-                <option value="IN_PROGRESS">IN PROGRESS</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="CANCELLED">CANCELLED</option>
-              </select>
+                onChange={setStatus}
+                options={MISSION_STATUS_OPTIONS}
+              />
             </div>
           </div>
 

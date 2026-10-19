@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SHINPO Browser Companion</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="popup">
+  <main>
+    <div class="eyebrow">SHINPO</div>
+    <h1>Browser Companion</h1>
+
+    <section class="card">
+      <div class="status-row">
+        <span id="status-dot" class="status-dot"></span>
+        <strong id="connection-label">Checking connection…</strong>
+      </div>
+      <p id="connection-detail" class="muted"></p>
+    </section>
+
+    <section id="focus-card" class="card hidden">
+      <div id="task-title" class="task"></div>
+      <div id="focus-mode" class="mode"></div>
+      <p id="lease" class="muted"></p>
+    </section>
+
+    <section id="pair-card" class="card hidden">
+      <h2>Pair this browser</h2>
+      <label for="pairing-code">One-time pairing code</label>
+      <input id="pairing-code" type="text" autocomplete="off" spellcheck="false" maxlength="128">
+      <div class="actions"><button id="pair" class="primary">Pair securely</button></div>
+    </section>
+
+    <section class="card switch-row">
+      <div><strong>Browser monitoring</strong><div class="muted">Disable without closing your tabs</div></div>
+      <input id="monitoring" type="checkbox" aria-label="Enable browser monitoring">
+    </section>
+
+    <div class="actions">
+      <button id="sync">Sync now</button>
+      <button id="options">Permissions &amp; setup</button>
+      <button id="disconnect">Disconnect</button>
+    </div>
+    <p id="message" class="message" role="status"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

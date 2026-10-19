@@ -112,7 +112,19 @@ export type StructuredCard =
   | NextActionCard
   | SessionDebriefAnalysis
   | SessionRecovery
+  | BugReportDraft
 
+export type BugReportDraft = {
+  feature: string
+  summary?: string
+  diagnosticsJson?: string
+  diagnosticSummary?: {
+    os?: string
+    jvm?: string
+    memory?: string
+    session?: string
+  }
+}
 export type RecoveryOption = {
   code: string
   label: string

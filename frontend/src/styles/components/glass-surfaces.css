@@ -13,12 +13,12 @@
 }
 
 .cockpit-top-bar {
-  padding: 0 16px;
-  height: 56px;
-  min-height: 56px;
-  max-height: 56px;
+  padding: 0 24px;
+  height: 70px;
+  min-height: 70px;
+  max-height: 70px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
+  border-radius: var(--radius-lg, 16px);
   background: var(--surface);
   box-shadow: var(--shadow-glass);
 }
@@ -144,34 +144,173 @@ html[data-theme='light'] .sentinel-mode-badge,
   border-radius: 999px;
 }
 
-/* Sentinel Control & Audit Panel */
+/* ==========================================================================
+   Focus Protection Panel — Aurora V2 Desktop Redesign
+   ========================================================================== */
 .sentinel-panel {
   background: var(--surface-card, #12151C);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(151, 87, 250, 0.22);
   border-radius: var(--radius-lg, 16px);
-  padding: 20px 24px;
-  margin-top: 16px;
+  padding: 22px 24px;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
 }
 
 .sentinel-panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
+}
+
+.sentinel-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .sentinel-panel-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text-1, #F3F4F6);
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: -0.2px;
   margin: 0;
+}
+
+.sentinel-panel-subtitle {
+  font-size: 13px;
+  color: var(--text-3, #94A3B8);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.sentinel-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sentinel-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  letter-spacing: 0.2px;
+}
+
+.sentinel-status-pill.active {
+  background: rgba(27, 201, 222, 0.14);
+  color: #1BC9DE;
+  border: 1px solid rgba(27, 201, 222, 0.35);
+  box-shadow: 0 0 12px rgba(27, 201, 222, 0.18);
+}
+
+.sentinel-status-pill.standby {
+  background: rgba(151, 87, 250, 0.14);
+  color: var(--primary-coral, #9757FA);
+  border: 1px solid rgba(151, 87, 250, 0.3);
+}
+
+.sentinel-status-pill.ready {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-2, #94A3B8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.sentinel-status-pill.degraded {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.sentinel-status-pill.offline {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* Compact Overview Strip */
+.sentinel-overview-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.sentinel-overview-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2, #CBD5E1);
+}
+
+.sentinel-overview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sentinel-overview-dot.connected {
+  background: #1BC9DE;
+  box-shadow: 0 0 8px #1BC9DE;
+}
+
+.sentinel-overview-dot.disconnected {
+  background: #64748B;
+}
+
+/* Section Box & Headers */
+.sentinel-section-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sentinel-section-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sentinel-section-heading {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-3, #94A3B8);
+}
+
+.sentinel-rules-explainer {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3, #94A3B8);
+  background: rgba(255, 255, 255, 0.015);
+  border-left: 3px solid var(--primary-coral, #9757FA);
+  padding: 7px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 2px;
 }
 
 .sentinel-rules-list {
@@ -184,18 +323,29 @@ html[data-theme='light'] .sentinel-mode-badge,
 .sentinel-rule-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 77, 94, 0.08);
-  border: 1px solid rgba(255, 77, 94, 0.25);
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--text-1, #F3F4F6);
   font-size: 12px;
+  font-weight: 600;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 9999px;
+  transition: all 0.15s ease;
 }
 
 .sentinel-rule-chip.allowed {
-  background: rgba(46, 213, 115, 0.08);
-  border-color: rgba(46, 213, 115, 0.25);
+  background: rgba(46, 213, 115, 0.1);
+  border-color: rgba(46, 213, 115, 0.3);
+}
+
+.sentinel-rule-action-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sentinel-rule-del-btn {
@@ -204,7 +354,7 @@ html[data-theme='light'] .sentinel-mode-badge,
   color: var(--text-3, #565D6D);
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -214,54 +364,231 @@ html[data-theme='light'] .sentinel-mode-badge,
   color: var(--accent-coral, #FF4D5E);
 }
 
-.sentinel-audit-timeline {
+/* Activity Feed — Compact Rows with Expandable Details */
+.sentinel-activity-timeline {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 180px;
+  max-height: 380px;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
-.sentinel-audit-item {
+.sentinel-activity-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.16s ease;
+  overflow: hidden;
+}
+
+.sentinel-activity-card:hover {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(151, 87, 250, 0.25);
+}
+
+.sentinel-activity-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-sm, 8px);
+  padding: 10px 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sentinel-activity-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.sentinel-activity-app-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-1, #F3F4F6);
+  letter-spacing: -0.1px;
+}
+
+.sentinel-activity-count-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(151, 87, 250, 0.18);
+  color: var(--primary-coral, #9757FA);
+  border: 1px solid rgba(151, 87, 250, 0.3);
+}
+
+.sentinel-activity-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2.5px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sentinel-activity-badge.confirmed {
+  background: rgba(220, 38, 38, 0.18);
+  color: #F87171;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.sentinel-activity-badge.unconfirmed {
+  background: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.sentinel-activity-badge.contained {
+  background: rgba(27, 201, 222, 0.16);
+  color: #1BC9DE;
+  border: 1px solid rgba(27, 201, 222, 0.3);
+}
+
+.sentinel-activity-badge.warned {
+  background: rgba(245, 158, 11, 0.16);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.sentinel-activity-badge.grace {
+  background: rgba(46, 213, 115, 0.16);
+  color: #2ED573;
+  border: 1px solid rgba(46, 213, 115, 0.3);
+}
+
+.sentinel-activity-badge.denied {
+  background: rgba(148, 163, 184, 0.16);
+  color: #94A3B8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.sentinel-activity-badge.failed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.sentinel-activity-badge.neutral {
+  background: rgba(148, 163, 184, 0.14);
+  color: #CBD5E1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.sentinel-activity-summary {
+  font-size: 12.5px;
+  color: var(--text-2, #CBD5E1);
+  flex: 1;
+  min-width: 220px;
+}
+
+.sentinel-activity-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--text-3, #94A3B8);
+}
+
+.sentinel-activity-details-panel {
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
   font-size: 12px;
 }
 
-.sentinel-audit-left {
+.activity-detail-field {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.sentinel-audit-badge {
-  font-size: 10.5px;
+.activity-detail-label {
+  font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(255, 77, 94, 0.15);
-  color: var(--accent-coral, #FF4D5E);
-  letter-spacing: 0.02em;
+  color: var(--text-3, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.sentinel-audit-badge.warning {
-  background: rgba(245, 158, 11, 0.16);
-  color: #F59E0B;
+.activity-detail-val {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-1, #E2E8F0);
+  word-break: break-all;
 }
 
-.sentinel-audit-badge.blocked {
-  background: rgba(239, 68, 68, 0.16);
-  color: #EF4444;
+/* Light Theme Overrides */
+html[data-theme='light'] .sentinel-panel,
+.theme-light .sentinel-panel {
+  background: #FFFFFF;
+  border-color: rgba(151, 87, 250, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.sentinel-audit-badge.terminated {
-  background: rgba(220, 38, 38, 0.18);
-  color: #EF4444;
+html[data-theme='light'] .sentinel-panel-title,
+.theme-light .sentinel-panel-title {
+  color: #0F172A;
+}
+
+html[data-theme='light'] .sentinel-overview-strip,
+.theme-light .sentinel-overview-strip {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+html[data-theme='light'] .sentinel-overview-item,
+.theme-light .sentinel-overview-item {
+  color: #475569;
+}
+
+html[data-theme='light'] .sentinel-rules-explainer,
+.theme-light .sentinel-rules-explainer {
+  background: #F8FAFC;
+  color: #64748B;
+}
+
+html[data-theme='light'] .sentinel-activity-card,
+.theme-light .sentinel-activity-card {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+html[data-theme='light'] .sentinel-activity-card:hover,
+.theme-light .sentinel-activity-card:hover {
+  background: #F1F5F9;
+  border-color: rgba(151, 87, 250, 0.3);
+}
+
+html[data-theme='light'] .sentinel-activity-app-name,
+.theme-light .sentinel-activity-app-name {
+  color: #0F172A;
+}
+
+html[data-theme='light'] .sentinel-activity-summary,
+.theme-light .sentinel-activity-summary {
+  color: #475569;
+}
+
+html[data-theme='light'] .sentinel-activity-details-panel,
+.theme-light .sentinel-activity-details-panel {
+  background: #F1F5F9;
+  border-top-color: #E2E8F0;
+}
+
+html[data-theme='light'] .activity-detail-val,
+.theme-light .activity-detail-val {
+  color: #1E293B;
 }
 
 /* Phase 3.3: Sentinel Administrative Policy Gate & Tamper Resistance */

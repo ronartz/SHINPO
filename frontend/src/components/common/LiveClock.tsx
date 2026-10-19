@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Icon } from './Icon'
 
 export interface LiveClockProps {
   className?: string
@@ -58,15 +57,16 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className = '' }) => {
     })
   }
 
-  // Guaranteed format: e.g. "Wednesday, 14 October 2026"
   const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
-  const formattedDate = `${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
+  const weekdaysShort = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+  const monthsShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
-  // Hours, minutes, seconds with tabular alignment
+  const dayNameShort = weekdaysShort[now.getDay()]
+  const dayNumber = String(now.getDate()).padStart(2, '0')
+  const monthShort = monthsShort[now.getMonth()]
+  const yearNumber = now.getFullYear()
+
+  // Hours, minutes with tabular alignment
   let hours = now.getHours()
   const minutes = String(now.getMinutes()).padStart(2, '0')
   const seconds = String(now.getSeconds()).padStart(2, '0')
@@ -80,27 +80,37 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className = '' }) => {
 
   return (
     <div
-      className={`dashboard-live-clock ${className}`}
-      role="timer"
-      aria-label={`Local time: ${formattedHours}:${minutes}:${seconds} ${ampm}, ${formattedDate}`}
-      title="Computer local time (Click to toggle 12h / 24h format)"
+      className={`dashboard-live-clock aurora-capsule-clock ${className}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Local time: ${formattedHours}:${minutes}:${seconds} ${ampm ? ampm + ' ' : ''}(${is24Hour ? '24-hour' : '12-hour'} format), ${weekdays[now.getDay()]}, ${now.getDate()} ${monthShort} ${yearNumber}. Click to toggle format.`}
+      title={`Local time: ${formattedHours}:${minutes} ${ampm} • Click to toggle 12h/24h`}
       onClick={toggleFormat}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          toggleFormat()
+        }
+      }}
     >
-      <div className="live-clock-time-display">
-        <div className="live-clock-icon-wrap">
-          <Icon name="clock" size={16} />
-        </div>
-        <span className="live-clock-digits">
-          <span className="clock-digit-group">{formattedHours}</span>
-          <span className="clock-colon">:</span>
-          <span className="clock-digit-group">{minutes}</span>
-          <span className="clock-colon">:</span>
-          <span className="clock-digit-group clock-seconds">{seconds}</span>
-        </span>
-        {!is24Hour && <span className="live-clock-ampm">{ampm}</span>}
+      {/* Region 1: Clean Left Date Info */}
+      <div className="capsule-date-region">
+        <span className="capsule-weekday">{dayNameShort}</span>
+        <span className="capsule-day-month">{dayNumber} {monthShort}</span>
       </div>
-      <div className="live-clock-date-display">
-        <span>{formattedDate}</span>
+
+      {/* Region 2: Center - Stable Tabular Time (Hours : Minutes) */}
+      <div className="capsule-time-region">
+        <span className="clock-digit-group">{formattedHours}</span>
+        <span className="clock-colon">:</span>
+        <span className="clock-digit-group">{minutes}</span>
+      </div>
+
+      {/* Region 3: Right - Clean Format / Period Badge (No stranded tiny text) */}
+      <div className="capsule-format-region">
+        <span className={`capsule-format-badge ${is24Hour ? 'badge-24h' : 'badge-12h'}`}>
+          {is24Hour ? '24H' : ampm}
+        </span>
       </div>
     </div>
   )

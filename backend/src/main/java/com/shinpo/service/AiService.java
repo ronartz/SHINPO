@@ -701,4 +701,53 @@ public class AiService {
                 Instant.now()
         );
     }
+
+    public Map<String, Object> getProviderStatus() {
+        com.shinpo.ai.provider.AIProvider provider = aiGateway.getActiveProvider();
+        boolean enabled = aiGateway.isAiEnabled();
+        if (!enabled) {
+            return Map.of(
+                "enabled", false,
+                "available", false,
+                "provider", provider != null ? provider.getProviderName() : "none",
+                "model", provider != null ? provider.getModelName() : "none",
+                "status", "DISABLED",
+                "message", "AI Assistant is disabled in configuration"
+            );
+        }
+        if (provider == null) {
+            return Map.of(
+                "enabled", true,
+                "available", false,
+                "provider", "none",
+                "model", "none",
+                "status", "NO_PROVIDER",
+                "message", "No AI provider configured"
+            );
+        }
+        boolean available = provider.isAvailable();
+        boolean modelInstalled = true;
+        if (provider instanceof com.shinpo.ai.provider.OllamaProvider op) {
+            modelInstalled = op.isModelInstalled();
+        }
+        boolean fullyReady = available && modelInstalled;
+        String status = fullyReady ? "CONNECTED" : (available ? "MODEL_MISSING" : "OFFLINE");
+        String message;
+        if (fullyReady) {
+            message = "Local · " + provider.getModelName();
+        } else if (available) {
+            message = "Model '" + provider.getModelName() + "' missing. Run 'ollama pull " + provider.getModelName() + "'";
+        } else {
+            message = "Ollama is offline. Start Ollama service on http://localhost:11434";
+        }
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("enabled", true);
+        res.put("available", fullyReady);
+        res.put("provider", provider.getProviderName());
+        res.put("model", provider.getModelName());
+        res.put("status", status);
+        res.put("message", message);
+        return res;
+    }
 }

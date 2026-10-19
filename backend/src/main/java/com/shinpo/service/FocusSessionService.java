@@ -259,6 +259,7 @@ public class FocusSessionService {
             session.setMission(null);
         }
 
+        session.incrementContextPolicyRevision();
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
 
@@ -285,6 +286,7 @@ public class FocusSessionService {
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setStartedAt(Instant.now());
         session.setPausedAt(null);
+        session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
@@ -304,6 +306,7 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.PAUSED);
         session.setPausedAt(Instant.now());
+        session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
@@ -331,6 +334,7 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setPausedAt(null);
+        session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
@@ -364,6 +368,7 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.COMPLETED);
         session.setEndedAt(now);
+        session.incrementContextPolicyRevision();
 
         if (request != null) {
             session.setCompletionQuality(request.quality());
@@ -417,6 +422,7 @@ public class FocusSessionService {
         session.setStatus(FocusSessionStatus.CANCELLED);
         session.setEndedAt(now);
         session.setPausedAt(null);
+        session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
@@ -467,6 +473,7 @@ public class FocusSessionService {
                     log.info("SESSION_EXPIRED: Scheduled focus session {} exceeded execution window.", session.getId());
                     session.setStatus(FocusSessionStatus.EXPIRED);
                     session.setEndedAt(now);
+                    session.incrementContextPolicyRevision();
                     focusSessionRepository.save(session);
                     return true;
                 }
@@ -478,6 +485,7 @@ public class FocusSessionService {
                 log.info("SESSION_EXPIRED: Active focus session {} abandoned beyond duration limit.", session.getId());
                 session.setStatus(FocusSessionStatus.EXPIRED);
                 session.setEndedAt(now);
+                session.incrementContextPolicyRevision();
                 focusSessionRepository.save(session);
                 return true;
             }
@@ -496,6 +504,7 @@ public class FocusSessionService {
                     session.setPausedAt(null);
                     session.setStatus(FocusSessionStatus.EXPIRED);
                     session.setEndedAt(now);
+                    session.incrementContextPolicyRevision();
                     focusSessionRepository.save(session);
                     return true;
                 }

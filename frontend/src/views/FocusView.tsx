@@ -8,6 +8,7 @@ import {
   pomodoroPlans,
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
+import { StudyResourcesPanel } from '../components/focus'
 
 export interface FocusViewProps {
   activeSession?: FocusSession | null
@@ -79,9 +80,10 @@ export const FocusView: React.FC<FocusViewProps> = ({
 }) => {
   trackRender('FocusView')
   return (
-    <div className="bento-grid">
-      {/* Running Timer HUD */}
-      <div className="bento-card card-timer-hud">
+    <div className="focus-workspace-container">
+      <div className="focus-hero-split">
+        {/* Running Timer HUD */}
+        <div className="bento-card card-timer-hud">
         <div className="card-header-row">
           <div className="card-title-group">
             <span className="card-title">Focus Engine</span>
@@ -354,6 +356,13 @@ export const FocusView: React.FC<FocusViewProps> = ({
           ))}
         </div>
       </div>
+      </div>
+
+      <StudyResourcesPanel
+        missionId={activeSession?.missionId ?? undefined}
+        sessionId={activeSession?.id}
+        taskTitle={activeSession?.name ?? null}
+      />
 
       {/* Bento Card 3: Focus Sessions History */}
       <div className="bento-card card-session-history">

@@ -177,7 +177,7 @@ class AIProviderPipelineTests {
 
         assertNotNull(fallbackResponse);
         assertNotNull(fallbackResponse.reply());
-        assertTrue(fallbackResponse.reply().contains("I understand you're asking about"));
+        assertTrue(fallbackResponse.reply().contains("Local AI Model Offline") || fallbackResponse.reply().contains("deterministic rule-based assistant mode"));
     }
 
     @Test

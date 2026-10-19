@@ -36,6 +36,7 @@ import {
   sendAiChat,
 } from './api/ai'
 import type {
+  BugReportDraft,
   BugReportInfo,
   DailyPlan,
   ExecutiveBriefing,
@@ -200,7 +201,14 @@ function hasHttpStatus(error: unknown, status: number): boolean {
   return typeof error === 'object' && error !== null && 'status' in error && error.status === status
 }
 
+import { UiComponentGallery } from './dev/UiComponentGallery'
+
 export function App() {
+  const isDevGallery =
+    Boolean(import.meta.env.DEV) &&
+    typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).get('dev') === 'gallery' || window.location.pathname === '/gallery')
+
   trackRender('App')
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser())
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN')
@@ -239,10 +247,18 @@ export function App() {
   })
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('shinpo_sidebar_pinned')
+        if (stored !== null) return stored === 'true'
+      } catch {
+        // ignore localStorage access errors
+      }
       return window.innerWidth > 1000
     }
     return true
   })
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false)
+  const isSidebarVisuallyExpanded = sidebarExpanded || isSidebarHovered
 
   useEffect(() => {
     let prevWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
@@ -339,6 +355,8 @@ export function App() {
   const [completionQuality, setCompletionQuality] = useState(5)
   const [accomplishment, setAccomplishment] = useState('')
   const [reflectionNotes, setReflectionNotes] = useState('')
+  const [isCompletingSession, setIsCompletingSession] = useState(false)
+  const [completeSessionError, setCompleteSessionError] = useState<string | null>(null)
 
   // AI Assistant Chat State
   const [chatMessages, setChatMessages] = useState<
@@ -710,6 +728,11 @@ export function App() {
               missions: mapStructuredCard(message.structuredCard, message.suggestionType),
               tutorial: message.tutorial,
               bugReport: message.bugReport,
+              bugReportDraft:
+                message.suggestionType === 'BUG_REPORT_DRAFT' && message.structuredCard
+                  ? (message.structuredCard as BugReportDraft)
+                  : null,
+              structuredCard: message.structuredCard,
               debriefAnalysis:
                 message.suggestionType === 'DEBRIEF_ANALYSIS' && message.structuredCard
                   ? (message.structuredCard as SessionDebriefAnalysis)
@@ -1060,11 +1083,28 @@ export function App() {
   }, [currentUser])
 
   const handleToggleSidebar = useCallback(() => {
-    setSidebarExpanded((prev) => !prev)
+    setSidebarExpanded((prev) => {
+      const next = !prev
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('shinpo_sidebar_pinned', String(next))
+        } catch {
+          // ignore localStorage errors
+        }
+      }
+      return next
+    })
   }, [])
 
   const handleSelectTab = useCallback((tab: AppView) => {
     setActiveTab(tab)
+  }, [])
+
+  const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+
+  const handleNavigateToTasks = useCallback((filter: 'ALL' | 'PENDING' | 'COMPLETED' = 'ALL') => {
+    setMissionsFilter(filter)
+    setActiveTab('Goals & Missions')
   }, [])
 
   const handleToggleAlertsDrawer = useCallback(() => {
@@ -1754,9 +1794,11 @@ export function App() {
 
   const handleCompleteSubmit = async (e: FormEvent, debriefWithAi: boolean = false) => {
     e.preventDefault()
-    if (!currentUser || !completingSessionId) return
+    if (!currentUser || !completingSessionId || isCompletingSession) return
     const targetSessionId = completingSessionId
     const userId = currentUser.id
+    setIsCompletingSession(true)
+    setCompleteSessionError(null)
     try {
       const res = await completeFocusSession(
         targetSessionId,
@@ -1772,6 +1814,7 @@ export function App() {
       setCompletingSessionId(null)
       setAccomplishment('')
       setReflectionNotes('')
+      setCompleteSessionError(null)
       pushToast({
         type: 'focus',
         title: 'Session Completed',
@@ -1785,12 +1828,16 @@ export function App() {
       }
     } catch (err: unknown) {
       console.error(err)
+      const errorMsg = err instanceof Error ? err.message : 'Could not save session completion.'
+      setCompleteSessionError(errorMsg)
       pushToast({
         type: 'focus',
         title: 'Completion Failed',
-        description: err instanceof Error ? err.message : 'Could not save session completion.',
+        description: errorMsg,
         timestamp: new Date().toISOString(),
       })
+    } finally {
+      setIsCompletingSession(false)
     }
   }
 
@@ -1847,6 +1894,10 @@ export function App() {
         (res.suggestionType === 'PLANNER' || res.suggestionType === 'DAILY_PLAN') && res.structuredCard && 'planItems' in (res.structuredCard as object)
           ? (res.structuredCard as DailyPlan)
           : null
+      const bugReportDraft: BugReportDraft | null =
+        res.suggestionType === 'BUG_REPORT_DRAFT' && res.structuredCard
+          ? (res.structuredCard as BugReportDraft)
+          : null
 
       setAiLoading(false)
 
@@ -1862,6 +1913,8 @@ export function App() {
             missions,
             tutorial: res.tutorial,
             bugReport: res.bugReport,
+            bugReportDraft,
+            structuredCard: res.structuredCard,
             suggestionType: res.suggestionType,
             suggestionId,
             debriefAnalysis,
@@ -1881,6 +1934,8 @@ export function App() {
             missions: [],
             tutorial: null,
             bugReport: null,
+            bugReportDraft: null,
+            structuredCard: null,
             suggestionType: res.suggestionType,
             debriefAnalysis,
             sessionRecovery,
@@ -1920,6 +1975,8 @@ export function App() {
                     missions,
                     tutorial: res.tutorial,
                     bugReport: res.bugReport,
+                    bugReportDraft,
+                    structuredCard: res.structuredCard,
                     suggestionId,
                     debriefAnalysis,
                     sessionRecovery,
@@ -2139,6 +2196,10 @@ export function App() {
 
   const handleCancelFromSchedule = handleCancelSession
 
+  if (isDevGallery) {
+    return <UiComponentGallery />
+  }
+
   if (!currentUser) {
     return (
       <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
@@ -2252,6 +2313,7 @@ export function App() {
             sentinelStatus={sentinelStatus}
             analyticsData={analyticsData}
             setActiveTab={handleSelectTab}
+            onNavigateToTasks={handleNavigateToTasks}
             handleArmMissionAsSession={handleArmMissionAsSession}
             handleToggleMissionComplete={handleToggleMissionComplete}
             handleDeleteMission={handleDeleteMission}
@@ -2287,6 +2349,7 @@ export function App() {
             topSearchQuery={topSearchQuery}
             setTopSearchQuery={setTopSearchQuery}
             setActiveTab={setActiveTab}
+            onNavigateToTasks={handleNavigateToTasks}
             handleArmMissionAsSession={handleArmMissionAsSession}
             handleToggleMissionComplete={handleToggleMissionComplete}
             handleDeleteMission={handleDeleteMission}
@@ -2387,6 +2450,8 @@ export function App() {
             }}
             openEditGoalModal={openEditGoalModal}
             openEditMissionModal={openEditMissionModal}
+            missionsFilter={missionsFilter}
+            setMissionsFilter={setMissionsFilter}
           />
         )}
 
@@ -2474,6 +2539,7 @@ export function App() {
         <Sidebar
           sidebarExpanded={sidebarExpanded}
           onToggleExpanded={handleToggleSidebar}
+          onHoverChange={setIsSidebarHovered}
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
           scheduledCount={scheduledCount}
@@ -2487,7 +2553,7 @@ export function App() {
         />
 
         {/* Main Content Area */}
-        <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
+        <main className={`app-main ${isSidebarVisuallyExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
           {/* Top Bar */}
           <TopBar
             activeTab={activeTab}
@@ -2547,7 +2613,12 @@ export function App() {
             markTaskCompleted={markTaskCompleted}
             setMarkTaskCompleted={setMarkTaskCompleted}
             linkedTaskTitle={completingTask?.title}
-            onCancel={() => setCompletingSessionId(null)}
+            isSubmitting={isCompletingSession}
+            errorMessage={completeSessionError}
+            onCancel={() => {
+              setCompletingSessionId(null)
+              setCompleteSessionError(null)
+            }}
             onSubmit={handleCompleteSubmit}
           />
         )

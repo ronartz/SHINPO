@@ -16,7 +16,7 @@ export function getBackendBaseUrl(): string {
   }
 
   // 3. Desktop mode fallback (when running inside Tauri without explicit setting)
-  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+  if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
     return 'http://localhost:8080'
   }
 

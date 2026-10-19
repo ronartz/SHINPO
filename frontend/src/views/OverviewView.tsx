@@ -11,6 +11,7 @@ import { Icon } from '../components/common/Icon'
 import { LiveClock } from '../components/common/LiveClock'
 import { formatTimerDigits } from '../utils/focusTimer'
 import { trackRender } from '../utils/renderTracker'
+import { getSortedScheduleSessions, getSessionSecondaryInfo } from '../utils/scheduleHelpers'
 
 export interface OverviewViewProps {
   currentUser?: AuthUser | null
@@ -49,6 +50,7 @@ export interface OverviewViewProps {
   handleResume?: (id: number) => void
   setCompletingSessionId?: (id: number | null) => void
   nextActionMission?: Mission | null
+  onNavigateToTasks?: (filter: 'ALL' | 'PENDING' | 'COMPLETED') => void
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -62,6 +64,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   topSearchQuery,
   setTopSearchQuery,
   setActiveTab,
+  onNavigateToTasks,
   handleArmMissionAsSession,
   handleToggleMissionComplete,
   handleDeleteMission,
@@ -97,6 +100,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   const completedSessionsCount = analyticsData?.summary?.sessionsCompleted ??
     sessions.filter((s) => s.status === 'COMPLETED').length
+
+  const sortedSessions = React.useMemo(() => {
+    return getSortedScheduleSessions(sessions, activeSession)
+  }, [sessions, activeSession])
 
 
   const hour = new Date().getHours()
@@ -671,32 +678,37 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
 
             <div className="sidecar-body">
-              {sessions.length > 0 ? (
+              {sortedSessions.length > 0 ? (
                 <div className="schedule-sessions-list">
-                  {sessions.slice(0, 3).map((s, idx) => {
-                    const canStart = s.status === 'SCHEDULED' && !activeSession
+                  {sortedSessions.slice(0, 3).map((s, idx) => {
+                    const isActive = s.status === 'ACTIVE' || s.status === 'PAUSED' || (activeSession && activeSession.id === s.id)
                     const isDone = s.status === 'COMPLETED'
+                    const canStart = s.status === 'SCHEDULED' && !activeSession
+                    const secondaryInfo = getSessionSecondaryInfo(s)
+
                     return (
                       <div
                         key={s.id}
-                        className={`schedule-session-item ${canStart ? 'is-startable' : ''} ${isDone ? 'is-completed' : ''}`}
+                        className={`schedule-session-item ${canStart ? 'is-startable' : ''} ${isDone ? 'is-completed' : ''} ${isActive ? 'is-active' : ''}`}
                         onClick={() => {
                           if (canStart) void handleStartFromSchedule(s.id)
                         }}
-                        title={`${s.name}${s.intention ? ` — ${s.intention}` : ''}${canStart ? ' • Click to start' : ''}`}
+                        title={`${s.name} — ${secondaryInfo}${canStart ? ' • Click to start' : ''}`}
                       >
                         <div className="schedule-item-time">
-                          <span className="schedule-time-pill">{idx + 1}</span>
+                          <span className="schedule-time-pill">
+                            {isDone ? '✓' : isActive ? '▶' : idx + 1}
+                          </span>
                         </div>
                         <div className="schedule-item-details">
                           <span className="schedule-session-name" title={s.name}>{s.name}</span>
-                          <span className="schedule-session-sub" title={s.intention || (isDone ? 'Completed' : 'Focus Session')}>
-                            {s.intention || (isDone ? 'Completed' : 'Focus Session')}
+                          <span className="schedule-session-sub" title={secondaryInfo}>
+                            {secondaryInfo}
                           </span>
                         </div>
                         <div className="schedule-item-badge">
-                          <span className={`duration-pill ${isDone ? 'done' : ''}`}>
-                            {isDone ? 'Done' : `${s.durationMinutes}m`}
+                          <span className={`duration-pill ${isDone ? 'done' : isActive ? 'active' : ''}`}>
+                            {isDone ? 'Done' : isActive ? 'Active' : `${s.durationMinutes}m`}
                           </span>
                         </div>
                       </div>
@@ -716,8 +728,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       </div>
                       <div className="schedule-item-details">
                         <span className="schedule-session-name" title={d.sessionName}>{d.sessionName}</span>
-                        <span className="schedule-session-sub" title={d.accomplishment || 'Completed Focus Sprint'}>
-                          {d.accomplishment || 'Completed Focus Sprint'}
+                        <span className="schedule-session-sub" title={d.accomplishment || `${d.durationMinutes}m focus logged`}>
+                          {d.accomplishment || `${d.durationMinutes}m focus logged`}
                         </span>
                       </div>
                       <div className="schedule-item-badge">
@@ -794,9 +806,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             <div className="status-column-cards">
               {displayInProgress.length > 0 ? (
-                displayInProgress.map((t) => renderFlightDeckCard(t))
+                <>
+                  {displayInProgress.slice(0, 3).map((t) => renderFlightDeckCard(t))}
+                  {displayInProgress.length > 3 && (
+                    <button
+                      type="button"
+                      className="board-view-remaining-btn"
+                      onClick={() => onNavigateToTasks ? onNavigateToTasks('PENDING') : setActiveTab('Goals & Missions')}
+                    >
+                      View {displayInProgress.length - 3} remaining {displayInProgress.length - 3 === 1 ? 'task' : 'tasks'} →
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="status-column-empty">
+                  <div className="empty-icon-circle">
+                    <Icon name="clock" size={16} />
+                  </div>
                   <span className="empty-title">No active focus session</span>
                   <span className="empty-subtitle">Select a ready task below or start your priority session.</span>
                   {displayPending.length > 0 && (
@@ -824,9 +850,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             <div className="status-column-cards">
               {displayPending.length > 0 ? (
-                displayPending.map((t) => renderFlightDeckCard(t))
+                <>
+                  {displayPending.slice(0, 3).map((t) => renderFlightDeckCard(t))}
+                  {displayPending.length > 3 && (
+                    <button
+                      type="button"
+                      className="board-view-remaining-btn"
+                      onClick={() => onNavigateToTasks ? onNavigateToTasks('PENDING') : setActiveTab('Goals & Missions')}
+                    >
+                      View {displayPending.length - 3} remaining {displayPending.length - 3 === 1 ? 'task' : 'tasks'} →
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="status-column-empty">
+                  <div className="empty-icon-circle">
+                    <Icon name="target" size={16} />
+                  </div>
                   <span className="empty-title">No tasks queued</span>
                   <span className="empty-subtitle">Create a task to plan your next session.</span>
                 </div>
@@ -846,11 +886,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             <div className="status-column-cards">
               {compM.length > 0 ? (
-                compM.map((t) => renderFlightDeckCard(t))
+                <>
+                  {compM.slice(0, 3).map((t) => renderFlightDeckCard(t))}
+                  {compM.length > 3 && (
+                    <button
+                      type="button"
+                      className="board-view-remaining-btn"
+                      onClick={() => onNavigateToTasks ? onNavigateToTasks('COMPLETED') : setActiveTab('Goals & Missions')}
+                    >
+                      View {compM.length - 3} remaining {compM.length - 3 === 1 ? 'task' : 'tasks'} →
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="status-column-empty">
-                  <span className="empty-title">No completed tasks yet today</span>
-                  <span className="empty-subtitle">Finished tasks will be cataloged here.</span>
+                  <div className="empty-icon-circle">
+                    <Icon name="check-circle" size={16} />
+                  </div>
+                  <span className="empty-title">No completed tasks yet</span>
+                  <span className="empty-subtitle">Finished tasks from your focus sessions will be cataloged here.</span>
                 </div>
               )}
             </div>

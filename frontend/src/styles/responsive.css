@@ -16,18 +16,19 @@
   html,
   body,
   .app-shell {
-    --sidebar-w: 200px;
+    --sidebar-w: 250px;
   }
 
-  .icon-sidebar.expanded {
-    width: 200px !important;
-    padding: 16px 10px !important;
+  .icon-sidebar.expanded,
+  .icon-sidebar.hover-expanded {
+    width: var(--sidebar-w) !important;
+    padding: 16px 12px !important;
   }
 
   .app-main.sidebar-expanded {
-    margin-left: 200px !important;
-    width: calc(100% - 200px) !important;
-    max-width: calc(100% - 200px) !important;
+    margin-left: var(--sidebar-w) !important;
+    width: calc(100% - var(--sidebar-w)) !important;
+    max-width: calc(100% - var(--sidebar-w)) !important;
     padding: 18px 22px 28px !important;
   }
 
@@ -178,20 +179,33 @@
   }
 
   /* Hide quote and text in rail */
+  .icon-sidebar .sidebar-upper-quote,
+  .icon-sidebar.expanded .sidebar-upper-quote,
   .sidebar-upper-quote,
   .sidebar-section-header,
-  .sidebar-btn span,
+  .sidebar-btn-label,
   .sidebar-nav-badge,
   .sidebar-active-arrow,
-  .sidebar-system-meta {
+  .sidebar-system-meta,
+  .sidebar-protection-panel {
     display: none !important;
+  }
+
+  .sidebar-protection-collapsed {
+    display: flex !important;
+  }
+
+  .sidebar-btn-icon {
+    display: flex !important;
+    margin: 0 auto !important;
   }
 
   .icon-sidebar .sidebar-btn,
   .icon-sidebar.expanded .sidebar-btn {
     justify-content: center !important;
-    padding: 11px 0 !important;
+    padding: 0 !important;
     width: 100% !important;
+    height: 42px !important;
   }
 
   /* Status footer: minimal centered indicator */

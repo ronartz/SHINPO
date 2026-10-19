@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import type { Goal } from '../../api/goalsAndMissions'
 import { Icon } from '../common/Icon'
+import { ShinpoSelect } from '../ui'
 
 export interface CreateTaskModalProps {
   isOpen: boolean
@@ -17,6 +18,10 @@ export interface CreateTaskModalProps {
   onSubmit: (e: React.FormEvent) => void
 }
 
+const DURATION_PRESETS = [10, 15, 20, 25, 30, 45, 60, 90, 120] as const
+const MIN_DURATION = 5
+const MAX_DURATION = 480
+
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
@@ -31,6 +36,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   error,
   onSubmit,
 }) => {
+  const isPreset = (DURATION_PRESETS as readonly number[]).includes(duration)
+  const [userSelectedCustom, setUserSelectedCustom] = useState<boolean>(false)
+  const isCustom = userSelectedCustom || !isPreset
+  const [customInput, setCustomInput] = useState<string>(() => String(duration || 25))
+
   // Ensure default goal selection if goalId is uninitialized
   useEffect(() => {
     if (isOpen && goals.length > 0) {
@@ -41,6 +51,32 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   }, [isOpen, goals, goalId, setGoalId])
 
   if (!isOpen) return null
+
+  const parsedCustom = parseInt(customInput, 10)
+  const isCustomValid = !isNaN(parsedCustom) && parsedCustom >= MIN_DURATION && parsedCustom <= MAX_DURATION
+  const isDurationValid = isCustom ? isCustomValid : duration >= MIN_DURATION && duration <= MAX_DURATION
+
+  const handlePresetSelect = (dur: number) => {
+    setUserSelectedCustom(false)
+    setCustomInput(String(dur))
+    setDuration(dur)
+  }
+
+  const handleCustomToggle = () => {
+    setUserSelectedCustom(true)
+    if (isCustomValid) {
+      setDuration(parsedCustom)
+    }
+  }
+
+  const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valStr = e.target.value
+    setCustomInput(valStr)
+    const num = parseInt(valStr, 10)
+    if (!isNaN(num) && num >= MIN_DURATION && num <= MAX_DURATION) {
+      setDuration(num)
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-task-title">
@@ -69,35 +105,32 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           )}
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label htmlFor="create-task-goal" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
               Associated Goal
             </label>
             {goals.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--brand-coral)', margin: 0 }}>
-                No goals available. Please create a goal first.
-              </p>
+              <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(255, 77, 94, 0.1)', border: '1px solid rgba(255, 77, 94, 0.3)' }}>
+                <p style={{ fontSize: 13, color: 'var(--brand-coral, #FF4D5E)', margin: 0, fontWeight: 600 }}>
+                  No goals available. Please create a goal first.
+                </p>
+              </div>
             ) : (
-              <select
-                className="modal-field"
-                style={{ marginBottom: 0 }}
-                value={goalId ?? ''}
-                onChange={(e) => setGoalId(Number(e.target.value))}
+              <ShinpoSelect<number>
+                id="create-task-goal"
+                value={goalId ?? goals[0]?.id ?? 0}
+                onChange={setGoalId}
+                options={goals.map((g) => ({ value: g.id, label: g.title }))}
                 required
-              >
-                {goals.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label htmlFor="create-task-title-input" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
               Task Title
             </label>
             <input
+              id="create-task-title-input"
               type="text"
               className="modal-field"
               placeholder="e.g. Refactor API endpoint, Write test suite..."
@@ -109,22 +142,106 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
-              Estimated Duration ({duration} min)
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8 }}>
+              Estimated Duration ({isCustom ? `${isCustomValid ? parsedCustom : 'Custom'} min` : `${duration} min`})
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[15, 25, 45, 60].map((dur) => (
-                <button
-                  key={dur}
-                  type="button"
-                  className={`btn-timer ${duration === dur ? 'primary' : 'secondary'}`}
-                  style={{ flex: 1, padding: '6px 0', fontSize: 13 }}
-                  onClick={() => setDuration(dur)}
-                >
-                  {dur}m
-                </button>
-              ))}
+
+            {/* 10-Option Duration Selector Grid (5x2) */}
+            <div
+              role="group"
+              aria-label="Duration Presets"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, 1fr)',
+                gap: 6,
+                marginBottom: 8,
+              }}
+            >
+              {DURATION_PRESETS.map((dur) => {
+                const isSelected = !isCustom && duration === dur
+                return (
+                  <button
+                    key={dur}
+                    type="button"
+                    className={`btn-timer ${isSelected ? 'primary' : 'secondary'}`}
+                    style={{
+                      padding: '7px 0',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      borderRadius: 8,
+                      outline: isSelected ? '2px solid var(--primary-coral, #9757FA)' : undefined,
+                    }}
+                    onClick={() => handlePresetSelect(dur)}
+                    aria-pressed={isSelected}
+                  >
+                    {dur}m
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                className={`btn-timer ${isCustom ? 'primary' : 'secondary'}`}
+                style={{
+                  padding: '7px 0',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                  outline: isCustom ? '2px solid var(--primary-coral, #9757FA)' : undefined,
+                }}
+                onClick={handleCustomToggle}
+                aria-pressed={isCustom}
+              >
+                Custom
+              </button>
             </div>
+
+            {/* Custom Input Block */}
+            {isCustom && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="number"
+                    min={MIN_DURATION}
+                    max={MAX_DURATION}
+                    step={5}
+                    value={customInput}
+                    onChange={handleCustomInputChange}
+                    placeholder="Enter 5 to 480"
+                    className="modal-field"
+                    style={{
+                      marginBottom: 0,
+                      paddingRight: 60,
+                      borderColor: !isCustomValid ? 'var(--brand-coral, #FF4D5E)' : undefined,
+                    }}
+                    aria-label="Custom duration in minutes"
+                    aria-invalid={!isCustomValid}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--text-3)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    min
+                  </span>
+                </div>
+                {!isCustomValid ? (
+                  <span style={{ fontSize: 12, color: 'var(--brand-coral, #FF4D5E)', fontWeight: 600 }}>
+                    Please enter a duration between {MIN_DURATION} and {MAX_DURATION} minutes.
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    Sensible boundary: {MIN_DURATION}m to {MAX_DURATION}m (up to 8 hours).
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -139,7 +256,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <button
               type="submit"
               className="btn-timer primary"
-              disabled={isSubmitting || !title.trim() || goals.length === 0}
+              disabled={isSubmitting || !title.trim() || goals.length === 0 || !isDurationValid}
             >
               <Icon name="plus" size={14} />
               <span>{isSubmitting ? 'Creating...' : 'Create Task'}</span>

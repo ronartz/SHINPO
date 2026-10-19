@@ -1,0 +1,17 @@
+{
+  "minimum_chrome_version": null,
+  "background": {
+    "scripts": [
+      "lib/canonical-url.js",
+      "lib/policy-engine.js",
+      "lib/native-protocol.js",
+      "background-core.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "browser-companion@shinpo.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}

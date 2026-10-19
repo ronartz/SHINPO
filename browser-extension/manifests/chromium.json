@@ -1,0 +1,6 @@
+{
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwSXb3az1Yh2EtCDnwQGRBKuk4qZFlHqmdOHVoxEeQ3GFnKu7dR3T+LDlB7WsuSBDmB45eQdvEGNLjdvarYo3JsN9+oKzejFle9ws78mpgLIP+X3WmLeOpjEc+RBRewPDxeQgilILV01MSLi0owaKQ2kOzcEdeYkwgV4GVrWFsIEkVwMfC80olRpvP+sLZByC7UOmIXXoeLpfjPwGZImGxJCTreLgtnaoa+aatmntwo9zYDSHHi5Yn5w62YBKgTO2TRGMuOuYpluqzp4gwM//qo+s/pvOUzcQb6i3Z4YtyohfMouh3ZW/Ehbk5kuIS3cYkl0S6kpmGX3XQZnnLuoe7wIDAQAB",
+  "background": {
+    "service_worker": "background-chromium.js"
+  }
+}

@@ -45,6 +45,7 @@ repomix-output.xml
 # Daemon binaries and spool
 daemon/shinpo-shield
 daemon/quarantine_spool.jsonl
+bin/shinpo-browser-host
 *.jsonl
 
 # Backups and archives

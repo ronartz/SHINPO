@@ -73,9 +73,17 @@ jobs:
       run: npm run lint
       working-directory: frontend
 
+    - name: Unit Tests
+      run: npm test
+      working-directory: frontend
+
     - name: Build
       run: npm run build
       working-directory: frontend
+
+    - name: Browser Extension Tests
+      run: npm test
+      working-directory: browser-extension
 
   rust-shield:
     name: Rust Shield Tests
@@ -89,3 +97,7 @@ jobs:
     - name: Run Rust Shield Tests
       run: cargo test
       working-directory: crates/shinpo-shield
+
+    - name: Run Rust Browser Host Tests
+      run: cargo test
+      working-directory: crates/shinpo-browser-host

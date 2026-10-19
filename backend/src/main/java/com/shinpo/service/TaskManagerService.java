@@ -16,7 +16,7 @@ public class TaskManagerService {
 
 
     private static final Set<String> KNOWN_DISTRACTIONS = Set.of(
-            "discord", "steam", "spotify", "telegram-desktop", "vlc", "obs",
+            "discord", "steam", "spotify", "telegram-desktop", "vlc",
             "game", "lutris", "heroic", "battlenet", "riotclientservices", "epicgameslauncher"
     );
 

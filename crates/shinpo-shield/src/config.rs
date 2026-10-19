@@ -38,10 +38,9 @@ fn default_true() -> bool {
 
 fn default_blacklist() -> Vec<String> {
     vec![
-        "discord".to_string(),
         "steam".to_string(),
-        "telegram-desktop".to_string(),
-        "obs".to_string(),
+        "lutris".to_string(),
+        "heroic".to_string(),
         "epicgameslauncher".to_string(),
         "riotclientux".to_string(),
         "battlenet".to_string(),
