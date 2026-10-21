@@ -36,12 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        SecurityContextHolder.clearContext();
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token)) {
             try {
                 if (jwtTokenService.isTokenBlacklisted(token)) {
                     log.warn("Authentication rejected: access token has been explicitly revoked / blacklisted");
+                    SecurityContextHolder.clearContext();
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -54,6 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     if (tokenVersion == null || !tokenVersion.equals(principal.getTokenVersion())) {
                         log.warn("Authentication rejected: access token version mismatch for user ID: {} (tokenVersion={}, currentVersion={})",
                                 userId, tokenVersion, principal.getTokenVersion());
+                        SecurityContextHolder.clearContext();
                         filterChain.doFilter(request, response);
                         return;
                     }
@@ -72,8 +75,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             } catch (JWTVerificationException ex) {
                 log.debug("JWT verification failed: {}", ex.getMessage());
+                SecurityContextHolder.clearContext();
             } catch (Exception ex) {
                 log.error("Could not set user authentication in security context", ex);
+                SecurityContextHolder.clearContext();
             }
         }
 
