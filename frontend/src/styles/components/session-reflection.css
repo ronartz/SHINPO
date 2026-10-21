@@ -65,6 +65,14 @@
   padding-bottom: 10px;
 }
 
+.ai-debrief-title-group { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.ai-debrief-title { min-width: 0; color: var(--text-1); font-size: 14px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.ai-debrief-score-badge { flex: 0 0 auto; color: var(--text-2); font-size: 12px; font-weight: 700; }
+.ai-debrief-metrics-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.debrief-stat-block { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-subtle); }
+.debrief-stat-block .stat-label { color: var(--text-3); font-size: 12px; line-height: 1.35; }
+.debrief-stat-block .stat-val { color: var(--text-1); font-size: 14px; font-weight: 700; }
+
 .ai-debrief-title-row {
   display: flex;
   align-items: center;
@@ -308,6 +316,9 @@
   font-weight: 700;
   color: var(--text);
 }
+
+.recovery-option-info { min-width: 0; }
+.recovery-option-desc { color: var(--text-2); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 
 /* Circadian Daily Agenda Card */
 .ai-daily-agenda-card {

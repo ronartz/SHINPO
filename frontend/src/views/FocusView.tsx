@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import type { FocusSession, FocusSessionStatus } from '../api/focusSessions'
 import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
@@ -9,6 +9,7 @@ import {
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
+import { focusAtmosphere, type AtmosphereSound } from '../utils/focusAtmosphere'
 
 export interface FocusViewProps {
   activeSession?: FocusSession | null
@@ -79,6 +80,79 @@ export const FocusView: React.FC<FocusViewProps> = ({
   handleCancelSession,
 }) => {
   trackRender('FocusView')
+
+  const [atmosphereSound, setAtmosphereSound] = useState<AtmosphereSound>(() => {
+    try {
+      return (localStorage.getItem('shinpo_focus_atmosphere') as AtmosphereSound) || 'quiet'
+    } catch {
+      return 'quiet'
+    }
+  })
+  const [atmosphereVolume, setAtmosphereVolume] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('shinpo_focus_atmosphere_volume')
+      return v !== null ? Number(v) : 0.5
+    } catch {
+      return 0.5
+    }
+  })
+  const [isAtmospherePlaying, setIsAtmospherePlaying] = useState<boolean>(false)
+
+  // Sync atmosphere audio state with focus session lifecycle
+  useEffect(() => {
+    let mounted = true
+    if (activeSession?.status === 'ACTIVE' && atmosphereSound !== 'quiet') {
+      focusAtmosphere.setSound(atmosphereSound, true).then(() => {
+        if (mounted) setIsAtmospherePlaying(true)
+      }).catch(() => {})
+    } else {
+      focusAtmosphere.stop()
+      queueMicrotask(() => {
+        if (mounted) setIsAtmospherePlaying(false)
+      })
+    }
+    return () => {
+      mounted = false
+      focusAtmosphere.stop()
+    }
+  }, [activeSession?.status, atmosphereSound])
+
+  const handleSelectAtmosphere = (sound: AtmosphereSound) => {
+    setAtmosphereSound(sound)
+    try {
+      localStorage.setItem('shinpo_focus_atmosphere', sound)
+    } catch {
+      // storage unavailable
+    }
+    const shouldPlay = sound !== 'quiet' && (activeSession?.status === 'ACTIVE' || !isAtmospherePlaying)
+    focusAtmosphere.setSound(sound, shouldPlay).then(() => {
+      setIsAtmospherePlaying(sound !== 'quiet' && shouldPlay)
+    }).catch(() => {})
+  }
+
+  const handleToggleAtmospherePlay = () => {
+    if (isAtmospherePlaying) {
+      focusAtmosphere.stop()
+      setIsAtmospherePlaying(false)
+    } else if (atmosphereSound !== 'quiet') {
+      focusAtmosphere.play().then(() => {
+        setIsAtmospherePlaying(true)
+      }).catch(() => {})
+    } else {
+      // If quiet, select gentle rain by default
+      handleSelectAtmosphere('gentle-rain')
+    }
+  }
+
+  const handleAtmosphereVolumeChange = (vol: number) => {
+    setAtmosphereVolume(vol)
+    focusAtmosphere.setVolume(vol)
+    try {
+      localStorage.setItem('shinpo_focus_atmosphere_volume', String(vol))
+    } catch {
+      // storage unavailable
+    }
+  }
   return (
     <div className="focus-workspace-container">
       <div className="focus-hero-split">
@@ -246,6 +320,80 @@ export const FocusView: React.FC<FocusViewProps> = ({
               )}
             </>
           )}
+        </div>
+
+        {/* Endel-Inspired Calm Focus Atmosphere */}
+        <div className="focus-atmosphere-widget" aria-label="Focus Atmosphere Soundscapes">
+          <div className="focus-atmosphere-header">
+            <div className="focus-atmosphere-title">
+              <Icon name="sparkle" size={16} />
+              <span>Focus Atmosphere</span>
+              {isAtmospherePlaying && <span className="focus-atmosphere-badge">Playing</span>}
+            </div>
+            <button
+              type="button"
+              className="atmosphere-chip"
+              onClick={handleToggleAtmospherePlay}
+              title={isAtmospherePlaying ? 'Mute atmosphere audio' : 'Play atmosphere audio'}
+              style={{ padding: '3px 8px', fontSize: 11 }}
+            >
+              <Icon name={isAtmospherePlaying ? 'pause' : 'play'} size={12} />
+              <span>{isAtmospherePlaying ? 'Mute' : 'Play'}</span>
+            </button>
+          </div>
+
+          <div className="focus-atmosphere-chips" role="group" aria-label="Atmosphere Sound Choices">
+            <button
+              type="button"
+              className={`atmosphere-chip ${atmosphereSound === 'quiet' ? 'active' : ''}`}
+              onClick={() => handleSelectAtmosphere('quiet')}
+            >
+              Quiet
+            </button>
+            <button
+              type="button"
+              className={`atmosphere-chip ${atmosphereSound === 'gentle-rain' ? 'active' : ''}`}
+              onClick={() => handleSelectAtmosphere('gentle-rain')}
+            >
+              🌧️ Rain
+            </button>
+            <button
+              type="button"
+              className={`atmosphere-chip ${atmosphereSound === 'brown-noise' ? 'active' : ''}`}
+              onClick={() => handleSelectAtmosphere('brown-noise')}
+            >
+              🌊 Brown Noise
+            </button>
+            <button
+              type="button"
+              className={`atmosphere-chip ${atmosphereSound === 'ambient-stream' ? 'active' : ''}`}
+              onClick={() => handleSelectAtmosphere('ambient-stream')}
+            >
+              🎵 Stream
+            </button>
+            <button
+              type="button"
+              className={`atmosphere-chip ${atmosphereSound === 'pink-noise' ? 'active' : ''}`}
+              onClick={() => handleSelectAtmosphere('pink-noise')}
+            >
+              💨 Pink Noise
+            </button>
+          </div>
+
+          <div className="focus-atmosphere-controls">
+            <Icon name="bell" size={14} />
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={atmosphereVolume}
+              onChange={(e) => handleAtmosphereVolumeChange(Number(e.target.value))}
+              className="atmosphere-vol-slider"
+              aria-label="Atmosphere Volume"
+            />
+            <span className="atmosphere-vol-label">{Math.round(atmosphereVolume * 100)}%</span>
+          </div>
         </div>
       </div>
 

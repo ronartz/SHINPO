@@ -8,7 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-RELEASE_DIR="${PROJECT_ROOT}/release/linux"
+RELEASE_DIR="${1:-${RELEASE_DIR:-${PROJECT_ROOT}/release/rc}}"
 
 echo "======================================================================"
 echo "  進歩 (SHINPO) Linux Desktop Package Builder"
@@ -85,6 +85,27 @@ echo "======================================================================"
     sha256sum SHINPO*.rpm SHINPO*.AppImage SHINPO*.deb SHINPO*.tar.gz shinpo-desktop shinpo-shield shinpo-browser-host > SHA256SUMS
     shopt -u nullglob
     cat SHA256SUMS
+
+    GIT_REV="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || echo 'unknown')"
+    GIT_BRANCH="$(git -C "${PROJECT_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'main')"
+    BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    cat <<EOF > BUILD_INFO.json
+{
+  "buildId": "shinpo-v1.0.0-rc3-${GIT_REV:0:7}",
+  "gitRevision": "${GIT_REV}",
+  "gitBranch": "${GIT_BRANCH}",
+  "builtAt": "${BUILD_TIME}",
+  "targets": [
+    "SHINPO-1.0.0-1.x86_64.rpm",
+    "SHINPO_1.0.0_amd64.AppImage",
+    "SHINPO_1.0.0_amd64.deb",
+    "SHINPO_1.0.0_linux_x86_64.tar.gz",
+    "shinpo-desktop",
+    "shinpo-shield",
+    "shinpo-browser-host"
+  ]
+}
+EOF
 )
 echo "======================================================================"
 echo "Packaging completed successfully. Artifacts ready in: ${RELEASE_DIR}"

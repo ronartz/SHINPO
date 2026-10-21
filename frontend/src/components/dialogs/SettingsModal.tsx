@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
-import { changePassword, updateUsername } from '../../api/auth'
+import { changePassword, getAuthToken, updateUsername } from '../../api/auth'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
-import { getBackendBaseUrl, getCustomServerUrl, setCustomServerUrl, isValidServerUrl } from '../../api/config'
+import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, setCustomServerUrl, isValidServerUrl } from '../../api/config'
 import { isTauriEnvironment } from '../../api/nativeShield'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
@@ -152,8 +152,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setCompanionLoading(true)
     try {
       const baseUrl = getBackendBaseUrl()
-      const token = localStorage.getItem('shinpo_access_token')
-      const res = await fetch(`${baseUrl}/api/contextual-focus/status`, {
+      const token = getAuthToken()
+      const res = await fetchWithoutRedirects(`${baseUrl}/api/contextual-focus/status`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -190,8 +190,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setAiLoading(true)
     try {
       const baseUrl = getBackendBaseUrl()
-      const token = localStorage.getItem('shinpo_access_token')
-      const res = await fetch(`${baseUrl}/api/ai/status`, {
+      const token = getAuthToken()
+      const res = await fetchWithoutRedirects(`${baseUrl}/api/ai/status`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -263,6 +263,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }
 
+  // Handle Celebration Sound Preference
+  const [celebrationSound, setCelebrationSound] = useState<string>(() => {
+    try {
+      return localStorage.getItem('shinpo_celebration_sound') || 'enabled'
+    } catch {
+      return 'enabled'
+    }
+  })
+
+  const handleCelebrationSoundChange = (mode: string) => {
+    setCelebrationSound(mode)
+    try {
+      localStorage.setItem('shinpo_celebration_sound', mode)
+      window.dispatchEvent(new Event('shinpo:celebration-sound-changed'))
+    } catch {
+      // ignore
+    }
+  }
+
+  // Handle Streak Display Preference
+  const [streakDisplay, setStreakDisplay] = useState<string>(() => {
+    try {
+      return localStorage.getItem('shinpo_streak_display') || 'visible'
+    } catch {
+      return 'visible'
+    }
+  })
+
+  const handleStreakDisplayChange = (mode: string) => {
+    setStreakDisplay(mode)
+    try {
+      localStorage.setItem('shinpo_streak_display', mode)
+      window.dispatchEvent(new Event('shinpo:streak-display-changed'))
+    } catch {
+      // ignore
+    }
+  }
+
   // Handle Username Change
   const handleUsernameSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -294,8 +332,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setUsernameFeedback({ text: 'Username updated successfully!', isError: false })
       setIsEditingUsername(false)
       if (onUserUpdated) onUserUpdated(updated)
-    } catch (err: any) {
-      setUsernameFeedback({ text: err.message || 'Failed to update username.', isError: true })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update username.'
+      setUsernameFeedback({ text: msg, isError: true })
     } finally {
       setUsernameLoading(false)
     }
@@ -322,8 +361,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-    } catch (err: any) {
-      setPwdMessage({ text: err.message || 'Failed to update password.', isError: true })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update password.'
+      setPwdMessage({ text: msg, isError: true })
     } finally {
       setPwdLoading(false)
     }
@@ -341,8 +381,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
       setModeFeedback(`Focus enforcement mode set to ${mode}.`)
       setTimeout(() => setModeFeedback(null), 3500)
-    } catch (err: any) {
-      setModeFeedback(`Failed to update mode: ${err.message}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setModeFeedback(`Failed to update mode: ${msg}`)
     } finally {
       setModeUpdating(false)
     }
@@ -367,8 +408,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setOverridePassword('')
       setOverrideReason('')
       if (onRefreshData) onRefreshData()
-    } catch (err: any) {
-      setOverrideFeedback({ text: err.message || 'Emergency override rejected.', isError: true })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Emergency override rejected.'
+      setOverrideFeedback({ text: msg, isError: true })
     } finally {
       setOverrideLoading(false)
     }
@@ -385,13 +427,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return
     }
 
-    setCustomServerUrl(serverUrlInput)
+    const previousEndpoint = getCustomServerUrl().trim().replace(/\/+$/, '')
+    const nextEndpoint = serverUrlInput.trim().replace(/\/+$/, '')
+    const endpointChanged = previousEndpoint !== nextEndpoint
+    try {
+      await setCustomServerUrl(serverUrlInput)
+    } catch (err) {
+      setServerPingStatus({
+        status: 'ERROR',
+        message: err instanceof Error ? err.message : 'Could not clear the saved session',
+      })
+      return
+    }
     setServerPingStatus({ status: 'TESTING', message: 'Testing connection to server...' })
 
     const startTime = Date.now()
     try {
       const targetBase = serverUrlInput.trim().replace(/\/+$/, '') || getBackendBaseUrl()
-      const res = await fetch(`${targetBase}/actuator/health`, { method: 'GET' })
+      const res = await fetchWithoutRedirects(`${targetBase}/actuator/health`, { method: 'GET' })
       const latency = Date.now() - startTime
 
       if (res.ok) {
@@ -408,11 +461,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           message: `Server returned HTTP ${res.status} (${res.statusText})`,
         })
       }
-    } catch (err: any) {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network request error'
       setServerPingStatus({
         status: 'ERROR',
-        message: `Connection failed: ${err.message || 'Network request error'}`,
+        message: `Connection failed: ${msg}`,
       })
+    }
+    if (endpointChanged) {
+      onClose()
+      void onLogout()
     }
   }
 
@@ -458,7 +516,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     // 1. API Health Check
     try {
-      const res = await fetch(`${getBackendBaseUrl()}/actuator/health`)
+      const res = await fetchWithoutRedirects(`${getBackendBaseUrl()}/actuator/health`)
       if (res.ok) {
         results.api = { pass: true, detail: 'Backend REST API reachable (HTTP 200 OK)' }
       } else {
@@ -758,6 +816,74 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span>Minimal (Subtle / Reduced Motion)</span>
                       </div>
                       {celebrationEffects === 'minimal' && <span className="settings-pill-indicator">✓</span>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Celebration Sound Chime */}
+                <div className="settings-group-card">
+                  <label>
+                    Accomplishment Audio Chime
+                  </label>
+                  <p>
+                    Harmonic synthesizer chime played upon completing tasks, focus sprints, and level tiers.
+                  </p>
+                  <div className="settings-pill-row">
+                    <button
+                      type="button"
+                      className={`settings-pill-btn ${celebrationSound !== 'muted' ? 'is-active' : ''}`}
+                      onClick={() => handleCelebrationSoundChange('enabled')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Icon name="sparkle" size={15} />
+                        <span>Harmonic Chime (Enabled)</span>
+                      </div>
+                      {celebrationSound !== 'muted' && <span className="settings-pill-indicator">✓</span>}
+                    </button>
+                    <button
+                      type="button"
+                      className={`settings-pill-btn ${celebrationSound === 'muted' ? 'is-active' : ''}`}
+                      onClick={() => handleCelebrationSoundChange('muted')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Icon name="close" size={15} />
+                        <span>Muted (Silent Completion)</span>
+                      </div>
+                      {celebrationSound === 'muted' && <span className="settings-pill-indicator">✓</span>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Consistency Streak Display */}
+                <div className="settings-group-card">
+                  <label>
+                    Consistency Streak Display
+                  </label>
+                  <p>
+                    Display productive days momentum on your cockpit dashboard without anxiety or penalties.
+                  </p>
+                  <div className="settings-pill-row">
+                    <button
+                      type="button"
+                      className={`settings-pill-btn ${streakDisplay !== 'hidden' ? 'is-active' : ''}`}
+                      onClick={() => handleStreakDisplayChange('visible')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>🔥</span>
+                        <span>Visible (Show Streak)</span>
+                      </div>
+                      {streakDisplay !== 'hidden' && <span className="settings-pill-indicator">✓</span>}
+                    </button>
+                    <button
+                      type="button"
+                      className={`settings-pill-btn ${streakDisplay === 'hidden' ? 'is-active' : ''}`}
+                      onClick={() => handleStreakDisplayChange('hidden')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Icon name="clock" size={15} />
+                        <span>Hidden (Quiet Mode)</span>
+                      </div>
+                      {streakDisplay === 'hidden' && <span className="settings-pill-indicator">✓</span>}
                     </button>
                   </div>
                 </div>
@@ -1069,7 +1195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span style={{
                       padding: '3px 8px',
                       borderRadius: '6px',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       background: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)',
                       color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? '#10B981' : '#38BDF8',
@@ -1347,12 +1473,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Cloud Backend Server URL
                   </label>
                   <p>
-                    Points this desktop client to your cloud node (e.g. <code style={{ color: '#4D77F9' }}>https://shinpo.yourdomain.com</code>).
+                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: '#4D77F9' }}>https://shinpo.yourdomain.com</code>).
                   </p>
                   <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                     <input
                       type="text"
-                      placeholder="https://shinpo.yourdomain.com (or empty for default)"
+                      placeholder="https://shinpo.yourdomain.com (HTTPS required)"
                       value={serverUrlInput}
                       onChange={(e) => setServerUrlInput(e.target.value)}
                       className="modal-field"
@@ -1398,7 +1524,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span style={{
                       padding: '4px 10px',
                       borderRadius: '6px',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       background: isWsConnected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 77, 94, 0.2)',
                       color: isWsConnected ? '#10B981' : '#FF4D5E',

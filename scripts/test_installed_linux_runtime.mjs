@@ -182,27 +182,31 @@ async function runInstalledRuntimeVerification() {
     await sleep(2500)
 
     console.log('[STEP 4] Waiting for Cockpit load & verifying Onboarding Tour...')
-    await waitForElement('[aria-label="Execution Cockpit"], .overview-container, .topbar, .tutorial-overlay', 12000)
+    await waitForElement('[aria-label="Execution Cockpit"], .overview-container, .cockpit-top-bar, .aurora-topbar, .shinpo-tutorial-portal, [data-tab="Dashboard"]', 15000)
     await sleep(1500)
 
     // Check if onboarding tour is open
-    const hasTour = await evaluate(`!!document.querySelector('.tutorial-card, .coachmark-panel, [data-tutorial="welcome"]')`)
+    const hasTour = await evaluate(`Boolean(document.querySelector('.shinpo-tutorial-portal'))`)
     if (hasTour) {
       console.log('  [OK] Tutorial tour active on first launch. Skipping tour to test full interactive cockpit...')
       await evaluate(`(() => {
-        const skipBtn = document.querySelector('#tutorial-btn-skip') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Skip'));
-        if (skipBtn) skipBtn.click();
+        const skip = document.querySelector('#tutorial-btn-skip') || document.querySelector('#tutorial-confirm-skip-btn');
+        if (skip) skip.click();
+      })()`)
+      await sleep(400)
+      await evaluate(`(() => {
+        const confirmSkip = document.querySelector('#tutorial-confirm-skip-btn');
+        if (confirmSkip) confirmSkip.click();
       })()`)
       await sleep(1000)
     }
 
     await captureScreenshot('02_desktop_cockpit_dashboard.png')
 
-    console.log('[STEP 5] Testing Goals & Missions View...')
-    // Navigate to Goals tab
+    console.log('[STEP 5] Testing Goals & Tasks View...')
+    // Navigate to Goals & Tasks tab
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const g = btns.find(b => b.textContent.includes('Goals') || b.textContent.includes('Missions'));
+      const g = document.querySelector('[data-tab="Goals & Missions"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Goals') || b.textContent.includes('Tasks'));
       if (g) g.click();
     })()`)
     await sleep(1500)
@@ -224,17 +228,38 @@ async function runInstalledRuntimeVerification() {
         targetDate: targetStr,
       }),
     })
+    let createdGoal = null
     if (!goalRes.ok) {
       console.warn(`  Goal API returned ${goalRes.status}, text: ${await goalRes.text()}`)
     } else {
-      const goal = await goalRes.json()
-      console.log(`  [OK] Created Goal #${goal.id}: "${goal.title}"`)
+      createdGoal = await goalRes.json()
+      console.log(`  [OK] Created Goal #${createdGoal.id}: "${createdGoal.title}"`)
+    }
+
+    // Create a Task linked to this goal
+    const taskRes = await fetch('http://localhost:8080/api/missions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authData.accessToken}`,
+      },
+      body: JSON.stringify({
+        goalId: createdGoal?.id,
+        title: 'Installed Linux Runtime Verification Task',
+        description: 'Verify all 7 views and PostgreSQL persistence.',
+        estimatedMinutes: 25,
+        scheduledDate: todayStr,
+      }),
+    })
+    let createdTask = null
+    if (taskRes.ok) {
+      createdTask = await taskRes.json()
+      console.log(`  [OK] Created Task #${createdTask.id}: "${createdTask.title}"`)
     }
 
     // Refresh Goals view by clicking tab again
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const g = btns.find(b => b.textContent.includes('Goals') || b.textContent.includes('Missions'));
+      const g = document.querySelector('[data-tab="Goals & Missions"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Goals') || b.textContent.includes('Tasks'));
       if (g) g.click();
     })()`)
     await sleep(1500)
@@ -242,8 +267,7 @@ async function runInstalledRuntimeVerification() {
     // Toggle Board Mode
     console.log('  Toggling to Board Mode...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const boardBtn = btns.find(b => b.textContent.trim() === 'Board' || b.getAttribute('aria-label') === 'Board View');
+      const boardBtn = Array.from(document.querySelectorAll('.view-mode-btn, button')).find(b => b.textContent.trim() === 'Board' || b.getAttribute('aria-label') === 'Board View');
       if (boardBtn) boardBtn.click();
     })()`)
     await sleep(1000)
@@ -252,8 +276,7 @@ async function runInstalledRuntimeVerification() {
     // Toggle List Mode
     console.log('  Toggling to List Mode...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const listBtn = btns.find(b => b.textContent.trim() === 'List' || b.getAttribute('aria-label') === 'List View');
+      const listBtn = Array.from(document.querySelectorAll('.view-mode-btn, button')).find(b => b.textContent.trim() === 'List' || b.getAttribute('aria-label') === 'List View');
       if (listBtn) listBtn.click();
     })()`)
     await sleep(1000)
@@ -261,8 +284,7 @@ async function runInstalledRuntimeVerification() {
 
     console.log('[STEP 6] Testing Schedule & Calendar...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const s = btns.find(b => b.textContent.includes('Schedule') || b.textContent.includes('Calendar'));
+      const s = document.querySelector('[data-tab="Schedule"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Schedule') || b.textContent.includes('Calendar'));
       if (s) s.click();
     })()`)
     await sleep(1500)
@@ -270,15 +292,14 @@ async function runInstalledRuntimeVerification() {
 
     console.log('[STEP 7] Testing Focus Mode & Session Execution...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const f = btns.find(b => b.textContent.includes('Focus'));
+      const f = document.querySelector('[data-tab="Focus Engine"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Focus'));
       if (f) f.click();
     })()`)
     await sleep(1500)
 
-    // Start Focus Session via backend API or UI
+    // Start Focus Session via backend API
     console.log('  Starting focus session in PostgreSQL...')
-    const focusRes = await fetch('http://localhost:8080/api/focus/start', {
+    const focusRes = await fetch('http://localhost:8080/api/focus-sessions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -287,18 +308,25 @@ async function runInstalledRuntimeVerification() {
       body: JSON.stringify({
         durationMinutes: 25,
         intention: 'Verify Linux runtime and database integrity',
+        name: 'Runtime Verification Sprint',
+        goalId: createdGoal?.id,
+        missionId: createdTask?.id,
       }),
     })
     let activeSession = null
     if (focusRes.ok) {
       activeSession = await focusRes.json()
+      console.log(`  [OK] Focus Session #${activeSession.id} booked.`)
+      await fetch(`http://localhost:8080/api/focus-sessions/${activeSession.id}/start`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authData.accessToken}` },
+      })
       console.log(`  [OK] Focus Session #${activeSession.id} started.`)
     }
 
     // Refresh Focus view
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const f = btns.find(b => b.textContent.includes('Focus'));
+      const f = document.querySelector('[data-tab="Focus Engine"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Focus'));
       if (f) f.click();
     })()`)
     await sleep(1500)
@@ -306,7 +334,7 @@ async function runInstalledRuntimeVerification() {
     // Complete focus session with reflection note
     if (activeSession) {
       console.log('  Completing focus session with reflection note...')
-      const endRes = await fetch(`http://localhost:8080/api/focus/${activeSession.id}/complete`, {
+      const endRes = await fetch(`http://localhost:8080/api/focus-sessions/${activeSession.id}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -314,8 +342,8 @@ async function runInstalledRuntimeVerification() {
         },
         body: JSON.stringify({
           reflectionNote: 'Linux standalone release verified against PostgreSQL with zero Vite dev server.',
-          completionQuality: 'EXCELLENT',
-          accomplishment: 'All desktop features verified end-to-end',
+          rating: 5,
+          autoCompleteMission: true,
         }),
       })
       if (endRes.ok) {
@@ -324,19 +352,37 @@ async function runInstalledRuntimeVerification() {
     }
     await captureScreenshot('06_desktop_focus_view.png')
 
-    console.log('[STEP 8] Testing Study Resources View...')
+    console.log('[STEP 8] Testing Focus Protection (Task Manager) View & Contextual Study Resources...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const sr = btns.find(b => b.textContent.includes('Study') || b.textContent.includes('Resources'));
-      if (sr) sr.click();
+      const tm = document.querySelector('[data-tab="Task Manager"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Protection') || b.textContent.includes('Task Manager'));
+      if (tm) tm.click();
     })()`)
     await sleep(1500)
-    await captureScreenshot('07_desktop_study_resources.png')
+
+    // Create Contextual Study Resource
+    const srRes = await fetch('http://localhost:8080/api/contextual-focus/resources', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authData.accessToken}`,
+      },
+      body: JSON.stringify({
+        displayName: 'Documentation Handbook',
+        destination: 'https://docs.shinpo.local',
+        resourceType: 'WEBSITE',
+        matchType: 'DOMAIN',
+        disposition: 'APPROVED',
+      }),
+    })
+    if (srRes.ok) {
+      const sr = await srRes.json()
+      console.log(`  [OK] Created Contextual Study Resource #${sr.id}: "${sr.displayName}"`)
+    }
+    await captureScreenshot('07_desktop_focus_protection.png')
 
     console.log('[STEP 9] Testing EONPAI AI Assistant View & Inference...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const ai = btns.find(b => b.textContent.includes('AI Assistant') || b.textContent.includes('EONPAI'));
+      const ai = document.querySelector('[data-tab="AI Assistant"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('AI') || b.textContent.includes('EONPAI'));
       if (ai) ai.click();
     })()`)
     await sleep(1500)
@@ -363,8 +409,7 @@ async function runInstalledRuntimeVerification() {
 
     console.log('[STEP 10] Testing Analytics View...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const an = btns.find(b => b.textContent.includes('Analytics'));
+      const an = document.querySelector('[data-tab="Analytics"]') || Array.from(document.querySelectorAll('nav button, aside button, .tab-btn')).find(b => b.textContent.includes('Analytics'));
       if (an) an.click();
     })()`)
     await sleep(1500)
@@ -372,9 +417,8 @@ async function runInstalledRuntimeVerification() {
 
     console.log('[STEP 11] Testing Settings & Account Profile Editing...')
     await evaluate(`(() => {
-      const btns = Array.from(document.querySelectorAll('nav button, aside button, .tab-btn'));
-      const s = btns.find(b => b.textContent.includes('Settings'));
-      if (s) s.click();
+      const p = document.querySelector('.profile-badge-card, button[aria-label="Settings"]');
+      if (p) p.click();
     })()`)
     await sleep(1500)
 
@@ -464,7 +508,7 @@ async function runInstalledRuntimeVerification() {
 
     await send('Page.reload')
     await sleep(2500)
-    await waitForElement('[aria-label="Execution Cockpit"], .overview-container, .topbar', 10000)
+    await waitForElement('[aria-label="Execution Cockpit"], .overview-container, .cockpit-top-bar, .aurora-topbar, [data-tab="Dashboard"], .shinpo-tutorial-portal', 15000)
     await captureScreenshot('11_desktop_relogin_success.png')
 
     console.log('\n========================================================================')

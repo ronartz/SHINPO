@@ -92,9 +92,9 @@ class WebSocketBroadcastingTests {
                 eq("/topic/users/" + testUser.getId() + "/sentinel/quarantine"),
                 captor.capture()
         );
-        verify(messagingTemplate).convertAndSend(
+        verify(messagingTemplate, never()).convertAndSend(
                 eq("/topic/sentinel/quarantine"),
-                captor.capture()
+                any(SentinelQuarantineEvent.class)
         );
 
         SentinelQuarantineEvent captured = captor.getValue();
@@ -141,6 +141,10 @@ class WebSocketBroadcastingTests {
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/users/" + testUser.getId() + "/focus-session"),
                 captor.capture()
+        );
+        verify(messagingTemplate, never()).convertAndSend(
+                eq("/topic/focus-session"),
+                any(FocusSessionEvent.class)
         );
 
         FocusSessionEvent event = captor.getValue();

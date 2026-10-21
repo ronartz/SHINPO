@@ -2,13 +2,8 @@ package com.shinpo.service;
 
 import com.shinpo.dto.ProgressResponse;
 import com.shinpo.entity.ProgressEvent;
-import com.shinpo.entity.User;
 import com.shinpo.repository.ProgressEventRepository;
-import com.shinpo.repository.UserRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -16,14 +11,8 @@ import java.util.List;
 public class ProgressService {
 
     private final ProgressEventRepository progressEventRepository;
-    private final UserRepository userRepository;
-
-    public ProgressService(
-            ProgressEventRepository progressEventRepository,
-            UserRepository userRepository
-    ) {
+    public ProgressService(ProgressEventRepository progressEventRepository) {
         this.progressEventRepository = progressEventRepository;
-        this.userRepository = userRepository;
     }
 
     public ProgressResponse getUserProgress(Long userId) {
@@ -58,15 +47,4 @@ public class ProgressService {
         );
     }
 
-    @Transactional
-    public ProgressResponse recordOnboardingCompletion(Long userId) {
-        boolean alreadyAwarded = progressEventRepository.existsByUser_IdAndEventType(userId, "ONBOARDING_COMPLETED");
-        if (!alreadyAwarded) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-            ProgressEvent event = new ProgressEvent(user, "ONBOARDING_COMPLETED", 50);
-            progressEventRepository.save(event);
-        }
-        return getUserProgress(userId);
-    }
 }

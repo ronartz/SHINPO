@@ -27,6 +27,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -49,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 5. Multi-tenant data mutation rejection and WebSocket deny-by-default enforcement.
  */
 @ActiveProfiles("test")
+@TestPropertySource(properties = "shinpo.security.rate-limit.trusted-proxies=127.0.0.1/32,172.20.0.2/32,10.0.0.1/32")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
 public class Phase25IndependentSecurityVerificationTests {
@@ -163,7 +165,7 @@ public class Phase25IndependentSecurityVerificationTests {
     }
 
     @Test
-    @DisplayName("P2.5-2: Forwarded headers ARE trusted when originating from trusted local/internal proxy")
+    @DisplayName("P2.5-2: Forwarded headers are trusted only from explicitly configured proxy addresses")
     void testForwardedHeadersTrustedFromTrustedProxy() {
         // Request arriving from trusted local proxy (127.0.0.1 or 172.20.0.2)
         MockHttpServletRequest loopbackReq = new MockHttpServletRequest();
@@ -173,8 +175,13 @@ public class Phase25IndependentSecurityVerificationTests {
 
         MockHttpServletRequest dockerReq = new MockHttpServletRequest();
         dockerReq.setRemoteAddr("172.20.0.2"); // Docker container network
-        dockerReq.addHeader("X-Real-IP", "198.51.100.77");
+        dockerReq.addHeader("X-Forwarded-For", "198.51.100.77");
         assertEquals("198.51.100.77", rateLimitingService.resolveClientIp(dockerReq));
+
+        MockHttpServletRequest untrustedPrivateReq = new MockHttpServletRequest();
+        untrustedPrivateReq.setRemoteAddr("192.168.1.50");
+        untrustedPrivateReq.addHeader("X-Forwarded-For", "198.51.100.77");
+        assertEquals("192.168.1.50", rateLimitingService.resolveClientIp(untrustedPrivateReq));
     }
 
     @Test

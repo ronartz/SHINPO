@@ -15,7 +15,7 @@ export const AuroraButton: React.FC<AuroraButtonProps> = ({
 }) => {
   if (variantStyle === 'aurora-primary') {
     return (
-      <button className={`aurora-btn-primary ${className}`.trim()} {...(props as any)}>
+      <button className={`aurora-btn-primary ${className}`.trim()} {...(props as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
         {children}
       </button>
     )
@@ -23,7 +23,7 @@ export const AuroraButton: React.FC<AuroraButtonProps> = ({
 
   if (variantStyle === 'aurora-secondary') {
     return (
-      <button className={`aurora-btn-secondary ${className}`.trim()} {...(props as any)}>
+      <button className={`aurora-btn-secondary ${className}`.trim()} {...(props as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
         {children}
       </button>
     )
@@ -31,7 +31,7 @@ export const AuroraButton: React.FC<AuroraButtonProps> = ({
 
   if (variantStyle === 'aurora-ghost') {
     return (
-      <button className={`aurora-btn-ghost ${className}`.trim()} {...(props as any)}>
+      <button className={`aurora-btn-ghost ${className}`.trim()} {...(props as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
         {children}
       </button>
     )

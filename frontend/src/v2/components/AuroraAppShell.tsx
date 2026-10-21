@@ -38,6 +38,7 @@ export interface AuroraAppShellProps {
   onOpenSettings?: () => void
   currentUser?: AuthUser | null
   userProgress?: ProgressResponse | null
+  onOpenAchievements?: () => void
   onLogout?: () => void
 }
 
@@ -64,6 +65,7 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
   onOpenSettings,
   currentUser = null,
   userProgress = null,
+  onOpenAchievements,
   onLogout,
 }) => {
   const muiTheme = React.useMemo(() => getAuroraTheme(isDarkMode ? 'dark' : 'light'), [isDarkMode])
@@ -129,6 +131,7 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
             onOpenSettings={onOpenSettings}
             currentUser={currentUser}
             userProgress={userProgress}
+            onOpenAchievements={onOpenAchievements}
             onLogout={onLogout}
             onToggleV2Preview={onToggleV2Preview}
             isV2Preview={isV2Preview}

@@ -103,6 +103,10 @@ The application executes a continuous, unbroken execution loop:
   - Precision countdown using server-anchored timestamps (`startedAt`, `accumulatedPausedSeconds`).
   - Resilient to background-tab throttling without cumulative drift.
   - Freeze countdown cleanly during `PAUSED` state.
+- **Endel-Inspired Focus Atmosphere (Soundscapes):**
+  - Procedural soundscapes synthesized client-side via Web Audio API (`AudioContext`).
+  - Sound options: Quiet (Off), Gentle Rain (resonant bandpass with slow LFO), Brown Noise (deep 1/f² rumble), Ambient Stream (dual harmonic sine drone), Pink Noise (balanced 1/f).
+  - 100% offline-safe, ₹0 cost, zero network asset latency, and auto-syncs with focus session start/pause/complete.
 - **Session Reflection & Debrief:**
   - Post-session reflection modal: 1–5 star rating, accomplishment summary, and reflection notes.
   - Optional auto-completion of linked mission/task.
@@ -139,10 +143,10 @@ The application executes a continuous, unbroken execution loop:
 
 ---
 
-## 3. Interactive First-Time User Experience (Game-Inspired Onboarding)
+## 3. Interactive First-Time User Experience
 
 ### 3.1 First-Login Workflow
-1. **Detection:** Checks persistent user flag `shinpo_onboarding_completed`. If uncompleted, triggers the onboarding journey.
+1. **Detection:** Uses authenticated `user_onboarding` state; local storage may resume presentation but is not authoritative.
 2. **Welcome Salutation:** Warm, non-intrusive modal introducing SHINPO's core execution philosophy and EONPAI as the intelligent co-pilot.
 3. **Controlled Focus Overlay:**
    - 4-quadrant backdrop mask dims unrelated interface elements.
@@ -151,19 +155,15 @@ The application executes a continuous, unbroken execution loop:
    - Floating coachmark box positioned intelligently (top/bottom/left/right) with viewport bounds clamping.
    - Smooth automatic scrolling ensures targets are centered.
 
-### 3.2 12-Step Guided Learning Journey
-1. **Welcome & Philosophy:** High-level dashboard overview and executive orientation.
-2. **Create Strategic Goal:** Guides user to create their first real goal (`+ New Goal`).
-3. **Deconstruct into Tasks:** Demonstrates breaking goals into 15–30m executable units.
-4. **Schedule Activity:** Guides booking a session on the calendar timeline.
-5. **Dashboard Priorities:** Explains Today's Schedule sidecar and priority queue.
-6. **Focus Engine Cockpit:** Explains presets (25m/45m) and start actions.
-7. **Session Countdown Controls:** Explains Pause, Resume, and early completion.
-8. **Focus Protection & Sentinel:** Details process containment and safety boundaries.
-9. **Contextual Study Resources:** Demonstrates adding permitted research URLs.
-10. **Session Reflection & Debrief:** Walks through rating quality and logging accomplishments.
-11. **Progression & Rewards:** Highlights XP gains, streak tracking, and level advancement.
-12. **EONPAI & Settings:** Introduces on-demand cognitive prompts and appearance preferences.
+### 3.2 Six-Step Guided Learning Journey
+1. **Goal:** Choose or create an outcome.
+2. **Task:** Add an actionable task linked to the goal.
+3. **Schedule:** Reserve calendar time for the linked task.
+4. **Focus:** Start and control the scheduled focus session.
+5. **Complete:** Complete the task and reflect on the session.
+6. **Progress:** Review the results in Analytics and progression.
+
+The guide teaches the real workflow; it contains no simulated verification actions. Users may finish, pause, skip, or replay without completing a focus session. Tutorial completion is separate from reward eligibility.
 
 ### 3.3 Safety & Accessibility Rules
 - **No Junk Data:** Tutorial tasks and goals are marked or user-customized; no permanent ghost records created.
@@ -183,20 +183,31 @@ Rewards must feel earned, professional, and respectful. SHINPO avoids juvenile b
 | Action | Event Type | Earned Progress / XP | Conditions |
 |:---|:---|:---:|:---|
 | **Complete Task** | `MISSION_COMPLETED` | **+10 XP** | Genuine task completion via API |
-| **Complete Focus Session (15–44m)** | `FOCUS_SESSION_COMPLETED` | **+15 XP** | Standard focus sprint logged |
-| **Complete Deep Focus Session (45m+)** | `FOCUS_SESSION_COMPLETED` | **+25 XP** | Extended deep work logged |
+| **Complete Focus Session (15–44m)** | `FOCUS_SESSION_COMPLETED` | **+15 XP** | At least 15 active minutes; paused time excluded and rewardable time capped at the planned duration |
+| **Complete Deep Focus Session (45m+)** | `FOCUS_SESSION_COMPLETED` | **+25 XP** | At least 45 active minutes; paused time excluded and rewardable time capped at the planned duration |
 | **Complete Strategic Goal** | `GOAL_COMPLETED` | **+50 XP** | All linked tasks completed |
 | **Consistency Streak Milestone** | `STREAK_MILESTONE` | **+25 XP** | 3-day, 7-day, 14-day, 30-day continuous streaks |
+| **Onboarding workflow completion** | `ONBOARDING_COMPLETED` | **+50 XP once** | Tutorial finished; server records show a goal and linked task created after the server-recorded tutorial start, plus a scheduled linked focus session completed with the normal focus XP event (>=15 active minutes) and persisted task completion with its normal task event. Registration-seeded goals/tasks do not qualify. Skip alone earns 0 XP. |
+
+The onboarding award is not issued for tutorial clicks, reported booleans, local storage, or tutorial completion alone. A finished user may earn it later after meeting the workflow criteria. Existing historical ledger entries are retained; a partial unique index enforces at most one onboarding award per user.
 
 ### 4.3 Backend Idempotency & Tenant Safety
 - All progress events are saved in `progress_events` referencing `user_id`.
-- Protected against duplicate requests: session completion only awards progress once upon transition from `ACTIVE`/`PAUSED` to `COMPLETED`.
+- Protected against duplicate requests: session completion only awards progress once upon transition from `ACTIVE`/`PAUSED` to `COMPLETED`; early completion under 15 active minutes earns 0 XP, and an extended session cannot earn beyond its planned duration tier.
 - User isolation enforced at database query level (`WHERE p.user.id = :userId`).
 
 ### 4.4 Presentation & Settings Controls
 - Refined, elegant completion shimmer/toast acknowledging progress (+15 XP).
 - Visual progress bar and Level badge (e.g., Level 1 "Focus Initiate" → Level 5 "Master of Flow").
 - Option in **Settings → Appearance** to reduce or disable celebratory visual effects for users preferring pure minimalism.
+- **Operation Momentum Universal Rewards & Progression Layer:**
+  - Centralized feedback coordinator (`progressionEngine.ts`) wired to real backend completions (tasks, focus sprints, goals, level tiers, onboarding).
+  - Duolingo-inspired celebration modal (`CelebrationModal.tsx`) with animated XP burst, tier announcement, and contextual next-action prompts ("Arm Next Sprint", "Debrief with EONPAI", "View Progression").
+  - Procedural Web Audio API harmonic triad chime (`playCelebrationChime`): zero network assets, zero latency, offline-safe, with user toggle in Settings.
+  - Daily Execution Flow card (`DailyObjectivesCard.tsx`): 3 daily targets (1 task, 1 sprint >=15m, 25m deep work) computed directly from real-time database state.
+  - Healthy consistency streak tracking with quiet mode preference in Settings (`shinpo_streak_display`).
+  - Comprehensive progression profile dialog (`AchievementsModal.tsx`): accessible via TopBar Level Badge, displaying tier progress, daily objectives, 8 milestone achievements, and recent XP ledger.
+  - Microinteractions: checkmark pop animation (`shinpoCheckPop`), active button feedback (100–180ms), and full reduced-motion safeguards (`prefers-reduced-motion: reduce`).
 
 ---
 
@@ -231,16 +242,23 @@ Rewards must feel earned, professional, and respectful. SHINPO avoids juvenile b
 
 ---
 
-## 6. Concrete Quality Gates & Release Verification
+## 6. Concrete Quality Gates & Release Verification (current worktree revalidation)
 
-1. **Gate A — Foundation:** Backend tests pass (`./mvnw test`), migrations apply cleanly, JWT rotation and token versioning pass.
-2. **Gate B — Feature Completion:** Full lifecycle (Goal → Task → Schedule → Focus → Protection → Debrief) verified with live persistence.
-3. **Gate C — Onboarding:** `PASSED` — Application-state coordinator with modal conflict prevention (`hasActiveModal` suspends overlay over open dialogs with zero conflicting spotlights); strictly bounded spotlight targeting on discrete controls/cards (`[data-tutorial='...']`); dynamic collision engine with auto-flipping (top/bottom/left/right) and strict viewport clamping (`max-height: min(520px, calc(100vh - 32px))`, `overflow-y: auto`, `bottom <= window.innerHeight`) verified on 1024x768 desktop viewports; genuine 12-step guided walkthrough requiring action verification before unlocking `Next Step →`; non-blocking dismiss, deliberate pause modal with Resume/Exit/Skip, exact-step resumption, PostgreSQL `user_onboarding` tracking 5 states (`NOT_STARTED`, `IN_PROGRESS`, `PAUSED`, `SKIPPED`, `COMPLETED`), and zero-leakage EONPAI replay verified.
-4. **Gate D — Rewards:** `PASSED` — Truthful reward eligibility enforced; skipping tour awards 0 XP; direct API & storage tampering rejected with HTTP 400 Bad Request; legitimate 12-step onboarding awards +50 XP idempotently; complete reward lifecycle verified (task completion +10 XP, repeated tasks 0 XP, focus sprints +15 XP, cancelled sprints 0 XP, goal auto-completion +50 XP); tenant isolation verified in PostgreSQL progress ledger with celebratory UI toasts and TopBar badges.
-5. **Gate E — UI/UX:** `PASSED` — Goals List/Board mode isolation, redundant status tabs hidden in Board mode, 3 symmetrical Kanban columns with accurate counts verified.
-6. **Gate F — Security & Reliability:** `PASSED` — Remote server process execution disabled; safe local native Shield enforcement; system process immunity confirmed for 31 core processes (`kwin`, `plasmashell`, `xorg`, `postgres`, etc.); 75 Rust unit tests in `shinpo-shield` and 5 in `shinpo-browser-host` pass.
-7. **Gate G — Standalone Distribution & Desktop Runtime:** `PASSED` (Linux) / `NOT TESTED` (Windows) — Rebuilt release packages (`SHINPO-1.0.0-1.x86_64.rpm`, `SHINPO_1.0.0_amd64.AppImage`, `SHINPO_1.0.0_amd64.deb`, `SHINPO_1.0.0_linux_x86_64.tar.gz`, native binaries) verified with validated `SHA256SUMS`; installed desktop package (`/tmp/shinpo-test-install/usr/bin/shinpo-desktop` unpacked from RPM) verified running natively on Linux desktop with WebKitGTK and live PostgreSQL; end-to-end user journey verified (registration, username editing via `PUT /api/users/me/username`, goals, tasks, focus sprint debrief with reflection note, contextual study resources, truthful 12-step onboarding, and +50 XP reward claim advancing user to Level 2); zero-data-loss application restart persistence confirmed (`01_installed_tauri_cockpit.png` and `02_installed_tauri_restarted.png`); unreachable backend startup tested and verified to report clean network errors without fake success; native Focus Shield (`shinpo-shield status` OPERATIONAL, `sweep -d` safe dry-run), Sentinel emergency override (switched to `AUDIT_ONLY`), and Browser Companion (`shinpo-browser-host status`) verified; 6-configuration visual regression matrix (Aurora/Classic, Light/Dark, 100%/125%/150% scaling) verified with 0 horizontal overflow and 0 sub-12px elements; Windows installer prepared via `package-windows.ps1` with `-SkipSigning` flag, awaiting physical Windows environment; external cloud hosting requires user authorization and infrastructure provisioning before deployment (`RELEASE_CANDIDATE_QUALIFICATION_REPORT.json`).
-8. **Gate H — Global Readability & Design System Consistency:** `PASSED` — Strict $\ge 12$px typography floor verified across all accessible views (0 sub-12px elements across Dashboard, Goals, Schedule, Focus, Task, Analytics, EONPAI); standard dialog inputs (40px height, 14px font, 10px radius) and form labels (`shinpo-field-label` $\ge 14$px); Today's Schedule 3-column collision-free layout (`28px 1fr 64px`); 0.0px metric card height delta; 0.0px action row height delta; editorial serif italic Perspective quotation card; 0 horizontal overflow across multi-viewport (1440×900, 1280×800, 1024×768) and multi-theme (Aurora Dark/Light, Classic Dark/Light) matrix verified in `docs/qa/DESIGN_SYSTEM_COMPLETION_REPORT.json`.
+The RC-2 package evidence recorded in earlier sections is historical and predates the current security-remediation source changes. Current QA writes used a separate ephemeral PostgreSQL container and isolated browser account. The owner `shinpo` database was queried read-only only for the requested EON reward reconciliation; no live rows or schema were changed. Statuses below override earlier RC-2 `PASSED` labels for this current candidate.
+
+1. **Gate A — Foundation:** `INCOMPLETE — REOPENED` — Current full backend suite passed 396/396 tests in fresh tmpfs PostgreSQL after 24 migrations; frontend passed 91/91, lint has 0 warnings, and the production build passed. Platform/dependency/release qualification remains incomplete.
+2. **Gate B — Feature Completion:** `INCOMPLETE — REOPENED` — A current-source agent-driven browser sweep rendered seven routes, but CRUD, focus completion, cross-screen persistence and failure-state workflows were not exercised.
+3. **Gate C — Onboarding:** `INCOMPLETE — REOPENED (2026-10-21)` — In an isolated PostgreSQL/container run, a fresh disposable account showed the six-step overlay; the skip confirmation was clicked and persisted as `SKIPPED` with 0 XP. Registration was API-driven, not a full first-time UI journey; the guide's real goal/task/schedule/focus/complete flow, restart/resume/replay, mobile/Aurora/Classic acceptance and installed-Tauri interaction remain unverified. A selected first-login screenshot prompted a palette-preserving reduction to backdrop dim/blur, but visual acceptance remains open.
+4. **Gate D — Rewards:** `INCOMPLETE — REOPENED (2026-10-21)` — Targeted `RewardLifecycleTests` and `OnboardingRewardBoundaryTests` pass; V23/V24 applied only in isolated QA. A read-only owner-ledger check reconciled EON's 125 XP to one focus (+15), task (+10), goal (+50), and onboarding (+50) event, with no duplicate onboarding awards in the owner database. That database is at migration 22 and lacks `started_at`; the historical onboarding award's eligibility therefore cannot be independently re-proven. No historical reward was modified. Fresh workflow, concurrency and restart acceptance remain pending.
+5. **Gate E — UI/UX:** `INCOMPLETE — REOPENED` — Agent-driven Chromium sweep covered 56 route/viewport/class-switched-theme combinations and found no measured collisions, clipped controls, horizontal overflow, or calendar-scroll failure; selected dark/light screenshots were inspected. Navigation and theme were programmatically changed, content-rich states and meaningful CRUD interactions were not tested, and human-owner acceptance remains pending.
+6. **Gate F — Security & Reliability:** `INCOMPLETE — REOPENED` — Backup encryption now fails closed unless an age recipient is provided; an age 1.2.1 encrypted backup/checksum/decrypt/restore succeeded in isolated PostgreSQL (24 tables, 4 users). Production key custody/off-host retention and Docker restore-path integration remain open; the Docker backup path now streams the password over stdin rather than command-line arguments. CSP scope, script-readable localStorage tokens, unrun CI scans and deployment-specific proxy configuration also remain open.
+7. **Gate G — Standalone Distribution & Desktop Runtime:** `INCOMPLETE — CURRENT SOURCE DEB BUILT / EXTRACTED SMOKE ONLY` / `NOT TESTED (Windows)` / `NOT DEPLOYED (Cloud)`
+   - Built current-source Linux DEB in isolated `/tmp` (SHA-256 `fc75b3018f869c52b09d082c51df8cecb07b6c27eb02d616e27d8214ee1b5932`), extracted without system installation, and launched the packaged binary under WebKitGTK at 1400×900. First-launch sign-in screenshot inspected; no authenticated workflow or package-manager installation was tested. RC-2 artifacts in `release/rc/` remain preserved and are not identified as this candidate.
+   - Unreachable backend startup tested and verified to report clean network errors without fake success.
+   - Native Focus Shield (`shinpo-shield status` OPERATIONAL, `sweep -d` safe dry-run), Sentinel emergency override (switched to `AUDIT_ONLY`), and Browser Companion (`shinpo-browser-host status`) verified.
+   - Windows installer prepared via `package-windows.ps1` with `-SkipSigning` flag; Windows remains `NOT TESTED` until actual Windows execution succeeds.
+   - Remote cloud hosting requires user authorization and infrastructure provisioning before deployment (`DEPLOYMENT.md`); no remote backend or persistent remote PostgreSQL has been deployed or tested.
+8. **Gate H — Global Readability & Design System Consistency:** `INCOMPLETE — REOPENED` — Sampled empty-state screens were legible at tested widths; the targeted first-login overlay was too dim/blurred in the captured render and received a restrained correction. Content-rich states, every screen/state, responsive scaling beyond tested browser widths, and human acceptance remain open.
 
 ## 7. Recovery correction log — 2026-10-21
 

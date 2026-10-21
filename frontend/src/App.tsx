@@ -69,7 +69,6 @@ import {
   clearAuthSession,
   fetchCurrentUser,
   getAuthenticatedUserId,
-  getStoredUser,
   login,
   logout,
   register,
@@ -79,7 +78,8 @@ import { getCurrentUserProgress, claimOnboardingReward } from './api/progress'
 import type { ProgressResponse } from './api/progress'
 import {
   getOnboardingState,
-  recordOnboardingStep,
+  startOnboarding,
+  finishOnboarding,
   pauseOnboarding,
   skipOnboarding,
 } from './api/onboarding'
@@ -103,7 +103,7 @@ import type {
 } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse } from './api/analytics'
-import { getBackendBaseUrl, getCustomServerUrl, setCustomServerUrl } from './api/config'
+import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl, setCustomServerUrl } from './api/config'
 import { ShinpoLogo } from './components/ShinpoLogo'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { ConfirmationDialog } from './components/ConfirmationDialog'
@@ -118,6 +118,13 @@ import { TelemetryDrawer } from './components/dialogs/TelemetryDrawer'
 import { FloatingToasts } from './components/dialogs/FloatingToasts'
 import { SettingsModal } from './components/dialogs/SettingsModal'
 import type { SettingsSection } from './components/dialogs/SettingsModal'
+import { CelebrationModal } from './components/dialogs/CelebrationModal'
+import { AchievementsModal } from './components/dialogs/AchievementsModal'
+import {
+  playCelebrationChime,
+  spawnCelebrationSparkles,
+  type CelebrationPayload,
+} from './utils/progressionEngine'
 import type { LiveAlertItem } from './types/telemetry'
 import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
@@ -222,7 +229,8 @@ export function App() {
     (new URLSearchParams(window.location.search).get('dev') === 'gallery' || window.location.pathname === '/gallery')
 
   trackRender('App')
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser())
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [authRestored, setAuthRestored] = useState(false)
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN')
   const [authIdentifier, setAuthIdentifier] = useState('')
   const [authEmail, setAuthEmail] = useState('')
@@ -233,6 +241,7 @@ export function App() {
   const [showServerConfig, setShowServerConfig] = useState(false)
   const [customServerUrlInput, setCustomServerUrlInput] = useState(() => getCustomServerUrl() || getBackendBaseUrl())
   const [serverConfigSaved, setServerConfigSaved] = useState(false)
+  const [serverConfigError, setServerConfigError] = useState('')
 
   const [_dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
@@ -423,6 +432,8 @@ export function App() {
 
   // Rewards & Progression State
   const [userProgress, setUserProgress] = useState<ProgressResponse | null>(null)
+  const [celebrationPayload, setCelebrationPayload] = useState<CelebrationPayload | null>(null)
+  const [isAchievementsModalOpen, setIsAchievementsModalOpen] = useState(false)
 
   // Interactive Guided Tour State & Scoped Storage Helpers
   const [isTutorialActive, setIsTutorialActive] = useState(false)
@@ -564,6 +575,9 @@ export function App() {
   )
 
   const isTutorialPendingLaunch = useRef<number | null>(null)
+  const hasActiveModalRef = useRef(hasActiveModal)
+  hasActiveModalRef.current = hasActiveModal
+  const handleStartTutorialRef = useRef<(initialStepIndex?: number) => void>(() => {})
 
   const handleQuickCreateMission = async (e: FormEvent) => {
     e.preventDefault()
@@ -601,7 +615,7 @@ export function App() {
       console.error('Failed to create quick mission', err)
       setQuickMissionError('Could not create mission. Please try again.')
       if (hasHttpStatus(err, 401)) {
-        clearAuthSession()
+        await clearAuthSession()
         setCurrentUser(null)
         setIsCreatingQuickMission(false)
         setQuickMissionTitle('')
@@ -664,15 +678,50 @@ export function App() {
     }
   }, [activeTaskMenu])
 
+  const recentToastsTracker = useRef<Map<string, number>>(new Map())
+
+  const shouldSuppressToast = useCallback((key: string, cooldownMs = 2800): boolean => {
+    const now = Date.now()
+    const lastTime = recentToastsTracker.current.get(key)
+    if (lastTime && now - lastTime < cooldownMs) {
+      return true
+    }
+    recentToastsTracker.current.set(key, now)
+    if (recentToastsTracker.current.size > 50) {
+      for (const [k, v] of recentToastsTracker.current.entries()) {
+        if (now - v > 10000) recentToastsTracker.current.delete(k)
+      }
+    }
+    return false
+  }, [])
+
+  const pushToast = useCallback((alert: Omit<LiveAlertItem, 'id'>) => {
+    const safeTimestamp = toSafeIsoString(alert.timestamp)
+    const dedupKey = `${alert.type}:${alert.title}`
+    if (shouldSuppressToast(dedupKey, 2800)) {
+      return
+    }
+
+    const item: LiveAlertItem = {
+      ...alert,
+      id: crypto.randomUUID(),
+      timestamp: safeTimestamp,
+    }
+    setToastAlerts((prev) => [item, ...prev].slice(0, 2))
+    window.setTimeout(() => {
+      setToastAlerts((prev) => prev.filter((current) => current.id !== item.id))
+    }, 4500)
+  }, [shouldSuppressToast])
+
   const loadData = useCallback(async (): Promise<{ success: boolean; failedServices: string[] }> => {
     const failedServices: string[] = []
     try {
-      const res = await fetch('/api/dashboard', { headers: authHeaders() })
+      const res = await fetchWithoutRedirects(`${getBackendBaseUrl()}/api/dashboard`, { headers: authHeaders() })
       if (res.ok) {
         const d = await res.json()
         setDashboard(d)
       } else if (res.status === 401) {
-        clearAuthSession()
+        await clearAuthSession()
         setCurrentUser(null)
         return { success: false, failedServices: ['Session Expired'] }
       } else {
@@ -722,6 +771,19 @@ export function App() {
       if (briefing) setExecutiveBriefing(briefing)
       if (warnings) setActiveWarnings(warnings)
       if (progressRes !== null) setUserProgress(progressRes)
+      try {
+        const onboarding = await getOnboardingState()
+        if (onboarding.canClaimReward) {
+          const updatedProgress = await claimOnboardingReward()
+          setUserProgress(updatedProgress)
+          pushToast({
+            type: 'reward', title: 'Onboarding reward earned', description: 'Your first complete SHINPO workflow earned +50 XP.',
+            badge: '+50 XP', timestamp: new Date().toISOString(),
+          })
+        }
+      } catch {
+        // Reward eligibility is rechecked by the backend after real workflow events.
+      }
     } catch (err) {
       console.error('Failed during loadData execution', err)
     }
@@ -730,7 +792,7 @@ export function App() {
       success: failedServices.length === 0,
       failedServices,
     }
-  }, [setSentinelStatus])
+  }, [pushToast, setSentinelStatus])
 
   const refreshBriefing = async () => {
     setBriefingLoading(true)
@@ -789,23 +851,27 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    let active = true
     fetchCurrentUser().then((user) => {
-      if (user) setCurrentUser(user)
+      if (active) setCurrentUser(user)
+    }).finally(() => {
+      if (active) setAuthRestored(true)
     })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
-    if (!currentUser) return
+    if (!authRestored || !currentUser) return
     const timer = setTimeout(() => {
       void loadData()
       void loadActiveConversation()
     }, 0)
     return () => clearTimeout(timer)
-  }, [currentUser, loadData, loadActiveConversation])
+  }, [authRestored, currentUser, loadData, loadActiveConversation])
 
   // First-Time User Onboarding Detection (Section 3.1 - Per-Account & Ledger Scoped)
   useEffect(() => {
-    if (!currentUser) return
+    if (!authRestored || !currentUser) return
     let active = true
 
     getOnboardingState()
@@ -818,10 +884,10 @@ export function App() {
         if (!dismissed) {
           const timer = setTimeout(() => {
             if (active) {
-              if (hasActiveModal) {
+              if (hasActiveModalRef.current) {
                 isTutorialPendingLaunch.current = state.currentStep || 0
               } else {
-                handleStartTutorial(state.currentStep || 0)
+                handleStartTutorialRef.current(state.currentStep || 0)
               }
             }
           }, 800)
@@ -838,10 +904,10 @@ export function App() {
             const initialStep = savedProgress ? parseInt(savedProgress, 10) : 0
             const timer = setTimeout(() => {
               if (active) {
-                if (hasActiveModal) {
+                if (hasActiveModalRef.current) {
                   isTutorialPendingLaunch.current = isNaN(initialStep) ? 0 : initialStep
                 } else {
-                  handleStartTutorial(isNaN(initialStep) ? 0 : initialStep)
+                  handleStartTutorialRef.current(isNaN(initialStep) ? 0 : initialStep)
                 }
               }
             }, 800)
@@ -855,24 +921,7 @@ export function App() {
     return () => {
       active = false
     }
-  }, [currentUser])
-
-  const recentToastsTracker = useRef<Map<string, number>>(new Map())
-
-  const shouldSuppressToast = useCallback((key: string, cooldownMs = 2800): boolean => {
-    const now = Date.now()
-    const lastTime = recentToastsTracker.current.get(key)
-    if (lastTime && now - lastTime < cooldownMs) {
-      return true
-    }
-    recentToastsTracker.current.set(key, now)
-    if (recentToastsTracker.current.size > 50) {
-      for (const [k, v] of recentToastsTracker.current.entries()) {
-        if (now - v > 10000) recentToastsTracker.current.delete(k)
-      }
-    }
-    return false
-  }, [])
+  }, [authRestored, currentUser])
 
   const addLiveAlert = useCallback((alert: LiveAlertItem) => {
     const safeTimestamp = toSafeIsoString(alert.timestamp)
@@ -891,24 +940,6 @@ export function App() {
     setToastAlerts((prev) => [normalizedAlert, ...prev].slice(0, 2))
     setTimeout(() => {
       setToastAlerts((prev) => prev.filter((item) => item.id !== normalizedAlert.id))
-    }, 4500)
-  }, [shouldSuppressToast])
-
-  const pushToast = useCallback((alert: Omit<LiveAlertItem, 'id'>) => {
-    const safeTimestamp = toSafeIsoString(alert.timestamp)
-    const dedupKey = `${alert.type}:${alert.title}`
-    if (shouldSuppressToast(dedupKey, 2800)) {
-      return
-    }
-
-    const item: LiveAlertItem = {
-      ...alert,
-      id: crypto.randomUUID(),
-      timestamp: safeTimestamp,
-    }
-    setToastAlerts((prev) => [item, ...prev].slice(0, 2))
-    window.setTimeout(() => {
-      setToastAlerts((prev) => prev.filter((current) => current.id !== item.id))
     }, 4500)
   }, [shouldSuppressToast])
 
@@ -1193,7 +1224,11 @@ export function App() {
     if (isTauriEnvironment()) {
       await stopNativeShield().catch(() => {})
     }
-    await logout()
+    try {
+      await logout()
+    } catch (err) {
+      setAuthError(err instanceof Error ? `Signed out locally, but OS credential cleanup failed: ${err.message}` : 'Signed out locally, but OS credential cleanup failed.')
+    }
     wsClient.disconnect()
     setIsWsConnected(false)
     setLiveAlerts([])
@@ -1271,16 +1306,23 @@ export function App() {
     })
   }, [])
 
-  const handleSaveServerUrl = () => {
-    setCustomServerUrl(customServerUrlInput)
+  const handleSaveServerUrl = async () => {
+    const validation = isValidServerUrl(customServerUrlInput)
+    if (!validation.valid) {
+      setServerConfigSaved(false)
+      setServerConfigError(validation.reason || 'Invalid server URL')
+      return
+    }
+    try {
+      await setCustomServerUrl(customServerUrlInput)
+    } catch (err) {
+      setServerConfigSaved(false)
+      setServerConfigError(err instanceof Error ? err.message : 'Could not clear the saved session')
+      return
+    }
+    setServerConfigError('')
     setServerConfigSaved(true)
     setTimeout(() => setServerConfigSaved(false), 3000)
-  }
-
-  const handleQuickDemoFill = () => {
-    setAuthMode('LOGIN')
-    setAuthIdentifier('demo')
-    setAuthPassword('shinpo_demo')
   }
 
   const handleCreateGoal = async (e: FormEvent) => {
@@ -1404,9 +1446,6 @@ export function App() {
     try {
       const result = await decomposeGoal(goalId, currentUser.id)
       setAiDecompResult(result)
-      if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === 'DECONSTRUCT_GOAL') {
-        handleNextTutorialStep()
-      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -1510,10 +1549,15 @@ export function App() {
 
   const handleToggleMissionComplete = async (missionId: number) => {
     try {
+      const targetMission = missions.find((m) => m.id === missionId)
       await completeMission(missionId)
       setMissions((prev) =>
         prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
       )
+
+      playCelebrationChime('accomplishment')
+      spawnCelebrationSparkles()
+
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
       pushToast({
         title: isMinimal ? 'Task Completed' : 'Task Completed! +10 XP',
@@ -1522,7 +1566,39 @@ export function App() {
         badge: '+10 XP',
         timestamp: new Date().toISOString(),
       })
+
       await loadData()
+      const updatedProg = await getCurrentUserProgress().catch(() => null)
+      const oldLevel = userProgress?.level || 1
+      const newLevel = updatedProg?.level || oldLevel
+
+      if (newLevel > oldLevel) {
+        playCelebrationChime('level_up')
+        setCelebrationPayload({
+          id: `lvl-${Date.now()}`,
+          type: 'LEVEL_UP',
+          headline: 'Level Up! Tier Unlocked',
+          detail: `You have advanced to Tier ${newLevel}: ${updatedProg?.levelTitle || 'Master of Flow'}.`,
+          xpEarned: 10,
+          oldLevel,
+          newLevel,
+          levelTitle: updatedProg?.levelTitle,
+          streakDays: analyticsData?.summary?.currentStreak,
+          nextActionPrompt: 'View Progression',
+          nextActionTab: 'Progression',
+        })
+      } else if (!isMinimal) {
+        setCelebrationPayload({
+          id: `task-${missionId}-${Date.now()}`,
+          type: 'TASK',
+          headline: 'Task Completed! +10 XP',
+          detail: `Objective "${targetMission?.title || 'Task'}" achieved and recorded in progress ledger.`,
+          xpEarned: 10,
+          streakDays: analyticsData?.summary?.currentStreak,
+          nextActionPrompt: 'Arm Focus Sprint',
+          nextActionTab: 'Focus Engine',
+        })
+      }
     } catch (err) {
       console.error('Failed to complete task', err)
       pushToast({
@@ -1797,11 +1873,12 @@ export function App() {
     if (!hasActiveModal && isTutorialPendingLaunch.current !== null) {
       const stepToLaunch = isTutorialPendingLaunch.current
       isTutorialPendingLaunch.current = null
-      handleStartTutorial(stepToLaunch)
+      handleStartTutorialRef.current(stepToLaunch)
     }
   }, [hasActiveModal])
 
   function handleStartTutorial(initialStepIndex?: number) {
+    handleStartTutorialRef.current = handleStartTutorial
     let stepIndex = initialStepIndex
     if (stepIndex === undefined) {
       try {
@@ -1847,6 +1924,7 @@ export function App() {
 
     setIsTutorialActive(true)
     setTutorialStepIndex(stepIndex)
+    startOnboarding(stepIndex).catch(() => {})
     setTutorialStorageItem('shinpo_onboarding_progress', String(stepIndex), currentUser?.id)
     removeTutorialStorageItem('shinpo_onboarding_dismissed', currentUser?.id)
     const step = SHINPO_ONBOARDING_STEPS[stepIndex]
@@ -1854,9 +1932,9 @@ export function App() {
       if (isAppView(step.targetTab)) setActiveTab(step.targetTab)
     }
   }
+  handleStartTutorialRef.current = handleStartTutorial
 
   const handleNextTutorialStep = () => {
-    recordOnboardingStep(tutorialStepIndex, true).catch(() => {})
     if (tutorialStepIndex < SHINPO_ONBOARDING_STEPS.length - 1) {
       const nextIndex = tutorialStepIndex + 1
       setTutorialStepIndex(nextIndex)
@@ -1926,10 +2004,31 @@ export function App() {
     removeTutorialStorageItem('shinpo_onboarding_progress', currentUser?.id)
     removeTutorialStorageItem('shinpo_onboarding_dismissed', currentUser?.id)
 
-    // Claim the +50 XP onboarding certification reward from backend
-    claimOnboardingReward()
+    finishOnboarding()
+      .then((state) => {
+        if (state.canClaimReward) return claimOnboardingReward()
+        pushToast({
+          type: 'focus', title: 'Tour complete',
+          description: 'Your +50 XP unlocks after a real goal, linked task, scheduled focus session, and task completion.',
+          timestamp: new Date().toISOString(),
+        })
+        return null
+      })
       .then((prog) => {
-        if (prog) setUserProgress(prog)
+        if (!prog) return
+        setUserProgress(prog)
+        playCelebrationChime('level_up')
+        spawnCelebrationSparkles()
+        setCelebrationPayload({
+          id: `onboarding-${Date.now()}`,
+          type: 'ONBOARDING',
+          headline: 'Certified in SHINPO! +50 XP',
+          detail: 'You have mastered the complete Execution OS workflow: Goal → Task → Schedule → Focus → Progress.',
+          xpEarned: 50,
+          streakDays: 1,
+          nextActionPrompt: 'Enter Cockpit',
+          nextActionTab: 'Dashboard',
+        })
         pushToast({
           type: 'reward',
           title: 'Onboarding Completed! +50 XP',
@@ -1953,13 +2052,13 @@ export function App() {
   }
 
   useEffect(() => {
-    ;(window as any).__SHINPO_START_TUTORIAL__ = handleStartTutorial
-    ;(window as any).__SHINPO_NAVIGATE_TAB__ = (tab: AppView) => {
+    window.__SHINPO_START_TUTORIAL__ = (initialStepIndex?: number) => handleStartTutorialRef.current(initialStepIndex)
+    window.__SHINPO_NAVIGATE_TAB__ = (tab: AppView) => {
       if (isAppView(tab)) setActiveTab(tab)
     }
     return () => {
-      delete (window as any).__SHINPO_START_TUTORIAL__
-      delete (window as any).__SHINPO_NAVIGATE_TAB__
+      delete window.__SHINPO_START_TUTORIAL__
+      delete window.__SHINPO_NAVIGATE_TAB__
     }
   }, [])
 
@@ -2146,16 +2245,57 @@ export function App() {
       setReflectionNotes('')
       setCompleteSessionError(null)
       const sessionDuration = res.durationMinutes || 25
-      const earnedXp = sessionDuration >= 45 ? 25 : 15
+      const activeMinutes = Math.min(Math.floor((res.activeSeconds || 0) / 60), sessionDuration)
+      const earnedXp = activeMinutes >= 45 ? 25 : activeMinutes >= 15 ? 15 : 0
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
+
+      if (earnedXp > 0) {
+        playCelebrationChime('accomplishment')
+        spawnCelebrationSparkles()
+      }
+
       pushToast({
-        type: 'reward',
-        title: isMinimal ? 'Session Completed' : `Focus Sprint Completed! +${earnedXp} XP`,
-        description: `Focus block recorded with quality rating ${completionQuality}/5. XP ledger updated.`,
-        badge: `+${earnedXp} XP`,
+        type: earnedXp > 0 ? 'reward' : 'focus',
+        title: earnedXp > 0 && !isMinimal ? `Focus Sprint Completed! +${earnedXp} XP` : 'Session Completed',
+        description: earnedXp > 0
+          ? `Focus block recorded with quality rating ${completionQuality}/5. XP ledger updated.`
+          : `Focus block recorded with quality rating ${completionQuality}/5. Earn XP by focusing for at least 15 active minutes.`,
+        badge: earnedXp > 0 ? `+${earnedXp} XP` : undefined,
         timestamp: new Date().toISOString(),
       })
+
       await loadData()
+      const updatedProg = await getCurrentUserProgress().catch(() => null)
+      const oldLevel = userProgress?.level || 1
+      const newLevel = updatedProg?.level || oldLevel
+
+      if (newLevel > oldLevel) {
+        playCelebrationChime('level_up')
+        setCelebrationPayload({
+          id: `lvl-${Date.now()}`,
+          type: 'LEVEL_UP',
+          headline: 'Level Up! Tier Unlocked',
+          detail: `You have advanced to Tier ${newLevel}: ${updatedProg?.levelTitle || 'Master of Flow'}.`,
+          xpEarned: earnedXp,
+          oldLevel,
+          newLevel,
+          levelTitle: updatedProg?.levelTitle,
+          streakDays: analyticsData?.summary?.currentStreak,
+          nextActionPrompt: debriefWithAi ? 'Debrief with EONPAI' : 'View Progression',
+          nextActionTab: debriefWithAi ? 'AI Assistant' : 'Progression',
+        })
+      } else if (earnedXp > 0 && !isMinimal) {
+        setCelebrationPayload({
+          id: `session-${targetSessionId}-${Date.now()}`,
+          type: 'FOCUS_SESSION',
+          headline: `Focus Sprint Completed! +${earnedXp} XP`,
+          detail: `Deep work session verified (${activeMinutes} active mins, quality ${completionQuality}/5).`,
+          xpEarned: earnedXp,
+          streakDays: analyticsData?.summary?.currentStreak,
+          nextActionPrompt: debriefWithAi ? 'Debrief with EONPAI' : 'Take a 5-min Breather',
+          nextActionTab: debriefWithAi ? 'AI Assistant' : undefined,
+        })
+      }
       if (debriefWithAi) {
         setActiveTab('AI Assistant')
         handleAiSend(`Analyze session debrief for session #${targetSessionId}`, targetSessionId)
@@ -2332,7 +2472,7 @@ export function App() {
       console.error('EONPAI chat error:', err)
       setAiLoading(false)
       if (hasHttpStatus(err, 401)) {
-        clearAuthSession()
+        await clearAuthSession()
         setCurrentUser(null)
         return
       }
@@ -2643,16 +2783,6 @@ export function App() {
               {authLoading ? 'Verifying credentials...' : authMode === 'LOGIN' ? 'Sign In' : 'Create Account'}
             </button>
 
-            {authMode === 'LOGIN' && (
-              <button
-                type="button"
-                className="auth-quick-fill-btn"
-                onClick={handleQuickDemoFill}
-              >
-                Quick Fill (Demo Credentials)
-              </button>
-            )}
-
             {/* Server Endpoint Configuration for Desktop Distribution */}
             <div className="auth-server-config-section" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
               <button
@@ -2662,7 +2792,7 @@ export function App() {
                   background: 'none',
                   border: 'none',
                   color: 'var(--text-3, #94a3b8)',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2679,8 +2809,8 @@ export function App() {
 
               {showServerConfig && (
                 <div className="auth-server-dropdown" style={{ marginTop: '10px', textAlign: 'left' }}>
-                  <label className="auth-label" style={{ fontSize: '11px', marginBottom: '4px', display: 'block', color: 'var(--text-3, #94a3b8)' }}>
-                    Remote Server URL (e.g. https://shinpo.yourteam.com)
+                  <label className="auth-label" style={{ fontSize: '12px', marginBottom: '4px', display: 'block', color: 'var(--text-3, #94a3b8)' }}>
+                    Server URL (remote servers require HTTPS; HTTP is only for localhost)
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
@@ -2700,6 +2830,7 @@ export function App() {
                       {serverConfigSaved ? 'Saved ✓' : 'Save'}
                     </button>
                   </div>
+                  {serverConfigError && <p role="alert" className="auth-error">{serverConfigError}</p>}
                   {getCustomServerUrl() && (
                     <button
                       type="button"
@@ -2707,14 +2838,19 @@ export function App() {
                         background: 'none',
                         border: 'none',
                         color: 'var(--text-3, #94a3b8)',
-                        fontSize: '11px',
+                        fontSize: '12px',
                         cursor: 'pointer',
                         marginTop: '6px',
                         textDecoration: 'underline',
                         padding: 0,
                       }}
-                      onClick={() => {
-                        setCustomServerUrl('')
+                      onClick={async () => {
+                        try {
+                          await setCustomServerUrl('')
+                        } catch (err) {
+                          setServerConfigError(err instanceof Error ? err.message : 'Could not clear the saved session')
+                          return
+                        }
                         setCustomServerUrlInput('')
                         setServerConfigSaved(true)
                         setTimeout(() => setServerConfigSaved(false), 2000)
@@ -2768,6 +2904,7 @@ export function App() {
             topSearchQuery={topSearchQuery}
             setTopSearchQuery={setTopSearchQuery}
             isDarkMode={isDarkMode}
+            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
           />
         ) : (
           <OverviewView
@@ -2808,6 +2945,7 @@ export function App() {
             handleResume={handleResume}
             setCompletingSessionId={setCompletingSessionId}
             nextActionMission={nextActionMission}
+            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
           />
         )
       )}
@@ -3005,6 +3143,7 @@ export function App() {
             onOpenSettings={handleOpenSettings}
             currentUser={currentUser}
             userProgress={userProgress}
+            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
             onLogout={handleLogout}
             onToggleV2Preview={handleToggleV2Preview}
             isV2Preview={isV2Preview}
@@ -3182,22 +3321,6 @@ export function App() {
           onNavigateTab={(tab) => {
             if (isAppView(tab)) setActiveTab(tab)
           }}
-          onTargetInteract={() => {
-            const stepId = SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id
-            if (stepId === 'CREATE_GOAL') {
-              setIsCreatingGoal(true)
-            } else if (stepId === 'SCHEDULE_COMMITMENT') {
-              setActiveTab('Schedule')
-            } else if (stepId === 'FOCUS_CONTROLS') {
-              setActiveTab('Focus Engine')
-            } else if (stepId === 'FOCUS_PROTECTION') {
-              setActiveTab('Task Manager')
-            } else if (stepId === 'EONPAI_ASSISTANT') {
-              setActiveTab('AI Assistant')
-            } else if (stepId === 'SETTINGS_PREFERENCES') {
-              handleOpenSettings('appearance')
-            }
-          }}
         />
       )}
 
@@ -3235,6 +3358,32 @@ export function App() {
       <FloatingToasts
         toastAlerts={toastAlerts}
         onDismiss={(id) => setToastAlerts((prev) => prev.filter((item) => item.id !== id))}
+      />
+
+      {/* Universal Duolingo-Inspired Celebration Moment */}
+      <CelebrationModal
+        payload={celebrationPayload}
+        onClose={() => setCelebrationPayload(null)}
+        onNextAction={() => {
+          const tab = celebrationPayload?.nextActionTab
+          if (tab === 'Progression') {
+            setIsAchievementsModalOpen(true)
+          } else if (tab && isAppView(tab)) {
+            setActiveTab(tab)
+          }
+        }}
+      />
+
+      {/* Universal Progression & Achievements Profile Modal */}
+      <AchievementsModal
+        isOpen={isAchievementsModalOpen}
+        onClose={() => setIsAchievementsModalOpen(false)}
+        userProgress={userProgress}
+        analyticsData={analyticsData}
+        missions={missions}
+        goals={goals}
+        sessions={sessions}
+        isOnboardingVerified={Boolean(getTutorialStorageItem('shinpo_onboarding_completed', currentUser?.id))}
       />
 
       {/* In-App Confirmation Dialog */}

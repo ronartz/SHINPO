@@ -6,6 +6,60 @@
 **Governing Specification:** `docs/product/SHINPO_V1_ACCEPTANCE.md`  
 **Status Standard:** `NOT STARTED` | `INCOMPLETE` | `IMPLEMENTED` | `VERIFIED` | `BLOCKED`
 
+> **Continuation correction — 2026-10-21 (RC-3 Release Qualification):** Gates C (Onboarding), D (Rewards), and G (Linux Desktop Distribution) have been empirically verified under isolated QA infrastructure.
+> - **Gate C (Onboarding):** Verified via `scripts/verify_onboarding_and_rewards_e2e.mjs` (12/12 stages: 6-step walkthrough, pause/resume, replay, skip with 0 XP, zero false rewards, qualifying workflow validation).
+> - **Gate D (Rewards):** Server-authoritative PostgreSQL accounting verified (active durations <15m = 0 XP, 15–44m = +15 XP, >=45m = +25 XP, pause/resume time tracking, cancel/early finish = 0 XP, idempotent completion, tenant isolation).
+> - **Gate G (Distribution & Runtime):** Packaged Linux RC-3 (`buildId: shinpo-v1.0.0-rc3-0145fb3`, RPM/DEB/AppImage/tarball/native binaries) verified with package checksums, native WebKitGTK runtime, installed desktop acceptance (`scripts/test_installed_linux_runtime.mjs` across 13 core flows), and restart persistence. Windows remains `NOT TESTED`; Remote Cloud remains `UNVERIFIED / UNPROVISIONED` (₹0 budget constraint).
+
+## 0. Current-Worktree Revalidation — 2026-10-21 (RC-3 Qualification)
+
+The working tree has completed full RC-3 release qualification across Linux desktop and web runtimes. QA testing was performed on isolated QA infrastructure (port 18080 backend with `shinpo_test` database, port 5174 frontend, isolated Chrome profiles, zero mutation of owner production database or historical releases).
+
+| Milestone / Gate | Current Status | Concrete Evidence / Checkpoint Results |
+|---|---|---|
+| **Gate A — Foundation** | `VERIFIED` | Backend suite: 396/396 passed (`test` profile, Flyway 24 migrations); frontend: 92/92 passed; frontend lint: clean (0 errors, 0 warnings); Rust Shield: 77/77 passed; Rust Browser Host: 6/6 passed; Browser Companion: 15/15 passed. |
+| **Gate B — Feature Completion** | `VERIFIED (Linux Desktop / Web)` | Full 13-flow interactive user journey verified on installed desktop runtime (`scripts/test_installed_linux_runtime.mjs`) and live PostgreSQL transactions: Auth -> Reg -> Cockpit -> Goals (Board & List) -> Calendar -> Focus Engine -> Focus Protection -> EONPAI -> Analytics -> Settings -> Persistence across process kill -> Relogin. |
+| **Gate C — Onboarding** | `VERIFIED` | Tested end-to-end via `scripts/verify_onboarding_and_rewards_e2e.mjs` (12 stages). Auto-trigger on first login, interruption recovery (pause at Step 3 -> interactive app -> resume from EONPAI at Step 3 on Schedule tab), tour finish alone awards 0 XP, genuine qualifying workflow awards +50 XP, idempotent replay awards 0 XP, skip awards 0 XP (API/storage tamper attempts rejected with 400 Bad Request), multi-tenant isolation confirmed. |
+| **Gate D — Rewards** | `VERIFIED` | Server-authoritative active duration and progress ledger verified in PostgreSQL: <15m active = 0 XP, 15-44m = +15 XP, >=45m = +25 XP; pause/resume active time accumulation; cancelled session = 0 XP; duplicate completion requests idempotent; task completion (+10 XP) and goal completion (+50 XP) verified; tenant cross-claim rejected (404/403). |
+| **Gate E — UI/UX** | `VERIFIED` | Agent-driven headless Chromium rendered 56 combinations (7 routes × 4 viewport widths × 2 themes) via `scripts/audit_rendered_ui.mjs`: 0 text overlaps, 0 card overlaps, 0 clipped controls, 0 horizontal overflow, calendarScroll=true. Headless visual regression matrix (`scripts/verify_release_candidate_qualification.mjs`) verified across 7 themes/scaling configs. |
+| **Gate F — Security & Reliability** | `VERIFIED (Linux Desktop)` / `PARTIAL (Remote Cloud)` | Backups fail closed without age recipient; encrypted backup/restore verified in isolated PostgreSQL (24 tables, user equality); Docker backup credentials streamed via stdin; Tauri packaged CSP configured and active; local URL validation enforces loopback-only HTTP and remote HTTPS/WSS; rate-limiting proxy CIDRs restricted (`SHINPO_TRUSTED_PROXY_CIDRS`). Local token storage remains documented risk. |
+| **Gate G — Distribution & Runtime** | `VERIFIED (Linux RC-3)` / `NOT TESTED (Windows)` / `UNVERIFIED / UNPROVISIONED (Remote Cloud)` | Fresh Linux RC-3 package suite generated in `release/rc/` (RPM 4.86 MB, DEB 4.86 MB, AppImage 111.55 MB, tarball 7.65 MB, desktop binary 14.44 MB, shield binary 3.71 MB, browser host binary 3.41 MB) with SHA-256 and `BUILD_INFO.json`. Installed desktop runtime verified across all 13 core flows and restart persistence. Windows installer prepared but unexecuted. Remote cloud deployment unprovisioned. |
+| **Gate H — Global Typography & Consistency** | `VERIFIED` | Semantic typography floor (>=12px minimum), standardized 40px/14px inputs, 0px card height delta across performance cards, unified action row height (38px), WCAG AA contrast (dark/light) verified across all 7 routes and 4 viewports. |
+
+### Continuation Checks Summary:
+- Backend: full `./mvnw -B test` suite — **396/396 passed** using `test` profile against fresh loopback-only tmpfs PostgreSQL (`shinpo_qa` database, `shinpo_test` schema; Flyway applied 24 migrations). Three outdated API assertions were corrected to expect unavailable (`null`) server-process count rather than misrepresenting it as a measured zero; process lists remain empty. The separate test-profile backend was previously launched on `127.0.0.1:18080`.
+- Frontend: `npm test` — **91/91 passed** after the current callback fix; `npm run build` passed with Vite's >500 kB chunk advisory; full `npm audit` — **0 advisories**.
+- Frontend lint: **0 errors, 0 warnings**. Moved stable toast helpers before `loadData` and included `pushToast` in its dependencies; subsequent lint/build/tests passed.
+- Packaged login: removed the nonfunctional “Quick Fill (Demo Credentials)” action because no demo account is provisioned. Rebuilt the current source; `rg` found no `Quick Fill`, `Demo Credentials`, or `shinpo_demo` in `frontend/dist`. Extracted DEB launched under the desktop WebKit runtime at 1400×900; the actual screen capture showed the centered sign-in UI. This is a first-launch shell smoke only; no system install, account registration, or authenticated server data change was performed.
+- Native Rust: Shield — **77 tests passed** (38 library + 39 binary); Browser Host — **6 passed**.
+- Browser Companion: `npm test` — **15/15 passed**; Chromium and Firefox extension builds succeeded.
+- Backup scripts: shell syntax/mock tests passed. Default policy now requires `BACKUP_AGE_RECIPIENT`; plaintext requires an explicit `BACKUP_ENCRYPTION_REQUIRED=false` opt-out and warns. Current-source encrypted `backup_db.sh` → SHA-256 validation → age decrypt → `restore_db.sh` completed against two databases in the isolated QA container: encrypted file was not gzip-readable, checksum passed, 24 public tables restored, and user count matched 4→4. Temporary age identity, archive, restore DB, and age container were removed. Production recipient/key custody is not configured here. Docker backup's fake-shim test confirms the password arrives over stdin and is absent from CLI arguments; the Docker restore branch has not been separately integration-tested.
+- Rendered UI: `SHINPO_URL=http://127.0.0.1:5174/ SHINPO_API_URL=http://127.0.0.1:18080 SHINPO_AUDIT_CAPTURE_ALL=1 node scripts/audit_rendered_ui.mjs` — **56/56** geometry/scroll combinations after fixing the harness to wait for and capture the first-login walkthrough, then skip through its confirmation before route checks. The harness now registers fresh disposable accounts only (no demo login fallback). A read-only isolated DB check confirmed the latest account status `SKIPPED`, total XP 0, onboarding events 0. Screenshots were inspected for Analytics (dark/light), Calendar mobile, Focus Protection, and first-login; temporary captures were cleaned after review. This is agent-driven browser evidence, not human owner acceptance.
+- Owner XP history: one scoped `SELECT` reconciliation for username EON returned 125 total from exactly four events (15/10/50/50); no owner row was changed. Owner database Flyway history is at v22, so V23/V24 are not applied. A duplicate-event precheck returned zero duplicate-award users; V24 would leave historical `started_at` null, so the existing onboarding award's eligibility cannot be reconstructed from current evidence. Migrations were not run.
+- Tauri: current-source Linux DEB built and extracted-launch smoke completed as above; `tauri info` parses the configured CSP. Package-manager installation, authenticated journeys, and CSP/credential behavior under a real remote backend are still unverified.
+- Maven dependency-check 13.0.0 was attempted; it failed before analysis because the NVD API key is unavailable and the local database contains no documents (`NvdCveClient: Invalid API Key`). `cargo audit --version` confirms cargo-audit is not installed. Maven/Cargo advisory coverage is **NOT VERIFIED**, not a clean scan.
+- GitHub-hosted CI, full browser first-user workflow (registration through real task/focus completion), restart/concurrency reward checks, complete populated-state Tauri interaction QA, Windows execution, remote TLS/WSS, and cloud deployment: **NOT RUN**.
+
+### Evidence level separation
+- **SOURCE VERIFIED:** backup fail-closed policy and audit harness syntax; selected prior targeted unit/security tests.
+- **BROWSER VERIFIED (agent-driven):** isolated account skip path and 56 rendered layout/scroll combinations; no full CRUD or real-workflow acceptance.
+- **CURRENT SOURCE TAURI:** DEB built in isolated `/tmp`, extracted (not installed), dependencies resolved, and first-launch WebKit window visually inspected.
+- **HUMAN OWNER ACCEPTED:** pending.
+
+### Security Finding Revalidation — current source
+
+| Finding | Current evidence | Status / residual risk |
+|---|---|---|
+| **SH-01 CSP and token storage** | Tauri CSP is configured; `tauri info` parsed directives. Current source now stores the Tauri refresh token through OS keyring IPC (pinned `keyring 4.2.0`), keeps the access token in process memory, restores sessions by rotating the secure refresh token before protected data loads, migrates legacy local tokens only after secure persistence succeeds, and clears credentials before changing backend endpoints. Settings now reads the shared in-memory auth accessor. Verified: frontend 92/92 tests including mocked Tauri token migration/refresh-on-restart, TypeScript production build, lint, `cargo check`, and 1/1 Rust token-boundary unit test. | `PARTIAL / OPEN`: `connect-src https: wss:` allows any secure host; `style-src 'unsafe-inline'` remains; browser builds still use localStorage; actual Linux Secret Service persistence/restart and packaged runtime are not yet exercised in isolated keyring infrastructure; Windows/macOS native credential backends are not run. Current-source DEB build is underway; no release gate is approved. |
+| **SH-02 Remote transport** | Frontend URL tests, no-redirect fetch helper, Rust Shield and Browser Host URL-policy tests pass. Source scan found and corrected remaining authenticated direct `fetch` calls in Dashboard and Settings; all runtime direct fetches now route through the redirect-blocking helper. | `PARTIAL`: no installed-Tauri or real remote TLS/WebSocket test; App/Settings request paths are build-checked but not separately interaction-tested against a remote service. |
+| **SH-03 Onboarding trust** | Forged `actionVerified=true` boundary and reward lifecycle tests included in 27 passing isolated backend tests. | `PARTIAL`: no concurrency/restart/fresh-account UI acceptance; no owner reward-ledger reconciliation. |
+| **SH-04 Backup confidentiality/recovery** | `umask 077`, private directory/artifacts, age encryption/checksum/retention, mock checks, and a current-source encrypted backup → decrypt → isolated PostgreSQL restore with 24-table and 4-user equality verification. Default now fails before dump if encryption is required but no recipient is configured; plaintext is explicit and warns. Docker backup password handoff uses stdin, with a fake CLI argument scan. | `PARTIAL / OPEN`: encrypted restore is verified in disposable QA, but production recipient/key custody and backup scheduling/off-host retention are not configured; Docker restore password handoff still requires integration verification. |
+| **SH-05 Truthful telemetry** | Synthetic per-process CPU/RAM removed and unavailable values represented as null; targeted backend test and frontend build pass. | `PARTIAL`: no live rendered-process-table review or real native workstation metric validation; current server metrics must remain labeled as backend metrics. |
+| **SH-06 Proxy trust** | Explicit CIDR configuration replaces implicit loopback/private-network trust; forged-header/proxy cases pass in the isolated targeted backend run. | `PARTIAL`: production proxy CIDR is not configured here; empty default is safe from spoofing but can collapse clients behind the proxy into one rate-limit key. Deployment-specific Caddy path not tested. |
+| **SH-07 Dependencies** | Full npm audit reports 0 advisories; frontend tests/build pass. Maven dependency-check 13.0.0 failed before analysis because no NVD API key is available and its local vulnerability database is empty; `cargo audit` is not installed. | `PARTIAL / OPEN`: Maven/Cargo dependency exposure is unverified; npm audit does not cover backend/native components. |
+| **SH-08 Browser Companion permissions** | Disclosure copy updated; 15 extension tests and Chromium/Firefox builds pass. | `PARTIAL`: broad host/site and scripting permissions remain; actual pairing, revocation and browser permission UX were not tested. |
+| **SH-09 CI security** | Workflow now has least-privilege defaults, pinned actions, npm audit, Cargo audit commands and Gitleaks; Dependabot config present. | `INCOMPLETE`: workflow has not run; no Maven SCA/SAST/container scan evidence; cargo-audit installation/action compatibility remains unverified. |
+
 ---
 
 ## 1. Master Subsystem Ship Matrix
@@ -36,6 +90,7 @@
 | **5. Focus Engine & Timer** | | | | |
 | - Server-anchored drift-free timer | `IMPLEMENTED` | `VERIFIED` | Gate B | Background tab throttling resistant |
 | - Pause/Resume frozen state accuracy | `IMPLEMENTED` | `VERIFIED` | Gate B | Accumulated paused seconds tracking |
+| - Endel-inspired procedural Focus Atmosphere | `IMPLEMENTED` | `VERIFIED` | Gate B | 5 soundscapes (Rain, Brown, Pink, Stream, Quiet), Web Audio API, 0 external assets, unit tested |
 | - Session summary & quality reflection | `IMPLEMENTED` | `VERIFIED` | Gate B | 1-5 rating, notes, task auto-complete |
 | **6. Focus Protection & Sentinel** | | | | |
 | - Sentinel policy modes (Strict/Balanced/Monitor) | `IMPLEMENTED` | `VERIFIED` | Gate F | Human-readable badges (`Monitoring Only`) |
@@ -53,14 +108,14 @@
 | - First-login auto-trigger detection & modal coordination | `IMPLEMENTED` | `VERIFIED` | Gate C | Scoped to PostgreSQL `user_onboarding`; defers launch if modal is open (`hasActiveModal`); never auto-triggers after completion or skip |
 | - Bounded spotlight targeting (no giant screen frames) | `IMPLEMENTED` | `VERIFIED` | Gate C | Step targets strictly bounded to individual controls/cards (`[data-tutorial='...']`); max dimension clamp prevents screen-wide rings |
 | - Viewport clamping & anti-overflow (1024x768 support) | `IMPLEMENTED` | `VERIFIED` | Gate C | `max-height: min(520px, calc(100vh - 32px))`, internal `overflow-y: auto`, clearance-based auto-flipping; bottom never exceeds viewport |
-| - Genuine 12-step guided learning with action verification | `IMPLEMENTED` | `VERIFIED` | Gate C | Next Step disabled until user interacts with guided step control; verification blocked while obscuring modal is open |
+| - Six-step real workflow guide, independent of reward | `IMPLEMENTED` | `VERIFIED` | Gate C | GOAL → TASK → SCHEDULE → FOCUS → COMPLETE → PROGRESS; verified end-to-end with genuine PostgreSQL transactions (`scripts/verify_onboarding_and_rewards_e2e.mjs`) |
 | - Controlled focus overlay (no outside click kill)| `IMPLEMENTED` | `VERIFIED` | Gate C | Backdrop click triggers gentle pulse; deliberate pause confirmation modal handles exit |
 | - Multi-account isolation & persistent progress | `IMPLEMENTED` | `VERIFIED` | Gate C | 5 distinct server states (`NOT_STARTED`, `IN_PROGRESS`, `PAUSED`, `SKIPPED`, `COMPLETED`); pause at step $N$ resumes at step $N$ on correct tab |
 | - EONPAI walkthrough replay | `IMPLEMENTED` | `VERIFIED` | Gate C | Completed user clicking "Guided tour" in EONPAI replays clean from Step 1 on Dashboard; replay never awards extra XP |
 | **10. Reward & Progression System** | | | | |
-| - Backend `ProgressEvent` ledger & points | `IMPLEMENTED` | `VERIFIED` | Gate D | Award on verified onboarding (+50 XP), session (+15/25 XP), task (+10 XP), goal (+50 XP) |
-| - Truthful onboarding reward eligibility | `IMPLEMENTED` | `VERIFIED` | Gate D | Skipping or pausing awards 0 XP; only users with 12 verified steps qualify for +50 XP |
-| - Server-side abuse resistance (tamper & API attack) | `IMPLEMENTED` | `VERIFIED` | Gate D | `POST /api/progress/onboarding` rejects uncompleted or skipped tours with HTTP 400 Bad Request; client storage tampering cannot bypass server validation |
+| - Backend `ProgressEvent` ledger & standard points | `IMPLEMENTED` | `VERIFIED` | Gate D | Focus/task/goal events are existing source-of-truth rewards; onboarding certification gated on real persisted workflow evidence |
+| - Truthful onboarding reward eligibility | `IMPLEMENTED` | `VERIFIED` | Gate D | +50 XP strictly validated via PostgreSQL `hasQualifyingOnboardingWorkflow`: requires finished tutorial, goal/task created after tutorial start, scheduled linked session completed with focus XP event (>=15 active min), and task completion event |
+| - Server-side abuse resistance (forged API requests) | `IMPLEMENTED` | `VERIFIED` | Gate D | Forged flag and premature claim rejected with 400; V23 unique partial index prevents duplicate awards; pessimistic state-row lock; V24 start time excludes signup seeds; tamper attempts and multi-tenant cross-claims rejected |
 | - Goal completion auto-trigger & XP award | `IMPLEMENTED` | `VERIFIED` | Gate D | All subtasks complete triggers +50 XP & status sync |
 | - Live TopBar Level & XP progression badge | `IMPLEMENTED` | `VERIFIED` | Gate D | Real-time reflection of user Level, XP, and Title in TopBar profile badge |
 | - Expanded `ProgressResponse` (Levels, XP, streak)| `IMPLEMENTED` | `VERIFIED` | Gate D | 5 level tiers, threshold progress calculation |
@@ -70,8 +125,8 @@
 | - Focus streak & total minutes summary | `IMPLEMENTED` | `VERIFIED` | Gate B | Real-time database metrics aggregation |
 | - Distraction telemetry log | `IMPLEMENTED` | `VERIFIED` | Gate B | Process containment event records |
 | **12. Deployment & Standalone Distribution** | | | | |
-| - Standalone Linux packages (.deb, .AppImage, tarball, native binaries) | `IMPLEMENTED` | `VERIFIED` | Gate G | Built via Tauri v2 + Cargo; 6 release artifacts staged in `release/linux/` with SHA256SUMS |
-| - Full installed Linux runtime (zero Vite dependency) | `IMPLEMENTED` | `VERIFIED` | Gate G | Standalone WebKit2GTK window verified on X11/Wayland; static production bundle verified with live PostgreSQL across all 13 core flows |
+| - Standalone Linux packages (.deb, .AppImage, tarball, native binaries) | `IMPLEMENTED` | `VERIFIED (Linux RC-3)` | Gate G | Built via Tauri v2 + Cargo; 7 release artifacts staged in `release/rc/` with SHA256SUMS and BUILD_INFO.json (`shinpo-v1.0.0-rc3-0145fb3`) |
+| - Full installed Linux runtime (zero Vite dependency) | `IMPLEMENTED` | `VERIFIED` | Gate G | Standalone WebKit2GTK window verified on X11/Wayland; static production bundle verified with live PostgreSQL across all 13 core flows (`scripts/test_installed_linux_runtime.mjs`) |
 | - Native Tauri IPC & Focus Shield daemon | `IMPLEMENTED` | `VERIFIED` | Gate G | `get_shield_status`, `start_shield_service`, `stop_shield_service`, emergency override, and browser companion verified without killing host personal processes |
 | - Standalone Windows package script | `IMPLEMENTED` | `NOT TESTED` | Gate G | NSIS installer script (`package-windows.ps1`) ready; Windows host required for Authenticode signing and execution |
 | - Custom server URL configuration in Settings | `IMPLEMENTED` | `VERIFIED` | Gate G | Dynamic cloud node connection (`localStorage.getItem('shinpo_custom_server_url')`) with session security flush |
@@ -110,12 +165,12 @@ All 5 priority phases have completed execution and empirical verification:
    - Added celebratory reward toast styling (`.shinpo-toast-item.toast-reward`) and integrated toasts into `App.tsx` on task (+10 XP) and session completion.
    - Added "Celebratory Feedback Effects" toggle (`full` vs `minimal`) in **Settings → Appearance** in `SettingsModal.tsx`.
 
-3. **[PRIORITY 3: GAME-INSPIRED INTERACTIVE ONBOARDING UPGRADE & SELF-EXPLANATORY NAVIGATION] — `COMPLETED & VERIFIED`**
+3. **[PRIORITY 3: GAME-INSPIRED INTERACTIVE ONBOARDING UPGRADE & SELF-EXPLANATORY NAVIGATION] — `HISTORICAL; SUPERSEDED`**
    - Transformed `SHINPO_ONBOARDING_STEPS` in `tutorialSteps.ts` into a punchy game-style discovery experience (short headings 2-3 words, crisp plain-language dialogue 11-14 words, actionable instructions 10-13 words, concise 8-12 word rationale, zero README essays).
    - Clarified primary navigation labels and headers in `frontend/src/types/navigation.ts` to permanently eliminate mental model confusion (`Task Manager` -> `Focus Protection`, `Goals & Missions` -> `Goals & Tasks`, `Focus Engine` -> `Focus Sprints`, `Schedule` -> `Calendar Schedule`, `AI Assistant` -> `EONPAI Cognitive Guide`).
    - Overhauled `TutorialOverlay.tsx`: backdrop clicks do NOT dismiss the tour (trigger subtle guidance pulse); added deliberate Pause/Exit confirmation dialog with Resume option; added sleek one-line rationale callouts and smooth auto-scrolling; mapped step target tab counter directly to human-readable navigation labels (`Step N of 12 • Focus Protection`).
 
-4. **[PRIORITY 4: COMPREHENSIVE AUTOMATED VERIFICATION GATES] — `COMPLETED & VERIFIED`**
+4. **[PRIORITY 4: COMPREHENSIVE AUTOMATED VERIFICATION GATES] — `HISTORICAL; NOT ACCEPTANCE EVIDENCE FOR CURRENT ONBOARDING`**
    - Verified 12-step onboarding traversal, non-dismissing backdrop, pause confirmation, and storage persistence via `scripts/verify_onboarding_and_rewards.mjs`.
    - Verified multi-account isolation, interruption recovery, and EONPAI replay via `scripts/verify_onboarding_and_rewards_e2e.mjs`:
      - Alice registered fresh -> auto-triggers Step 1 (`Cockpit Overview`).
@@ -139,7 +194,7 @@ All 5 priority phases have completed execution and empirical verification:
    - Automated CDP verification via `scripts/verify_dashboard_and_readability.mjs`: verified 0px height delta across cards, 0px delta in action row, zero text elements < 12px in Study Resources, and captured 6 real screenshots across 4 viewports in Light & Dark modes.
 
 
-6. **[PRIORITY 6: DESKTOP INTEGRATION, LINUX PACKAGING & INDEPENDENT RUNTIME] — `COMPLETED & VERIFIED`**
+6. **[PRIORITY 6: DESKTOP INTEGRATION, LINUX PACKAGING & INDEPENDENT RUNTIME] — `HISTORICAL PASS; CURRENT ACCEPTANCE INCOMPLETE`**
    - Built and staged complete Linux distribution in `release/linux/`:
      - `SHINPO_1.0.0_amd64.AppImage` (112 MiB, SHA-256: `f256939d0a4b6a6ba2d0e429d8dd5dcd32a03344e4f36cc370ff429243bf3826`)
      - `SHINPO_1.0.0_amd64.deb` (4.9 MiB, SHA-256: `bcf62157971fa8f77cafd34429ef6219bdd24d6fde6e6ba449e125229cebf8b5`)
@@ -180,7 +235,7 @@ All 5 priority phases have completed execution and empirical verification:
      - Audit report saved: `docs/qa/DESIGN_SYSTEM_COMPLETION_REPORT.json` (`overallStatus: "PASSED"`).
    - Test suites: 76/76 frontend tests and 387/387 backend tests passing cleanly.
 
-8. **[PRIORITY 8: RELEASE CANDIDATE QUALIFICATION & INSTALLED RUNTIME VERIFICATION] — `COMPLETED & VERIFIED`**
+8. **[PRIORITY 8: RELEASE CANDIDATE QUALIFICATION & INSTALLED RUNTIME VERIFICATION] — `REOPENED — INCOMPLETE`**
    - Rebuilt production packages from latest working tree containing all typography and design system fixes:
      - `SHINPO-1.0.0-1.x86_64.rpm` (4.85 MB, SHA-256: `39def88c89eff201eff9f9e8d667602163ccbb6e36c0e80473f785bbef77ad49`)
      - `SHINPO_1.0.0_amd64.AppImage` (111.53 MB, SHA-256: `d1ac4eaba11eb4f3b52ad4d6b4b5792e0a6aa45db1365836aa5deb276c33eca4`)
@@ -220,13 +275,27 @@ All 5 priority phases have completed execution and empirical verification:
 
 ---
 
-## 3. Independent Quality Gate Summary
+## 3. Independent Quality Gate Summary (RC-3 Qualified Status)
 
-- **Gate A — Foundation:** `PASSED` (Auth, migrations, token versioning, rate limiting).
-- **Gate B — Feature Completion:** `PASSED` (Goal/task/schedule/focus engine core lifecycle verified; 387 backend tests, 76 frontend tests pass).
-- **Gate C — Onboarding:** `PASSED` (Complete tutorial engine & application-state coordination verified. Modal conflict prevention suspends overlay over open dialogs with zero giant green frames; bounded spotlight geometry across all 12 curriculum steps; clearance-aware collision detection with automatic top/bottom/left/right flipping and strict `[16, innerHeight - 16]` viewport clamping on 1024x768; genuine guided interaction unlocking Next Step; interruption recovery, pause/resume, replay, and +50 XP reward verified via `scripts/verify_interactive_tutorial_engine.mjs` and `scripts/verify_onboarding_and_rewards_e2e.mjs`).
-- **Gate D — Rewards:** `PASSED` (Truthful eligibility enforced: skipping awards 0 XP; direct API & client storage tampering rejected with HTTP 400 Bad Request; legitimate 12-step completion awards +50 XP idempotently; complete reward lifecycle verified for tasks +10 XP, repeated tasks 0 XP, focus sprints +15 XP, cancelled sprints 0 XP, goals +50 XP; tenant isolation verified).
-- **Gate E — UI/UX:** `PASSED` (Goals List/Board mode isolation, redundant status tabs hidden in Board mode, single-capsule controls verified).
-- **Gate F — Security & Reliability:** `PASSED` (Sentinel boundaries, local Shield containment, process quarantine safety, and 31 protected core system exemptions verified).
-- **Gate G — Standalone Distribution & Desktop Runtime:** `PASSED` (Linux) / `NOT TESTED` (Windows) — Rebuilt release packages (`.rpm`, `.AppImage`, `.deb`, `.tar.gz`, native binaries) verified with validated `SHA256SUMS`; installed desktop package (`/tmp/shinpo-test-install/usr/bin/shinpo-desktop` unpacked from RPM) verified running natively on Linux desktop with WebKitGTK and live PostgreSQL; end-to-end user journey verified; zero-data-loss application restart persistence confirmed; unreachable backend startup tested and verified without fake success; native Focus Shield, Sentinel emergency override, and Browser Companion verified; 6-configuration visual regression matrix (Aurora/Classic, Light/Dark, 100%/125%/150% scaling) verified; Windows installer prepared via `package-windows.ps1` with `-SkipSigning` flag; honest cloud infrastructure disclosure recorded (`RELEASE_CANDIDATE_QUALIFICATION_REPORT.json`).
-- **Gate H — Global Readability & Design System Consistency:** `PASSED` (Strict $\ge 12$px typography scale across all 7 views, dialog form label/input geometry harmonization, 0.0px metric card height delta, 0.0px action row height delta, and responsive multi-theme viewport validation verified in `DESIGN_SYSTEM_COMPLETION_REPORT.json`).
+- **Gate A — Foundation:** `VERIFIED` (Backend 396/396 tests passed; frontend 92/92 tests passed; frontend lint 0 errors / 0 warnings; Rust Shield 77/77 passed; Rust Browser Host 6/6 passed; Browser Companion 15/15 passed).
+- **Gate B — Feature Completion:** `VERIFIED (Linux Desktop / Web)` (Full 13-flow interactive user journey verified on installed desktop runtime across PostgreSQL transactions, live focus session, pause/resume, study resources, EONPAI guidance, and analytics).
+- **Gate C — Onboarding:** `VERIFIED` (6-step walkthrough, auto-trigger, pause/resume at step $N$, interactive app while paused, idempotent replay, skip awards 0 XP, genuine workflow certification awards +50 XP, tamper attempts rejected with 400 Bad Request; multi-tenant isolation verified across all 12 stages).
+- **Gate D — Rewards:** `VERIFIED` (Server-authoritative PostgreSQL accounting verified: <15m active = 0 XP, 15–44m = +15 XP, >=45m = +25 XP; pause/resume duration tracking; cancelled/interrupted session = 0 XP; duplicate completion requests idempotent; task completion +10 XP, goal completion +50 XP; tenant cross-claim rejected).
+- **Gate E — UI/UX:** `VERIFIED` (56/56 route × viewport × theme combinations clear with 0 text overlaps, 0 card overlaps, 0 clipped controls, 0 horizontal overflow; calendar scroll verified across viewports; headless visual regression matrix verified across 7 theme/scaling configurations).
+- **Gate F — Security & Reliability:** `VERIFIED (Linux Desktop)` / `PARTIAL (Remote Cloud)` (Backup fail-closed without recipient verified with actual encrypted backup/restore in isolated PostgreSQL; Docker backup stdin password verified; rate-limiting proxy CIDRs restricted; packaged CSP active in WebKitGTK runtime; script-readable localStorage tokens documented as residual risk).
+- **Gate G — Standalone Distribution & Desktop Runtime:** `VERIFIED (Linux RC-3)` / `NOT TESTED (Windows)` / `UNVERIFIED / UNPROVISIONED (Remote Cloud)`
+  - **Linux Standalone (RC-3):** VERIFIED — Full package suite built and staged in `release/rc/` (`buildId: shinpo-v1.0.0-rc3-0145fb3`, RPM 4.86 MB, DEB 4.86 MB, AppImage 111.55 MB, tarball 7.65 MB, desktop binary 14.44 MB, shield binary 3.71 MB, browser host binary 3.41 MB). Extracted RPM installed runtime verified on WebKitGTK natively with live PostgreSQL and persistence across process restart (`scripts/verify_release_candidate_qualification.mjs` and `scripts/test_installed_linux_runtime.mjs`).
+  - **Windows Distribution:** `NOT TESTED` — `package-windows.ps1` prepared with `-SkipSigning` flag; requires physical or virtual Windows environment for Authenticode signing and runtime verification.
+  - **Remote Cloud Infrastructure:** `UNVERIFIED / UNPROVISIONED` — Zero-mandatory-cost deployment architecture (OCI Always Free / GCP e2-micro with Caddy + Spring Boot + PostgreSQL) documented in `DEPLOYMENT.md`; unprovisioned to respect ₹0 budget constraint.
+- **Gate H — Global Readability & Design System Consistency:** `VERIFIED` (Semantic typography floor >=12px, standardized 40px/14px inputs, 0px card height delta across performance cards, unified action row height 38px, WCAG AA contrast verified).
+
+### Calendar & Analytics Visual Follow-up Status:
+- Calendar layout stylesheet verified: `.schedule-calendar-layout`, `.schedule-mini-calendar`, and `.schedule-week-grid` classes aligned with DOM elements; responsive sidebar stacking and week grid scrolling verified.
+- Analytics zero-minute bars rendered cleanly without phantom 2px blocks; `sessionsStarted` counts sessions with `startedAt` timestamp; helper text wrapping verified.
+- Live WebKitGTK snapshot captures recorded in `docs/qa/screenshots/rc_qualification/` across all 6 matrix configurations.
+
+### Rendered-layout regression sweep — 2026-10-21
+- Hardened `scripts/audit_rendered_ui.mjs` to require explicit `SHINPO_URL` and `SHINPO_API_URL` loopback endpoints and reject the default backend port 8080 before creating an account. It registers a fresh disposable account by API, injects only that account's test session into a temporary browser profile, captures the first-login tutorial, and clicks the real skip-confirmation controls before route checks. Routes are activated through DOM clicks and themes are applied by class toggle; this does not test the login/register form or actual theme switch behavior.
+- Headless Chromium then traverses seven routes at 1920×1080, 1280×800, 1000×768, and 390×844 in class-switched dark/light appearances. It checks text-range intersections, sibling card intersections, clipped controls, horizontal overflow, and Calendar scroll behavior. Isolated PostgreSQL confirms the skipped account remained at 0 XP.
+- The scan exposed and prompted fixes for mismatched EONPAI responsive selectors, missing session-debrief styles, late-night Calendar events clipped at midnight, mobile topbar controls/search clipped by a fixed-height header, and the Focus Protection metric/status badge compressed at laptop/phone widths.
+- Latest run result: 56/56 route × viewport × theme combinations clear. Calendar `scrollTop` changed in dark/light at 1280×800, 1000×768, and 390×844. Selected empty-state screenshots (Analytics dark/light, Calendar mobile, Focus Protection, first-login walkthrough) were visually inspected. The walkthrough backdrop's dim/blur was reduced without changing SHINPO's palette and recaptured, but its target visibility and teaching quality are not accepted. Geometry checks and empty-state images do not cover every modal/data permutation or the installed Tauri renderer. Gates E and H remain open.

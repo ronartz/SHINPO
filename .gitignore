@@ -58,3 +58,12 @@ release/*
 !release/linux/
 release/linux/*
 !release/linux/SHA256SUMS
+!release/rc/
+release/rc/*
+!release/rc/SHA256SUMS
+!release/rc/BUILD_INFO.json
+
+# Local agent and workspace metadata
+.agent/
+.gemini/
+.gsd/

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import type { TutorialStepDef } from '../tutorial/tutorialSteps'
 import { Icon } from './common/Icon'
-import { recordOnboardingStep, getOnboardingState } from '../api/onboarding'
+import { recordOnboardingStep } from '../api/onboarding'
 import { NAVIGATION_ITEMS } from '../types/navigation'
 
 export type TutorialOverlayProps = {
@@ -15,7 +15,6 @@ export type TutorialOverlayProps = {
   onExit: () => void
   onSkipTour?: () => void
   onNavigateTab?: (tab: string) => void
-  onTargetInteract?: () => void
 }
 
 type TargetRect = {
@@ -38,92 +37,18 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   onExit,
   onSkipTour,
   onNavigateTab,
-  onTargetInteract,
 }) => {
   const [rect, setRect] = useState<TargetRect | null>(null)
   const [coachmarkPos, setCoachmarkPos] = useState<{ top: number; left: number }>({ top: 120, left: 100 })
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false)
   const [hintPulse, setHintPulse] = useState(false)
-  const [verifiedSteps, setVerifiedSteps] = useState<Set<number>>(() => {
-    try {
-      const key = userId ? `shinpo_onboarding_verified_${userId}` : 'shinpo_onboarding_verified'
-      const cached = localStorage.getItem(key)
-      if (cached) {
-        return new Set(
-          cached
-            .split(',')
-            .map((s) => parseInt(s.trim(), 10))
-            .filter((n) => !isNaN(n))
-        )
-      }
-    } catch {
-      // localStorage may be unavailable in restricted browser contexts.
-    }
-    return new Set<number>()
-  })
-  const [stepNotice, setStepNotice] = useState<{ stepIndex: number; text: string } | null>(null)
-  const sandboxNotice = stepNotice?.stepIndex === stepIndex
-    ? stepNotice.text
-    : verifiedSteps.has(stepIndex)
-      ? '✓ Interactive requirement verified'
-      : null
   const coachmarkRef = useRef<HTMLDivElement>(null)
   const pad = 8 // padding around target element in px
 
-  // Load verified steps from backend PostgreSQL ledger and merge
+  // Persist only which informational step is being viewed; this is never reward evidence.
   useEffect(() => {
-    if (!userId) return
-    getOnboardingState()
-      .then((res) => {
-        if (res && res.verifiedSteps) {
-          const backendSet = new Set<number>()
-          res.verifiedSteps.split(',').forEach((s) => {
-            const idx = parseInt(s.trim(), 10)
-            if (!isNaN(idx)) backendSet.add(idx)
-          })
-          setVerifiedSteps((prev) => {
-            const merged = new Set([...prev, ...backendSet])
-            try {
-              localStorage.setItem(`shinpo_onboarding_verified_${userId}`, Array.from(merged).join(','))
-            } catch {
-              // Keep the in-memory verification state when storage is unavailable.
-            }
-            return merged
-          })
-        }
-      })
-      .catch(() => {
-        // Backend verification is best-effort; local state remains usable.
-      })
-  }, [userId])
-
-  const markCurrentStepVerified = useCallback(
-    async (noticeText: string) => {
-      if (hasActiveModal) {
-        return // Reject verification while a conflicting modal covers the screen
-      }
-      setVerifiedSteps((prev) => {
-        const next = new Set(prev)
-        next.add(stepIndex)
-        try {
-          const key = userId ? `shinpo_onboarding_verified_${userId}` : 'shinpo_onboarding_verified'
-          localStorage.setItem(key, Array.from(next).join(','))
-        } catch {
-          // Keep the in-memory verification state when storage is unavailable.
-        }
-        return next
-      })
-      setStepNotice({ stepIndex, text: noticeText })
-      try {
-        await recordOnboardingStep(stepIndex, true)
-      } catch (err) {
-        console.warn('Failed to record verified onboarding step', err)
-      }
-    },
-    [stepIndex, userId, hasActiveModal]
-  )
-
-  const isStepVerified = verifiedSteps.has(stepIndex)
+    recordOnboardingStep(stepIndex).catch(() => {})
+  }, [stepIndex])
 
   const updatePosition = useCallback(() => {
     let el = document.querySelector(step.targetSelector)
@@ -291,13 +216,8 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         setIsExitConfirmOpen((prev) => !prev)
       } else if (!isExitConfirmOpen) {
         if (e.key === 'ArrowRight') {
-          if (isStepVerified) {
-            e.preventDefault()
-            onNext()
-          } else {
-            setHintPulse(true)
-            setTimeout(() => setHintPulse(false), 500)
-          }
+          e.preventDefault()
+          onNext()
         } else if (e.key === 'ArrowLeft' && stepIndex > 0) {
           e.preventDefault()
           onPrev()
@@ -307,26 +227,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onNext, onPrev, stepIndex, isExitConfirmOpen, isStepVerified])
-
-  // Attach click listener directly to target element to trigger interaction
-  useEffect(() => {
-    let el = document.querySelector(step.targetSelector)
-    if (!el && step.fallbackSelector) {
-      el = document.querySelector(step.fallbackSelector)
-    }
-    if (!el) return
-
-    const handleClick = () => {
-      markCurrentStepVerified('✓ Action confirmed via interface interaction')
-      if (onTargetInteract) onTargetInteract()
-    }
-
-    el.addEventListener('click', handleClick)
-    return () => {
-      el?.removeEventListener('click', handleClick)
-    }
-  }, [step, onTargetInteract, markCurrentStepVerified])
+  }, [onNext, onPrev, stepIndex, isExitConfirmOpen])
 
   // Persistent progress saving
   useEffect(() => {
@@ -474,343 +375,6 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             <span className="instruction-arrow">→</span> {step.instruction}
           </p>
 
-          {/* Interactive Guided Sandbox Component for Each Specific Step */}
-          {stepIndex === 0 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Inspect Priorities</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-priority"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Priority focus inspected')}
-                >
-                  🎯 Deep Work Priority
-                </button>
-                <button
-                  id="sandbox-action-sprint"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Sprint queue inspected')}
-                >
-                  ⚡ Quick Sprint Queue
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 1 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Define Strategic Goal</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-goal-option-1"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Objective "Master Async Concurrency" defined')}
-                >
-                  🚀 Master Async Concurrency
-                </button>
-                <button
-                  id="sandbox-goal-option-2"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Objective "Ship V1 Private Beta" defined')}
-                >
-                  📦 Ship V1 Private Beta
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 2 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Deconstruct Objectives</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-deconstruct"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Goal decomposed into 3 atomic 25m sprints')}
-                >
-                  ✨ AI Deconstruct Sample Goal
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 3 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Timebox Focus Slot</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-schedule-slot-1"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Time block 09:00 - 09:45 locked')}
-                >
-                  📅 09:00 - 09:45 Focus
-                </button>
-                <button
-                  id="sandbox-schedule-slot-2"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Time block 14:00 - 14:45 locked')}
-                >
-                  📅 14:00 - 14:45 Sprint
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 4 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Arm Execution Queue</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-arm-sprint"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Sprint armed in execution queue')}
-                >
-                  ▶ Arm First Sprint (Ready 🟢)
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 5 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Select Sprint Budget</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-budget-15"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ 15m Sprint budget selected')}
-                >
-                  15m
-                </button>
-                <button
-                  id="sandbox-budget-25"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ 25m Sprint budget selected')}
-                >
-                  25m
-                </button>
-                <button
-                  id="sandbox-budget-45"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ 45m Deep Work selected')}
-                >
-                  45m
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 6 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Test Sentinel Guardrails</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-mode-monitoring"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Sentinel Monitoring mode active')}
-                >
-                  🛡️ Monitoring
-                </button>
-                <button
-                  id="sandbox-mode-balanced"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Sentinel Balanced mode active')}
-                >
-                  ⚖️ Balanced
-                </button>
-                <button
-                  id="sandbox-mode-strict"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Sentinel Strict containment active')}
-                >
-                  🔒 Strict
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 7 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Whitelist Documentation</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-resource-docs"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Whitelisted https://docs.rs')}
-                >
-                  + docs.rs
-                </button>
-                <button
-                  id="sandbox-resource-mdn"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Whitelisted developer.mozilla.org')}
-                >
-                  + MDN Web Docs
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 8 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Calibrate Session Rating</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-star-5"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ 5-Star Flow State Logged')}
-                >
-                  ⭐⭐⭐⭐⭐ Flow State
-                </button>
-                <button
-                  id="sandbox-star-4"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ 4-Star Solid Sprint Logged')}
-                >
-                  ⭐⭐⭐⭐ Solid Focus
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 9 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Inspect XP Progression</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-rewards"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ XP ledger reviewed: Tasks (+10), Focus (+15/25), Goals (+50)')}
-                >
-                  📊 View Progression Ledger
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 10 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Ask EONPAI Guidance</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-eonpai"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ EONPAI: "Break next barrier into 15m spike."')}
-                >
-                  💬 "How do I eliminate procrastination?"
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
-          {stepIndex === 11 && (
-            <div className="coachmark-sandbox-container">
-              <div className="coachmark-sandbox-label">
-                <span>Interactive Action • Workstation Ready</span>
-                <span className={`coachmark-sandbox-status ${isStepVerified ? 'verified' : 'pending'}`}>
-                  {isStepVerified ? '✓ Verified' : 'Action Required'}
-                </span>
-              </div>
-              <div className="coachmark-sandbox-actions">
-                <button
-                  id="sandbox-action-settings"
-                  type="button"
-                  className="sandbox-chip-btn"
-                  onClick={() => markCurrentStepVerified('✓ Workstation calibrated & ready for execution')}
-                >
-                  ⚙️ Confirm Workstation Readiness
-                </button>
-              </div>
-              {sandboxNotice && <div className="coachmark-sandbox-feedback">{sandboxNotice}</div>}
-            </div>
-          )}
-
           {/* Why It Matters Callout */}
           {step.whyItMatters && (
             <div className="coachmark-why-box">
@@ -837,7 +401,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             {Array.from({ length: totalSteps }).map((_, idx) => (
               <span
                 key={idx}
-                className={`coachmark-dot ${idx === stepIndex ? 'active' : verifiedSteps.has(idx) ? 'completed' : ''}`}
+                className={`coachmark-dot ${idx === stepIndex ? 'active' : ''}`}
                 title={`Step ${idx + 1}`}
               />
             ))}
@@ -851,10 +415,8 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             )}
             <button
               id="tutorial-btn-next"
-              className={`btn-coachmark ${isStepVerified ? 'primary' : 'disabled'}`}
+              className="btn-coachmark primary"
               onClick={onNext}
-              disabled={!isStepVerified}
-              title={isStepVerified ? 'Continue to next step' : 'Perform guided action above to unlock next step'}
             >
               {stepIndex === totalSteps - 1 ? 'Finish Tour' : 'Next Step →'}
             </button>

@@ -3,6 +3,8 @@ package com.shinpo.security;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -11,12 +13,12 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
+import java.util.List;
 
 /**
  * Thread-safe sliding-window rate limiting service for authentication endpoints.
  * Protects against brute-force attacks, credential stuffing, and DoS.
- * Fully supports reverse-proxy IP resolution (X-Forwarded-For, X-Real-IP).
+ * Forwarded client addresses are trusted only from configured proxy CIDRs.
  */
 @Service
 public class RateLimitingService {
@@ -40,15 +42,25 @@ public class RateLimitingService {
     public static final Duration PASSWORD_CHANGE_WINDOW = Duration.ofMinutes(1);
 
     private static final int MAX_ENTRIES_PER_MAP = 5000;
-    private static final Pattern IPV4_PATTERN = Pattern.compile("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$");
+    private final List<IpAddressMatcher> trustedProxyMatchers;
 
     private final Map<String, Deque<Long>> buckets = new ConcurrentHashMap<>();
     private final Map<String, Deque<Long>> failedLoginBuckets = new ConcurrentHashMap<>();
     private final Map<String, Deque<Long>> failedAccountBuckets = new ConcurrentHashMap<>();
 
+    public RateLimitingService(@Value("${shinpo.security.rate-limit.trusted-proxies:}") String trustedProxies) {
+        trustedProxyMatchers = trustedProxies == null || trustedProxies.isBlank()
+                ? List.of()
+                : java.util.Arrays.stream(trustedProxies.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .map(IpAddressMatcher::new)
+                    .toList();
+    }
+
     /**
      * Resolves the real client IP address. Forwarded headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP)
-     * are ONLY trusted if the direct connection originates from an explicitly trusted proxy (loopback or private container network).
+     * are trusted only if the direct connection originates from a configured proxy CIDR.
      * If an external client connects directly, forwarded headers are rejected to prevent rate-limit evasion.
      */
     public String resolveClientIp(HttpServletRequest request) {
@@ -58,76 +70,39 @@ public class RateLimitingService {
 
         String remoteAddr = request.getRemoteAddr();
         String directIp = (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr.trim() : "127.0.0.1";
+        String fallbackIp = directIp;
 
         // Security Hardening: Only trust headers if the direct socket is a trusted proxy
         if (!isTrustedProxy(directIp)) {
             return directIp;
         }
 
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor.trim())) {
-            String[] parts = xForwardedFor.split(",");
-            for (String part : parts) {
-                String candidate = part.trim();
-                if (isValidIp(candidate)) {
-                    return candidate;
-                }
-            }
-        }
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded == null || forwarded.isBlank()) return directIp;
 
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank() && !"unknown".equalsIgnoreCase(xRealIp.trim())) {
-            String candidate = xRealIp.trim();
-            if (isValidIp(candidate)) {
-                return candidate;
-            }
+        String[] chain = forwarded.split(",");
+        for (int i = chain.length - 1; i >= 0; i--) {
+            String candidate = chain[i].trim();
+            if (!isValidIp(candidate)) return fallbackIp;
+            directIp = candidate;
+            if (!isTrustedProxy(candidate)) return candidate;
         }
-
-        String cfConnectingIp = request.getHeader("CF-Connecting-IP");
-        if (cfConnectingIp != null && !cfConnectingIp.isBlank() && !"unknown".equalsIgnoreCase(cfConnectingIp.trim())) {
-            String candidate = cfConnectingIp.trim();
-            if (isValidIp(candidate)) {
-                return candidate;
-            }
-        }
-
         return directIp;
     }
 
     public boolean isTrustedProxy(String ip) {
-        if (ip == null || ip.isBlank()) {
-            return false;
-        }
-        String trimmed = ip.trim();
-        // Local loopback
-        if ("127.0.0.1".equals(trimmed) || "::1".equals(trimmed) || "0:0:0:0:0:0:0:1".equals(trimmed) || "localhost".equalsIgnoreCase(trimmed)) {
-            return true;
-        }
-        // Private networks (RFC 1918 / Docker networks): 10.x.x.x, 192.168.x.x
-        if (trimmed.startsWith("10.") || trimmed.startsWith("192.168.")) {
-            return true;
-        }
-        // Docker default bridge & custom subnets: 172.16.0.0 - 172.31.255.255
-        if (trimmed.startsWith("172.")) {
-            String[] parts = trimmed.split("\\.");
-            if (parts.length >= 2) {
-                try {
-                    int secondOctet = Integer.parseInt(parts[1]);
-                    if (secondOctet >= 16 && secondOctet <= 31) {
-                        return true;
-                    }
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-        return false;
+        if (!isValidIp(ip)) return false;
+        String address = ip.trim();
+        return trustedProxyMatchers.stream().anyMatch(matcher -> matcher.matches(address));
     }
 
     private boolean isValidIp(String ip) {
-        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) return false;
+        try {
+            return new IpAddressMatcher(ip.trim()).matches(ip.trim());
+        } catch (IllegalArgumentException invalidAddress) {
             return false;
         }
-        return IPV4_PATTERN.matcher(ip).matches() || ip.contains(":") || "localhost".equalsIgnoreCase(ip);
     }
 
     /**

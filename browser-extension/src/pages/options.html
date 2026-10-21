@@ -28,11 +28,12 @@
       <h2>Why these permissions are requested</h2>
       <ul class="permissions">
         <li><strong>Native messaging:</strong> communicates only with the per-user SHINPO host.</li>
-        <li><strong>Tabs and web navigation:</strong> evaluates top-level destinations and redirects an explicitly restricted route without closing the browser.</li>
-        <li><strong>Storage:</strong> retains the pairing proof and only an unexpired policy snapshot.</li>
+        <li><strong>Tabs and web navigation:</strong> checks top-level page addresses locally against your active focus rules; access is broad because a rule may target any website.</li>
+        <li><strong>Page scripting:</strong> injects SHINPO's intervention only into a tab matched by an active rule; it does not read page text.</li>
+        <li><strong>Storage:</strong> retains the pairing proof, policy snapshot, and short-lived session intervention/return addresses.</li>
         <li><strong>Alarms:</strong> refreshes policy and removes restrictions at lease expiry.</li>
       </ul>
-      <p class="muted">There is no browsing-history, cookies, downloads, webRequest, clipboard, camera, microphone, or notification permission. The only content script runs on YouTube and reads the route, not page content.</p>
+      <p class="muted">Top-level URLs are evaluated on this device; SHINPO does not upload a continuous browsing history. A restricted destination is sent to your configured SHINPO server only if you request a temporary exception. There is no cookies, downloads, webRequest, clipboard, camera, microphone, or notification permission. The YouTube content script reads route information, not page content.</p>
     </section>
     <p id="message" class="message" role="status"></p>
   </main>

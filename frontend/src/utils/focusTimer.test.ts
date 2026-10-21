@@ -69,41 +69,6 @@ test('calculateRemainingSeconds freezes countdown in PAUSED state', () => {
     serverTime: '2026-10-10T12:02:30.000Z',
   })
 
-  test('calculateRemainingSeconds uses the full budget for PAUSED sessions without remainingSeconds', () => {
-    const session = createMockSession({
-      status: 'PAUSED',
-      remainingSeconds: undefined,
-      activeSeconds: 300,
-    })
-
-    assert.equal(calculateRemainingSeconds(session, Date.now()), 1200)
-  })
-
-  test('calculateRemainingSeconds falls back to startedAt when serverTime is invalid', () => {
-    const startedAt = '2026-10-10T12:00:00.000Z'
-    const session = createMockSession({
-      status: 'ACTIVE',
-      startedAt,
-      serverTime: 'not-a-time',
-      remainingSeconds: 1500,
-    })
-
-    assert.equal(
-      calculateRemainingSeconds(session, new Date('2026-10-10T12:10:00.000Z').getTime()),
-      900,
-    )
-  })
-
-  test('calculateRemainingSeconds freezes when client time precedes serverTime', () => {
-    const serverTime = '2026-10-10T12:00:00.000Z'
-    const session = createMockSession({ serverTime, remainingSeconds: 1500 })
-
-    assert.equal(
-      calculateRemainingSeconds(session, new Date('2026-10-10T11:59:00.000Z').getTime()),
-      1500,
-    )
-  })
-
   const pauseMs = new Date('2026-10-10T12:02:30.000Z').getTime()
 
   // Immediately at pause: 1350s
@@ -114,6 +79,41 @@ test('calculateRemainingSeconds freezes countdown in PAUSED state', () => {
 
   // 10 minutes after pause: still frozen at 1350s
   assert.equal(calculateRemainingSeconds(session, pauseMs + 600_000), 1350)
+})
+
+test('calculateRemainingSeconds uses the full budget for PAUSED sessions without remainingSeconds', () => {
+  const session = createMockSession({
+    status: 'PAUSED',
+    remainingSeconds: undefined,
+    activeSeconds: 300,
+  })
+
+  assert.equal(calculateRemainingSeconds(session, Date.now()), 1200)
+})
+
+test('calculateRemainingSeconds falls back to startedAt when serverTime is invalid', () => {
+  const startedAt = '2026-10-10T12:00:00.000Z'
+  const session = createMockSession({
+    status: 'ACTIVE',
+    startedAt,
+    serverTime: 'not-a-time',
+    remainingSeconds: 1500,
+  })
+
+  assert.equal(
+    calculateRemainingSeconds(session, new Date('2026-10-10T12:10:00.000Z').getTime()),
+    900,
+  )
+})
+
+test('calculateRemainingSeconds freezes when client time precedes serverTime', () => {
+  const serverTime = '2026-10-10T12:00:00.000Z'
+  const session = createMockSession({ serverTime, remainingSeconds: 1500 })
+
+  assert.equal(
+    calculateRemainingSeconds(session, new Date('2026-10-10T11:59:00.000Z').getTime()),
+    1500,
+  )
 })
 
 test('calculateRemainingSeconds resumes seamlessly from frozen value', () => {

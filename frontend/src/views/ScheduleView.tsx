@@ -76,11 +76,13 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const weekSessions = filteredSessions.filter(session => weekDays.some(day => sessionDate(session) === day.dateStr))
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
-  const startHour = Math.max(0, Math.min(6, ...timedSessions.map(session => new Date(session.scheduledAt || session.startedAt!).getHours())))
-  const endHour = Math.min(24, Math.max(22, ...timedSessions.map(session => {
+  const eventStarts = timedSessions.map(session => {
     const date = new Date(session.scheduledAt || session.startedAt!)
-    return Math.ceil(date.getHours() + date.getMinutes() / 60 + session.durationMinutes / 60)
-  })))
+    return date.getHours() + date.getMinutes() / 60
+  })
+  const startHour = timedSessions.length ? Math.max(0, Math.floor(Math.min(8, ...eventStarts))) : 8
+  const latestEventEnd = timedSessions.length ? Math.max(...timedSessions.map((session, index) => eventStarts[index] + session.durationMinutes / 60)) : 18
+  const endHour = Math.min(28, Math.max(startHour + 1, Math.ceil(Math.max(18, latestEventEnd))))
   const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -171,10 +173,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
               {daySessions.map(session => {
                 const instant = session.scheduledAt || session.startedAt
                 const date = new Date(instant!)
+                const eventTime = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
                 const startMinutes = (date.getHours() - startHour) * 60 + date.getMinutes()
                 const top = Math.max(0, startMinutes / 60 * 62)
                 const height = Math.max(50, session.durationMinutes / 60 * 62)
-                return <div key={session.id} className={`schedule-grid-event status-${session.status}`} style={{ top, height: Math.min(height, hours.length * 62 - top) }}>
+                return <div key={session.id} className={`schedule-grid-event status-${session.status}`} aria-label={`${session.name}, ${session.status.toLowerCase()}, ${eventTime}, ${session.durationMinutes} minutes`} style={{ top, height: Math.min(height, hours.length * 62 - top) }}>
                   <div className="schedule-grid-event-accent" />{renderSession(session, true)}
                 </div>
               })}

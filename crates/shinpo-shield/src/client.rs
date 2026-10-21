@@ -133,6 +133,7 @@ struct LegacyFocusSession {
 pub struct SentinelClient {
     base_url: String,
     auth_token: Option<String>,
+    agent: ureq::Agent,
 }
 
 impl SentinelClient {
@@ -140,6 +141,7 @@ impl SentinelClient {
         Self {
             base_url,
             auth_token,
+            agent: ureq::AgentBuilder::new().redirects(0).build(),
         }
     }
 
@@ -147,7 +149,7 @@ impl SentinelClient {
     /// If unauthenticated or falling back, gracefully probes legacy /api/focus-sessions.
     pub fn sync(&self) -> Result<SentinelDaemonSyncResponse, String> {
         let sync_url = format!("{}/api/device/sentinel/sync", self.base_url);
-        let mut req = ureq::get(&sync_url).timeout(Duration::from_secs(3));
+        let mut req = self.agent.get(&sync_url).timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
@@ -173,7 +175,7 @@ impl SentinelClient {
 
     fn fallback_sync(&self) -> Result<SentinelDaemonSyncResponse, String> {
         let legacy_url = format!("{}/api/focus-sessions", self.base_url);
-        let mut req = ureq::get(&legacy_url).timeout(Duration::from_secs(3));
+        let mut req = self.agent.get(&legacy_url).timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
@@ -226,7 +228,7 @@ impl SentinelClient {
     /// Records an intercepted quarantine event to the backend for audit & telemetry.
     pub fn report_quarantine(&self, record: &RecordQuarantineRequest) -> Result<(), String> {
         let quarantine_url = format!("{}/api/device/sentinel/quarantines", self.base_url);
-        let mut req = ureq::post(&quarantine_url).timeout(Duration::from_secs(3));
+        let mut req = self.agent.post(&quarantine_url).timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
@@ -252,7 +254,7 @@ impl SentinelClient {
         }
 
         let batch_url = format!("{}/api/device/sentinel/quarantines/batch", self.base_url);
-        let mut req = ureq::post(&batch_url).timeout(Duration::from_secs(5));
+        let mut req = self.agent.post(&batch_url).timeout(Duration::from_secs(5));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
@@ -277,7 +279,7 @@ impl SentinelClient {
     /// Evaluates a candidate blocked process with the backend authority.
     pub fn evaluate_candidate(&self, request: &CandidateProcessRequest) -> Result<CandidateProcessResponse, String> {
         let candidate_url = format!("{}/api/device/sentinel/warnings/candidate", self.base_url);
-        let mut req = ureq::post(&candidate_url).timeout(Duration::from_secs(3));
+        let mut req = self.agent.post(&candidate_url).timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }

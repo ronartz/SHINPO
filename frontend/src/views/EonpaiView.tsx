@@ -27,7 +27,7 @@ export interface ChatMessage {
   tutorial?: TutorialStep | null
   bugReport?: BugReportInfo | null
   bugReportDraft?: BugReportDraft | null
-  structuredCard?: any
+  structuredCard?: Record<string, unknown> | null
   suggestionType?: string
   suggestionId?: number
   committed?: boolean

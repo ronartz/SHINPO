@@ -83,18 +83,28 @@ class OnboardingServiceTests {
     }
 
     @Test
-    @DisplayName("recordStepProgress records verified steps accurately")
+    @DisplayName("recordStepProgress stores display position but never client verification")
     void testRecordStepProgress() {
         UserOnboarding onboarding = new UserOnboarding(testUser);
         when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
         when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
 
-        OnboardingResponse res = onboardingService.recordStepProgress(1L, 1, true);
+        OnboardingResponse res = onboardingService.recordStepProgress(1L, 1);
 
         assertThat(res.status()).isEqualTo("IN_PROGRESS");
         assertThat(res.currentStep()).isEqualTo(1);
-        assertThat(res.completedStepsCount()).isEqualTo(1);
-        assertThat(res.verifiedSteps()).contains("1");
+        assertThat(res.completedStepsCount()).isZero();
+        assertThat(res.verifiedSteps()).isEmpty();
+        assertThat(onboarding.getVerifiedSteps()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("recordStepProgress rejects the out-of-range completion sentinel")
+    void testRecordStepProgressRejectsOutOfRangeIndex() {
+        assertThatThrownBy(() -> onboardingService.recordStepProgress(1L, 6))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Invalid onboarding step index");
+        verifyNoInteractions(onboardingRepository, userRepository);
     }
 
     @Test
@@ -130,32 +140,50 @@ class OnboardingServiceTests {
         UserOnboarding onboarding = new UserOnboarding(testUser);
         onboarding.setStatus(OnboardingStatus.SKIPPED);
         when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.findFirstByUserId(1L)).thenReturn(Optional.of(onboarding));
 
         assertThatThrownBy(() -> onboardingService.completeOnboarding(1L))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("Cannot claim onboarding reward: onboarding journey was skipped");
+                .hasMessageContaining("Cannot claim onboarding reward: the tutorial was skipped.");
     }
 
     @Test
-    @DisplayName("completeOnboarding rejects claim when verified steps count is less than 12")
+    @DisplayName("completeOnboarding rejects claim before tutorial completion")
     void testCompleteOnboardingRejectsIncomplete() {
         UserOnboarding onboarding = new UserOnboarding(testUser);
         onboarding.setStatus(OnboardingStatus.IN_PROGRESS);
-        onboarding.setCompletedStepsCount(4); // only 4 of 12
         when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.findFirstByUserId(1L)).thenReturn(Optional.of(onboarding));
 
         assertThatThrownBy(() -> onboardingService.completeOnboarding(1L))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("incomplete journey. Verified 4 of 12 steps");
+                .hasMessageContaining("Finish the onboarding tutorial");
     }
 
     @Test
-    @DisplayName("completeOnboarding awards +50 XP and marks COMPLETED when all 12 steps verified")
+    @DisplayName("finishing the tutorial without real workflow evidence does not award XP")
+    void finishDoesNotAwardWithoutWorkflow() {
+        UserOnboarding onboarding = new UserOnboarding(testUser);
+        when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
+        when(progressEventRepository.hasQualifyingOnboardingWorkflow(1L)).thenReturn(false);
+
+        OnboardingResponse response = onboardingService.finishOnboarding(1L);
+
+        assertThat(response.status()).isEqualTo("COMPLETED");
+        assertThat(response.canClaimReward()).isFalse();
+        verify(progressEventRepository, never()).save(any(ProgressEvent.class));
+    }
+
+    @Test
+    @DisplayName("completeOnboarding awards +50 XP after server-verified workflow evidence")
     void testCompleteOnboardingSuccess() {
         UserOnboarding onboarding = new UserOnboarding(testUser);
-        onboarding.setStatus(OnboardingStatus.IN_PROGRESS);
-        onboarding.setCompletedStepsCount(12);
+        onboarding.setStatus(OnboardingStatus.COMPLETED);
+        onboarding.setCompletedAt(Instant.now());
         when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.findFirstByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(progressEventRepository.hasQualifyingOnboardingWorkflow(1L)).thenReturn(true);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(progressEventRepository.existsByUser_IdAndEventType(1L, "ONBOARDING_COMPLETED")).thenReturn(false);
         when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
@@ -172,12 +200,30 @@ class OnboardingServiceTests {
     }
 
     @Test
+    @DisplayName("completeOnboarding rejects forged tutorial progress without workflow evidence")
+    void testCompleteOnboardingRejectsInflatedStepCount() {
+        UserOnboarding onboarding = new UserOnboarding(testUser);
+        onboarding.setStatus(OnboardingStatus.COMPLETED);
+        onboarding.setCompletedStepsCount(12);
+        onboarding.setVerifiedSteps("0,1,2,3,4,5,6,7,8,9,10,12,99");
+        when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.findFirstByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(progressEventRepository.hasQualifyingOnboardingWorkflow(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> onboardingService.completeOnboarding(1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Complete a goal, linked task");
+        verify(progressEventRepository, never()).save(any(ProgressEvent.class));
+    }
+
+    @Test
     @DisplayName("completeOnboarding is idempotent: does not duplicate points if called again")
     void testCompleteOnboardingIdempotency() {
         UserOnboarding onboarding = new UserOnboarding(testUser);
         onboarding.setStatus(OnboardingStatus.COMPLETED);
-        onboarding.setCompletedStepsCount(12);
         when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(onboardingRepository.findFirstByUserId(1L)).thenReturn(Optional.of(onboarding));
+        when(progressEventRepository.hasQualifyingOnboardingWorkflow(1L)).thenReturn(true);
         when(progressEventRepository.existsByUser_IdAndEventType(1L, "ONBOARDING_COMPLETED")).thenReturn(true);
         when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
 

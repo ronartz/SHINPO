@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "node --test 'src/**/*.test.ts'",
+    "audit:visual": "node ../scripts/audit_rendered_ui.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

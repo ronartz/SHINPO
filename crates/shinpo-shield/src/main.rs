@@ -15,7 +15,10 @@ use spooler::OfflineSpooler;
 
 fn main() {
     let opts = CliOptions::parse();
-    let config = load_config(&opts);
+    let config = load_config(&opts).unwrap_or_else(|error| {
+        eprintln!("Invalid backend configuration: {error}");
+        std::process::exit(2);
+    });
 
     let client = SentinelClient::new(config.api_url.clone(), config.auth_token.clone());
     let platform = create_platform_interceptor();

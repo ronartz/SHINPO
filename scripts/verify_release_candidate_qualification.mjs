@@ -87,8 +87,10 @@ async function runRcQualification() {
   // --------------------------------------------------------------------------
   // STEP 1: Verify Rebuilt Package Integrity and Checksums
   // --------------------------------------------------------------------------
-  console.log('[STEP 1] Validating Package Artifacts & Checksums in release/linux/...')
-  const releaseDir = path.resolve(PROJECT_ROOT, 'release/linux')
+  const releaseDir = fs.existsSync(path.resolve(PROJECT_ROOT, 'release/rc/SHA256SUMS'))
+    ? path.resolve(PROJECT_ROOT, 'release/rc')
+    : path.resolve(PROJECT_ROOT, 'release/linux')
+  console.log(`[STEP 1] Validating Package Artifacts & Checksums in ${path.relative(PROJECT_ROOT, releaseDir)}/...`)
   const shaFile = path.join(releaseDir, 'SHA256SUMS')
   if (!fs.existsSync(shaFile)) {
     throw new Error('release/linux/SHA256SUMS not found!')
@@ -260,8 +262,8 @@ async function runRcQualification() {
   const sessData = await sessRes.json()
   console.log(`  [OK] Focus Session booked: #${sessData.id} "${sessData.name}"`)
 
-  // 3.5: Focus Session Lifecycle: Start -> Complete (+15 XP)
-  console.log('  Testing Focus Session Lifecycle (Start -> Complete)...')
+  // 3.5: Early completion lifecycle must not claim focus XP before 15 active minutes.
+  console.log('  Testing Focus Session Lifecycle (early completion -> 0 focus XP)...')
   const startSess = await fetch(`http://localhost:8080/api/focus-sessions/${sessData.id}/start`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -281,7 +283,14 @@ async function runRcQualification() {
     }),
   })
   if (!completeSess.ok) throw new Error(`Session completion failed: ${completeSess.status}`)
-  console.log('  [OK] Focus Session completed: 5/5 rating, reflection saved, +15 XP awarded.')
+  const afterEarlySessionRes = await fetch('http://localhost:8080/api/progress', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const afterEarlySession = await afterEarlySessionRes.json()
+  if (afterEarlySession.recentEvents.some(event => event.eventType === 'FOCUS_SESSION_COMPLETED')) {
+    throw new Error('Early focus completion incorrectly awarded XP before 15 active minutes.')
+  }
+  console.log('  [OK] Early focus completion saved its reflection and awarded 0 focus XP.')
 
   // 3.6: Contextual Study Resources
   console.log('  Testing Contextual Study Resources (POST /api/contextual-focus/resources)...')
@@ -344,8 +353,8 @@ async function runRcQualification() {
   if (!progRes.ok) throw new Error(`Progress fetch failed: ${progRes.status}`)
   const progData = await progRes.json()
   console.log(`  [OK] Total Progress in PostgreSQL: ${progData.totalProgress} XP (Level ${progData.level}: "${progData.levelTitle}")`)
-  if (progData.totalProgress < 75) {
-    throw new Error(`Expected at least 75 XP (10 task + 15 session + 50 onboarding), got ${progData.totalProgress}`)
+  if (progData.totalProgress !== 110 || progData.recentEvents.some(event => event.eventType === 'FOCUS_SESSION_COMPLETED')) {
+    throw new Error(`Expected 110 XP (10 task + 50 goal + 50 onboarding; no premature focus XP), got ${progData.totalProgress}`)
   }
 
   results.coreInteractiveFlows = {
@@ -354,6 +363,7 @@ async function runRcQualification() {
     goalId: goalData.id,
     taskId: taskData.id,
     sessionId: sessData.id,
+    focusSessionXp: 0,
     totalProgress: progData.totalProgress,
     level: progData.level,
     levelTitle: progData.levelTitle,

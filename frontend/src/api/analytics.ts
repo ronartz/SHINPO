@@ -38,12 +38,12 @@ export interface AnalyticsDashboardResponse {
   recentDebriefs: RecentDebrief[]
 }
 
-import { getBackendBaseUrl } from './config'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api/analytics`
 
 export async function fetchAnalyticsDashboard(): Promise<AnalyticsDashboardResponse> {
-  const res = await fetch(`${API_BASE}/dashboard`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/dashboard`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch analytics dashboard: ${res.status}`)

@@ -185,7 +185,7 @@ export type AiChatResponse = {
 }
 
 import { authHeaders, getAuthenticatedUserId } from './auth.ts'
-import { getBackendBaseUrl } from './config.ts'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
 
 const API_BASE = `${getBackendBaseUrl()}/api/ai`
 
@@ -206,7 +206,7 @@ async function parseResponse<T>(res: Response): Promise<T> {
 }
 
 export async function getActiveConversation(): Promise<Conversation> {
-  const res = await fetch(`${API_BASE}/conversation/active`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/conversation/active`, {
     headers: {
       ...authHeaders(),
       'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -216,7 +216,7 @@ export async function getActiveConversation(): Promise<Conversation> {
 }
 
 export async function clearActiveConversation(): Promise<Conversation> {
-  const res = await fetch(`${API_BASE}/conversation/active`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/conversation/active`, {
     method: 'DELETE',
     headers: authHeaders(),
   })
@@ -232,7 +232,7 @@ export async function sendAiChat(
   conversationId?: string,
 ): Promise<AiChatResponse> {
   const effectiveUserId = userId ?? getAuthenticatedUserId() ?? 0
-  const res = await fetch(`${API_BASE}/chat`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/chat`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({
@@ -252,7 +252,7 @@ export async function decomposeGoal(
   goalId: number,
   _userId?: number,
 ): Promise<GoalDecomposition> {
-  const res = await fetch(`${API_BASE}/decompose-goal/${goalId}`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/decompose-goal/${goalId}`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -260,14 +260,14 @@ export async function decomposeGoal(
 }
 
 export async function getNextAction(_userId?: number): Promise<NextAction> {
-  const res = await fetch(`${API_BASE}/next-action`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/next-action`, {
     headers: authHeaders(),
   })
   return parseResponse<NextAction>(res)
 }
 
 export async function getDailyPlan(_userId?: number): Promise<DailyPlan> {
-  const res = await fetch(`${API_BASE}/daily-plan`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/daily-plan`, {
     headers: authHeaders(),
   })
   return parseResponse<DailyPlan>(res)
@@ -278,7 +278,7 @@ export async function getSessionRecovery(
   _userId?: number,
 ): Promise<SessionRecovery> {
   const url = sessionId ? `${API_BASE}/recovery/${sessionId}` : `${API_BASE}/recovery/latest`
-  const res = await fetch(url, {
+  const res = await fetchWithoutRedirects(url, {
     headers: authHeaders(),
   })
   return parseResponse<SessionRecovery>(res)
@@ -288,7 +288,7 @@ export async function analyzeSessionDebrief(
   sessionId?: number,
 ): Promise<SessionDebriefAnalysis> {
   const url = sessionId ? `${API_BASE}/debrief-analysis/${sessionId}` : `${API_BASE}/debrief-analysis/latest`
-  const res = await fetch(url, {
+  const res = await fetchWithoutRedirects(url, {
     headers: authHeaders(),
   })
   return parseResponse<SessionDebriefAnalysis>(res)
@@ -298,7 +298,7 @@ export async function commitSuggestion(
   suggestionId: number,
   request?: SuggestionCommitRequest,
 ): Promise<SuggestionCommitResponse> {
-  const res = await fetch(`${API_BASE}/suggestions/${suggestionId}/commit`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/suggestions/${suggestionId}/commit`, {
     method: 'POST',
     headers: authHeaders(),
     body: request ? JSON.stringify(request) : undefined,
@@ -321,7 +321,7 @@ export type UserExecutionProfile = {
 }
 
 export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
-  const res = await fetch(`${API_BASE}/profile`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/profile`, {
     headers: authHeaders(),
   })
   return parseResponse<UserExecutionProfile>(res)
@@ -330,7 +330,7 @@ export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
 export async function commitDailyPlan(
   request?: CommitDailyPlanRequest,
 ): Promise<CommitDailyPlanResponse> {
-  const res = await fetch(`${API_BASE}/daily-plan/commit`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/daily-plan/commit`, {
     method: 'POST',
     headers: authHeaders(),
     body: request ? JSON.stringify(request) : undefined,
@@ -354,7 +354,7 @@ export type ExecutiveBriefing = {
 }
 
 export async function getExecutiveBriefing(): Promise<ExecutiveBriefing> {
-  const res = await fetch(`${API_BASE}/briefing`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/briefing`, {
     headers: authHeaders(),
   })
   return parseResponse<ExecutiveBriefing>(res)
@@ -388,7 +388,7 @@ export async function proposeAiAction(
   description: string,
   payload: Record<string, unknown>
 ): Promise<AiActionDto> {
-  const res = await fetch(`${API_BASE}/actions/propose`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/actions/propose`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ actionType, description, payload }),
@@ -397,7 +397,7 @@ export async function proposeAiAction(
 }
 
 export async function confirmAiAction(actionId: string): Promise<AiActionExecutionResponse> {
-  const res = await fetch(`${API_BASE}/actions/${actionId}/confirm`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/actions/${actionId}/confirm`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -405,7 +405,7 @@ export async function confirmAiAction(actionId: string): Promise<AiActionExecuti
 }
 
 export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
-  const res = await fetch(`${API_BASE}/actions/${actionId}/reject`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/actions/${actionId}/reject`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -413,14 +413,14 @@ export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
 }
 
 export async function getPendingAiActions(): Promise<AiActionDto[]> {
-  const res = await fetch(`${API_BASE}/actions/pending`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/actions/pending`, {
     headers: authHeaders(),
   })
   return parseResponse<AiActionDto[]>(res)
 }
 
 export async function getRecentAiActions(): Promise<AiActionDto[]> {
-  const res = await fetch(`${API_BASE}/actions/recent`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/actions/recent`, {
     headers: authHeaders(),
   })
   return parseResponse<AiActionDto[]>(res)

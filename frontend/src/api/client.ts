@@ -5,7 +5,7 @@
  */
 
 import { authHeaders } from './auth.ts'
-import { getBackendBaseUrl } from './config.ts'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
 
 /**
  * Standardized API Error matching backend ApiErrorResponse
@@ -107,7 +107,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithoutRedirects(url, {
       ...fetchOptions,
       headers: mergedHeaders,
       signal: controller.signal,

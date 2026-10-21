@@ -371,12 +371,17 @@ public class FocusSessionService {
             session.setPausedAt(null);
         }
 
+        long activeMinutes = Math.min(
+                session.calculateActiveSeconds(now) / 60L,
+                session.getDurationMinutes() != null ? session.getDurationMinutes() : 0
+        );
+
         session.setStatus(FocusSessionStatus.COMPLETED);
         session.setEndedAt(now);
         session.incrementContextPolicyRevision();
 
-        if (progressEventRepository != null) {
-            int earnedProgress = (session.getDurationMinutes() != null && session.getDurationMinutes() >= 45) ? 25 : 15;
+        if (progressEventRepository != null && activeMinutes >= 15) {
+            int earnedProgress = activeMinutes >= 45 ? 25 : 15;
             ProgressEvent progressEvent = new ProgressEvent(
                     session.getUser(),
                     null,

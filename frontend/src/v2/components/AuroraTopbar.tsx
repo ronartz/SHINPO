@@ -21,6 +21,7 @@ export interface AuroraTopbarProps {
   onOpenSettings?: (section?: SettingsSection) => void
   currentUser?: AuthUser | null
   userProgress?: ProgressResponse | null
+  onOpenAchievements?: () => void
   onLogout?: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
@@ -39,6 +40,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
   onOpenSettings,
   currentUser,
   userProgress,
+  onOpenAchievements,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview = true,
@@ -283,6 +285,12 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 <Box
                   component="span"
                   className="user-level-badge"
+                  onClick={(e) => {
+                    if (onOpenAchievements) {
+                      e.stopPropagation()
+                      onOpenAchievements()
+                    }
+                  }}
                   sx={{
                     fontSize: 12,
                     fontWeight: 800,
@@ -292,7 +300,9 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                     py: 0.1,
                     borderRadius: '4px',
                     lineHeight: 1.2,
+                    cursor: onOpenAchievements ? 'pointer' : 'default',
                   }}
+                  title={onOpenAchievements ? 'View Progression & Achievements' : undefined}
                 >
                   Lvl {userProgress?.level || 1}
                 </Box>

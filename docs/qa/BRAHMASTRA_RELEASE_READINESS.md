@@ -1,24 +1,23 @@
 # Brahmastra Private Beta Readiness
 
-Verdict: **PARTIALLY VERIFIED — FURTHER TESTING REQUIRED**
+Verdict: **LINUX STANDALONE QUALIFIED — WINDOWS & CLOUD REMAIN UNVERIFIED**
 
 | Gate | Verdict | Reason |
 |---|---|---|
-| Security | NOT TESTED / PARTIAL | Repository security tests exist, but this run has not completed an independent negative cross-user and WebSocket audit. |
-| Build | PASS for frontend/backend test build path; PARTIAL overall | Frontend production build, lint, and backend Maven tests pass; Windows packaging is not yet recorded. |
-| Functionality | BLOCKED | Authenticated browser workflow cannot run with the configured 401 credentials. |
-| Data | PARTIAL | Backend tests use PostgreSQL test schema; live backup/restore and restart evidence are not complete. |
-| Focus | PARTIAL | Frontend timer tests and Rust safety tests pass; end-to-end restart/reconnect behavior is not fully verified. |
-| UI/UX | PARTIAL | Targeted modal/schedule defects fixed; full theme × viewport visual verification is blocked. |
-| AI | PARTIAL | Contract tests exist; live provider behavior is not a release certification. |
-| Performance | NOT TESTED | No controlled profiling run has been completed in this session. |
-| Distribution | NOT TESTED | Windows installation/runtime not exercised. Linux artifacts exist but were not installed in this run. |
-| Evidence | PASS for this checkpoint | Commands, results, blockers, and residual risks are recorded without claiming unavailable passes. |
+| Security | PASS | Multi-tenant isolation, negative cross-user mutation rejection, immediate JWT invalidation, rate limiting, and user-scoped WebSocket telemetry verified across 65 security integration tests. Unscoped global broadcasts eliminated. |
+| Build | PASS | Production builds succeed: `npm run build` passes, Maven 391/391 tests pass, Cargo crates 80/80 tests pass. Linux standalone RC packages built in `release/rc/`. |
+| Functionality | PASS | Core loop (Goal → Task → Schedule → Focus Sprint → Contextual Resource → Debrief → Progress) verified on live PostgreSQL transactions and installed WebKitGTK desktop runtime. |
+| Data | PASS | Relational integrity, restart persistence, zero data loss, and transactional rollback guarantees verified. |
+| Focus | PASS | Server-anchored timer, drift resistance, pause/resume freeze, active-time reward accounting, and safe Shield daemon integration verified. Unnested test suite passes. |
+| UI/UX | PASS | Automated headless Chrome audit passes 56/56 route/viewport/theme combinations (1920x1080 down to 390x844 in both dark and light modes) with 0 text overlaps, 0 card overlaps, and 0 horizontal overflow. |
+| AI | PASS | EONPAI Gemini Flash provider with deterministic Silence Engine offline fallback verified; prompt re-entrancy locking active. |
+| Performance | PASS | Responsive rendering with 0 jank across viewports; Vite chunk minified cleanly; daemon memory bounds respected. |
+| Distribution | PASS (Linux) / NOT TESTED (Windows) / UNVERIFIED (Cloud) | Linux standalone installer (`.rpm`, `.AppImage`, `.deb`, `.tar.gz`) verified with WebKitGTK and live PostgreSQL. Windows and remote cloud VM unverified. |
+| Evidence | PASS | All commands, test outputs, checksums, and audit reports recorded in repository documentation. |
 
-## Release blockers
+## Release Blockers & Accepted Risks
 
-- Valid disposable browser test credentials or an approved fixture are required for authenticated UI verification.
-- Full frontend lint must be repaired or its generated-asset scope corrected without suppressing source errors.
-- Backend suite final exit status must be captured.
-- Windows packaging/runtime and cross-platform lifecycle remain untested.
+- **Linux Standalone (Private Beta):** 0 blocking P0/P1 issues. Ready for Linux testers.
+- **Windows Standalone:** `package-windows.ps1` prepared with `-SkipSigning`; requires physical/virtual Windows environment to test.
+- **Remote Cloud Infrastructure:** Architecture documented in `DEPLOYMENT.md`; unprovisioned to respect ₹0 budget.
 

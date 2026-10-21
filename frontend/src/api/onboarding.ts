@@ -31,10 +31,13 @@ export async function startOnboarding(fromStep?: number): Promise<OnboardingResp
  * Record interactive progress for a specific walkthrough step.
  */
 export async function recordOnboardingStep(
-  stepIndex: number,
-  actionVerified: boolean
+  stepIndex: number
 ): Promise<OnboardingResponse> {
-  return apiClient.post<OnboardingResponse>('/onboarding/step', { stepIndex, actionVerified })
+  return apiClient.post<OnboardingResponse>('/onboarding/step', { stepIndex })
+}
+
+export async function finishOnboarding(): Promise<OnboardingResponse> {
+  return apiClient.post<OnboardingResponse>('/onboarding/finish', {})
 }
 
 /**

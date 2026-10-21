@@ -924,7 +924,7 @@ class ShinpoApplicationTests {
         assertEquals(200, sysInfoResp.getStatusCode().value());
         assertNotNull(sysInfoResp.getBody());
         assertTrue(sysInfoResp.getBody().totalMemoryBytes() > 0);
-        assertEquals(0, sysInfoResp.getBody().processCount());
+        assertNull(sysInfoResp.getBody().processCount(), "Server process count is unavailable when host scanning is disabled");
 
         ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessInfo[]> procResp = restTemplate.getForEntity(
                 baseUrl() + "/api/device/processes",

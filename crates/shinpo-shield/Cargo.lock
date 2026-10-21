@@ -436,6 +436,7 @@ dependencies = [
  "serde_json",
  "sysinfo",
  "ureq",
+ "url",
 ]
 
 [[package]]

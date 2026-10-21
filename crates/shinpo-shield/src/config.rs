@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShieldConfig {
@@ -152,7 +153,7 @@ OPTIONS:
 "#);
 }
 
-pub fn load_config(opts: &CliOptions) -> ShieldConfig {
+pub fn load_config(opts: &CliOptions) -> Result<ShieldConfig, String> {
     let candidates = [
         "daemon/shield_config.json",
         "shield_config.json",
@@ -188,13 +189,47 @@ pub fn load_config(opts: &CliOptions) -> ShieldConfig {
         cfg.poll_interval_seconds = interval;
     }
 
-    // Normalize api_url: strip trailing slash and subpaths like /api/focus-sessions
-    if cfg.api_url.contains("/api") {
-        if let Some(idx) = cfg.api_url.find("/api") {
-            cfg.api_url = cfg.api_url[..idx].trim_end_matches('/').to_string();
+    cfg.api_url = validate_backend_url(&cfg.api_url)?;
+
+    Ok(cfg)
+}
+
+pub fn validate_backend_url(raw: &str) -> Result<String, String> {
+    let parsed = Url::parse(raw.trim()).map_err(|_| "Invalid backend URL".to_string())?;
+    let authority = raw.trim().split_once("://").map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default()).unwrap_or_default();
+    if authority.contains('@') || parsed.password().is_some() || parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err("Backend URL must not contain credentials, a query, or a fragment".into());
+    }
+    let loopback = match parsed.host() {
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(host)) => host == std::net::Ipv4Addr::LOCALHOST,
+        Some(url::Host::Ipv6(host)) => host == std::net::Ipv6Addr::LOCALHOST,
+        None => false,
+    };
+    match parsed.scheme() {
+        "https" => {}
+        "http" if loopback => {}
+        "http" => return Err("Secure connection required: remote servers must use HTTPS".into()),
+        _ => return Err("Backend URL must use HTTP on loopback or HTTPS".into()),
+    }
+    Ok(parsed.as_str().trim_end_matches('/').to_string())
+}
+
+#[cfg(test)]
+mod url_tests {
+    use super::validate_backend_url;
+
+    #[test]
+    fn backend_url_policy_allows_only_https_or_explicit_loopback_http() {
+        for url in ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080", "https://api.example.com"] {
+            assert!(validate_backend_url(url).is_ok(), "{url}");
+        }
+        for url in [
+            "http://192.168.1.2:8080", "http://127.0.0.2:8080", "http://localhost.example:8080",
+            "https://user:pass@example.com", "https://@example.com", "https://example.com/?token=x",
+            "https://example.com/#fragment", "ftp://example.com",
+        ] {
+            assert!(validate_backend_url(url).is_err(), "{url}");
         }
     }
-    cfg.api_url = cfg.api_url.trim_end_matches('/').to_string();
-
-    cfg
 }

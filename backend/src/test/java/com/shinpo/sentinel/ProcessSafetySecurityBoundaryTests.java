@@ -278,7 +278,7 @@ public class ProcessSafetySecurityBoundaryTests {
     }
 
     @Test
-    @DisplayName("P0-8: GET /api/device/system-info reports 0 process count and indicates remote node")
+    @DisplayName("P0-8: GET /api/device/system-info reports process count unavailable for a remote node")
     void testDeviceSystemInfoDoesNotExposeHostProcessCount() {
         HttpEntity<Void> entity = new HttpEntity<>(authHeaders(primaryToken));
 
@@ -292,7 +292,7 @@ public class ProcessSafetySecurityBoundaryTests {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         DeviceSystemInfo info = response.getBody();
         assertNotNull(info);
-        assertEquals(0, info.processCount(), "Process count must be 0 when server scanning is disabled");
+        assertNull(info.processCount(), "An unmeasured server process count must be unavailable, not zero");
     }
 
     @Test
@@ -310,7 +310,7 @@ public class ProcessSafetySecurityBoundaryTests {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         ProcessSnapshot snapshot = response.getBody();
         assertNotNull(snapshot);
-        assertEquals(0, snapshot.systemInfo().processCount());
+        assertNull(snapshot.systemInfo().processCount(), "An unmeasured server process count must be unavailable, not zero");
         assertTrue(snapshot.processes().isEmpty(), "Snapshot processes list must be empty");
     }
 

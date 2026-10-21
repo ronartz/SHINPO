@@ -4,7 +4,6 @@ import com.shinpo.dto.ProgressResponse;
 import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.User;
 import com.shinpo.repository.ProgressEventRepository;
-import com.shinpo.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,14 +26,11 @@ class ProgressServiceTests {
     @Mock
     private ProgressEventRepository progressEventRepository;
 
-    @Mock
-    private UserRepository userRepository;
-
     private ProgressService progressService;
 
     @BeforeEach
     void setUp() {
-        progressService = new ProgressService(progressEventRepository, userRepository);
+        progressService = new ProgressService(progressEventRepository);
     }
 
     @Test
@@ -103,29 +99,4 @@ class ProgressServiceTests {
         assertThat(response.recentEvents().get(1).amount()).isEqualTo(10);
     }
 
-    @Test
-    @DisplayName("Should award +50 XP for onboarding completion once and maintain idempotency")
-    void testRecordOnboardingCompletion() {
-        User user = new User("tester", "tester@shinpo.dev", "hash", java.time.Instant.now());
-
-        // First attempt: not already awarded
-        when(progressEventRepository.existsByUser_IdAndEventType(4L, "ONBOARDING_COMPLETED")).thenReturn(false);
-        when(userRepository.findById(4L)).thenReturn(Optional.of(user));
-        when(progressEventRepository.getTotalProgressByUserId(4L)).thenReturn(50);
-        when(progressEventRepository.findTop10ByUser_IdOrderByCreatedAtDesc(4L)).thenReturn(List.of(
-                new ProgressEvent(user, "ONBOARDING_COMPLETED", 50)
-        ));
-
-        ProgressResponse response = progressService.recordOnboardingCompletion(4L);
-
-        verify(progressEventRepository).save(any(ProgressEvent.class));
-        assertThat(response.totalProgress()).isEqualTo(50);
-        assertThat(response.level()).isEqualTo(1);
-        assertThat(response.currentLevelXp()).isEqualTo(50);
-
-        // Second attempt: already awarded -> save is NEVER called again
-        when(progressEventRepository.existsByUser_IdAndEventType(4L, "ONBOARDING_COMPLETED")).thenReturn(true);
-        progressService.recordOnboardingCompletion(4L);
-        verify(userRepository, never()).findById(999L);
-    }
 }

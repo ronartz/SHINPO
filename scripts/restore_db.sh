@@ -5,6 +5,7 @@
 # ==============================================================================
 
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -47,7 +48,22 @@ echo "======================================================================"
 
 # 1. Verify archive integrity
 echo "[SHINPO DB RESTORE] Step 1: Testing archive gzip integrity..."
-if ! gzip -t "${BACKUP_FILE}"; then
+RESTORE_SOURCE="${BACKUP_FILE}"
+DECRYPTED_TEMP=""
+if [[ "${BACKUP_FILE}" == *.age ]]; then
+    if [[ -z "${BACKUP_AGE_IDENTITY:-}" ]] || ! command -v age >/dev/null; then
+        echo "[SHINPO DB RESTORE] ERROR: This artifact is encrypted; install age and set BACKUP_AGE_IDENTITY." >&2
+        exit 2
+    fi
+    DECRYPTED_TEMP="$(mktemp "${TMPDIR:-/tmp}/shinpo-restore.XXXXXXXX")"
+    trap 'rm -f -- "${DECRYPTED_TEMP}"' EXIT
+    if ! age -d -i "${BACKUP_AGE_IDENTITY}" -o "${DECRYPTED_TEMP}" "${BACKUP_FILE}"; then
+        echo "[SHINPO DB RESTORE] ERROR: Decryption failed; no database changes were made." >&2
+        exit 2
+    fi
+    RESTORE_SOURCE="${DECRYPTED_TEMP}"
+fi
+if ! gzip -t "${RESTORE_SOURCE}"; then
     echo "[SHINPO DB RESTORE] ERROR: Backup file is corrupt or not a valid gzip file!" >&2
     exit 2
 fi
@@ -100,11 +116,13 @@ fi
 echo "[SHINPO DB RESTORE] Step 3: Streaming restore into database '${POSTGRES_DB}'..."
 if [[ -n "${DOCKER_CONTAINER}" ]]; then
     echo "[SHINPO DB RESTORE] Restoring via Docker container '${DOCKER_CONTAINER}'..."
-    gzip -dc "${BACKUP_FILE}" | ${DOCKER_BIN} exec -i -e PGPASSWORD="${POSTGRES_PASSWORD}" "${DOCKER_CONTAINER}" \
-        psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --quiet --set ON_ERROR_STOP=on
+    { printf '%s\n' "${POSTGRES_PASSWORD}"; gzip -dc "${RESTORE_SOURCE}"; } | \
+        ${DOCKER_BIN} exec -i "${DOCKER_CONTAINER}" \
+            sh -c 'IFS= read -r PGPASSWORD || exit 1; export PGPASSWORD; exec psql -U "$1" -d "$2" --quiet --set ON_ERROR_STOP=on' \
+            sh "${POSTGRES_USER}" "${POSTGRES_DB}"
 elif command -v psql &>/dev/null; then
     echo "[SHINPO DB RESTORE] Restoring via host psql client to ${POSTGRES_HOST}:${POSTGRES_PORT}..."
-    gzip -dc "${BACKUP_FILE}" | PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
+    gzip -dc "${RESTORE_SOURCE}" | PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --quiet --set ON_ERROR_STOP=on
 else
     echo "[SHINPO DB RESTORE] ERROR: Neither running postgres docker container nor psql binary found." >&2
@@ -117,8 +135,9 @@ echo "[SHINPO DB RESTORE] Step 4: Verifying restored database structure..."
 VERIFY_SQL="SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"
 TABLE_COUNT=0
 if [[ -n "${DOCKER_CONTAINER}" ]]; then
-    TABLE_COUNT=$(${DOCKER_BIN} exec -e PGPASSWORD="${POSTGRES_PASSWORD}" "${DOCKER_CONTAINER}" \
-        psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -c "${VERIFY_SQL}" 2>/dev/null || echo "0")
+    TABLE_COUNT=$(printf '%s\n' "${POSTGRES_PASSWORD}" | ${DOCKER_BIN} exec -i "${DOCKER_CONTAINER}" \
+        sh -c 'IFS= read -r PGPASSWORD || exit 1; export PGPASSWORD; exec psql -U "$1" -d "$2" -t -A -c "$3"' \
+        sh "${POSTGRES_USER}" "${POSTGRES_DB}" "${VERIFY_SQL}" 2>/dev/null || echo "0")
 elif command -v psql &>/dev/null; then
     TABLE_COUNT=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -c "${VERIFY_SQL}" 2>/dev/null || echo "0")

@@ -239,14 +239,14 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         {/* CPU Metric Card */}
         <div className="tm-metric-card">
           <div className="tm-metric-top">
-            <span className="tm-metric-label">CPU LOAD</span>
+            <span className="tm-metric-label">BACKEND CPU LOAD</span>
             <div className="tm-metric-icon">
               <Icon name="focus" size={16} />
             </div>
           </div>
           <div>
             <div className="tm-metric-val">
-              {deviceSnapshot ? `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%` : '0%'}
+              {deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}
             </div>
             <div className="tm-metric-sub">
               {deviceSnapshot?.systemInfo.availableProcessors ?? 4} Hardware Threads Active
@@ -255,7 +255,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               <div
                 className="tm-bar-fill terracotta"
                 style={{
-                  transform: `scaleX(${Math.min(1, Math.max(0.05, (deviceSnapshot?.systemInfo.systemCpuLoad ?? 0) / 100))})`,
+                  transform: `scaleX(${Math.min(1, Math.max(0, (deviceSnapshot?.systemInfo.systemCpuLoad ?? 0) / 100))})`,
                 }}
               />
             </div>
@@ -265,7 +265,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         {/* Memory Metric Card */}
         <div className="tm-metric-card">
           <div className="tm-metric-top">
-            <span className="tm-metric-label">MEMORY USAGE</span>
+            <span className="tm-metric-label">BACKEND MEMORY</span>
             <div className="tm-metric-icon">
               <Icon name="apps" size={16} />
             </div>
@@ -299,7 +299,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                         deviceSnapshot.systemInfo.totalMemoryBytes,
                       ),
                     )
-                    : 0.05
+                    : 0
                     })`,
                 }}
               />
@@ -317,10 +317,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           </div>
           <div>
             <div className="tm-metric-val">
-              {deviceSnapshot ? deviceSnapshot.systemInfo.processCount : '...'}
+              {deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}
             </div>
             <div className="tm-metric-sub">
-              {deviceSnapshot?.processes.length ?? 0} Inspected in Viewport
+              {deviceSnapshot?.systemInfo.processCount == null
+                ? 'Server process scanning is disabled'
+                : `${deviceSnapshot.processes.length} inspected in viewport`}
             </div>
             <div className="tm-bar-track">
               <div className="tm-bar-fill emerald" style={{ transform: 'scaleX(1)' }} />
@@ -1169,12 +1171,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     </td>
                     <td>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {proc.cpuPercent > 0 ? `${proc.cpuPercent.toFixed(1)}%` : '< 0.1%'}
+                        {proc.cpuPercent == null ? 'Unavailable' : `${proc.cpuPercent.toFixed(1)}%`}
                       </span>
                     </td>
                     <td>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {proc.memoryBytes > 0
+                        {proc.memoryBytes == null ? 'Unavailable' : proc.memoryBytes > 0
                           ? proc.memoryBytes > 1024 * 1024 * 1024
                             ? `${(proc.memoryBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
                             : `${Math.round(proc.memoryBytes / (1024 * 1024))} MB`

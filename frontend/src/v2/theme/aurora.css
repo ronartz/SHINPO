@@ -14,22 +14,14 @@
 
 .aurora-viewport.theme-dark,
 .app-shell.theme-aurora:not(.theme-light) {
-  background-color: #0A0F20;
-  color: #F5F7FF;
-  --text-primary: #F5F7FF;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --surface-muted: #111B31;
+  background-color: var(--bg, #121316);
+  color: var(--text-primary, #F3F4F6);
 }
 
 .aurora-viewport.theme-light,
 .app-shell.theme-aurora.theme-light {
-  background-color: #F4F6FD;
-  color: #17213A;
-  --text-primary: #17213A;
-  --text-secondary: #5B6B8A;
-  --text-muted: #8B9BB4;
-  --surface-muted: #ECEFFB;
+  background-color: var(--bg, #F7F6F3);
+  color: var(--text-primary, #18191B);
 }
 
 /* Atmospheric Ambient Lights — disabled for clean desktop look */
@@ -87,38 +79,39 @@
   }
 }
 
+
 /* Catch feature-specific cards and panels without requiring each view to opt in. */
 .app-shell.shinpo-glass-ui :is(
   [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
   .glass-surface, .aurora-glass, .MuiCard-root
-) {
-  background-color: color-mix(in srgb, var(--surface-card, #192541) 80%, transparent);
-  background-image: linear-gradient(135deg,
-    color-mix(in srgb, var(--surface-card, #192541) 88%, transparent),
-    color-mix(in srgb, var(--surface, #0E1428) 78%, transparent));
-  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(18px) saturate(125%);
-  -webkit-backdrop-filter: blur(18px) saturate(125%);
+):not([class*="-heading"]):not([class*="-header"]) {
+  background-color: color-mix(in srgb, var(--surface-card, #1D1E24) 80%, transparent);
+  background-image: linear-gradient(145deg,
+    color-mix(in srgb, var(--surface-card, #1D1E24) 94%, transparent),
+    color-mix(in srgb, var(--surface, #18191E) 88%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 55%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
 }
 
 .app-shell.shinpo-glass-ui.theme-light :is(
   [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
   .glass-surface, .aurora-glass, .MuiCard-root
-) {
+):not([class*="-heading"]):not([class*="-header"]) {
   background-color: color-mix(in srgb, var(--surface-card, #FFFFFF) 80%, transparent);
-  background-image: linear-gradient(135deg,
-    color-mix(in srgb, var(--surface-card, #FFFFFF) 90%, transparent),
-    color-mix(in srgb, var(--bg, #F4F6FD) 78%, transparent));
-  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 150%, transparent);
-  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  background-image: linear-gradient(145deg,
+    color-mix(in srgb, var(--surface-card, #FFFFFF) 96%, transparent),
+    color-mix(in srgb, var(--bg, #F7F6F3) 90%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 55%, transparent);
+  box-shadow: 0 4px 14px rgba(40, 55, 100, 0.06);
 }
 
 body.shinpo-glass-ui :is(
   [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
   .glass-surface, .aurora-glass, .MuiCard-root, .MuiPaper-root, [role="dialog"]
-) {
-  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+):not([class*="-heading"]):not([class*="-header"]) {
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 55%, transparent);
   backdrop-filter: blur(18px) saturate(125%);
   -webkit-backdrop-filter: blur(18px) saturate(125%);
 }
@@ -126,9 +119,9 @@ body.shinpo-glass-ui :is(
 .app-shell.shinpo-glass-ui :is(
   [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
   .glass-surface, .aurora-glass, .MuiCard-root
-):hover {
+):not([class*="-heading"]):not([class*="-header"]):hover {
   border-color: color-mix(in srgb, var(--accent, #9757FA) 34%, var(--border, transparent));
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -143,7 +136,7 @@ body.shinpo-glass-ui :is(
    ========================================================================== */
 
 .aurora-glass {
-  background: rgba(18, 24, 40, 0.78);
+  background: color-mix(in srgb, var(--surface-card, #1D1E24) 92%, transparent);
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -152,10 +145,10 @@ body.shinpo-glass-ui :is(
 
 .aurora-viewport.theme-light .aurora-glass,
 .app-shell.theme-aurora.theme-light .aurora-glass {
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
-  border: 1px solid rgba(77, 119, 249, 0.12);
+  border: 1px solid var(--border, #E9E7E3);
   box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
 }
 
@@ -173,7 +166,7 @@ body.shinpo-glass-ui :is(
 .aurora-viewport.theme-dark .aurora-glass,
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar,
 .app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar {
-  background: rgba(18, 24, 40, 0.82);
+  background: color-mix(in srgb, var(--surface, #18191E) 92%, transparent);
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -183,23 +176,23 @@ body.shinpo-glass-ui :is(
 .aurora-viewport.theme-light .aurora-glass,
 .app-shell.theme-aurora.theme-light .icon-sidebar,
 .app-shell.theme-aurora.theme-light .cockpit-top-bar {
-  background: rgba(255, 255, 255, 0.88);
+  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
-  border: 1px solid rgba(77, 119, 249, 0.12);
+  border: 1px solid var(--border, #E9E7E3);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
 /* Aurora Navigation Button Styling on Classic Sidebar */
 .app-shell.theme-aurora .icon-sidebar .sidebar-btn {
-  color: rgba(245, 247, 255, 0.75);
+  color: var(--text-secondary, #B0B5C2);
   border-radius: 10px;
   font-weight: 600;
   transition: all 150ms ease;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn {
-  color: rgba(23, 33, 58, 0.75);
+  color: var(--text-secondary, #484C56);
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn:hover {
@@ -209,7 +202,7 @@ body.shinpo-glass-ui :is(
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn:hover {
   background: rgba(121, 50, 230, 0.05);
-  color: #17213A;
+  color: var(--text-primary, #18191B);
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn.active {
@@ -402,21 +395,21 @@ button.aurora-btn-secondary {
 }
 
 .aurora-viewport.theme-dark .aurora-btn-ghost {
-  color: #94A3B8;
+  color: var(--text-secondary, #B0B5C2);
 }
 
 .aurora-viewport.theme-dark .aurora-btn-ghost:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #F5F7FF;
+  color: var(--text-primary, #F3F4F6);
 }
 
 .aurora-viewport.theme-light .aurora-btn-ghost {
-  color: #64748B;
+  color: var(--text-secondary, #484C56);
 }
 
 .aurora-viewport.theme-light .aurora-btn-ghost:hover {
   background: rgba(0, 0, 0, 0.05);
-  color: #17213A;
+  color: var(--text-primary, #18191B);
 }
 
 /* Aurora Status Badge */
@@ -568,13 +561,12 @@ button.aurora-btn-secondary {
 .aurora-viewport.theme-dark .aurora-glass,
 .aurora-viewport.theme-dark .MuiCard-root,
 .aurora-viewport.theme-dark .MuiPaper-root {
-  background: linear-gradient(135deg, rgba(25, 37, 65, 0.86), rgba(14, 20, 40, 0.78), rgba(25, 37, 65, 0.82));
-  background-size: 220% 220%;
+  background: color-mix(in srgb, var(--surface-card, #1D1E24) 92%, transparent);
   border-color: var(--aurora-glass-border-dark);
   box-shadow: var(--aurora-glass-shadow-dark);
   backdrop-filter: blur(18px) saturate(135%);
   -webkit-backdrop-filter: blur(18px) saturate(135%);
-  animation: shinpo-aurora-drift 18s ease-in-out infinite;
+  animation: none;
 }
 
 .app-shell.theme-aurora.theme-light .aurora-glass,
@@ -583,13 +575,12 @@ button.aurora-btn-secondary {
 .aurora-viewport.theme-light .aurora-glass,
 .aurora-viewport.theme-light .MuiCard-root,
 .aurora-viewport.theme-light .MuiPaper-root {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(244, 246, 253, 0.78), rgba(255, 255, 255, 0.86));
-  background-size: 220% 220%;
+  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
   border-color: var(--aurora-glass-border-light);
   box-shadow: var(--aurora-glass-shadow-light);
   backdrop-filter: blur(18px) saturate(125%);
   -webkit-backdrop-filter: blur(18px) saturate(125%);
-  animation: shinpo-aurora-drift 18s ease-in-out infinite;
+  animation: none;
 }
 
 .app-shell.theme-aurora:not(.theme-light) :is(
@@ -597,7 +588,7 @@ button.aurora-btn-secondary {
   .flight-deck-board-panel, .status-column, .cockpit-panel,
   .bento-card, .ai-sidebar-card, .ai-chat-card,
   .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
-  .schedule-card, .schedule-panel, .schedule-view-container, .daily-quote-card, .calendar-card,
+  .schedule-card, .schedule-panel, .schedule-view-container, .schedule-sidebar, .schedule-calendar-main, .daily-quote-card, .calendar-card,
   .goal-single-summary-card, .goal-card-item, .goal-detail-card, .companion-next-action-card, .goals-empty-card,
   .study-resources-panel, .study-resources-dialog-card,
   .eonpai-utility-panel, .eonpai-conversation-card, .ai-plan-card, .ai-tutorial-card,
@@ -615,14 +606,12 @@ body.aurora-mode:not(.theme-light) :is(
   .shinpo-dialog-card, .modal-box, .settings-modal-box,
   .taskmaster-modal-card, .flight-deck-card-menu, .flight-deck-quick-modal-card
 ) {
-  background-color: rgba(25, 37, 65, 0.72);
-  background-image: linear-gradient(135deg, rgba(25, 37, 65, 0.88), rgba(14, 20, 40, 0.76), rgba(25, 37, 65, 0.82));
-  background-size: 180% 180%;
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(18px) saturate(130%);
-  -webkit-backdrop-filter: blur(18px) saturate(130%);
-  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+  background-color: color-mix(in srgb, var(--surface-card, #1D1E24) 94%, transparent);
+  background-image: linear-gradient(145deg, var(--surface-card, #1D1E24), var(--surface, #18191E));
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
 }
 
 .app-shell.theme-aurora.theme-light :is(
@@ -630,7 +619,7 @@ body.aurora-mode:not(.theme-light) :is(
   .flight-deck-board-panel, .status-column, .cockpit-panel,
   .bento-card, .ai-sidebar-card, .ai-chat-card,
   .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
-  .schedule-card, .schedule-panel, .schedule-view-container, .daily-quote-card, .calendar-card,
+  .schedule-card, .schedule-panel, .schedule-view-container, .schedule-sidebar, .schedule-calendar-main, .daily-quote-card, .calendar-card,
   .goal-single-summary-card, .goal-card-item, .goal-detail-card, .companion-next-action-card, .goals-empty-card,
   .study-resources-panel, .study-resources-dialog-card,
   .eonpai-utility-panel, .eonpai-conversation-card, .ai-plan-card, .ai-tutorial-card,
@@ -648,14 +637,12 @@ body.aurora-mode.theme-light :is(
   .shinpo-dialog-card, .modal-box, .settings-modal-box,
   .taskmaster-modal-card, .flight-deck-card-menu, .flight-deck-quick-modal-card
 ) {
-  background-color: rgba(255, 255, 255, 0.74);
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(236, 239, 251, 0.76), rgba(255, 255, 255, 0.84));
-  background-size: 180% 180%;
-  border-color: rgba(77, 119, 249, 0.16);
-  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px) saturate(125%);
-  -webkit-backdrop-filter: blur(18px) saturate(125%);
-  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+  background-color: rgba(255, 255, 255, 0.9);
+  background-image: linear-gradient(145deg, var(--surface-card, #FFFFFF), var(--bg, #F7F6F3));
+  border-color: var(--border, #E9E7E3);
+  box-shadow: 0 4px 14px rgba(40, 55, 100, 0.06);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
 }
 
 /* Apply the glass material system across both app layouts and every view. */
@@ -666,7 +653,7 @@ body.aurora-mode.theme-light :is(
   .dashboard-sidecar-card, .priority-hero-card, .bento-card, .ai-sidebar-card, .ai-chat-card,
   .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
   .schedule-container, .schedule-top-toolbar, .schedule-week-strip, .schedule-day-tile,
-  .schedule-agenda-board, .schedule-empty-box, .daily-quote-card,
+  .schedule-agenda-board, .schedule-empty-box, .schedule-sidebar, .schedule-calendar-main, .daily-quote-card,
   .goal-single-summary-card, .goal-card-item,
   .companion-next-action-card, .goals-empty-card, .study-resources-panel,
   .study-resources-dialog-card, .eonpai-utility-panel, .eonpai-conversation-card,
@@ -677,14 +664,12 @@ body.aurora-mode.theme-light :is(
   .timeline-content-card, .ai-daily-agenda-card, .timesheet-item, .activity-feed-item,
   .shinpo-dialog-card, .taskmaster-modal-card, .MuiCard-root, .MuiPaper-root
 ) {
-  background-color: color-mix(in srgb, var(--surface-card, #192541) 78%, transparent);
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--surface-card, #192541) 86%, transparent), color-mix(in srgb, var(--surface, #0E1428) 78%, transparent), color-mix(in srgb, var(--surface-card, #192541) 82%, transparent));
-  background-size: 180% 180%;
-  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(18px) saturate(130%);
-  -webkit-backdrop-filter: blur(18px) saturate(130%);
-  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+  background-color: color-mix(in srgb, var(--surface-card, #1D1E24) 88%, transparent);
+  background-image: linear-gradient(145deg, color-mix(in srgb, var(--surface-card, #1D1E24) 95%, transparent), color-mix(in srgb, var(--surface, #18191E) 90%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 78%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
 }
 
 .app-shell.shinpo-glass-ui.theme-light :is(
@@ -694,7 +679,7 @@ body.aurora-mode.theme-light :is(
   .dashboard-sidecar-card, .priority-hero-card, .bento-card, .ai-sidebar-card, .ai-chat-card,
   .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
   .schedule-container, .schedule-top-toolbar, .schedule-week-strip, .schedule-day-tile,
-  .schedule-agenda-board, .schedule-empty-box, .daily-quote-card,
+  .schedule-agenda-board, .schedule-empty-box, .schedule-sidebar, .schedule-calendar-main, .daily-quote-card,
   .goal-single-summary-card, .goal-card-item,
   .companion-next-action-card, .goals-empty-card, .study-resources-panel,
   .study-resources-dialog-card, .eonpai-utility-panel, .eonpai-conversation-card,
@@ -705,14 +690,12 @@ body.aurora-mode.theme-light :is(
   .timeline-content-card, .ai-daily-agenda-card, .timesheet-item, .activity-feed-item,
   .shinpo-dialog-card, .taskmaster-modal-card, .MuiCard-root, .MuiPaper-root
 ) {
-  background-color: color-mix(in srgb, var(--surface-card, #FFFFFF) 76%, transparent);
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--surface-card, #FFFFFF) 86%, transparent), color-mix(in srgb, var(--bg, #F4F6FD) 76%, transparent), color-mix(in srgb, var(--surface-card, #FFFFFF) 82%, transparent));
-  background-size: 180% 180%;
-  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 150%, transparent);
-  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(18px) saturate(125%);
-  -webkit-backdrop-filter: blur(18px) saturate(125%);
-  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+  background-color: color-mix(in srgb, var(--surface-card, #FFFFFF) 90%, transparent);
+  background-image: linear-gradient(145deg, color-mix(in srgb, var(--surface-card, #FFFFFF) 97%, transparent), color-mix(in srgb, var(--bg, #F7F6F3) 92%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 78%, transparent);
+  box-shadow: 0 4px 14px rgba(40, 55, 100, 0.06);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
 }
 
 body.shinpo-glass-ui:not(.theme-light) :is(
@@ -722,8 +705,8 @@ body.shinpo-glass-ui:not(.theme-light) :is(
   .flight-deck-card-menu, .flight-deck-quick-modal-card, .shinpo-popover-surface,
   .shinpo-calendar-panel, .shinpo-timepicker-panel
 ) {
-  background-color: rgba(25, 37, 65, 0.84);
-  background-image: linear-gradient(135deg, rgba(25, 37, 65, 0.92), rgba(14, 20, 40, 0.86));
+  background-color: color-mix(in srgb, var(--surface-elevated, #282A33) 94%, transparent);
+  background-image: linear-gradient(135deg, var(--surface-elevated, #282A33), var(--surface-card, #1D1E24));
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px) saturate(135%);
@@ -738,8 +721,8 @@ body.shinpo-glass-ui.theme-light :is(
   .shinpo-calendar-panel, .shinpo-timepicker-panel
 ) {
   background-color: rgba(255, 255, 255, 0.88);
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(236, 239, 251, 0.88));
-  border-color: rgba(77, 119, 249, 0.18);
+  background-image: linear-gradient(135deg, var(--surface-card, #FFFFFF), var(--surface-subtle, #EFECE6));
+  border-color: var(--border, #E9E7E3);
   box-shadow: 0 16px 40px rgba(77, 119, 249, 0.12);
   backdrop-filter: blur(20px) saturate(130%);
   -webkit-backdrop-filter: blur(20px) saturate(130%);
@@ -781,9 +764,9 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
 }
 
 .app-shell.shinpo-glass-ui .icon-sidebar {
-  background-color: color-mix(in srgb, var(--sidebar-bg, #0A0F20) 78%, transparent);
-  background-image: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-bg, #0A0F20) 84%, transparent), color-mix(in srgb, var(--surface, #0E1428) 74%, transparent));
-  border-right-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+  background-color: color-mix(in srgb, var(--sidebar-bg, #121316) 78%, transparent);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-bg, #121316) 84%, transparent), color-mix(in srgb, var(--surface, #18191E) 74%, transparent));
+  border-right-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 55%, transparent);
   backdrop-filter: blur(20px) saturate(130%);
   -webkit-backdrop-filter: blur(20px) saturate(130%);
 }
@@ -795,7 +778,7 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
 
 body.shinpo-glass-ui .auth-card {
   border-color: rgba(255, 255, 255, 0.14);
-  background: color-mix(in srgb, var(--surface-card, #192541) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-card, #1D1E24) 78%, transparent);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(24px) saturate(130%);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
@@ -937,5 +920,17 @@ body.shinpo-glass-ui :is(button, a, [role='button'], .MuiButtonBase-root):active
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Reflection rows are content within the analytics panel, not cards nested in cards. */
+.app-shell.shinpo-glass-ui .analytics-view .analytics-debrief-card {
+  background: transparent;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
 }
 

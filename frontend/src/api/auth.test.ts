@@ -5,6 +5,8 @@ import {
   getStoredUser,
   setAuthSession,
   clearAuthSession,
+  getRefreshToken,
+  fetchCurrentUser,
   authHeaders,
 } from './auth.ts'
 
@@ -92,8 +94,8 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     )
   })
 
-  await t.test('session lifecycle clears and retrieves stored users safely', () => {
-    setAuthSession({
+  await t.test('session lifecycle clears and retrieves stored users safely', async () => {
+    await setAuthSession({
       accessToken: 'access-123',
       refreshToken: 'refresh-456',
       tokenType: 'Bearer',
@@ -103,9 +105,86 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     assert.strictEqual(getStoredUser()?.username, 'testuser')
     assert.strictEqual(authHeaders()['Authorization'], 'Bearer access-123')
 
-    clearAuthSession()
+    await clearAuthSession()
     assert.strictEqual(getStoredUser(), null)
     assert.strictEqual(authHeaders()['Authorization'], undefined)
+  })
+
+  await t.test('native sessions keep tokens out of localStorage and migrate legacy tokens securely', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    let secureRefreshToken: string | null = null
+    nativeWindow.__TAURI_INTERNALS__ = {
+      invoke: async (cmd, args) => {
+        if (cmd === 'get_secure_refresh_token') return secureRefreshToken
+        if (cmd === 'set_secure_refresh_token') { secureRefreshToken = String(args?.token); return undefined }
+        if (cmd === 'delete_secure_refresh_token') { secureRefreshToken = null; return undefined }
+        throw new Error(`Unexpected command: ${cmd}`)
+      },
+    }
+
+    try {
+      await setAuthSession({
+        accessToken: 'native-access',
+        refreshToken: 'native-refresh',
+        tokenType: 'Bearer',
+        expiresInSeconds: 3600,
+        user: { id: 2, username: 'native-user', email: 'native@shinpo.dev' },
+      })
+      assert.equal(localStorage.getItem('shinpo_access_token'), null)
+      assert.equal(localStorage.getItem('shinpo_refresh_token'), null)
+      assert.equal(authHeaders().Authorization, 'Bearer native-access')
+      assert.equal(await getRefreshToken(), 'native-refresh')
+
+      await clearAuthSession()
+      assert.equal(secureRefreshToken, null)
+      assert.equal(authHeaders().Authorization, undefined)
+
+      storage.set('shinpo_access_token', 'legacy-access')
+      storage.set('shinpo_refresh_token', 'legacy-refresh')
+      assert.equal(await getRefreshToken(), 'legacy-refresh')
+      assert.equal(authHeaders().Authorization, 'Bearer legacy-access')
+      assert.equal(localStorage.getItem('shinpo_access_token'), null)
+      assert.equal(localStorage.getItem('shinpo_refresh_token'), null)
+      await clearAuthSession()
+      secureRefreshToken = 'legacy-refresh'
+
+      let refreshed = false
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/auth/refresh')) {
+          refreshed = JSON.parse(String(init?.body)).refreshToken === 'legacy-refresh'
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              accessToken: 'restored-access',
+              refreshToken: 'rotated-refresh',
+              tokenType: 'Bearer',
+              expiresInSeconds: 3600,
+              user: { id: 2, username: 'native-user', email: 'native@shinpo.dev' },
+            }),
+          } as unknown as Response
+        }
+        assert.equal(url.endsWith('/api/auth/me'), true)
+        assert.equal((init?.headers as Record<string, string>).Authorization, 'Bearer restored-access')
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 2, username: 'native-user', email: 'native@shinpo.dev' }),
+        } as unknown as Response
+      }) as typeof fetch
+      const restoredUser = await fetchCurrentUser()
+      assert.equal(refreshed, true)
+      assert.equal(restoredUser?.username, 'native-user')
+      assert.equal(await getRefreshToken(), 'rotated-refresh')
+      assert.equal(localStorage.getItem('shinpo_access_token'), null)
+
+      await clearAuthSession()
+    } finally {
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
   })
 })
 

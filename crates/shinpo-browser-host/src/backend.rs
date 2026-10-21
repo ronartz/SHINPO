@@ -12,6 +12,7 @@ pub struct BackendClient<'a> {
 impl<'a> BackendClient<'a> {
     pub fn new(paths: &'a HostPaths, config: &'a mut HostConfig) -> Self {
         let agent = ureq::AgentBuilder::new()
+            .redirects(0)
             .timeout_connect(Duration::from_secs(3))
             .timeout_read(Duration::from_secs(5))
             .timeout_write(Duration::from_secs(5))

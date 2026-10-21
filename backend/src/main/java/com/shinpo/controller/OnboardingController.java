@@ -38,6 +38,11 @@ public class OnboardingController {
         return onboardingService.startOnboarding(principal.getUserId(), fromStep);
     }
 
+    @PostMapping("/finish")
+    public OnboardingResponse finish(@AuthenticationPrincipal UserPrincipal principal) {
+        return onboardingService.finishOnboarding(principal.getUserId());
+    }
+
     @PostMapping("/step")
     public OnboardingResponse step(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -45,8 +50,7 @@ public class OnboardingController {
     ) {
         return onboardingService.recordStepProgress(
                 principal.getUserId(),
-                request.stepIndex(),
-                request.actionVerified()
+                request.stepIndex()
         );
     }
 

@@ -12,6 +12,7 @@ import { LiveClock } from '../components/common/LiveClock'
 import { formatTimerDigits } from '../utils/focusTimer'
 import { trackRender } from '../utils/renderTracker'
 import { getSortedScheduleSessions, getSessionSecondaryInfo } from '../utils/scheduleHelpers'
+import { DailyObjectivesCard } from '../components/dashboard/DailyObjectivesCard'
 
 export interface OverviewViewProps {
   currentUser?: AuthUser | null
@@ -51,6 +52,7 @@ export interface OverviewViewProps {
   setCompletingSessionId?: (id: number | null) => void
   nextActionMission?: Mission | null
   onNavigateToTasks?: (filter: 'ALL' | 'PENDING' | 'COMPLETED') => void
+  onOpenAchievements?: () => void
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -86,6 +88,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   handleResume = () => {},
   setCompletingSessionId = () => {},
   nextActionMission,
+  onOpenAchievements,
 }) => {
   trackRender('OverviewView')
 
@@ -475,6 +478,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </div>
       </section>
+
+      {/* 2.5 Daily Execution Flow & Consistency Objectives */}
+      <DailyObjectivesCard
+        missions={missions}
+        sessions={sessions}
+        currentStreak={analyticsData?.summary?.currentStreak || 0}
+        onOpenAchievements={onOpenAchievements}
+        onNavigateToTasks={() => onNavigateToTasks ? onNavigateToTasks('ALL') : setActiveTab('Goals & Missions')}
+        onNavigateToFocus={() => setActiveTab('Focus Engine')}
+      />
 
       {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
       <section className="dashboard-cockpit-grid" aria-label="Execution Cockpit">

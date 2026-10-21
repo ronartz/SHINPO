@@ -13,6 +13,58 @@ static BACKEND_CONNECTED: AtomicBool = AtomicBool::new(false);
 static LAST_MODE: Mutex<Option<String>> = Mutex::new(None);
 static LAST_SESSION_ID: Mutex<Option<i64>> = Mutex::new(None);
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
+const CREDENTIAL_SERVICE: &str = "com.shinpo.app";
+const REFRESH_TOKEN_ACCOUNT: &str = "refresh_token";
+
+fn refresh_token_entry() -> Result<keyring::Entry, String> {
+    keyring::Entry::new(CREDENTIAL_SERVICE, REFRESH_TOKEN_ACCOUNT)
+        .map_err(|_| "OS credential storage is unavailable".to_string())
+}
+
+fn validate_refresh_token(token: &str) -> Result<(), String> {
+    if token.is_empty() || token.len() > 8192 || token.chars().any(char::is_control) {
+        return Err("Invalid refresh token".to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_secure_refresh_token() -> Result<Option<String>, String> {
+    match refresh_token_entry()?.get_password() {
+        Ok(token) => Ok(Some(token)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(_) => Err("Could not read the saved session from OS credential storage".to_string()),
+    }
+}
+
+#[tauri::command]
+fn set_secure_refresh_token(token: String) -> Result<(), String> {
+    validate_refresh_token(&token)?;
+    refresh_token_entry()?
+        .set_password(&token)
+        .map_err(|_| "Could not save the session in OS credential storage".to_string())
+}
+
+#[cfg(test)]
+mod credential_tests {
+    use super::validate_refresh_token;
+
+    #[test]
+    fn refresh_token_validation_rejects_empty_control_and_oversized_values() {
+        assert!(validate_refresh_token("").is_err());
+        assert!(validate_refresh_token("token\nwith-control").is_err());
+        assert!(validate_refresh_token(&"x".repeat(8193)).is_err());
+        assert!(validate_refresh_token("opaque-refresh-token").is_ok());
+    }
+}
+
+#[tauri::command]
+fn delete_secure_refresh_token() -> Result<(), String> {
+    match refresh_token_entry()?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(_) => Err("Could not remove the saved session from OS credential storage".to_string()),
+    }
+}
 
 #[derive(serde::Serialize, Clone)]
 struct ShieldStatusDto {
@@ -36,13 +88,9 @@ fn get_shield_status() -> Result<ShieldStatusDto, String> {
 
 #[tauri::command]
 fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Result<String, String> {
-    let url = api_url.unwrap_or_else(|| "http://localhost:8080".to_string()).trim().to_string();
-    if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err("Invalid api_url: must start with http:// or https://".to_string());
-    }
-    if url.contains(|c: char| c.is_control() || c.is_whitespace()) {
-        return Err("Invalid api_url: contains illegal characters".to_string());
-    }
+    let url = shinpo_shield::config::validate_backend_url(
+        &api_url.unwrap_or_else(|| "http://localhost:8080".to_string()),
+    )?;
     if let Some(ref t) = token {
         if t.contains(|c: char| c.is_control() || c == '\r' || c == '\n') {
             return Err("Invalid auth token: contains illegal control characters".to_string());
@@ -54,7 +102,10 @@ fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Resul
     }
 
     thread::spawn(move || {
-        log::info!("[SHINPO Desktop Shield] Starting native enforcement thread against: {}", url);
+        log::info!(
+            "[SHINPO Desktop Shield] Starting native enforcement thread against: {}",
+            url
+        );
         let client = SentinelClient::new(url, token);
         let mut enforcer = ShieldEnforcer::new();
         let spooler = OfflineSpooler::new(OfflineSpooler::default_path());
@@ -84,15 +135,21 @@ fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Resul
                             &config.fallback_blacklist,
                             false,
                             Some(|name: &str, cmd: Option<&str>, pid: u32| {
-                                client.evaluate_candidate(&shinpo_shield::client::CandidateProcessRequest {
-                                    process_name: name.to_string(),
-                                    command_line: cmd.map(|s| s.to_string()),
-                                    pid: Some(pid),
-                                })
+                                client.evaluate_candidate(
+                                    &shinpo_shield::client::CandidateProcessRequest {
+                                        process_name: name.to_string(),
+                                        command_line: cmd.map(|s| s.to_string()),
+                                        pid: Some(pid),
+                                    },
+                                )
                             }),
                         );
                         for p in &intercepted {
-                            log::warn!("[SHINPO Desktop Shield] Intercepted distraction: PID {} ({})", p.pid, p.name);
+                            log::warn!(
+                                "[SHINPO Desktop Shield] Intercepted distraction: PID {} ({})",
+                                p.pid,
+                                p.name
+                            );
                             let req = ShieldEnforcer::to_quarantine_request(p);
                             if client.report_quarantine(&req).is_err() {
                                 let _ = spooler.append(&req);
@@ -141,7 +198,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_shield_service,
             stop_shield_service,
-            get_shield_status
+            get_shield_status,
+            get_secure_refresh_token,
+            set_secure_refresh_token,
+            delete_secure_refresh_token
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

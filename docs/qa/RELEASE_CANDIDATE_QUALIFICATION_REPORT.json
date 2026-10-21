@@ -1,48 +1,48 @@
 {
-  "timestamp": "2026-10-21T11:39:13.007Z",
+  "timestamp": "2026-10-21T16:43:03.570Z",
   "overallStatus": "PASSED",
   "packaging": {
     "verified": true,
     "artifacts": {
       "SHINPO-1.0.0-1.x86_64.rpm": {
-        "hash": "39def88c89eff201eff9f9e8d667602163ccbb6e36c0e80473f785bbef77ad49",
-        "sizeBytes": 5088842,
-        "sizeMb": "4.85 MB",
+        "hash": "2c10c413a78e95c707ad968eb831bd6145b6746f9f3293c129b096acc19e6df5",
+        "sizeBytes": 5094427,
+        "sizeMb": "4.86 MB",
         "exists": true
       },
       "SHINPO_1.0.0_amd64.AppImage": {
-        "hash": "d1ac4eaba11eb4f3b52ad4d6b4b5792e0a6aa45db1365836aa5deb276c33eca4",
-        "sizeBytes": 116947448,
-        "sizeMb": "111.53 MB",
+        "hash": "decbe5b7b70ef1eced94fee71bef20c27029535c5f417a214762a319e98f3ed8",
+        "sizeBytes": 116963832,
+        "sizeMb": "111.55 MB",
         "exists": true
       },
       "SHINPO_1.0.0_amd64.deb": {
-        "hash": "9dcca06854d7d83b5341fa15389625cad1a8c48d3d794d746558165b23bbfe5e",
-        "sizeBytes": 5088314,
-        "sizeMb": "4.85 MB",
+        "hash": "12d1332b56d2c1e97b98b5b466612b55a0b903f4c0b564f1e3c0fad301c96894",
+        "sizeBytes": 5094072,
+        "sizeMb": "4.86 MB",
         "exists": true
       },
       "SHINPO_1.0.0_linux_x86_64.tar.gz": {
-        "hash": "27a864a10a3db7284cc24f55898433f0f3036640444d36cdbe309a7b2c6404b9",
-        "sizeBytes": 8020944,
+        "hash": "8a1e6723b31364a7999594544a6a4756ee4df7b1e2bef3e5e9046e13ad55bb8d",
+        "sizeBytes": 8021149,
         "sizeMb": "7.65 MB",
         "exists": true
       },
       "shinpo-desktop": {
-        "hash": "a9d40028431aa9263e73ceb6b123ce0c72f3a59b9964b27b5ba8bfa3fc34c58e",
-        "sizeBytes": 15136056,
-        "sizeMb": "14.43 MB",
+        "hash": "8b44bb76ed2a46cf142cbdfcf21b92f7a4a8053f26703c650a6287692ce9a5d2",
+        "sizeBytes": 15145880,
+        "sizeMb": "14.44 MB",
         "exists": true
       },
       "shinpo-shield": {
-        "hash": "2562564eb0e1066bff9995f2059269f8a8e78f370ac5ba1d0f96d8c912ff73e4",
-        "sizeBytes": 3922576,
-        "sizeMb": "3.74 MB",
+        "hash": "59c160451c9b4fdac1a1eb8e8d09d19afe8d4388b0b8525309a3bb3d9db3c1d7",
+        "sizeBytes": 3893120,
+        "sizeMb": "3.71 MB",
         "exists": true
       },
       "shinpo-browser-host": {
-        "hash": "306728b0cb82e731c90cc3a66098e5a936787b208fcb37de709d1d0b727e1655",
-        "sizeBytes": 3575888,
+        "hash": "90e2206f879c02b64ffc0cf50b92876f26832b47c6094a573534b7d6cdfa88ed",
+        "sizeBytes": 3579376,
         "sizeMb": "3.41 MB",
         "exists": true
       }
@@ -63,12 +63,13 @@
     "concealsWithFakeSuccess": false
   },
   "coreInteractiveFlows": {
-    "pilotId": 127,
-    "username": "rc_pilot_1792582753024_verified",
-    "goalId": 178,
-    "taskId": 229,
-    "sessionId": 88,
-    "totalProgress": 125,
+    "pilotId": 142,
+    "username": "rc_pilot_1792600983583_verified",
+    "goalId": 201,
+    "taskId": 260,
+    "sessionId": 102,
+    "focusSessionXp": 0,
+    "totalProgress": 110,
     "level": 2,
     "levelTitle": "Disciplined Practitioner",
     "verified": true
@@ -83,7 +84,7 @@
     {
       "configuration": "aurora_dark_100",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,
@@ -98,7 +99,7 @@
     {
       "configuration": "aurora_dark_125",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,
@@ -113,7 +114,7 @@
     {
       "configuration": "aurora_dark_150",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,
@@ -128,7 +129,7 @@
     {
       "configuration": "aurora_light_100",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,
@@ -143,7 +144,7 @@
     {
       "configuration": "classic_dark_100",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,
@@ -158,7 +159,7 @@
     {
       "configuration": "classic_light_100",
       "metrics": {
-        "scrollWidth": 1430,
+        "scrollWidth": 1440,
         "windowWidth": 1440,
         "hasHorizontalOverflow": false,
         "sub12Count": 0,

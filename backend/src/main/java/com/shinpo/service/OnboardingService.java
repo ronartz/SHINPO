@@ -15,15 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class OnboardingService {
 
-    public static final int TOTAL_REQUIRED_STEPS = 12;
+    public static final int TOTAL_REQUIRED_STEPS = 6;
     public static final int ONBOARDING_COMPLETION_XP = 50;
 
     private final UserOnboardingRepository onboardingRepository;
@@ -35,8 +31,7 @@ public class OnboardingService {
             UserOnboardingRepository onboardingRepository,
             UserRepository userRepository,
             ProgressEventRepository progressEventRepository,
-            ProgressService progressService
-    ) {
+            ProgressService progressService) {
         this.onboardingRepository = onboardingRepository;
         this.userRepository = userRepository;
         this.progressEventRepository = progressEventRepository;
@@ -67,12 +62,11 @@ public class OnboardingService {
                     "",
                     null,
                     false,
-                    false
-            );
+                    false);
         }
 
-        boolean canClaimReward = entity.getStatus() != OnboardingStatus.SKIPPED
-                && entity.getCompletedStepsCount() >= TOTAL_REQUIRED_STEPS
+        boolean canClaimReward = entity.getStatus() == OnboardingStatus.COMPLETED
+                && progressEventRepository.hasQualifyingOnboardingWorkflow(userId)
                 && !progressEventRepository.existsByUser_IdAndEventType(userId, "ONBOARDING_COMPLETED");
 
         return toDto(entity, canClaimReward);
@@ -82,6 +76,9 @@ public class OnboardingService {
     public OnboardingResponse startOnboarding(Long userId, Integer fromStep) {
         UserOnboarding onboarding = getOrCreateEntity(userId);
 
+        if (onboarding.getStartedAt() == null || onboarding.getStatus() == OnboardingStatus.SKIPPED) {
+            onboarding.setStartedAt(Instant.now());
+        }
         if (onboarding.getStatus() != OnboardingStatus.COMPLETED) {
             onboarding.setStatus(OnboardingStatus.IN_PROGRESS);
         }
@@ -94,30 +91,40 @@ public class OnboardingService {
     }
 
     @Transactional
-    public OnboardingResponse recordStepProgress(Long userId, int stepIndex, boolean actionVerified) {
+    public OnboardingResponse recordStepProgress(Long userId, int stepIndex) {
+        if (stepIndex < 0 || stepIndex >= TOTAL_REQUIRED_STEPS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid onboarding step index.");
+        }
         UserOnboarding onboarding = getOrCreateEntity(userId);
 
-        if (onboarding.getStatus() == OnboardingStatus.NOT_STARTED || onboarding.getStatus() == OnboardingStatus.PAUSED) {
+        if (onboarding.getStatus() == OnboardingStatus.NOT_STARTED
+                || onboarding.getStatus() == OnboardingStatus.PAUSED) {
             onboarding.setStatus(OnboardingStatus.IN_PROGRESS);
+        }
+        if (onboarding.getStartedAt() == null) {
+            onboarding.setStartedAt(Instant.now());
         }
 
         onboarding.setCurrentStep(Math.min(TOTAL_REQUIRED_STEPS, Math.max(0, stepIndex)));
 
-        if (actionVerified) {
-            Set<String> steps = parseVerifiedSteps(onboarding.getVerifiedSteps());
-            steps.add(String.valueOf(stepIndex));
-            onboarding.setVerifiedSteps(String.join(",", steps));
-            onboarding.setCompletedStepsCount(steps.size());
-        }
-
         onboarding.setUpdatedAt(Instant.now());
         UserOnboarding saved = onboardingRepository.save(onboarding);
+        return toDto(saved, canClaimReward(userId, saved));
+    }
 
-        boolean canClaim = saved.getStatus() != OnboardingStatus.SKIPPED
-                && saved.getCompletedStepsCount() >= TOTAL_REQUIRED_STEPS
-                && !progressEventRepository.existsByUser_IdAndEventType(userId, "ONBOARDING_COMPLETED");
-
-        return toDto(saved, canClaim);
+    @Transactional
+    public OnboardingResponse finishOnboarding(Long userId) {
+        UserOnboarding onboarding = getOrCreateEntity(userId);
+        if (onboarding.getStatus() != OnboardingStatus.SKIPPED) {
+            if (onboarding.getStartedAt() == null) {
+                onboarding.setStartedAt(Instant.now());
+            }
+            onboarding.setStatus(OnboardingStatus.COMPLETED);
+            onboarding.setCompletedAt(Instant.now());
+        }
+        onboarding.setUpdatedAt(Instant.now());
+        UserOnboarding saved = onboardingRepository.save(onboarding);
+        return toDto(saved, canClaimReward(userId, saved));
     }
 
     @Transactional
@@ -138,7 +145,8 @@ public class OnboardingService {
     public OnboardingResponse skipOnboarding(Long userId) {
         UserOnboarding onboarding = getOrCreateEntity(userId);
 
-        // Crucial security & fairness rule: Skipping the tour NEVER awards completion points!
+        // Crucial security & fairness rule: Skipping the tour NEVER awards completion
+        // points!
         if (onboarding.getStatus() != OnboardingStatus.COMPLETED) {
             onboarding.setStatus(OnboardingStatus.SKIPPED);
         }
@@ -150,21 +158,24 @@ public class OnboardingService {
 
     @Transactional
     public ProgressResponse completeOnboarding(Long userId) {
-        UserOnboarding onboarding = getOrCreateEntity(userId);
+        getOrCreateEntity(userId);
+        UserOnboarding onboarding = onboardingRepository.findFirstByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Onboarding state not found"));
 
         if (onboarding.getStatus() == OnboardingStatus.SKIPPED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Cannot claim onboarding reward: onboarding journey was skipped. All 12 steps must be completed."
-            );
+                    "Cannot claim onboarding reward: the tutorial was skipped.");
         }
-
-        if (onboarding.getCompletedStepsCount() < TOTAL_REQUIRED_STEPS) {
+        if (onboarding.getStatus() != OnboardingStatus.COMPLETED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Cannot claim onboarding reward: incomplete journey. Verified "
-                            + onboarding.getCompletedStepsCount() + " of " + TOTAL_REQUIRED_STEPS + " steps."
-            );
+                    "Finish the onboarding tutorial before claiming its reward.");
+        }
+        if (!progressEventRepository.hasQualifyingOnboardingWorkflow(userId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Complete a goal, linked task, scheduled focus session, and task completion first.");
         }
 
         // Idempotent points ledger entry: award +50 XP exactly once per user
@@ -177,21 +188,10 @@ public class OnboardingService {
         }
 
         onboarding.setStatus(OnboardingStatus.COMPLETED);
-        onboarding.setCompletedAt(Instant.now());
         onboarding.setUpdatedAt(Instant.now());
         onboardingRepository.save(onboarding);
 
         return progressService.getUserProgress(userId);
-    }
-
-    private Set<String> parseVerifiedSteps(String verifiedSteps) {
-        if (verifiedSteps == null || verifiedSteps.isBlank()) {
-            return new HashSet<>();
-        }
-        return Arrays.stream(verifiedSteps.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toSet());
     }
 
     private OnboardingResponse toDto(UserOnboarding entity, boolean canClaimReward) {
@@ -199,12 +199,16 @@ public class OnboardingService {
                 entity.getUserId(),
                 entity.getStatus().name(),
                 entity.getCurrentStep(),
-                entity.getCompletedStepsCount(),
-                entity.getVerifiedSteps(),
+                0,
+                "",
                 entity.getCompletedAt(),
                 entity.getStatus() == OnboardingStatus.COMPLETED,
-                canClaimReward
-        );
+                canClaimReward);
+    }
+
+    private boolean canClaimReward(Long userId, UserOnboarding onboarding) {
+        return onboarding.getStatus() == OnboardingStatus.COMPLETED
+                && progressEventRepository.hasQualifyingOnboardingWorkflow(userId)
+                && !progressEventRepository.existsByUser_IdAndEventType(userId, "ONBOARDING_COMPLETED");
     }
 }
-

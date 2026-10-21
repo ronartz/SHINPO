@@ -15,14 +15,44 @@ export type AuthResponse = {
 const TOKEN_KEY = 'shinpo_access_token'
 const REFRESH_KEY = 'shinpo_refresh_token'
 const USER_KEY = 'shinpo_auth_user'
+let nativeAccessToken: string | null = null
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null
+  if (isTauriEnvironment()) return nativeAccessToken
   return localStorage.getItem(TOKEN_KEY)
 }
 
-export function getRefreshToken(): string | null {
+export async function getRefreshToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null
+  if (isTauriEnvironment()) {
+    let stored: string | null
+    try {
+      stored = await invokeTauriCommand<string | null>('get_secure_refresh_token')
+    } catch {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_KEY)
+      return null
+    }
+    if (stored) {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_KEY)
+      return stored
+    }
+
+    const legacyAccessToken = localStorage.getItem(TOKEN_KEY)
+    const legacyRefreshToken = localStorage.getItem(REFRESH_KEY)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+    if (!legacyRefreshToken) return null
+    try {
+      await invokeTauriCommand<void>('set_secure_refresh_token', { token: legacyRefreshToken })
+      nativeAccessToken = legacyAccessToken
+      return legacyRefreshToken
+    } catch {
+      return null
+    }
+  }
   return localStorage.getItem(REFRESH_KEY)
 }
 
@@ -50,16 +80,25 @@ export function getAuthenticatedUserId(): number | null {
   return user?.id ?? null
 }
 
-export function setAuthSession(response: AuthResponse) {
-  localStorage.setItem(TOKEN_KEY, response.accessToken)
-  localStorage.setItem(REFRESH_KEY, response.refreshToken)
+export async function setAuthSession(response: AuthResponse): Promise<void> {
+  if (isTauriEnvironment()) {
+    await invokeTauriCommand<void>('set_secure_refresh_token', { token: response.refreshToken })
+    nativeAccessToken = response.accessToken
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  } else {
+    localStorage.setItem(TOKEN_KEY, response.accessToken)
+    localStorage.setItem(REFRESH_KEY, response.refreshToken)
+  }
   localStorage.setItem(USER_KEY, JSON.stringify(response.user))
 }
 
-export function clearAuthSession() {
+export async function clearAuthSession(): Promise<void> {
+  nativeAccessToken = null
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(REFRESH_KEY)
   localStorage.removeItem(USER_KEY)
+  if (isTauriEnvironment()) await invokeTauriCommand<void>('delete_secure_refresh_token')
 }
 
 export function authHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
@@ -74,12 +113,30 @@ export function authHeaders(customHeaders: Record<string, string> = {}): Record<
   return headers
 }
 
-import { getBackendBaseUrl } from './config.ts'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
 
-const API_BASE = `${getBackendBaseUrl()}/api`
+const apiBase = () => `${getBackendBaseUrl()}/api`
+
+async function persistAuthResponse(response: AuthResponse): Promise<void> {
+  try {
+    await setAuthSession(response)
+  } catch {
+    try {
+      await fetchWithoutRedirects(`${apiBase()}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: response.refreshToken }),
+      })
+    } catch {
+      // The local credential-store failure remains the primary error.
+    }
+    throw new Error('Could not save the session in secure storage. Please check your OS credential service and sign in again.')
+  }
+}
 
 export async function login(usernameOrEmail: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await fetchWithoutRedirects(`${apiBase()}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usernameOrEmail, password }),
@@ -97,12 +154,12 @@ export async function login(usernameOrEmail: string, password: string): Promise<
   }
 
   const data: AuthResponse = await res.json()
-  setAuthSession(data)
+  await persistAuthResponse(data)
   return data
 }
 
 export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  const res = await fetchWithoutRedirects(`${apiBase()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, email, password }),
@@ -120,21 +177,20 @@ export async function register(username: string, email: string, password: string
   }
 
   const data: AuthResponse = await res.json()
-  setAuthSession(data)
+  await persistAuthResponse(data)
   return data
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
-  const token = getAuthToken()
-  if (!token) return null
+  if (!getAuthToken() && !(await refreshAccessToken())) return null
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    const res = await fetchWithoutRedirects(`${apiBase()}/auth/me`, {
       headers: authHeaders(),
     })
     if (!res.ok) {
       if (res.status === 401) {
-        clearAuthSession()
+        await clearAuthSession()
       }
       return null
     }
@@ -147,10 +203,10 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 }
 
 export async function logout(): Promise<void> {
-  const refreshToken = getRefreshToken()
+  const refreshToken = await getRefreshToken().catch(() => null)
   if (refreshToken) {
     try {
-      await fetch(`${API_BASE}/auth/logout`, {
+      await fetchWithoutRedirects(`${apiBase()}/auth/logout`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ refreshToken }),
@@ -159,24 +215,24 @@ export async function logout(): Promise<void> {
       // ignore logout network failure on teardown
     }
   }
-  clearAuthSession()
+  await clearAuthSession()
 }
 
 export async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken()
+  const refreshToken = await getRefreshToken().catch(() => null)
   if (!refreshToken) return null
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetchWithoutRedirects(`${apiBase()}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     })
     if (!res.ok) {
-      clearAuthSession()
+      await clearAuthSession()
       return null
     }
     const data: AuthResponse = await res.json()
-    setAuthSession(data)
+    await persistAuthResponse(data)
     return data.accessToken
   } catch {
     return null
@@ -184,7 +240,7 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/change-password`, {
+  const res = await fetchWithoutRedirects(`${apiBase()}/auth/change-password`, {
     method: 'POST',
     headers: {
       ...authHeaders(),
@@ -200,7 +256,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function updateUsername(username: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/users/me/username`, {
+  const res = await fetchWithoutRedirects(`${apiBase()}/users/me/username`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify({ username }),

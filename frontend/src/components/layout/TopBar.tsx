@@ -20,6 +20,7 @@ export interface TopBarProps {
   onOpenSettings?: (section?: SettingsSection) => void
   currentUser: AuthUser | null
   userProgress?: ProgressResponse | null
+  onOpenAchievements?: () => void
   onLogout: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
@@ -41,6 +42,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   onOpenSettings,
   currentUser,
   userProgress,
+  onOpenAchievements,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview,
@@ -121,7 +123,17 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
             </div>
             <div className="profile-text-wrap">
               <span className="profile-username">{currentUser.username}</span>
-              <span className="profile-role">
+              <span
+                className="profile-role"
+                onClick={(e) => {
+                  if (onOpenAchievements) {
+                    e.stopPropagation()
+                    onOpenAchievements()
+                  }
+                }}
+                style={{ cursor: onOpenAchievements ? 'pointer' : 'default' }}
+                title={onOpenAchievements ? 'Click to view progression & achievements' : undefined}
+              >
                 {userProgress ? `Lvl ${userProgress.level} • ${userProgress.totalProgress} XP` : 'Personal Workspace'}
               </span>
             </div>

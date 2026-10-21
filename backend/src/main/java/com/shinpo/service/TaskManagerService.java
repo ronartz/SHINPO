@@ -48,11 +48,11 @@ public class TaskManagerService {
             deviceName = serverProcessScanningEnabled ? "Primary Workstation" : "SHINPO Cloud Node";
         }
 
-        int procCount = serverProcessScanningEnabled ? (int) ProcessHandle.allProcesses().count() : 0;
-        double cpuLoad = Math.max(0.0, Math.min(100.0, osBean.getCpuLoad() * 100.0));
-        if (Double.isNaN(cpuLoad) || cpuLoad <= 0) {
-            cpuLoad = Math.max(1.2, osBean.getSystemLoadAverage() * 10.0);
-        }
+        Integer procCount = serverProcessScanningEnabled ? (int) ProcessHandle.allProcesses().count() : null;
+        double rawCpuLoad = osBean.getCpuLoad() * 100.0;
+        Double cpuLoad = Double.isFinite(rawCpuLoad) && rawCpuLoad >= 0
+                ? Math.min(100.0, rawCpuLoad)
+                : null;
 
         long totalMem = osBean.getTotalMemorySize();
         long freeMem = osBean.getFreeMemorySize();
@@ -63,7 +63,7 @@ public class TaskManagerService {
                 osBean.getVersion(),
                 osBean.getArch(),
                 osBean.getAvailableProcessors(),
-                Math.round(cpuLoad * 10.0) / 10.0,
+                cpuLoad == null ? null : Math.round(cpuLoad * 10.0) / 10.0,
                 totalMem,
                 freeMem,
                 procCount
@@ -109,22 +109,12 @@ public class TaskManagerService {
                 canControl = true;
             }
 
-            // Memory estimation
-            long memoryEstimate = 45 * 1024 * 1024L; // 45 MB baseline
-            if (policy.equals("BLOCKED")) {
-                memoryEstimate = 320 * 1024 * 1024L;
-            } else if (lowerName.contains("chrome") || lowerName.contains("firefox") || lowerName.contains("idea")) {
-                memoryEstimate = 680 * 1024 * 1024L;
-            }
-
-            double cpuEstimate = policy.equals("BLOCKED") ? 3.4 : (pid % 17) * 0.4;
-
             ProcessInfo pInfo = new ProcessInfo(
                     pid,
                     name,
                     rawCmd,
-                    Math.round(cpuEstimate * 10.0) / 10.0,
-                    memoryEstimate,
+                    null,
+                    null,
                     handle.isAlive() ? "RUNNING" : "TERMINATED",
                     info.startInstant().orElse(null),
                     info.user().orElse("system"),

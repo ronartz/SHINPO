@@ -6,8 +6,8 @@ export interface ProcessInfo {
   pid: number
   name: string
   executablePath: string
-  cpuPercent: number
-  memoryBytes: number
+  cpuPercent: number | null
+  memoryBytes: number | null
   status: string
   startedAt: string | null
   user: string
@@ -29,10 +29,10 @@ export interface DeviceSystemInfo {
   osVersion: string
   osArch: string
   availableProcessors: number
-  systemCpuLoad: number
+  systemCpuLoad: number | null
   totalMemoryBytes: number
   freeMemoryBytes: number
-  processCount: number
+  processCount: number | null
 }
 
 export interface ProcessSnapshot {
@@ -41,12 +41,12 @@ export interface ProcessSnapshot {
   timestamp: string
 }
 
-import { getBackendBaseUrl } from './config'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config'
 
 const API_BASE = `${getBackendBaseUrl()}/api/device`
 
 export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
-  const res = await fetch(`${API_BASE}/system-info`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/system-info`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch system info: ${res.status}`)
@@ -59,7 +59,7 @@ export async function fetchProcesses(search?: string, policy?: string): Promise<
   if (policy && policy !== 'ALL') params.set('policy', policy)
   const qs = params.toString() ? `?${params.toString()}` : ''
 
-  const res = await fetch(`${API_BASE}/processes${qs}`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/processes${qs}`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch processes: ${res.status}`)
@@ -72,7 +72,7 @@ export async function fetchDeviceSnapshot(search?: string, policy?: string): Pro
   if (policy && policy !== 'ALL') params.set('policy', policy)
   const qs = params.toString() ? `?${params.toString()}` : ''
 
-  const res = await fetch(`${API_BASE}/snapshot${qs}`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/snapshot${qs}`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch device snapshot: ${res.status}`)
@@ -80,7 +80,7 @@ export async function fetchDeviceSnapshot(search?: string, policy?: string): Pro
 }
 
 export async function terminateProcess(pid: number, force: boolean = false): Promise<ProcessControlResult> {
-  const res = await fetch(`${API_BASE}/processes/${pid}/terminate?force=${force}`, {
+  const res = await fetchWithoutRedirects(`${API_BASE}/processes/${pid}/terminate?force=${force}`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -166,7 +166,7 @@ export interface PolicyRule {
 const SENTINEL_BASE = `${API_BASE}/sentinel`
 
 export async function fetchSentinelStatus(): Promise<SentinelStatus> {
-  const res = await fetch(`${SENTINEL_BASE}/status`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/status`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch Sentinel status: ${res.status}`)
@@ -174,7 +174,7 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
 }
 
 export async function triggerSentinelSweep(): Promise<SentinelSweepResult> {
-  const res = await fetch(`${SENTINEL_BASE}/sweep`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/sweep`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -184,7 +184,7 @@ export async function triggerSentinelSweep(): Promise<SentinelSweepResult> {
 
 export async function fetchSentinelQuarantines(sessionId?: number): Promise<SentinelQuarantineItem[]> {
   const qs = sessionId ? `?sessionId=${sessionId}` : ''
-  const res = await fetch(`${SENTINEL_BASE}/quarantines${qs}`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/quarantines${qs}`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch quarantines: ${res.status}`)
@@ -192,7 +192,7 @@ export async function fetchSentinelQuarantines(sessionId?: number): Promise<Sent
 }
 
 export async function fetchSentinelRules(): Promise<PolicyRule[]> {
-  const res = await fetch(`${SENTINEL_BASE}/rules`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch policy rules: ${res.status}`)
@@ -200,7 +200,7 @@ export async function fetchSentinelRules(): Promise<PolicyRule[]> {
 }
 
 export async function addSentinelRule(processNamePattern: string, policyType: string = 'BLOCKED'): Promise<PolicyRule> {
-  const res = await fetch(`${SENTINEL_BASE}/rules`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ processNamePattern, policyType }),
@@ -210,7 +210,7 @@ export async function addSentinelRule(processNamePattern: string, policyType: st
 }
 
 export async function deleteSentinelRule(ruleId: number): Promise<void> {
-  const res = await fetch(`${SENTINEL_BASE}/rules/${ruleId}`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules/${ruleId}`, {
     method: 'DELETE',
     headers: authHeaders(),
   })
@@ -221,7 +221,7 @@ export async function deleteSentinelRule(ruleId: number): Promise<void> {
 }
 
 export async function updateSentinelMode(enforcementMode: string): Promise<SentinelStatus> {
-  const res = await fetch(`${SENTINEL_BASE}/mode`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/mode`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify({ enforcementMode }),
@@ -234,7 +234,7 @@ export async function updateSentinelMode(enforcementMode: string): Promise<Senti
 }
 
 export async function emergencyOverride(request: EmergencyOverrideRequest): Promise<EmergencyOverrideResponse> {
-  const res = await fetch(`${SENTINEL_BASE}/emergency-override`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/emergency-override`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(request),
@@ -248,7 +248,7 @@ export async function emergencyOverride(request: EmergencyOverrideRequest): Prom
 
 export async function fetchSentinelTamperEvents(sessionId?: number): Promise<SentinelTamperEventItem[]> {
   const qs = sessionId ? `?sessionId=${sessionId}` : ''
-  const res = await fetch(`${SENTINEL_BASE}/tamper-events${qs}`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/tamper-events${qs}`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch tamper events: ${res.status}`)
@@ -268,7 +268,7 @@ export interface SentinelWarningItem {
 }
 
 export async function fetchActiveWarnings(): Promise<SentinelWarningItem[]> {
-  const res = await fetch(`${SENTINEL_BASE}/warnings`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/warnings`, {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch active warnings: ${res.status}`)
@@ -280,7 +280,7 @@ export async function respondToWarning(
   action: 'GRANT_GRACE' | 'TERMINATE_NOW',
   graceMinutes?: number,
 ): Promise<SentinelWarningItem> {
-  const res = await fetch(`${SENTINEL_BASE}/warnings/${warningId}/respond`, {
+  const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/warnings/${warningId}/respond`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ action, graceMinutes }),

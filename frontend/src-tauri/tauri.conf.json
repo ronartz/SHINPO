@@ -23,7 +23,16 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' asset: http://asset.localhost",
+        "base-uri": "'self'",
+        "object-src": "'none'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' asset: http://asset.localhost data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:8080 http://127.0.0.1:8080 https: wss: ws://localhost:5173"
+      }
     }
   },
   "bundle": {

@@ -89,3 +89,11 @@ export function getViewHeaderTitle(view: AppView): string {
   }
 }
 
+declare global {
+  interface Window {
+    __SHINPO_START_TUTORIAL__?: (initialStepIndex?: number) => void
+    __SHINPO_NAVIGATE_TAB__?: (tab: AppView) => void
+  }
+}
+
+

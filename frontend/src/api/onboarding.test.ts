@@ -4,6 +4,7 @@ import {
   getOnboardingState,
   startOnboarding,
   recordOnboardingStep,
+  finishOnboarding,
   pauseOnboarding,
   skipOnboarding,
 } from './onboarding.ts'
@@ -77,7 +78,7 @@ test('Onboarding API client contracts', async (t) => {
     assert.deepEqual(JSON.parse(capturedBody), { fromStep: 2 })
   })
 
-  await t.test('recordOnboardingStep sends stepIndex and actionVerified', async () => {
+  await t.test('recordOnboardingStep sends display progress only', async () => {
     let capturedUrl = ''
     let capturedMethod = ''
     let capturedBody = ''
@@ -87,16 +88,30 @@ test('Onboarding API client contracts', async (t) => {
       capturedMethod = init?.method ?? 'GET'
       capturedBody = String(init?.body ?? '')
       return new Response(
-        JSON.stringify({ status: 'IN_PROGRESS', completedStepsCount: 1 }),
+        JSON.stringify({ status: 'IN_PROGRESS', completedStepsCount: 0 }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
     }) as typeof fetch
 
-    const res = await recordOnboardingStep(0, true)
-    assert.strictEqual(res.completedStepsCount, 1)
+    const res = await recordOnboardingStep(0)
+    assert.strictEqual(res.completedStepsCount, 0)
     assert.ok(capturedUrl.endsWith('/api/onboarding/step'))
     assert.strictEqual(capturedMethod, 'POST')
-    assert.deepEqual(JSON.parse(capturedBody), { stepIndex: 0, actionVerified: true })
+    assert.deepEqual(JSON.parse(capturedBody), { stepIndex: 0 })
+  })
+
+  await t.test('finishOnboarding marks learning completion without claiming XP', async () => {
+    let capturedUrl = ''
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      capturedUrl = String(input)
+      return new Response(JSON.stringify({ status: 'COMPLETED', canClaimReward: false }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })
+    }) as typeof fetch
+    const res = await finishOnboarding()
+    assert.equal(res.status, 'COMPLETED')
+    assert.equal(res.canClaimReward, false)
+    assert.ok(capturedUrl.endsWith('/api/onboarding/finish'))
   })
 
   await t.test('pauseOnboarding sends stepIndex', async () => {

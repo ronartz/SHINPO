@@ -48,6 +48,9 @@ public class UserOnboarding implements Persistable<Long> {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "started_at")
+    private Instant startedAt;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
@@ -143,6 +146,14 @@ public class UserOnboarding implements Persistable<Long> {
 
     public void setCompletedAt(Instant completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(Instant startedAt) {
+        this.startedAt = startedAt;
     }
 
     public Instant getUpdatedAt() {

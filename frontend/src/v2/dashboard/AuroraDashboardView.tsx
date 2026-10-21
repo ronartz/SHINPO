@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Box, Typography, Tooltip } from '@mui/material'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
@@ -39,7 +39,10 @@ export interface AuroraDashboardViewProps {
   setTopSearchQuery?: (query: string) => void
   isDarkMode?: boolean
   onNavigateToTasks?: (filter: 'ALL' | 'PENDING' | 'COMPLETED') => void
+  onOpenAchievements?: () => void
 }
+
+import { DailyObjectivesCard } from '../../components/dashboard/DailyObjectivesCard'
 
 import {
   getSortedScheduleSessions,
@@ -74,6 +77,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
   topSearchQuery = '',
   setTopSearchQuery,
   isDarkMode = true,
+  onOpenAchievements,
 }) => {
   const [inspectingMission, setInspectingMission] = useState<Mission | null>(null)
 
@@ -107,10 +111,10 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
   // 3. Search and split missions into V1 Kanban lanes: In Progress, Ready, Completed
   const q = (topSearchQuery || '').trim().toLowerCase()
-  const searchFilter = (m: Mission) => {
+  const searchFilter = useCallback((m: Mission) => {
     if (!q) return true
     return m.title.toLowerCase().includes(q) || (m.description && m.description.toLowerCase().includes(q))
-  }
+  }, [q])
 
   const inProgM = useMemo(() => {
     return missions.filter((m) => {
@@ -123,17 +127,17 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
       }
       return m.status === 'IN_PROGRESS'
     })
-  }, [missions, activeSession, q])
+  }, [missions, activeSession, searchFilter])
 
   const compM = useMemo(() => {
     return missions.filter((m) => m.status === 'COMPLETED' && searchFilter(m))
-  }, [missions, q])
+  }, [missions, searchFilter])
 
   const inProgIds = useMemo(() => new Set(inProgM.map((m) => m.id)), [inProgM])
 
   const pendM = useMemo(() => {
     return missions.filter((m) => m.status !== 'COMPLETED' && !inProgIds.has(m.id) && searchFilter(m))
-  }, [missions, inProgIds, q])
+  }, [missions, inProgIds, searchFilter])
 
   const displayInProgress = inProgM.length > 0 ? inProgM : (activeSession && pendM.length > 0 ? [pendM[0]] : [])
   const displayPending = displayInProgress.length > 0 && pendM.length > 0 && displayInProgress[0].id === pendM[0].id
@@ -710,6 +714,16 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           </Box>
         </AuroraCard>
       </Box>
+
+      {/* 2.5 Daily Execution Flow & Consistency Objectives */}
+      <DailyObjectivesCard
+        missions={missions}
+        sessions={sessions}
+        currentStreak={analyticsData?.summary?.currentStreak || 0}
+        onOpenAchievements={onOpenAchievements}
+        onNavigateToTasks={() => onNavigateToTasks ? onNavigateToTasks('ALL') : setActiveTab('Goals & Missions')}
+        onNavigateToFocus={() => setActiveTab('Focus Engine')}
+      />
 
       {/* =========================================================================
           3. COCKPIT GRID: Priority Hero Card (1.2fr) + Today's Schedule Card (1fr)

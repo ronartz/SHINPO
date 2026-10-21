@@ -66,7 +66,7 @@ export function formatSafeTimeString(raw: unknown): string {
 /**
  * Normalizes raw WebSocket FocusSession payloads across backend variations.
  */
-export function normalizeFocusSessionEvent(raw: any): FocusSessionEvent {
+export function normalizeFocusSessionEvent(raw: unknown): FocusSessionEvent {
   if (!raw || typeof raw !== 'object') {
     return {
       id: 0,
@@ -83,31 +83,32 @@ export function normalizeFocusSessionEvent(raw: any): FocusSessionEvent {
     }
   }
 
-  const rawId = raw.id ?? raw.sessionId
+  const r = raw as Record<string, unknown>
+  const rawId = r.id ?? r.sessionId
   const parsedId = typeof rawId === 'number' ? rawId : Number(rawId) || 0
 
-  const rawDur = raw.plannedDurationMinutes ?? raw.durationMinutes
+  const rawDur = r.plannedDurationMinutes ?? r.durationMinutes
   const parsedDur = typeof rawDur === 'number' ? rawDur : Number(rawDur) || 25
 
   return {
     id: parsedId,
-    userId: Number(raw.userId) || 0,
-    missionId: raw.missionId !== undefined && raw.missionId !== null ? Number(raw.missionId) : null,
-    status: typeof raw.status === 'string' && raw.status.trim() ? raw.status.trim().toUpperCase() : 'UNKNOWN',
-    startTime: raw.startedAt || raw.startTime || null,
-    endTime: raw.endedAt || raw.endTime || null,
+    userId: Number(r.userId) || 0,
+    missionId: r.missionId !== undefined && r.missionId !== null ? Number(r.missionId) : null,
+    status: typeof r.status === 'string' && r.status.trim() ? r.status.trim().toUpperCase() : 'UNKNOWN',
+    startTime: (typeof r.startedAt === 'string' ? r.startedAt : null) || (typeof r.startTime === 'string' ? r.startTime : null),
+    endTime: (typeof r.endedAt === 'string' ? r.endedAt : null) || (typeof r.endTime === 'string' ? r.endTime : null),
     plannedDurationMinutes: parsedDur,
-    actualDurationMinutes: Number(raw.actualDurationMinutes ?? rawDur) || 0,
-    interruptionCount: Number(raw.interruptionCount) || 0,
-    debriefNotes: raw.debriefNotes || raw.intention || null,
-    timestamp: toSafeIsoString(raw.timestamp),
+    actualDurationMinutes: Number(r.actualDurationMinutes ?? rawDur) || 0,
+    interruptionCount: Number(r.interruptionCount) || 0,
+    debriefNotes: (typeof r.debriefNotes === 'string' ? r.debriefNotes : null) || (typeof r.intention === 'string' ? r.intention : null),
+    timestamp: toSafeIsoString(r.timestamp),
   }
 }
 
 /**
  * Normalizes raw WebSocket SentinelStatus payloads across backend variations.
  */
-export function normalizeSentinelStatusEvent(raw: any): SentinelStatusEvent {
+export function normalizeSentinelStatusEvent(raw: unknown): SentinelStatusEvent {
   if (!raw || typeof raw !== 'object') {
     return {
       userId: null,
@@ -119,25 +120,26 @@ export function normalizeSentinelStatusEvent(raw: any): SentinelStatusEvent {
     }
   }
 
-  const mode = raw.mode || raw.enforcementMode || 'STANDBY'
-  const isLocked = Boolean(raw.isLocked ?? raw.policyLocked ?? false)
-  const blockedCount = Number(raw.blockedCount) || 0
-  const allowedCount = Number(raw.allowedCount) || 0
+  const r = raw as Record<string, unknown>
+  const mode = r.mode || r.enforcementMode || 'STANDBY'
+  const isLocked = Boolean(r.isLocked ?? r.policyLocked ?? false)
+  const blockedCount = Number(r.blockedCount) || 0
+  const allowedCount = Number(r.allowedCount) || 0
 
   return {
-    userId: raw.userId !== undefined && raw.userId !== null ? Number(raw.userId) : null,
+    userId: r.userId !== undefined && r.userId !== null ? Number(r.userId) : null,
     mode: String(mode).toUpperCase(),
     isLocked,
     blockedCount,
     allowedCount,
-    timestamp: toSafeIsoString(raw.timestamp),
+    timestamp: toSafeIsoString(r.timestamp),
   }
 }
 
 /**
  * Normalizes raw WebSocket Quarantine payloads across backend variations.
  */
-export function normalizeSentinelQuarantineEvent(raw: any): SentinelQuarantineEvent {
+export function normalizeSentinelQuarantineEvent(raw: unknown): SentinelQuarantineEvent {
   if (!raw || typeof raw !== 'object') {
     return {
       id: Date.now(),
@@ -152,19 +154,20 @@ export function normalizeSentinelQuarantineEvent(raw: any): SentinelQuarantineEv
     }
   }
 
-  const rawId = raw.id ?? Date.now()
-  const rawSessionId = raw.focusSessionId ?? raw.sessionId
+  const r = raw as Record<string, unknown>
+  const rawId = r.id ?? Date.now()
+  const rawSessionId = r.focusSessionId ?? r.sessionId
 
   return {
     id: Number(rawId) || Date.now(),
-    userId: raw.userId !== undefined && raw.userId !== null ? Number(raw.userId) : null,
+    userId: r.userId !== undefined && r.userId !== null ? Number(r.userId) : null,
     focusSessionId: rawSessionId !== undefined && rawSessionId !== null ? Number(rawSessionId) : null,
-    processName: String(raw.processName || 'Unknown Process'),
-    pid: Number(raw.pid) || 0,
-    reason: String(raw.reason || 'Distraction intercepted by Focus Protection'),
-    enforcementAction: String(raw.enforcementAction || raw.policyAction || 'TERMINATED').toUpperCase(),
-    platform: String(raw.platform || 'linux'),
-    timestamp: toSafeIsoString(raw.timestamp),
+    processName: String(r.processName || 'Unknown Process'),
+    pid: Number(r.pid) || 0,
+    reason: String(r.reason || 'Distraction intercepted by Focus Protection'),
+    enforcementAction: String(r.enforcementAction || r.policyAction || 'TERMINATED').toUpperCase(),
+    platform: String(r.platform || 'linux'),
+    timestamp: toSafeIsoString(r.timestamp),
   }
 }
 

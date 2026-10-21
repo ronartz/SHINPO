@@ -63,6 +63,7 @@ class AnalyticsServiceTests {
         assertEquals(33, summary.completionRate());
         assertEquals(2L, summary.totalFocusMinutes());
         assertEquals(1, summary.sessionsCompleted());
+        assertEquals(1, summary.sessionsStarted());
     }
 
     @Test
@@ -148,6 +149,7 @@ class AnalyticsServiceTests {
         FocusSession session = mock(FocusSession.class);
         when(session.getStatus()).thenReturn(FocusSessionStatus.COMPLETED);
         when(session.getEndedAt()).thenReturn(endedAt);
+        when(session.getStartedAt()).thenReturn(endedAt.minusSeconds(activeSeconds));
         lenient().when(session.calculateActiveSeconds(NOW)).thenReturn(activeSeconds);
         return session;
     }

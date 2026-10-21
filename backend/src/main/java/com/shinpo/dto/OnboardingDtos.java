@@ -20,20 +20,18 @@ public class OnboardingDtos {
     ) {}
 
     public record StartOnboardingRequest(
-            @Min(0) @Max(12)
+            @Min(0) @Max(5)
             Integer fromStep
     ) {}
 
     public record OnboardingStepRequest(
             @NotNull
-            @Min(0) @Max(12)
-            Integer stepIndex,
-
-            boolean actionVerified
+            @Min(0) @Max(5)
+            Integer stepIndex
     ) {}
 
     public record OnboardingPauseRequest(
-            @Min(0) @Max(12)
+            @Min(0) @Max(6)
             Integer stepIndex
     ) {}
 }

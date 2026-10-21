@@ -32,7 +32,7 @@ class CloudDeploymentDecouplingTests {
 
         DeviceSystemInfo sysInfo = cloudService.getSystemInfo();
         assertNotNull(sysInfo);
-        assertEquals(0, sysInfo.processCount(), "Process count must be 0 when server process scanning is disabled");
+        assertNull(sysInfo.processCount(), "Process count must be unavailable when server process scanning is disabled");
         assertTrue(sysInfo.deviceName().contains("Cloud") || sysInfo.deviceName().equals(System.getenv("HOSTNAME")),
                 "Device name must reflect cloud node or container hostname");
 

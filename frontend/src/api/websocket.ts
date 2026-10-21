@@ -73,6 +73,12 @@ class ShinpoWebSocketClient {
 
     const token = getAuthToken() || ''
     const brokerUrl = getWsBaseUrl()
+    if (!brokerUrl) {
+      this.currentUserId = null
+      this.isConnecting = false
+      this.notifyConnection(false)
+      return
+    }
 
     this.client = new Client({
       brokerURL: brokerUrl,

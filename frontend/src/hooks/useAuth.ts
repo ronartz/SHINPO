@@ -29,7 +29,7 @@ export function useAuth() {
 
   // Sync current user on mount
   useEffect(() => {
-    if (currentUser) {
+    if (getStoredUser()) {
       fetchCurrentUser().then((user) => {
         if (user) setCurrentUser(user)
       }).catch(() => {})

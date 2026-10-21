@@ -1,0 +1,801 @@
+/* ==========================================================================
+   SHINPO (進歩) — PROGRESSION, REWARDS & MICROINTERACTIONS
+   Rize-inspired sleek surfaces + Duolingo-inspired rewarding feedback.
+   Full dark/light mode, Classic/Aurora support, and reduced-motion compliance.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. MICROINTERACTIONS & MOTION LANGUAGE
+   -------------------------------------------------------------------------- */
+
+/* Satisfying task checkbox checkmark animation */
+@keyframes shinpoCheckPop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.22);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.objective-checkbox.checked,
+.task-checkbox-btn.is-completed {
+  animation: shinpoCheckPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Subtle button active microinteraction */
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+  transition: transform 0.08s ease;
+}
+
+/* --------------------------------------------------------------------------
+   2. DAILY OBJECTIVES CARD (DASHBOARD)
+   -------------------------------------------------------------------------- */
+
+.daily-objectives-card {
+  background: var(--surface-card, #131722);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='light'] .daily-objectives-card {
+  background: #FFFFFF;
+  border-color: rgba(77, 119, 249, 0.14);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.daily-objectives-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.daily-objectives-title-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.daily-objectives-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.15);
+  color: #A78BFA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme='light'] .daily-objectives-icon-wrap {
+  background: rgba(124, 58, 237, 0.1);
+  color: #7C3AED;
+}
+
+.daily-objectives-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary, #F8FAFC);
+}
+
+.daily-objectives-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary, #94A3B8);
+}
+
+.daily-objectives-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.streak-capsule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  font-size: 12px;
+  font-weight: 700;
+  color: #F59E0B;
+}
+
+.streak-capsule.is-active {
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+}
+
+.btn-view-achievements {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary, #E2E8F0);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-view-achievements:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+[data-theme='light'] .btn-view-achievements {
+  background: #F1F5F9;
+  border-color: rgba(77, 119, 249, 0.16);
+  color: #334155;
+}
+
+[data-theme='light'] .btn-view-achievements:hover {
+  background: #E2E8F0;
+  border-color: #7C3AED;
+}
+
+.daily-objectives-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .daily-objectives-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.objective-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.objective-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='light'] .objective-item {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .objective-item:hover {
+  background: #F1F5F9;
+  border-color: rgba(77, 119, 249, 0.2);
+}
+
+.objective-item.is-completed {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.objective-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.objective-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-subtle, rgba(255, 255, 255, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10B981;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+[data-theme='light'] .objective-checkbox {
+  border-color: #CBD5E1;
+}
+
+.objective-checkbox.checked {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10B981;
+}
+
+.objective-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.objective-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #F1F5F9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.objective-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #94A3B8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.objective-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.objective-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #94A3B8);
+}
+
+.objective-mini-bar {
+  width: 54px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+[data-theme='light'] .objective-mini-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.objective-mini-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7C3AED, #10B981);
+  transition: width 0.35s ease;
+}
+
+/* --------------------------------------------------------------------------
+   3. CELEBRATION MODAL (DUOLINGO-INSPIRED SATISFACTION MOMENTS)
+   -------------------------------------------------------------------------- */
+
+.celebration-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: shinpoFadeIn 0.22s ease-out;
+}
+
+@keyframes shinpoFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.celebration-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: #11151F;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.15);
+  animation: shinpoSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes shinpoSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+[data-theme='light'] .celebration-card {
+  background: #FFFFFF;
+  border-color: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 0 25px rgba(124, 58, 237, 0.1);
+}
+
+.celebration-glow {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.3) 0%, rgba(124, 58, 237, 0) 70%);
+  pointer-events: none;
+}
+
+.celebration-badge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.celebration-badge-burst {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7C3AED, #3B82F6);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  animation: shinpoBadgeBurst 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes shinpoBadgeBurst {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.celebration-xp-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10B981;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.celebration-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary, #F8FAFC);
+  margin: 0 0 8px 0;
+}
+
+.celebration-detail {
+  font-size: 13px;
+  color: var(--text-secondary, #94A3B8);
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.celebration-level-announcement {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  margin-bottom: 16px;
+}
+
+.celebration-level-announcement .level-number {
+  font-size: 12px;
+  font-weight: 800;
+  color: #A78BFA;
+  text-transform: uppercase;
+}
+
+.celebration-level-announcement .level-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #FFFFFF);
+}
+
+.celebration-streak-note {
+  font-size: 12px;
+  font-weight: 700;
+  color: #F59E0B;
+  margin-bottom: 16px;
+}
+
+.celebration-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.celebration-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.celebration-btn.primary {
+  background: linear-gradient(135deg, #7C3AED, #6366F1);
+  color: #FFFFFF;
+  border: none;
+  flex: 1;
+}
+
+.celebration-btn.primary:hover {
+  filter: brightness(1.1);
+}
+
+.celebration-btn.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  color: var(--text-primary, #E2E8F0);
+}
+
+.celebration-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   4. ACHIEVEMENTS & PROGRESS MODAL
+   -------------------------------------------------------------------------- */
+
+.achievements-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.achievements-modal-card {
+  width: 100%;
+  max-width: 620px;
+  max-height: 85vh;
+  background: #11151F;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme='light'] .achievements-modal-card {
+  background: #FFFFFF;
+  border-color: rgba(77, 119, 249, 0.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+.achievements-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.achievements-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.achievements-level-badge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7C3AED, #3B82F6);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.achievements-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-primary, #F8FAFC);
+}
+
+.achievements-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary, #94A3B8);
+}
+
+.achievements-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #94A3B8);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.achievements-close-btn:hover {
+  color: var(--text-primary, #FFFFFF);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.achievements-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #94A3B8);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+[data-theme='light'] .progress-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #7C3AED, #3B82F6);
+  transition: width 0.4s ease;
+}
+
+.achievements-summary-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.summary-strip-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+[data-theme='light'] .summary-strip-card {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.strip-label {
+  font-size: 11px;
+  color: var(--text-secondary, #94A3B8);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.strip-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #F8FAFC);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.strip-hint {
+  font-size: 11px;
+  color: var(--text-muted, #64748B);
+}
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #94A3B8);
+  margin: 0 0 10px 0;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.achievement-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  transition: all 0.18s ease;
+}
+
+[data-theme='light'] .achievement-card {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.achievement-card.is-unlocked {
+  border-color: rgba(167, 139, 250, 0.25);
+  background: rgba(124, 58, 237, 0.04);
+}
+
+.achievement-card.is-locked {
+  opacity: 0.6;
+}
+
+.achievement-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #A78BFA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.achievement-card.is-unlocked .achievement-icon-wrap {
+  background: rgba(124, 58, 237, 0.2);
+  color: #C4B5FD;
+}
+
+.achievement-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.achievement-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.achievement-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #F8FAFC);
+}
+
+.achievement-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.achievement-pill.unlocked {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.achievement-pill.locked {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, #94A3B8);
+}
+
+.achievement-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #94A3B8);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 12px;
+}
+
+.ledger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ledger-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.ledger-amount {
+  font-weight: 700;
+  color: #10B981;
+}
+
+.achievements-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.achievements-done-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: var(--btn-primary-bg, #7C3AED);
+  color: #FFFFFF;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   5. REDUCED MOTION SAFEGUARDS
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .objective-checkbox.checked,
+  .task-checkbox-btn.is-completed,
+  .celebration-card,
+  .celebration-badge-burst,
+  .celebration-modal-overlay,
+  button:not(:disabled):active {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}

@@ -34,7 +34,6 @@ public class WebSocketEventService {
             if (userId != null) {
                 messagingTemplate.convertAndSend("/topic/users/" + userId + "/sentinel/quarantine", event);
             }
-            messagingTemplate.convertAndSend("/topic/sentinel/quarantine", event);
             log.debug("WEBSOCKET_QUARANTINE_BROADCAST: user={} pid={} proc={}", userId, record.getPid(), record.getProcessName());
         } catch (Exception e) {
             log.warn("WEBSOCKET_BROADCAST_ERROR: Could not broadcast quarantine event: {}", e.getMessage());
@@ -78,7 +77,6 @@ public class WebSocketEventService {
             if (userId != null) {
                 messagingTemplate.convertAndSend("/topic/users/" + userId + "/focus-session", event);
             }
-            messagingTemplate.convertAndSend("/topic/focus-session", event);
             log.debug("WEBSOCKET_SESSION_BROADCAST: user={} session={} status={}",
                     userId, session.getId(), session.getStatus());
         } catch (Exception e) {

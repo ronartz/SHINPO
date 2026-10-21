@@ -77,7 +77,8 @@ public class AnalyticsService {
                             s.getEndedAt() != null ? s.getEndedAt() : s.getCreatedAt()
                     ));
                 }
-            } else if (s.getStatus() == FocusSessionStatus.ACTIVE || s.getStatus() == FocusSessionStatus.PAUSED) {
+            }
+            if (s.getStartedAt() != null) {
                 sessionsStarted++;
             }
         }

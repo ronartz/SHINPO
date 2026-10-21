@@ -137,8 +137,10 @@ impl HostConfig {
         if update.base_url.is_empty() || update.access_token.is_empty() {
             return Err(HostError::Config("Base URL and access token are required".into()));
         }
+        let base_url = validate_backend_url(&update.base_url)
+            .map_err(|message| HostError::Config(message.into()))?;
         self.backend = Some(BackendConfig {
-            base_url: update.base_url.trim_end_matches('/').to_string(),
+            base_url,
             access_token: update.access_token,
             refresh_token: update.refresh_token,
             access_token_expires_at_ms: update.access_token_expires_at_ms,
@@ -157,13 +159,39 @@ impl HostConfig {
             )));
         }
         let data = fs::read(&paths.config)?;
-        Ok(serde_json::from_slice(&data)?)
+        let config: Self = serde_json::from_slice(&data)?;
+        if let Some(backend) = &config.backend {
+            validate_backend_url(&backend.base_url)
+                .map_err(|message| HostError::Config(message.into()))?;
+        }
+        Ok(config)
     }
 
     pub fn save(&self, paths: &HostPaths) -> Result<(), HostError> {
         paths.secure_directories()?;
         atomic_write_json(&paths.config, self)
     }
+}
+
+fn validate_backend_url(raw: &str) -> Result<String, &'static str> {
+    let parsed = url::Url::parse(raw.trim()).map_err(|_| "Invalid backend URL")?;
+    let authority = raw.trim().split_once("://").map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default()).unwrap_or_default();
+    if authority.contains('@') || parsed.password().is_some() || parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err("Backend URL must not contain credentials, a query, or a fragment");
+    }
+    let loopback = match parsed.host() {
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(host)) => host == std::net::Ipv4Addr::LOCALHOST,
+        Some(url::Host::Ipv6(host)) => host == std::net::Ipv6Addr::LOCALHOST,
+        None => false,
+    };
+    match parsed.scheme() {
+        "https" => {}
+        "http" if loopback => {}
+        "http" => return Err("Secure connection required: remote servers must use HTTPS"),
+        _ => return Err("Backend URL must use HTTP on loopback or HTTPS"),
+    }
+    Ok(parsed.as_str().trim_end_matches('/').to_string())
 }
 
 fn hash_token(raw: &str) -> String {
@@ -222,6 +250,20 @@ mod tests {
         assert_ne!(pairing_code, rotated);
         assert!(!config.verify_pairing(&pairing_code));
         assert!(config.verify_pairing(&rotated));
+    }
+
+    #[test]
+    fn backend_credentials_require_https_except_explicit_loopback() {
+        for url in ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080", "https://api.example.com"] {
+            assert!(validate_backend_url(url).is_ok(), "{url}");
+        }
+        for url in [
+            "http://192.168.1.2:8080", "http://127.0.0.2:8080", "http://localhost.example:8080",
+            "https://user:secret@example.com", "https://@example.com", "https://example.com/?token=x",
+            "https://example.com/#fragment", "ftp://example.com",
+        ] {
+            assert!(validate_backend_url(url).is_err(), "{url}");
+        }
     }
 
     #[test]

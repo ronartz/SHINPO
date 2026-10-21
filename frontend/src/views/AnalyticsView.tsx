@@ -29,7 +29,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
     <main className="analytics-view">
       <header className="analytics-page-heading">
         <div>
-          <span className="analytics-eyebrow">YOUR PROGRESS</span>
+          <span className="analytics-eyebrow">Your progress</span>
           <h1>Analytics</h1>
           <p>A clearer view of your focus, consistency, and completed work.</p>
         </div>
@@ -41,23 +41,33 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
 
       <section className="analytics-metrics-grid" aria-label="All-time summary">
         <article className="analytics-card analytics-metric-focus">
-          <div className="analytics-metric-heading"><span>FOCUS TIME</span><Icon name="clock" size={16} /></div>
+          <div className="analytics-metric-heading"><span>Focus time</span><Icon name="clock" size={16} /></div>
           <strong>{formatDuration(analyticsData?.summary.totalFocusMinutes ?? 0)}</strong>
-          <small>{analyticsData ? `${(analyticsData.summary.totalFocusMinutes / 60).toFixed(1)} hours invested` : 'Total recorded focus'}</small>
+          <small>{analyticsData
+            ? analyticsData.summary.totalFocusMinutes === 0
+              ? 'No focus time recorded yet'
+              : analyticsData.summary.totalFocusMinutes < 60
+                ? `${analyticsData.summary.totalFocusMinutes} min invested`
+                : `${(analyticsData.summary.totalFocusMinutes / 60).toFixed(1)} hours invested`
+            : 'Total recorded focus'}</small>
         </article>
         <article className="analytics-card">
-          <div className="analytics-metric-heading"><span>SESSIONS</span><Icon name="check" size={16} /></div>
+          <div className="analytics-metric-heading"><span>Completed sessions</span><Icon name="check" size={16} /></div>
           <strong>{analyticsData?.summary.sessionsCompleted ?? 0}</strong>
-          <small>{analyticsData ? `${analyticsData.summary.sessionsStarted} started` : 'Completed focus sessions'}</small>
+          <small>{analyticsData
+            ? analyticsData.summary.sessionsStarted === 0
+              ? 'No sessions started yet'
+              : `${analyticsData.summary.sessionsStarted} ${analyticsData.summary.sessionsStarted === 1 ? 'session' : 'sessions'} started`
+            : 'Completed focus sessions'}</small>
         </article>
         <article className="analytics-card">
-          <div className="analytics-metric-heading"><span>TASKS COMPLETED</span><Icon name="target" size={16} /></div>
+          <div className="analytics-metric-heading"><span>Tasks completed</span><Icon name="target" size={16} /></div>
           <strong>{analyticsData ? <>{analyticsData.summary.missionsCompleted}<i> / {analyticsData.summary.missionsTotal}</i></> : '0'}</strong>
           <small>Progress across your goals</small>
         </article>
         <article className="analytics-card">
-          <div className="analytics-metric-heading"><span>FOCUS STREAK</span><Icon name="sparkle" size={16} /></div>
-          <strong>{analyticsData?.summary.currentStreak ?? 0}<i> days</i></strong>
+          <div className="analytics-metric-heading"><span>Focus streak</span><Icon name="sparkle" size={16} /></div>
+          <strong>{analyticsData?.summary.currentStreak ?? 0}<i> {analyticsData?.summary.currentStreak === 1 ? 'day' : 'days'}</i></strong>
           <small>{analyticsData?.summary.avgQuality != null ? `Average session rating ${analyticsData.summary.avgQuality.toFixed(1)} / 5` : 'Keep showing up consistently'}</small>
         </article>
       </section>
@@ -66,7 +76,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
         <article className="analytics-panel analytics-velocity-card">
           <div className="analytics-panel-heading">
             <div>
-              <span className="analytics-eyebrow">LAST 7 DAYS</span>
+              <span className="analytics-eyebrow">Last 7 days</span>
               <h2>Focus activity</h2>
               <p>Your daily focus time, measured in minutes.</p>
             </div>
@@ -81,11 +91,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
                   <div className={`analytics-bar-col${day === bestDay && day.focusMinutes > 0 ? ' is-best' : ''}`} key={day.date}>
                     <div className="analytics-bar-value">{day.focusMinutes ? formatDuration(day.focusMinutes) : '—'}</div>
                     <div className="analytics-bar-track">
-                    <div className="analytics-bar" style={{ height: `${Math.max(day.focusMinutes ? 8 : 2, day.focusMinutes / maxMinutes * 100)}%`, '--bar-height': `${Math.max(day.focusMinutes ? 8 : 2, day.focusMinutes / maxMinutes * 100)}%`, animationDelay: `${index * 45}ms` } as React.CSSProperties} />
+                      {day.focusMinutes > 0 && <div className="analytics-bar" style={{ height: `${Math.max(8, day.focusMinutes / maxMinutes * 100)}%`, '--bar-height': `${Math.max(8, day.focusMinutes / maxMinutes * 100)}%`, animationDelay: `${index * 45}ms` } as React.CSSProperties} />}
                     </div>
                     <span className="analytics-day-label">{day.dayName}</span>
                   </div>
                 ))}
+                {weekMinutes === 0 && <div className="analytics-chart-zero-state">No tracked focus time this week yet</div>}
               </div>
             </div>
           ) : (
@@ -95,7 +106,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
 
         <aside className="analytics-panel analytics-week-panel">
           <div className="analytics-panel-heading">
-            <div><span className="analytics-eyebrow">WEEK AT A GLANCE</span><h2>Your rhythm</h2></div>
+            <div><span className="analytics-eyebrow">Week at a glance</span><h2>Your rhythm</h2></div>
             <span className="analytics-rhythm-icon"><Icon name="target" size={17} /></span>
           </div>
           <div className="analytics-week-stat"><span>Focus sessions</span><strong>{weekSessions}</strong></div>
@@ -111,7 +122,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
 
       <section className="analytics-panel analytics-recent-panel">
         <div className="analytics-panel-heading">
-          <div><span className="analytics-eyebrow">LOOKING BACK</span><h2>Recent reflections</h2><p>Notes and outcomes from your completed sessions.</p></div>
+          <div><span className="analytics-eyebrow">Looking back</span><h2>Recent reflections</h2><p>Notes and outcomes from your completed sessions.</p></div>
           <span className="analytics-recent-count">{analyticsData?.recentDebriefs.length ?? 0} sessions</span>
         </div>
         <div className="analytics-debrief-list">
@@ -119,9 +130,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
             <article key={deb.sessionId} className="analytics-debrief-card">
               <div className="analytics-debrief-main">
                 <div className="analytics-debrief-title">{deb.sessionName}</div>
-                {deb.accomplishment && <p className="analytics-debrief-outcome">{deb.accomplishment}</p>}
-                {deb.reflectionNote && <p className="analytics-debrief-note">{deb.reflectionNote}</p>}
-                {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note">Intent: {deb.intention}</p>}
+                {deb.accomplishment && <p className="analytics-debrief-outcome"><span>Outcome</span>{deb.accomplishment}</p>}
+                {deb.reflectionNote && <p className="analytics-debrief-note"><span>Reflection</span>{deb.reflectionNote}</p>}
+                {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note"><span>Intention</span>{deb.intention}</p>}
               </div>
               <div className="analytics-debrief-meta">
                 <span className="analytics-duration-chip">{formatDuration(deb.durationMinutes)}</span>
