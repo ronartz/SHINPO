@@ -81,6 +81,7 @@
 .analytics-debrief-outcome { color: var(--text-2); }
 .analytics-debrief-meta { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 6px; }
 .analytics-duration-chip { padding: 4px 8px; color: var(--text-2); background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 99px; font-size: 12px; font-weight: 700; }
+.analytics-planned-duration { color: var(--text-3); font-size: 12px; }
 .analytics-quality { color: var(--accent-amber, #F59E0B); font-size: 12px; letter-spacing: .05em; white-space: nowrap; }
 .analytics-debrief-empty { padding: 22px 0 26px; color: var(--text-3); font-size: 12px; text-align: center; }
 

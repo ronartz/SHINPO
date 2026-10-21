@@ -114,7 +114,7 @@ class AnalyticsServiceTests {
     }
 
     @Test
-    void calculatesConsecutiveDayStreakFromLatestExecutionDay() {
+    void calculatesCurrentStreakWhenLastExecutionWasTodayOrYesterday() {
         FocusSession today = completedSession(60, 60, Instant.parse("2026-10-03T09:00:00Z"));
         FocusSession yesterday = completedSession(60, 60, Instant.parse("2026-10-02T09:00:00Z"));
         FocusSession twoDaysAgo = completedSession(60, 60, Instant.parse("2026-10-01T09:00:00Z"));
@@ -123,6 +123,10 @@ class AnalyticsServiceTests {
                 .thenReturn(List.of(today, yesterday, twoDaysAgo));
 
         assertEquals(3, analyticsService.getAnalyticsDashboard(USER_ID).summary().currentStreak());
+
+        when(focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(USER_ID))
+                .thenReturn(List.of(yesterday));
+        assertEquals(1, analyticsService.getAnalyticsDashboard(USER_ID).summary().currentStreak());
     }
 
     @Test
@@ -137,6 +141,31 @@ class AnalyticsServiceTests {
 
         when(focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
         assertEquals(0, analyticsService.getAnalyticsDashboard(USER_ID).summary().currentStreak());
+    }
+
+    @Test
+    void expiresAStreakAfterMoreThanOneInactiveDay() {
+        FocusSession oldSession = completedSession(60, 60, Instant.parse("2026-09-30T09:00:00Z"));
+        when(missionRepository.findAllByGoal_User_IdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
+        when(focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(USER_ID))
+                .thenReturn(List.of(oldSession));
+
+        assertEquals(0, analyticsService.getAnalyticsDashboard(USER_ID).summary().currentStreak());
+    }
+
+    @Test
+    void reportsPlannedAndActualFocusDurationSeparatelyForReflections() {
+        FocusSession session = completedSession(120, 62, NOW.minusSeconds(60));
+        when(session.getDurationMinutes()).thenReturn(120);
+        when(session.getAccomplishment()).thenReturn("Finished the draft");
+        when(missionRepository.findAllByGoal_User_IdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
+        when(focusSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(USER_ID))
+                .thenReturn(List.of(session));
+
+        var debrief = analyticsService.getAnalyticsDashboard(USER_ID).recentDebriefs().getFirst();
+
+        assertEquals(120, debrief.durationMinutes());
+        assertEquals(1L, debrief.actualFocusMinutes());
     }
 
     private Mission mission(String status) {

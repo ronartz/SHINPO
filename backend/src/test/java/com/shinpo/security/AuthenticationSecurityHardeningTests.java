@@ -566,4 +566,28 @@ public class AuthenticationSecurityHardeningTests {
         assertEquals(HttpStatus.OK, sameRes.getStatusCode());
         assertEquals(newValidUsername, sameRes.getBody().username());
     }
+
+    @Test
+    @DisplayName("DELETE /api/users/me wipes user account and cascades all associated data")
+    void testDeleteAccountWipesUserAndCascadesData() {
+        // 1. Create dedicated user with token
+        String username = "delete_target_" + System.currentTimeMillis();
+        User target = userRepository.save(new User(username, username + "@shinpo.test", passwordEncoder.encode("Password123!"), Instant.now()));
+        String token = jwtTokenService.generateAccessToken(UserPrincipal.create(target));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        // 2. Unauthenticated request rejected
+        ResponseEntity<Void> unauthRes = restTemplate.exchange("/api/users/me", HttpMethod.DELETE, HttpEntity.EMPTY, Void.class);
+        assertEquals(HttpStatus.UNAUTHORIZED, unauthRes.getStatusCode());
+
+        // 3. Authenticated deletion succeeds with 204 No Content
+        ResponseEntity<Void> deleteRes = restTemplate.exchange("/api/users/me", HttpMethod.DELETE, request, Void.class);
+        assertEquals(HttpStatus.NO_CONTENT, deleteRes.getStatusCode());
+
+        // 4. Verify user is completely removed from database
+        assertFalse(userRepository.existsById(target.getId()));
+    }
 }

@@ -26,6 +26,7 @@ export interface RecentDebrief {
   sessionName: string
   intention: string
   durationMinutes: number
+  actualFocusMinutes: number
   quality: number | null
   accomplishment: string
   reflectionNote: string

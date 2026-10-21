@@ -52,4 +52,13 @@ public class UserController {
         }
         return userService.updateUsername(principal.getUserId(), request.username());
     }
+
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        userService.deleteAccount(principal.getUserId());
+    }
 }

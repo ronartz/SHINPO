@@ -38,6 +38,11 @@ agents/
 scripts/*.cjs
 scripts/changeset/
 scripts/lib/
+GSD-STYLE.md
+PROJECT_RULES.md
+VERSION
+adapters/
+model_capabilities.yaml
 
 # Repomix
 repomix-output.xml

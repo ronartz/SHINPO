@@ -87,4 +87,14 @@ public class UserService {
                 saved.getRole()
         );
     }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteAccount(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "User not found"
+            );
+        }
+        userRepository.deleteById(userId);
+    }
 }

@@ -24,6 +24,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
   const bestDay = week.reduce<DailyFocusVelocity | null>((best, day) =>
     !best || day.focusMinutes > best.focusMinutes ? day : best, null)
   const maxMinutes = Math.max(...week.map(day => day.focusMinutes), 60)
+  const completionRate = analyticsData?.summary.completionRate ?? null
 
   return (
     <main className="analytics-view">
@@ -112,9 +113,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
           <div className="analytics-week-stat"><span>Focus sessions</span><strong>{weekSessions}</strong></div>
           <div className="analytics-week-stat"><span>Daily average</span><strong>{formatDuration(Math.round(weekMinutes / Math.max(week.length, 1)))}</strong></div>
           <div className="analytics-week-stat"><span>Most focused day</span><strong>{bestDay?.focusMinutes ? bestDay.dayName : '—'}</strong></div>
-          <div className="analytics-week-progress" aria-label={`${analyticsData?.summary.completionRate ?? 0}% task completion rate`}>
-            <div className="analytics-week-progress-heading"><span>Task completion</span><strong>{analyticsData?.summary.completionRate ?? 0}%</strong></div>
-            <div className="analytics-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, analyticsData?.summary.completionRate ?? 0))}%` }} /></div>
+          <div className="analytics-week-progress" aria-label={completionRate == null ? 'All-time task completion: no tasks yet' : `All-time task completion: ${completionRate}%`}>
+            <div className="analytics-week-progress-heading"><span>All-time task completion</span><strong>{completionRate == null ? 'No tasks yet' : `${completionRate}%`}</strong></div>
+            <div className="analytics-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, completionRate ?? 0))}%` }} /></div>
           </div>
           <p className="analytics-week-note">Small, repeatable sessions build lasting momentum. Keep your next focus block achievable.</p>
         </aside>
@@ -135,7 +136,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
                 {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note"><span>Intention</span>{deb.intention}</p>}
               </div>
               <div className="analytics-debrief-meta">
-                <span className="analytics-duration-chip">{formatDuration(deb.durationMinutes)}</span>
+                <span className="analytics-duration-chip">{formatDuration(deb.actualFocusMinutes)} active</span>
+                <span className="analytics-planned-duration">Planned {formatDuration(deb.durationMinutes)}</span>
                 <span className="analytics-quality">{deb.quality != null ? `${'★'.repeat(Math.min(5, Math.max(0, deb.quality)))}${'☆'.repeat(Math.max(0, 5 - deb.quality))}` : 'Not rated'}</span>
               </div>
             </article>

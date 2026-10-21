@@ -49,6 +49,7 @@ public class AnalyticsService {
         int qualityCount = 0;
         long totalActiveSeconds = 0;
         Set<LocalDate> completedExecutionDates = new HashSet<>();
+        LocalDate today = LocalDate.now(clock);
 
         List<RecentDebrief> debriefs = new ArrayList<>();
         Instant now = Instant.now(clock);
@@ -71,6 +72,7 @@ public class AnalyticsService {
                             s.getName(),
                             s.getIntention(),
                             s.getDurationMinutes(),
+                            Math.round(s.calculateActiveSeconds(now) / 60.0),
                             s.getCompletionQuality(),
                             s.getAccomplishment() != null ? s.getAccomplishment() : "Session completed",
                             s.getReflectionNote() != null ? s.getReflectionNote() : "",
@@ -104,7 +106,7 @@ public class AnalyticsService {
                 allMissions.size(),
                 avgQuality,
                 completionRate,
-                calculateCurrentStreak(completedExecutionDates),
+                calculateCurrentStreak(completedExecutionDates, today),
                 "MISSIONS",
                 missionsCompleted,
                 allMissions.size()
@@ -112,8 +114,6 @@ public class AnalyticsService {
 
         // 7-day velocity
         List<DailyFocusVelocity> weeklyVelocity = new ArrayList<>();
-        LocalDate today = LocalDate.now(clock);
-
         for (int i = 6; i >= 0; i--) {
             LocalDate d = today.minusDays(i);
             String dayName = d.getDayOfWeek().name().substring(0, 3);
@@ -139,12 +139,15 @@ public class AnalyticsService {
         return new AnalyticsDashboardResponse(summary, weeklyVelocity, debriefs);
     }
 
-    private int calculateCurrentStreak(Set<LocalDate> completedExecutionDates) {
+    private int calculateCurrentStreak(Set<LocalDate> completedExecutionDates, LocalDate today) {
         if (completedExecutionDates.isEmpty()) {
             return 0;
         }
 
         LocalDate latestExecutionDate = Collections.max(completedExecutionDates);
+        if (latestExecutionDate.isBefore(today.minusDays(1)) || latestExecutionDate.isAfter(today)) {
+            return 0;
+        }
         int streak = 0;
         LocalDate date = latestExecutionDate;
         while (completedExecutionDates.contains(date)) {

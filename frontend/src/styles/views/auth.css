@@ -125,8 +125,8 @@
 }
 
 .auth-input:focus {
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 3px rgba(255, 69, 58, 0.15);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px var(--accent-purple-border);
 }
 
 .auth-error-banner {

@@ -1596,24 +1596,6 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   pointer-events: none;
 }
 
-.shinpo-backdrop-quad {
-  position: fixed;
-  background: rgba(10, 10, 14, 0.62);
-  backdrop-filter: blur(0.75px);
-  pointer-events: auto;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-}
-
-.shinpo-spotlight-ring {
-  position: fixed;
-  border: 2px solid #35E36F;
-  box-shadow: 0 0 0 3px rgba(53, 227, 111, 0.25);
-  border-radius: 10px;
-  pointer-events: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 .shinpo-coachmark-card {
   position: fixed;
   width: 380px;
@@ -1826,13 +1808,7 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shinpo-spotlight-ring {
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .shinpo-coachmark-card,
-  .shinpo-backdrop-quad {
+  .shinpo-coachmark-card {
     transition: none !important;
   }
 }
@@ -1885,47 +1861,6 @@ html[data-theme='light'] .coachmark-why-box {
 
 .coachmark-nav-fallback-btn:hover {
   background: rgba(77, 119, 249, 0.2);
-}
-
-.shinpo-spotlight-ring.hint-pulse {
-  animation: spotlightPulse 0.4s ease 2 !important;
-}
-
-@keyframes spotlightPulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 3px rgba(77, 119, 249, 0.4);
-  }
-
-  50% {
-    transform: scale(1.02);
-    box-shadow: 0 0 0 10px rgba(77, 119, 249, 0.6);
-  }
-
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 3px rgba(77, 119, 249, 0.4);
-  }
-}
-
-.shinpo-coachmark-card.card-hint-shake {
-  animation: cardHintShake 0.4s ease 1;
-}
-
-@keyframes cardHintShake {
-
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-
-  25% {
-    transform: translateX(-4px);
-  }
-
-  75% {
-    transform: translateX(4px);
-  }
 }
 
 .coachmark-sandbox-container {

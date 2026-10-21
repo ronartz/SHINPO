@@ -31,6 +31,7 @@ public class AnalyticsDtos {
             String sessionName,
             String intention,
             Integer durationMinutes,
+            Long actualFocusMinutes,
             Integer quality,
             String accomplishment,
             String reflectionNote,

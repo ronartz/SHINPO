@@ -861,6 +861,15 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentUser(null)
+      setAuthError('Your session expired. Please sign in again.')
+    }
+    window.addEventListener('shinpo:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('shinpo:unauthorized', handleUnauthorized)
+  }, [])
+
+  useEffect(() => {
     if (!authRestored || !currentUser) return
     const timer = setTimeout(() => {
       void loadData()

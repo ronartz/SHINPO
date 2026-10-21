@@ -41,9 +41,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   const [rect, setRect] = useState<TargetRect | null>(null)
   const [coachmarkPos, setCoachmarkPos] = useState<{ top: number; left: number }>({ top: 120, left: 100 })
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false)
-  const [hintPulse, setHintPulse] = useState(false)
   const coachmarkRef = useRef<HTMLDivElement>(null)
-  const pad = 8 // padding around target element in px
 
   // Persist only which informational step is being viewed; this is never reward evidence.
   useEffect(() => {
@@ -241,13 +239,27 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
     }
   }, [stepIndex, userId])
 
-  const handleBackdropClick = () => {
-    setHintPulse(true)
-    window.setTimeout(() => setHintPulse(false), 800)
-  }
+  useEffect(() => {
+    let target = document.querySelector(step.targetSelector)
+    if (!target && step.fallbackSelector) target = document.querySelector(step.fallbackSelector)
+    if (!(target instanceof HTMLElement)) return
 
-  const winW = typeof window !== 'undefined' ? window.innerWidth : 1440
-  const winH = typeof window !== 'undefined' ? window.innerHeight : 900
+    const previousPosition = target.style.position
+    const previousZIndex = target.style.zIndex
+    const previousOutline = target.style.outline
+    const previousOutlineOffset = target.style.outlineOffset
+    if (getComputedStyle(target).position === 'static') target.style.position = 'relative'
+    // Outline the real target instead of masking the app and hiding its content.
+    target.style.zIndex = '10002'
+    target.style.outline = '2px solid var(--accent-purple)'
+    target.style.outlineOffset = '4px'
+    return () => {
+      target.style.position = previousPosition
+      target.style.zIndex = previousZIndex
+      target.style.outline = previousOutline
+      target.style.outlineOffset = previousOutlineOffset
+    }
+  }, [step])
 
   // Suspend overlay when an application modal is actively open
   if (hasActiveModal) {
@@ -259,85 +271,14 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   return (
     <div
       className="shinpo-tutorial-portal"
-      role="dialog"
-      aria-modal="true"
+      role="region"
       aria-labelledby="coachmark-title"
       aria-label="SHINPO Interactive Walkthrough"
     >
-      {/* 4 Backdrop Mask Divs that create the interactive cutout WITHOUT silent click-dismiss */}
-      {!isExitConfirmOpen && (
-        rect ? (
-          <>
-            {/* Top backdrop */}
-            <div
-              className="shinpo-backdrop-quad"
-              style={{
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: Math.max(0, rect.top - pad),
-              }}
-              onClick={handleBackdropClick}
-            />
-            {/* Bottom backdrop */}
-            <div
-              className="shinpo-backdrop-quad"
-              style={{
-                top: rect.bottom + pad,
-                left: 0,
-                width: '100%',
-                height: Math.max(0, winH - (rect.bottom + pad)),
-              }}
-              onClick={handleBackdropClick}
-            />
-            {/* Left backdrop */}
-            <div
-              className="shinpo-backdrop-quad"
-              style={{
-                top: Math.max(0, rect.top - pad),
-                left: 0,
-                width: Math.max(0, rect.left - pad),
-                height: rect.height + pad * 2,
-              }}
-              onClick={handleBackdropClick}
-            />
-            {/* Right backdrop */}
-            <div
-              className="shinpo-backdrop-quad"
-              style={{
-                top: Math.max(0, rect.top - pad),
-                left: rect.right + pad,
-                width: Math.max(0, winW - (rect.right + pad)),
-                height: rect.height + pad * 2,
-              }}
-              onClick={handleBackdropClick}
-            />
-
-            {/* Spotlight Ring around target with hint pulse */}
-            <div
-              className={`shinpo-spotlight-ring ${hintPulse ? 'hint-pulse' : ''}`}
-              style={{
-                top: rect.top - pad,
-                left: rect.left - pad,
-                width: rect.width + pad * 2,
-                height: rect.height + pad * 2,
-              }}
-            />
-          </>
-        ) : (
-          /* Full fallback dimmer when element is loading or on another tab */
-          <div
-            className="shinpo-backdrop-quad"
-            style={{ inset: 0, width: '100%', height: '100%' }}
-            onClick={handleBackdropClick}
-          />
-        )
-      )}
-
       {/* Floating EONPAI Coachmark Box */}
       <div
         ref={coachmarkRef}
-        className={`shinpo-coachmark-card ${hintPulse ? 'card-hint-shake' : ''}`}
+        className="shinpo-coachmark-card"
         style={{
           top: coachmarkPos.top,
           left: coachmarkPos.left,

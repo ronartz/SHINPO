@@ -16,6 +16,22 @@ const TOKEN_KEY = 'shinpo_access_token'
 const REFRESH_KEY = 'shinpo_refresh_token'
 const USER_KEY = 'shinpo_auth_user'
 let nativeAccessToken: string | null = null
+let authRefreshTimer: number | null = null
+
+function scheduleTokenRefresh(delayMs: number): void {
+  if (typeof window === 'undefined') return
+  if (authRefreshTimer !== null) window.clearTimeout(authRefreshTimer)
+  authRefreshTimer = window.setTimeout(async () => {
+    authRefreshTimer = null
+    const token = await refreshAccessToken()
+    if (token) return
+    if (getAuthToken()) {
+      scheduleTokenRefresh(30_000)
+    } else {
+      window.dispatchEvent(new CustomEvent('shinpo:unauthorized'))
+    }
+  }, delayMs)
+}
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null
@@ -91,9 +107,15 @@ export async function setAuthSession(response: AuthResponse): Promise<void> {
     localStorage.setItem(REFRESH_KEY, response.refreshToken)
   }
   localStorage.setItem(USER_KEY, JSON.stringify(response.user))
+  const expiresInSeconds = Number.isFinite(response.expiresInSeconds)
+    ? Math.max(1, response.expiresInSeconds)
+    : 3600
+  scheduleTokenRefresh(Math.max(1000, (expiresInSeconds - 60) * 1000))
 }
 
 export async function clearAuthSession(): Promise<void> {
+  if (authRefreshTimer !== null) window.clearTimeout(authRefreshTimer)
+  authRefreshTimer = null
   nativeAccessToken = null
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(REFRESH_KEY)
@@ -268,4 +290,16 @@ export async function updateUsername(username: string): Promise<AuthUser> {
   const user: AuthUser = await res.json()
   localStorage.setItem(USER_KEY, JSON.stringify(user))
   return user
+}
+
+export async function deleteAccount(): Promise<void> {
+  const res = await fetchWithoutRedirects(`${apiBase()}/users/me`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null)
+    throw new Error(errorData?.message || `Failed to delete account (${res.status})`)
+  }
+  await clearAuthSession()
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
-import { changePassword, getAuthToken, updateUsername } from '../../api/auth'
+import { changePassword, getAuthToken, updateUsername, deleteAccount } from '../../api/auth'
+import { ShinpoConfirmDialog } from '../ui/Dialog/ShinpoConfirmDialog'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
 import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, setCustomServerUrl, isValidServerUrl } from '../../api/config'
@@ -135,6 +136,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     storage: { pass: boolean; detail: string }
     shield: { pass: boolean; detail: string }
   } | null>(null)
+
+  // Account deletion confirmation state
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null)
 
   // Keyboard escape listener
   useEffect(() => {
@@ -500,6 +506,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     document.body.appendChild(downloadAnchor)
     downloadAnchor.click()
     downloadAnchor.remove()
+  }
+
+  // Handle Account Deletion & Data Wipe
+  const handleDeleteAccount = async () => {
+    setDeleteAccountLoading(true)
+    setDeleteAccountError(null)
+    try {
+      await deleteAccount()
+      setShowDeleteAccountConfirm(false)
+      onClose()
+      onLogout()
+    } catch (err: unknown) {
+      setDeleteAccountError(err instanceof Error ? err.message : 'Failed to delete account')
+    } finally {
+      setDeleteAccountLoading(false)
+    }
   }
 
   // Handle Run System Diagnostics
@@ -1591,6 +1613,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <li><strong>Tenant Isolation:</strong> Your cloud account data is strictly isolated by user ID and signed by cryptographically validated JWTs.</li>
                   </ul>
                 </div>
+
+                {/* Danger Zone: Account & Data Deletion */}
+                <div
+                  className="settings-group-card"
+                  style={{
+                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                    background: 'rgba(239, 68, 68, 0.04)',
+                  }}
+                >
+                  <label style={{ color: 'var(--brand-red, #EF4444)' }}>
+                    Danger Zone: Irreversible Account Deletion
+                  </label>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Permanently delete your SHINPO account and purge all your goals, missions, focus history, and telemetry from the database.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteAccountError(null)
+                      setShowDeleteAccountConfirm(true)
+                    }}
+                    className="btn-timer secondary"
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      color: '#EF4444',
+                      borderColor: 'rgba(239, 68, 68, 0.5)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    }}
+                  >
+                    Delete Account & Wipe All Data
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1672,6 +1727,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
       </div>
+
+      <ShinpoConfirmDialog
+        isOpen={showDeleteAccountConfirm}
+        title="Permanently Delete Account?"
+        message="This will immediately and irrevocably wipe your user record and all associated goals, missions, analytics, and telemetry from the database. This action cannot be undone."
+        confirmLabel="Yes, Delete Everything"
+        cancelLabel="Keep Account"
+        isDestructive={true}
+        isLoading={deleteAccountLoading}
+        errorMessage={deleteAccountError}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => {
+          if (!deleteAccountLoading) {
+            setShowDeleteAccountConfirm(false)
+            setDeleteAccountError(null)
+          }
+        }}
+      />
     </div>
   )
 }

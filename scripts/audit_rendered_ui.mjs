@@ -123,6 +123,9 @@ async function main() {
       initialState = await evaluate("Boolean(document.querySelector('.shinpo-tutorial-portal') || document.querySelector('[data-tab=\"Dashboard\"]'))")
     }
     if (!initialState) throw new Error('Fresh-account application shell did not become ready within 15 seconds')
+    const browserApiStatus = await evaluate(`fetch(${JSON.stringify(`${backendUrl}/api/users/me`)}, { headers: { Authorization: ${JSON.stringify(`Bearer ${auth.accessToken}`)} } }).then((response) => response.status)`)
+    if (browserApiStatus !== 200) throw new Error(`Browser could not reach the isolated authenticated API (HTTP ${browserApiStatus}); check the test CORS allowlist`)
+    console.log('Browser authenticated API probe: HTTP 200.')
 
     let firstLoginTour = false
     for (let attempt = 0; attempt < 40 && !firstLoginTour; attempt++) {
@@ -130,6 +133,16 @@ async function main() {
       firstLoginTour = await evaluate("Boolean(document.querySelector('.shinpo-tutorial-portal'))")
     }
     if (firstLoginTour) {
+      const tutorialTarget = await evaluate(`(() => {
+        const el = document.querySelector("[data-tutorial='new-goal'], button.btn-new-goal") || document.querySelector('[data-tutorial="nav-goals"]');
+        if (!el) return null;
+        const style = getComputedStyle(el), rect = el.getBoundingClientRect();
+        return { tag: el.tagName, text: el.innerText, rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }, visible: style.visibility === 'visible' && Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0, outline: style.outlineStyle, zIndex: style.zIndex };
+      })()`)
+      if (!tutorialTarget?.visible || tutorialTarget.outline === 'none') throw new Error(`Fresh-account walkthrough target is not visibly highlighted: ${JSON.stringify(tutorialTarget)}`)
+      console.log(`First-login walkthrough target is visibly highlighted: ${JSON.stringify(tutorialTarget)}`)
+      await evaluate('document.fonts.ready')
+      await sleep(350)
       const initial = await send('Page.captureScreenshot', { format: 'png' })
       await writeFile(join(captures, 'first-login-tutorial.png'), Buffer.from(initial.result.data, 'base64'))
       await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))")
@@ -138,7 +151,17 @@ async function main() {
       if (!skipped) throw new Error('Fresh-account walkthrough appeared but its skip confirmation control was unavailable')
       for (let attempt = 0; attempt < 30 && await evaluate("Boolean(document.querySelector('.shinpo-tutorial-portal'))"); attempt++) await sleep(100)
       if (await evaluate("Boolean(document.querySelector('.shinpo-tutorial-portal'))")) throw new Error('Walkthrough remained active after confirming skip')
-      console.log('Fresh-account walkthrough captured; skipped through confirmation UI before route inspection (no reward expected).')
+      let skipState
+      for (let attempt = 0; attempt < 30; attempt++) {
+        skipState = await evaluate(`fetch(${JSON.stringify(`${backendUrl}/api/onboarding`)}, { headers: { Authorization: ${JSON.stringify(`Bearer ${auth.accessToken}`)} } }).then((response) => response.json())`)
+        if (skipState.status === 'SKIPPED') break
+        await sleep(100)
+      }
+      const progress = await evaluate(`fetch(${JSON.stringify(`${backendUrl}/api/progress`)}, { headers: { Authorization: ${JSON.stringify(`Bearer ${auth.accessToken}`)} } }).then((response) => response.json())`)
+      if (skipState?.status !== 'SKIPPED' || progress.totalProgress !== 0 || progress.recentEvents?.length !== 0) {
+        throw new Error(`Skip was not persisted truthfully (status=${skipState?.status}, XP=${progress.totalProgress}, events=${progress.recentEvents?.length})`)
+      }
+      console.log('Fresh-account walkthrough skipped through confirmation UI; PostgreSQL-backed API reports SKIPPED, 0 XP, 0 events.')
     } else throw new Error('Fresh disposable account did not launch the first-login walkthrough within 10 seconds of app readiness')
 
     const results = []
@@ -252,13 +275,22 @@ async function main() {
             clippedControls,
           };
         })()`)
-        const calendarScroll = view !== 'Schedule' || viewport.height > 900 || await evaluate(`(() => {
-          const calendar = document.querySelector('.schedule-calendar-scroll');
-          if (!calendar || calendar.scrollHeight <= calendar.clientHeight + 2 || !['auto', 'scroll'].includes(getComputedStyle(calendar).overflowY)) return false;
-          calendar.scrollTop = 0;
-          calendar.scrollTop = 120;
-          return calendar.scrollTop > 0;
-        })()`)
+        let calendarScroll = view !== 'Schedule' || viewport.height > 900
+        if (!calendarScroll && view === 'Schedule') {
+          const target = await evaluate(`(() => {
+            const calendar = document.querySelector('.schedule-calendar-scroll');
+            if (!calendar || calendar.scrollHeight <= calendar.clientHeight + 2 || !['auto', 'scroll'].includes(getComputedStyle(calendar).overflowY)) return null;
+            calendar.scrollTop = 0;
+            calendar.scrollIntoView({ block: 'center', behavior: 'instant' });
+            const rect = calendar.getBoundingClientRect();
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          })()`)
+          if (target) {
+            await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...target, deltaX: 0, deltaY: 160 })
+            await sleep(150)
+            calendarScroll = await evaluate("Boolean(document.querySelector('.schedule-calendar-scroll')?.scrollTop > 0)")
+          }
+        }
         results.push({ route: view, ...scan, calendarScroll })
         console.log(`${scan.textOverlaps.length || scan.cardOverlaps.length || scan.clippedControls.length || scan.horizontalOverflow || !calendarScroll ? 'FAIL' : 'PASS'} ${theme} ${view} ${viewport.width}x${viewport.height}: text=${scan.textOverlaps.length}, cards=${scan.cardOverlaps.length}, clippedControls=${scan.clippedControls.length}, horizontalOverflow=${scan.horizontalOverflow}${view === 'Schedule' && viewport.height <= 900 ? `, calendarScroll=${calendarScroll}` : ''}`)
         if (process.env.SHINPO_AUDIT_CAPTURE_ALL === '1' || scan.textOverlaps.length || scan.cardOverlaps.length || scan.clippedControls.length || scan.horizontalOverflow || !calendarScroll) {
