@@ -37,8 +37,6 @@ export interface ScheduleViewProps {
   handleEditSession?: (session: FocusSession) => void
 }
 
-import { trackRender } from '../utils/renderTracker'
-
 export const ScheduleView: React.FC<ScheduleViewProps> = ({
   sessions, selectedScheduleDate, setSelectedScheduleDate, setActiveTab,
   handleOpenBookingModal, handleStartFromSchedule, handleCancelFromSchedule,
@@ -78,9 +76,19 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const weekSessions = filteredSessions.filter(session => weekDays.some(day => sessionDate(session) === day.dateStr))
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
-  const hours = Array.from({ length: 16 }, (_, index) => index + 6)
+  const startHour = Math.max(0, Math.min(6, ...timedSessions.map(session => new Date(session.scheduledAt || session.startedAt!).getHours())))
+  const endHour = Math.min(24, Math.max(22, ...timedSessions.map(session => {
+    const date = new Date(session.scheduledAt || session.startedAt!)
+    return Math.ceil(date.getHours() + date.getMinutes() / 60 + session.durationMinutes / 60)
+  })))
+  const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const selectDate = (date: string) => {
+    setSelectedScheduleDate(date)
+    const next = new Date(`${date}T00:00:00`)
+    if (next.getMonth() !== miniMonth.getMonth() || next.getFullYear() !== miniMonth.getFullYear()) setMiniMonth(next)
+  }
 
   const renderActions = (session: FocusSession) => (
     <div className="schedule-session-actions">
@@ -120,11 +128,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
         </div>
         <div className="schedule-month-grid schedule-month-weekdays">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => <span key={`${day}${i}`}>{day}</span>)}</div>
         <div className="schedule-month-grid">
-          {monthCells.map(cell => <button type="button" key={cell.dateStr} aria-label={`${cell.dateStr}${cell.count ? `, ${cell.count} sessions` : ''}`} className={`schedule-month-day${cell.inMonth ? '' : ' outside'}${cell.dateStr === selectedScheduleDate ? ' selected' : ''}${cell.dateStr === localCalendarDate() ? ' today' : ''}`} onClick={() => { setSelectedScheduleDate(cell.dateStr); if (!cell.inMonth) setMiniMonth(new Date(`${cell.dateStr}T00:00:00`)) }}>
+          {monthCells.map(cell => <button type="button" key={cell.dateStr} aria-label={`${cell.dateStr}${cell.count ? `, ${cell.count} sessions` : ''}`} className={`schedule-month-day${cell.inMonth ? '' : ' outside'}${cell.dateStr === selectedScheduleDate ? ' selected' : ''}${cell.dateStr === localCalendarDate() ? ' today' : ''}`} onClick={() => selectDate(cell.dateStr)}>
             {cell.day}{cell.count > 0 && <i />}
           </button>)}
         </div>
-        <button type="button" className="schedule-today-button" onClick={() => { const today = localCalendarDate(); setSelectedScheduleDate(today); setMiniMonth(new Date(`${today}T00:00:00`)) }}>Jump to today</button>
+        <button type="button" className="schedule-today-button" onClick={() => selectDate(localCalendarDate())}>Jump to today</button>
       </div>
 
       <div className="schedule-sidebar-section">
@@ -141,18 +149,18 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
       <header className="schedule-calendar-toolbar">
         <div className="schedule-toolbar-title"><span className="schedule-sidebar-eyebrow">WEEKLY VIEW</span><h1>{weekLabel}</h1><p>{weekSessions.length} session{weekSessions.length === 1 ? '' : 's'} scheduled this week</p></div>
         <div className="schedule-toolbar-actions"><div className="schedule-week-navigation">
-          <button type="button" aria-label="Previous week" onClick={() => setSelectedScheduleDate(changeDate(selectedScheduleDate, -7))}><Icon name="chevron-left" size={16} /></button>
-          <button type="button" onClick={() => { const today = localCalendarDate(); setSelectedScheduleDate(today); setMiniMonth(new Date(`${today}T00:00:00`)) }}>Today</button>
-          <button type="button" aria-label="Next week" onClick={() => setSelectedScheduleDate(changeDate(selectedScheduleDate, 7))}><Icon name="chevron-right" size={16} /></button>
+          <button type="button" aria-label="Previous week" onClick={() => selectDate(changeDate(selectedScheduleDate, -7))}><Icon name="chevron-left" size={16} /></button>
+          <button type="button" onClick={() => selectDate(localCalendarDate())}>Today</button>
+          <button type="button" aria-label="Next week" onClick={() => selectDate(changeDate(selectedScheduleDate, 7))}><Icon name="chevron-right" size={16} /></button>
         </div><button type="button" className="schedule-btn-book" onClick={() => handleOpenBookingModal(selectedScheduleDate)} data-tutorial="schedule-book-btn"><Icon name="plus" size={14} /><span>Book session</span></button></div>
       </header>
 
       {flexibleSessions.length > 0 && <div className="schedule-flexible-row"><span>FLEXIBLE</span><div>{flexibleSessions.map(session => renderSession(session, true))}</div></div>}
 
       <div className="schedule-calendar-scroll">
-        <div className="schedule-week-grid" style={{ '--schedule-hours': hours.length } as React.CSSProperties}>
+        <div className="schedule-week-grid" style={{ '--schedule-hours': hours.length, '--schedule-grid-height': `${hours.length * 62}px` } as React.CSSProperties}>
           <div className="schedule-grid-corner">LOCAL TIME</div>
-          {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => setSelectedScheduleDate(day.dateStr)}>
+          {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => selectDate(day.dateStr)}>
             <span>{day.dayName}</span><strong>{day.dayNum}</strong><small>{day.date.toLocaleDateString('en-US', { month: 'short' })}</small>
           </button>)}
           <div className="schedule-time-axis">{hours.map(hour => <div className="schedule-time-label" key={hour}>{new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: 'numeric' })}</div>)}</div>
@@ -163,10 +171,10 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
               {daySessions.map(session => {
                 const instant = session.scheduledAt || session.startedAt
                 const date = new Date(instant!)
-                const startMinutes = (date.getHours() - hours[0]) * 60 + date.getMinutes()
+                const startMinutes = (date.getHours() - startHour) * 60 + date.getMinutes()
                 const top = Math.max(0, startMinutes / 60 * 62)
                 const height = Math.max(50, session.durationMinutes / 60 * 62)
-                return <div key={session.id} className="schedule-grid-event" style={{ top, height: Math.min(height, hours.length * 62 - top) }}>
+                return <div key={session.id} className={`schedule-grid-event status-${session.status}`} style={{ top, height: Math.min(height, hours.length * 62 - top) }}>
                   <div className="schedule-grid-event-accent" />{renderSession(session, true)}
                 </div>
               })}
