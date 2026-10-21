@@ -695,7 +695,7 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = timeOfDay + nameClause + ". Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Sentinel protection is active. What assistance do you need to maintain your flow?";
+            String reply = timeOfDay + nameClause + ". Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Shield active. What quick assistance do you need to stay in flow?";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
@@ -845,8 +845,8 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = "Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
-                    + "I am keeping notifications minimal to maintain flow. You can pause or complete your session from the Focus view when ready.";
+            String reply = "Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
+                    + "I am keeping interruptions minimal to protect your deep work. You can pause or complete your sprint from the Focus view when ready.";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }

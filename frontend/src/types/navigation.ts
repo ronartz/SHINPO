@@ -46,6 +46,8 @@ export type IconName =
   | 'shield'
   | 'shield-check'
   | 'lock'
+  | 'eye'
+  | 'eye-off'
 
 
 export interface NavItemConfig {
@@ -58,26 +60,30 @@ export interface NavItemConfig {
 
 export const NAVIGATION_ITEMS: readonly NavItemConfig[] = [
   { id: 'Dashboard', icon: 'dashboard', label: 'Dashboard', tut: 'nav-dashboard' },
-  { id: 'Goals & Missions', icon: 'goals', label: 'Goals', tut: 'nav-goals' },
-  { id: 'Focus Engine', icon: 'focus', label: 'Focus', tut: 'nav-focus' },
+  { id: 'Goals & Missions', icon: 'goals', label: 'Goals & Tasks', tut: 'nav-goals' },
+  { id: 'Focus Engine', icon: 'focus', label: 'Focus Sprints', tut: 'nav-focus' },
   { id: 'Schedule', icon: 'schedule', label: 'Calendar', tut: 'nav-schedule', hasBadge: true },
+  { id: 'Task Manager', icon: 'shield', label: 'Focus Protection', tut: 'nav-tasks' },
   { id: 'Analytics', icon: 'analytics', label: 'Analytics', tut: 'nav-analytics' },
-  { id: 'Task Manager', icon: 'apps', label: 'Task Manager', tut: 'nav-tasks' },
-  { id: 'AI Assistant', icon: 'sparkle', label: 'EONPAI', tut: 'nav-ai' },
+  { id: 'AI Assistant', icon: 'sparkle', label: 'EONPAI Guide', tut: 'nav-ai' },
 ] as const
 
 export function getViewHeaderTitle(view: AppView): string {
   switch (view) {
     case 'AI Assistant':
-      return 'EONPAI'
+      return 'EONPAI Cognitive Guide'
     case 'Focus Engine':
-      return 'Focus'
+      return 'Focus Sprint Arena'
     case 'Goals & Missions':
       return 'Goals & Tasks'
     case 'Schedule':
-      return 'Calendar'
+      return 'Calendar Schedule'
+    case 'Task Manager':
+      return 'Focus Protection Sentinel'
+    case 'Analytics':
+      return 'Performance Analytics'
     case 'Dashboard':
-      return 'Dashboard'
+      return 'Execution Cockpit'
     default:
       return view
   }

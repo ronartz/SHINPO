@@ -135,9 +135,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     ? pendM.slice(1)
     : pendM
 
+  const completedGoalIds = new Set(goals.filter((goal) => goal.status === 'COMPLETED').map((goal) => goal.id))
+  const firstActionableMission = missions.find(
+    (mission) => mission.status !== 'COMPLETED' && !completedGoalIds.has(mission.goalId),
+  ) || null
+
   const primaryActionTask = activeSession
     ? null
-    : (nextActionMission || (displayPending.length > 0 ? displayPending[0] : (missions.find((m) => m.status !== 'COMPLETED') || null)))
+    : (nextActionMission || (displayPending.find((mission) => !completedGoalIds.has(mission.goalId)) || firstActionableMission))
   const primaryActionGoal = primaryActionTask ? goals.find((g) => g.id === primaryActionTask.goalId) : null
 
   const recentDebriefsList = analyticsData?.recentDebriefs && analyticsData.recentDebriefs.length > 0
@@ -459,7 +464,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
           <div className="metric-card-value">{velocityRate}%</div>
-          <div className="metric-card-footer">
+          <div className="metric-card-footer completion-footer">
+            <span className="metric-card-sub">Velocity rate this week</span>
             <div className="metric-progress-track">
               <div
                 className="metric-progress-fill"
@@ -473,7 +479,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
       <section className="dashboard-cockpit-grid" aria-label="Execution Cockpit">
         {/* Priority Hero Card (Primary Execution Anchor) */}
-        <section className="priority-hero-card" aria-label="Today's Priority">
+        <section
+          className={`priority-hero-card ${!activeSession && !primaryActionTask ? 'is-complete-state' : ''}`}
+          aria-label="Today's Priority"
+        >
             {activeSession ? (
               <div className="hero-content active-sprint">
                 <div className="hero-card-header">
@@ -562,7 +571,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="hero-content idle-priority">
+              <div className={`hero-content idle-priority ${!primaryActionTask ? 'completed-priority' : ''}`}>
                 <div className="hero-card-header">
                   <div className="hero-tag-group">
                     <span className="hero-status-pill priority">
@@ -680,7 +689,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="sidecar-body">
               {sortedSessions.length > 0 ? (
                 <div className="schedule-sessions-list">
-                  {sortedSessions.slice(0, 3).map((s, idx) => {
+                  {sortedSessions.slice(0, 4).map((s, idx) => {
                     const isActive = s.status === 'ACTIVE' || s.status === 'PAUSED' || (activeSession && activeSession.id === s.id)
                     const isDone = s.status === 'COMPLETED'
                     const canStart = s.status === 'SCHEDULED' && !activeSession
@@ -693,11 +702,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         onClick={() => {
                           if (canStart) void handleStartFromSchedule(s.id)
                         }}
-                        title={`${s.name} — ${secondaryInfo}${canStart ? ' • Click to start' : ''}`}
                       >
                         <div className="schedule-item-time">
-                          <span className="schedule-time-pill">
-                            {isDone ? '✓' : isActive ? '▶' : idx + 1}
+                          <span className={`schedule-time-pill ${isDone ? 'done' : s.status === 'PAUSED' ? 'paused' : isActive ? 'active' : ''}`}>
+                            {isDone ? '✓' : s.status === 'PAUSED' ? '❚❚' : isActive ? '▶' : idx + 1}
                           </span>
                         </div>
                         <div className="schedule-item-details">
@@ -707,8 +715,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           </span>
                         </div>
                         <div className="schedule-item-badge">
-                          <span className={`duration-pill ${isDone ? 'done' : isActive ? 'active' : ''}`}>
-                            {isDone ? 'Done' : isActive ? 'Active' : `${s.durationMinutes}m`}
+                          <span className={`duration-pill ${isDone ? 'done' : s.status === 'PAUSED' ? 'paused' : isActive ? 'active' : ''}`}>
+                            {isDone ? 'Done' : s.status === 'PAUSED' ? 'Paused' : isActive ? 'Active' : `${s.durationMinutes}m`}
                           </span>
                         </div>
                       </div>
@@ -717,26 +725,33 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               ) : recentDebriefsList.length > 0 ? (
                 <div className="schedule-sessions-list">
-                  {recentDebriefsList.slice(0, 3).map((d) => (
-                    <div
-                      key={d.sessionId}
-                      className="schedule-session-item is-completed"
-                      title={`${d.sessionName}${d.accomplishment ? ` — ${d.accomplishment}` : ''}`}
-                    >
-                      <div className="schedule-item-time">
-                        <span className="schedule-time-pill">✓</span>
+                  {recentDebriefsList.slice(0, 4).map((d) => {
+                    const secondaryText =
+                      d.accomplishment &&
+                      d.accomplishment.trim().toLowerCase() !== d.sessionName.trim().toLowerCase()
+                        ? d.accomplishment.trim()
+                        : `${d.durationMinutes}m focus logged`
+
+                    return (
+                      <div
+                        key={d.sessionId}
+                        className="schedule-session-item is-completed"
+                      >
+                        <div className="schedule-item-time">
+                          <span className="schedule-time-pill">✓</span>
+                        </div>
+                        <div className="schedule-item-details">
+                          <span className="schedule-session-name" title={d.sessionName}>{d.sessionName}</span>
+                          <span className="schedule-session-sub" title={secondaryText}>
+                            {secondaryText}
+                          </span>
+                        </div>
+                        <div className="schedule-item-badge">
+                          <span className="duration-pill done">{d.durationMinutes}m</span>
+                        </div>
                       </div>
-                      <div className="schedule-item-details">
-                        <span className="schedule-session-name" title={d.sessionName}>{d.sessionName}</span>
-                        <span className="schedule-session-sub" title={d.accomplishment || `${d.durationMinutes}m focus logged`}>
-                          {d.accomplishment || `${d.durationMinutes}m focus logged`}
-                        </span>
-                      </div>
-                      <div className="schedule-item-badge">
-                        <span className="duration-pill done">{d.durationMinutes}m</span>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="sidecar-empty-state">
@@ -749,6 +764,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="sidecar-footer">
+              <span className="sidecar-footer-meta">
+                {sortedSessions.length > 0 ? `${sortedSessions.length} total today` : 'Ready to plan'}
+              </span>
+              <button
+                className="sidecar-footer-action"
+                onClick={() => setActiveTab('Schedule')}
+              >
+                + Schedule Focus Block
+              </button>
             </div>
           </section>
       </section>

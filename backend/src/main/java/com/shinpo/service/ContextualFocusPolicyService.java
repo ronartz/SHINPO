@@ -83,9 +83,14 @@ public class ContextualFocusPolicyService {
             throw badRequest(exception.getMessage());
         }
 
-        List<ContextualFocusResource> directResources = session != null
-                ? resourceRepository.findAllByUser_IdAndFocusSession_IdOrderByCreatedAtDesc(userId, session.getId())
-                : resourceRepository.findAllByUser_IdAndMission_IdOrderByCreatedAtDesc(userId, mission.getId());
+        List<ContextualFocusResource> directResources;
+        if (session != null) {
+            directResources = resourceRepository.findAllByUser_IdAndFocusSession_IdOrderByCreatedAtDesc(userId, session.getId());
+        } else if (mission != null) {
+            directResources = resourceRepository.findAllByUser_IdAndMission_IdOrderByCreatedAtDesc(userId, mission.getId());
+        } else {
+            throw badRequest("Either focusSessionId or missionId must resolve to a valid entity");
+        }
         Instant now = Instant.now();
         boolean duplicate = directResources.stream().anyMatch(existing ->
                 existing.isEnabled()
@@ -112,6 +117,9 @@ public class ContextualFocusPolicyService {
         resource.setExpiresAt(request.expiresAt());
 
         if (request.resourceType() == ContextualResourceType.DESKTOP_PROCESS) {
+            if (session == null) {
+                throw badRequest("Desktop process exceptions must be scoped to a Focus session");
+            }
             if (processExceptionRepository.existsByFocusSession_IdAndActivityTypeAndActivityPatternIgnoreCase(
                     session.getId(),
                     FocusSessionActivityType.PROCESS,
@@ -559,8 +567,8 @@ public class ContextualFocusPolicyService {
         return Comparator
                 .comparingInt(canonicalizationService::specificity)
                 .reversed()
-                .thenComparing(resource -> resource.getDisposition() == ContextualResourceDisposition.BLOCKED ? 0 : 1)
-                .thenComparing(ContextualFocusResource::getId, Comparator.nullsLast(Comparator.naturalOrder()));
+                .thenComparingInt(resource -> resource.getDisposition() == ContextualResourceDisposition.BLOCKED ? 0 : 1)
+                .thenComparingLong(resource -> resource.getId() != null ? resource.getId() : Long.MAX_VALUE);
     }
 
     private void validateResourceSemantics(CreateResourceRequest request, FocusSession session) {

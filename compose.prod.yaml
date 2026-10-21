@@ -1,0 +1,119 @@
+# ==============================================================================
+# SHINPO — Production Multi-Tier Cloud Deployment
+# Isolated PostgreSQL, Hardened Spring Boot Backend, Secure Reverse Proxy (Caddy TLS)
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: shinpo-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shinpo}
+      POSTGRES_USER: ${POSTGRES_USER:-shinpo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in production}
+    # Security: PostgreSQL is NOT bound to the host network in production.
+    # It communicates with the backend exclusively across the private internal bridge network.
+    volumes:
+      - shinpo-postgres-prod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shinpo} -d ${POSTGRES_DB:-shinpo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - shinpo-internal-net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shinpo-backend-prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-shinpo}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shinpo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SHINPO_JWT_SECRET: ${SHINPO_JWT_SECRET:?SHINPO_JWT_SECRET must be set for production deployment}
+      SHINPO_SERVER_PROCESS_SCANNING_ENABLED: "false"
+      SHINPO_AI_ENABLED: ${SHINPO_AI_ENABLED:-false}
+      SHINPO_AI_PROVIDER: ${SHINPO_AI_PROVIDER:-gemini}
+      SHINPO_AI_OLLAMA_BASE_URL: ${SHINPO_AI_OLLAMA_BASE_URL:-}
+      SHINPO_AI_OLLAMA_MODEL: ${SHINPO_AI_OLLAMA_MODEL:-qwen3:4b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-${SHINPO_AI_GEMINI_API_KEY:-}}
+      SHINPO_AI_GEMINI_API_KEY: ${SHINPO_AI_GEMINI_API_KEY:-${GEMINI_API_KEY:-}}
+      SHINPO_AI_GEMINI_MODEL: ${SHINPO_AI_GEMINI_MODEL:-gemini-3.6-flash}
+      SHINPO_CORS_ALLOWED_ORIGINS: ${SHINPO_CORS_ALLOWED_ORIGINS:-}
+    # No exposed host ports for backend; reverse proxy routes traffic.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - shinpo-internal-net
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: shinpo-frontend-prod
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - shinpo-internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # Edge Reverse Proxy with Automated TLS / HTTPS & WSS
+  proxy:
+    image: caddy:2.8-alpine
+    container_name: shinpo-proxy-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
+      TLS_EMAIL: ${TLS_EMAIL:-admin@shinpo.app}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - shinpo-caddy-data:/data
+      - shinpo-caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - shinpo-internal-net
+
+volumes:
+  shinpo-postgres-prod-data:
+  shinpo-caddy-data:
+  shinpo-caddy-config:
+
+networks:
+  shinpo-internal-net:
+    driver: bridge
+

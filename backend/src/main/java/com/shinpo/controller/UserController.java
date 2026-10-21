@@ -1,5 +1,6 @@
 package com.shinpo.controller;
 
+import com.shinpo.dto.AuthDtos.UpdateUsernameRequest;
 import com.shinpo.dto.CreateUserRequest;
 import com.shinpo.dto.UserResponse;
 import com.shinpo.security.UserPrincipal;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/users")
@@ -29,11 +31,25 @@ public class UserController {
 
     @GetMapping("/me")
     public UserResponse getCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
         return new UserResponse(
                 principal.getUserId(),
                 principal.getUsername(),
                 principal.getEmail(),
                 principal.getRole()
         );
+    }
+
+    @PutMapping("/me/username")
+    public UserResponse updateUsername(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateUsernameRequest request
+    ) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return userService.updateUsername(principal.getUserId(), request.username());
     }
 }

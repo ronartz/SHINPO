@@ -3,6 +3,8 @@ package com.shinpo.service;
 import com.shinpo.dto.TaskManagerDtos.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -14,11 +16,25 @@ public class TaskManagerService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskManagerService.class);
 
-
     private static final Set<String> KNOWN_DISTRACTIONS = Set.of(
             "discord", "steam", "spotify", "telegram-desktop", "vlc",
             "game", "lutris", "heroic", "battlenet", "riotclientservices", "epicgameslauncher"
     );
+
+    private final boolean serverProcessScanningEnabled;
+
+    public TaskManagerService() {
+        this(false);
+    }
+
+    @Autowired
+    public TaskManagerService(@Value("${shinpo.sentinel.server-process-scanning.enabled:false}") boolean serverProcessScanningEnabled) {
+        this.serverProcessScanningEnabled = serverProcessScanningEnabled;
+    }
+
+    public boolean isServerProcessScanningEnabled() {
+        return serverProcessScanningEnabled;
+    }
 
     public DeviceSystemInfo getSystemInfo() {
         com.sun.management.OperatingSystemMXBean osBean =
@@ -29,10 +45,10 @@ public class TaskManagerService {
             deviceName = System.getenv("COMPUTERNAME");
         }
         if (deviceName == null || deviceName.isBlank()) {
-            deviceName = "Primary Linux Workstation";
+            deviceName = serverProcessScanningEnabled ? "Primary Workstation" : "SHINPO Cloud Node";
         }
 
-        int procCount = (int) ProcessHandle.allProcesses().count();
+        int procCount = serverProcessScanningEnabled ? (int) ProcessHandle.allProcesses().count() : 0;
         double cpuLoad = Math.max(0.0, Math.min(100.0, osBean.getCpuLoad() * 100.0));
         if (Double.isNaN(cpuLoad) || cpuLoad <= 0) {
             cpuLoad = Math.max(1.2, osBean.getSystemLoadAverage() * 10.0);
@@ -55,6 +71,11 @@ public class TaskManagerService {
     }
 
     public List<ProcessInfo> getProcesses(String search, String policyFilter) {
+        if (!serverProcessScanningEnabled) {
+            log.debug("Server-side host process inspection disabled in production/cloud deployment. Desktop process telemetry is managed by local SHINPO Shield.");
+            return Collections.emptyList();
+        }
+
         long myPid = ProcessHandle.current().pid();
         List<ProcessInfo> list = new ArrayList<>();
 
@@ -106,7 +127,7 @@ public class TaskManagerService {
                     memoryEstimate,
                     handle.isAlive() ? "RUNNING" : "TERMINATED",
                     info.startInstant().orElse(null),
-                    info.user().orElse("eonx"),
+                    info.user().orElse("system"),
                     policy,
                     reason,
                     canControl
@@ -138,30 +159,12 @@ public class TaskManagerService {
     }
 
     public ProcessControlResult terminateProcess(Long pid, boolean force) {
-        long myPid = ProcessHandle.current().pid();
-        if (pid == myPid || pid == 1) {
-            return new ProcessControlResult(pid, "TERMINATE", "REJECTED", "Cannot terminate core system process " + pid);
-        }
-
-        Optional<ProcessHandle> handleOpt = ProcessHandle.of(pid);
-        if (handleOpt.isEmpty()) {
-            return new ProcessControlResult(pid, "TERMINATE", "NOT_FOUND", "Process " + pid + " no longer exists");
-        }
-
-        ProcessHandle handle = handleOpt.get();
-        String name = handle.info().command().map(c -> new File(c).getName()).orElse("PID " + pid);
-        if (SentinelEnforcementService.PROTECTED_PROCESSES.contains(name.toLowerCase()) || name.toLowerCase().contains("shinpo")) {
-            return new ProcessControlResult(pid, "TERMINATE", "REJECTED", "Cannot terminate protected system process: " + name);
-        }
-
-        boolean success = force ? handle.destroyForcibly() : handle.destroy();
-        log.info("PROCESS_TERMINATED: pid={} name={} force={} success={}", pid, name, force, success);
-
+        log.warn("SERVER_PROCESS_TERMINATION_DENIED: Remote termination of PID {} rejected. Server-side host process control is permanently disabled.", pid);
         return new ProcessControlResult(
                 pid,
                 force ? "FORCE_KILL" : "TERMINATE",
-                success ? "SUCCESS" : "FAILED",
-                "Process " + name + " (PID " + pid + ") termination signal sent"
+                "REJECTED",
+                "Server-side process termination is disabled in cloud deployment. Process enforcement is managed locally by SHINPO Shield on your desktop."
         );
     }
 }

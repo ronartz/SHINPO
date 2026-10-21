@@ -34,6 +34,18 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className = '' }) => {
       window.addEventListener('focus', handleSync)
     }
 
+    const handleFormatSync = () => {
+      try {
+        setIs24Hour(localStorage.getItem('shinpo_time_format') === '24h')
+      } catch {
+        // ignore
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('shinpo:time-format-changed', handleFormatSync)
+      window.addEventListener('storage', handleFormatSync)
+    }
+
     return () => {
       clearInterval(timer)
       if (typeof document !== 'undefined') {
@@ -41,6 +53,8 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className = '' }) => {
       }
       if (typeof window !== 'undefined') {
         window.removeEventListener('focus', handleSync)
+        window.removeEventListener('shinpo:time-format-changed', handleFormatSync)
+        window.removeEventListener('storage', handleFormatSync)
       }
     }
   }, [])
@@ -50,6 +64,7 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className = '' }) => {
       const next = !prev
       try {
         localStorage.setItem('shinpo_time_format', next ? '24h' : '12h')
+        window.dispatchEvent(new Event('shinpo:time-format-changed'))
       } catch {
         // Ignore localStorage write failures in sandboxed environments
       }

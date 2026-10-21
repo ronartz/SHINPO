@@ -1,14 +1,18 @@
 package com.shinpo.goal;
 
+import com.shinpo.dto.CompleteMissionRequest;
 import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.CreateMissionRequest;
 import com.shinpo.dto.GoalResponse;
 import com.shinpo.dto.MissionResponse;
 import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.dto.UpdateMissionRequest;
+import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.User;
+import com.shinpo.repository.ProgressEventRepository;
 import com.shinpo.repository.UserRepository;
 import com.shinpo.service.GoalService;
+import com.shinpo.service.MissionCompletionService;
 import com.shinpo.service.MissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +46,12 @@ public class GoalAndMissionLifecycleTests {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MissionCompletionService missionCompletionService;
+
+    @Autowired
+    private ProgressEventRepository progressEventRepository;
 
     private User primaryUser;
     private User secondaryUser;
@@ -246,5 +256,38 @@ public class GoalAndMissionLifecycleTests {
                 user2Goal.id(), "Reassigned Mission", "Desc", LocalDate.now(), 45, "PENDING"
         );
         assertThrows(ResponseStatusException.class, () -> missionService.updateMission(mission.id(), primaryUser.getId(), reassignToOtherUserGoal));
+    }
+
+    @Test
+    @DisplayName("Should award GOAL_COMPLETED progress event (+50 XP) when all goal missions complete")
+    void testGoalCompletionAwardsProgressEvent() {
+        GoalResponse goal = goalService.createGoal(
+                primaryUser.getId(),
+                new CreateGoalRequest(primaryUser.getId(), "Complete All Tasks Goal", "Description", LocalDate.now(), null)
+        );
+
+        MissionResponse mission1 = missionService.createMission(
+                primaryUser.getId(),
+                new CreateMissionRequest(goal.id(), "Subtask 1", "Desc", LocalDate.now(), 25)
+        );
+        MissionResponse mission2 = missionService.createMission(
+                primaryUser.getId(),
+                new CreateMissionRequest(goal.id(), "Subtask 2", "Desc", LocalDate.now(), 25)
+        );
+
+        // Complete subtask 1: awards MISSION_COMPLETED (+10 XP) but goal is still ACTIVE
+        missionCompletionService.completeMission(mission1.id(), primaryUser.getId(), new CompleteMissionRequest(25));
+        GoalResponse afterTask1 = goalService.getGoal(goal.id(), primaryUser.getId());
+        assertEquals("ACTIVE", afterTask1.status());
+
+        // Complete subtask 2: all tasks are now done, auto-completes goal and awards GOAL_COMPLETED (+50 XP)
+        missionCompletionService.completeMission(mission2.id(), primaryUser.getId(), new CompleteMissionRequest(25));
+        GoalResponse afterTask2 = goalService.getGoal(goal.id(), primaryUser.getId());
+        assertEquals("COMPLETED", afterTask2.status());
+
+        List<ProgressEvent> events = progressEventRepository.findTop10ByUser_IdOrderByCreatedAtDesc(primaryUser.getId());
+        boolean hasGoalCompletedEvent = events.stream()
+                .anyMatch(e -> "GOAL_COMPLETED".equals(e.getEventType()) && e.getAmount() == 50);
+        assertTrue(hasGoalCompletedEvent, "Expected GOAL_COMPLETED event (+50 XP) in progress ledger");
     }
 }

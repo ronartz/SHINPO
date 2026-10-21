@@ -13,6 +13,7 @@
 @import './styles/views/goals-kanban.css';
 @import './styles/views/cockpit-panels.css';
 @import './styles/components/modals-sentinel.css';
+@import './styles/components/settings-modal.css';
 @import './styles/components/shinpo-ui.css';
 @import './styles/foundations/flightdeck-themes.css';
 @import './styles/views/flightdeck-cards.css';

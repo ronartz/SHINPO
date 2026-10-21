@@ -215,7 +215,7 @@ export const ShinpoTimePicker: React.FC<ShinpoTimePickerProps> = ({
               type="button"
               className="shinpo-btn variant-ghost size-sm"
               onClick={handleSetNow}
-              style={{ fontSize: 11, padding: '0 6px', height: 24 }}
+              style={{ fontSize: 12, padding: '0 8px', height: 26 }}
             >
               Now
             </button>
@@ -225,7 +225,7 @@ export const ShinpoTimePicker: React.FC<ShinpoTimePickerProps> = ({
                 type="button"
                 className="shinpo-btn variant-ghost size-sm"
                 onClick={() => handleSetPreset(p)}
-                style={{ fontSize: 11, padding: '0 6px', height: 24 }}
+                style={{ fontSize: 12, padding: '0 8px', height: 26 }}
               >
                 {p}
               </button>

@@ -30,7 +30,7 @@ export const AuroraSectionHeader: React.FC<AuroraSectionHeaderProps> = ({
             {title}
           </Typography>
           {badge && (
-            <span className="aurora-badge blue" style={{ fontSize: 11 }}>
+            <span className="aurora-badge blue" style={{ fontSize: 12 }}>
               {badge}
             </span>
           )}

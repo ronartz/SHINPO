@@ -52,3 +52,9 @@ bin/shinpo-browser-host
 backups/
 *.dump
 *.tar.gz
+
+# Release packages and binaries
+release/*
+!release/linux/
+release/linux/*
+!release/linux/SHA256SUMS

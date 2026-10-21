@@ -41,6 +41,9 @@ public class User {
     @Column(name = "enforcement_mode", nullable = false, length = 30)
     private String enforcementMode = "STRICT";
 
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion = 1L;
+
     @OneToMany(mappedBy = "user")
     private List<Goal> goals = new ArrayList<>();
 
@@ -73,12 +76,20 @@ public class User {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public String getEmail() {
         return email;
     }
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public String getRole() {
@@ -107,5 +118,13 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(long tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 }

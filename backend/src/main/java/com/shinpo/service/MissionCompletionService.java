@@ -7,6 +7,7 @@ import com.shinpo.entity.Mission;
 import com.shinpo.entity.MissionCompletion;
 import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.User;
+import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionCompletionRepository;
 import com.shinpo.repository.MissionRepository;
 import com.shinpo.repository.ProgressEventRepository;
@@ -16,25 +17,30 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @Transactional
 public class MissionCompletionService {
 
     private static final int MISSION_COMPLETION_PROGRESS = 10;
+    private static final int GOAL_COMPLETION_PROGRESS = 50;
 
     private final MissionRepository missionRepository;
     private final MissionCompletionRepository completionRepository;
     private final ProgressEventRepository progressEventRepository;
+    private final GoalRepository goalRepository;
 
     public MissionCompletionService(
             MissionRepository missionRepository,
             MissionCompletionRepository completionRepository,
-            ProgressEventRepository progressEventRepository
+            ProgressEventRepository progressEventRepository,
+            GoalRepository goalRepository
     ) {
         this.missionRepository = missionRepository;
         this.completionRepository = completionRepository;
         this.progressEventRepository = progressEventRepository;
+        this.goalRepository = goalRepository;
     }
 
     public MissionCompletionResponse completeMission(
@@ -80,6 +86,25 @@ public class MissionCompletionService {
         );
 
         progressEventRepository.save(progressEvent);
+
+        // Check if all missions for this goal are now completed
+        List<Mission> goalMissions = missionRepository.findAllByGoal_Id(goal.getId());
+        boolean allGoalMissionsDone = !goalMissions.isEmpty() && goalMissions.stream().allMatch(m ->
+                "COMPLETED".equalsIgnoreCase(m.getStatus()) || m.getId().equals(missionId)
+        );
+
+        if (allGoalMissionsDone && !"COMPLETED".equalsIgnoreCase(goal.getStatus())) {
+            goal.setStatus("COMPLETED");
+            goalRepository.save(goal);
+
+            ProgressEvent goalProgressEvent = new ProgressEvent(
+                    user,
+                    null,
+                    "GOAL_COMPLETED",
+                    GOAL_COMPLETION_PROGRESS
+            );
+            progressEventRepository.save(goalProgressEvent);
+        }
 
         return new MissionCompletionResponse(
                 savedCompletion.getId(),

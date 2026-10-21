@@ -1,10 +1,7 @@
 import React from 'react'
-import type {
-  AnalyticsDashboardResponse,
-  DailyFocusVelocity,
-  RecentDebrief,
-} from '../api/analytics'
+import type { AnalyticsDashboardResponse, DailyFocusVelocity, RecentDebrief } from '../api/analytics'
 import { Icon } from '../components/common/Icon'
+import { trackRender } from '../utils/renderTracker'
 
 export interface AnalyticsViewProps {
   analyticsData: AnalyticsDashboardResponse | null
@@ -12,202 +9,128 @@ export interface AnalyticsViewProps {
   loadAnalytics: () => void
 }
 
-import { trackRender } from '../utils/renderTracker'
+const formatDuration = (minutes: number) => {
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return hours ? `${hours}h${remainder ? ` ${remainder}m` : ''}` : `${minutes}m`
+}
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
-  analyticsData,
-  analyticsLoading,
-  loadAnalytics,
-}) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, analyticsLoading, loadAnalytics }) => {
   trackRender('AnalyticsView')
+
+  const week = analyticsData?.weeklyVelocity ?? []
+  const weekMinutes = week.reduce((sum, day) => sum + day.focusMinutes, 0)
+  const weekSessions = week.reduce((sum, day) => sum + day.completedCount, 0)
+  const bestDay = week.reduce<DailyFocusVelocity | null>((best, day) =>
+    !best || day.focusMinutes > best.focusMinutes ? day : best, null)
+  const maxMinutes = Math.max(...week.map(day => day.focusMinutes), 60)
+
   return (
-    <div className="analytics-view">
-      {/* Top Metrics Row */}
-      <div className="analytics-metrics-grid">
-        {/* Metric 1: Focus Minutes & Hours */}
-        <div className="analytics-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">FOCUS TIME</span>
-            <div className="tm-metric-icon">
-              <Icon name="clock" size={16} />
+    <main className="analytics-view">
+      <header className="analytics-page-heading">
+        <div>
+          <span className="analytics-eyebrow">YOUR PROGRESS</span>
+          <h1>Analytics</h1>
+          <p>A clearer view of your focus, consistency, and completed work.</p>
+        </div>
+        <button type="button" className="analytics-refresh-button" onClick={loadAnalytics} disabled={analyticsLoading}>
+          <Icon name="refresh" size={15} />
+          {analyticsLoading ? 'Updating…' : 'Refresh'}
+        </button>
+      </header>
+
+      <section className="analytics-metrics-grid" aria-label="All-time summary">
+        <article className="analytics-card analytics-metric-focus">
+          <div className="analytics-metric-heading"><span>FOCUS TIME</span><Icon name="clock" size={16} /></div>
+          <strong>{formatDuration(analyticsData?.summary.totalFocusMinutes ?? 0)}</strong>
+          <small>{analyticsData ? `${(analyticsData.summary.totalFocusMinutes / 60).toFixed(1)} hours invested` : 'Total recorded focus'}</small>
+        </article>
+        <article className="analytics-card">
+          <div className="analytics-metric-heading"><span>SESSIONS</span><Icon name="check" size={16} /></div>
+          <strong>{analyticsData?.summary.sessionsCompleted ?? 0}</strong>
+          <small>{analyticsData ? `${analyticsData.summary.sessionsStarted} started` : 'Completed focus sessions'}</small>
+        </article>
+        <article className="analytics-card">
+          <div className="analytics-metric-heading"><span>TASKS COMPLETED</span><Icon name="target" size={16} /></div>
+          <strong>{analyticsData ? <>{analyticsData.summary.missionsCompleted}<i> / {analyticsData.summary.missionsTotal}</i></> : '0'}</strong>
+          <small>Progress across your goals</small>
+        </article>
+        <article className="analytics-card">
+          <div className="analytics-metric-heading"><span>FOCUS STREAK</span><Icon name="sparkle" size={16} /></div>
+          <strong>{analyticsData?.summary.currentStreak ?? 0}<i> days</i></strong>
+          <small>{analyticsData?.summary.avgQuality != null ? `Average session rating ${analyticsData.summary.avgQuality.toFixed(1)} / 5` : 'Keep showing up consistently'}</small>
+        </article>
+      </section>
+
+      <section className="analytics-main-grid">
+        <article className="analytics-panel analytics-velocity-card">
+          <div className="analytics-panel-heading">
+            <div>
+              <span className="analytics-eyebrow">LAST 7 DAYS</span>
+              <h2>Focus activity</h2>
+              <p>Your daily focus time, measured in minutes.</p>
             </div>
+            <div className="analytics-week-total"><strong>{formatDuration(weekMinutes)}</strong><span>this week</span></div>
           </div>
-          <div className="tm-metric-val">
-            {analyticsData ? `${analyticsData.summary.totalFocusMinutes}m` : '0m'}
-          </div>
-          <div className="tm-metric-sub">
-            {analyticsData
-              ? `${(analyticsData.summary.totalFocusMinutes / 60).toFixed(1)} Hours Total Focus`
-              : 'Awaiting sessions'}
-          </div>
-        </div>
 
-        {/* Metric 2: Sessions Completed */}
-        <div className="analytics-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">COMPLETION RATE</span>
-            <div className="tm-metric-icon">
-              <Icon name="check" size={16} />
-            </div>
-          </div>
-          <div className="tm-metric-val" style={{ color: 'var(--accent-emerald)' }}>
-            {analyticsData?.summary.completionRate != null
-              ? `${analyticsData.summary.completionRate}%`
-              : '—'}
-          </div>
-          <div className="tm-metric-sub">
-            {analyticsData
-              ? `${analyticsData.summary.completionRateNumerator} completed of ${
-                  analyticsData.summary.completionRateDenominator
-                } tasks`
-              : 'No task data'}
-          </div>
-        </div>
-
-        {/* Metric 3: Tasks Completed */}
-        <div className="analytics-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">TASKS COMPLETED</span>
-            <div className="tm-metric-icon">
-              <Icon name="target" size={16} />
-            </div>
-          </div>
-          <div className="tm-metric-val">
-            {analyticsData
-              ? `${analyticsData.summary.missionsCompleted} / ${analyticsData.summary.missionsTotal}`
-              : '0 / 0'}
-          </div>
-          <div className="tm-metric-sub">
-            Tasks finished
-          </div>
-        </div>
-
-        {/* Metric 4: Average Quality & Streak */}
-        <div className="analytics-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">STREAK & RATING</span>
-            <div className="tm-metric-icon">
-              <Icon name="sparkle" size={16} />
-            </div>
-          </div>
-          <div className="tm-metric-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>
-              {analyticsData?.summary.avgQuality != null
-                ? analyticsData.summary.avgQuality.toFixed(1)
-                : '—'}
-            </span>
-            <span style={{ fontSize: 18, color: 'var(--accent-amber)' }}>★</span>
-          </div>
-          <div className="tm-metric-sub">
-            {analyticsData ? `${analyticsData.summary.currentStreak}-Day Focus Streak` : 'No streak data'}
-          </div>
-        </div>
-      </div>
-
-      {/* 7-Day Activity Interactive Bar Chart */}
-      <div className="analytics-velocity-card">
-        <div className="analytics-card-header">
-          <div>
-            <h3 className="tm-table-title">7-Day Focus Activity</h3>
-            <span className="analytics-subtitle">Daily focus minutes completed</span>
-          </div>
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={loadAnalytics}
-            disabled={analyticsLoading}
-          >
-            <Icon name="refresh" size={14} />
-            <span>{analyticsLoading ? 'Refreshing...' : 'Refresh Activity'}</span>
-          </button>
-        </div>
-
-        {analyticsData && analyticsData.weeklyVelocity.reduce((sum, v) => sum + v.focusMinutes, 0) === 0 && (
-          <div className="analytics-empty-hint">
-            <Icon name="clock" size={14} />
-            <span>No focus logged in the past 7 days. Completed focus sprints will display here.</span>
-          </div>
-        )}
-
-        <div className="analytics-chart-container">
-          {analyticsData && analyticsData.weeklyVelocity.length > 0 ? (
-            (() => {
-              const maxMins = Math.max(...analyticsData.weeklyVelocity.map((v: DailyFocusVelocity) => v.focusMinutes), 60)
-              return analyticsData.weeklyVelocity.map((day: DailyFocusVelocity) => {
-                const pct = Math.max(day.focusMinutes > 0 ? 8 : 2, Math.round((day.focusMinutes / maxMins) * 100))
-                return (
-                  <div key={day.date} className="analytics-bar-col">
-                    <div className="analytics-bar-tooltip">
-                      {day.focusMinutes}m • {day.completedCount} sessions
+          {week.length > 0 ? (
+            <div className="analytics-chart" role="img" aria-label={`Focus activity for the last seven days. ${weekMinutes} minutes total.`}>
+              <div className="analytics-chart-guides" aria-hidden="true"><span>{maxMinutes}m</span><span>{Math.round(maxMinutes / 2)}m</span><span>0</span></div>
+              <div className="analytics-chart-columns">
+                {week.map((day, index) => (
+                  <div className={`analytics-bar-col${day === bestDay && day.focusMinutes > 0 ? ' is-best' : ''}`} key={day.date}>
+                    <div className="analytics-bar-value">{day.focusMinutes ? formatDuration(day.focusMinutes) : '—'}</div>
+                    <div className="analytics-bar-track">
+                    <div className="analytics-bar" style={{ height: `${Math.max(day.focusMinutes ? 8 : 2, day.focusMinutes / maxMinutes * 100)}%`, '--bar-height': `${Math.max(day.focusMinutes ? 8 : 2, day.focusMinutes / maxMinutes * 100)}%`, animationDelay: `${index * 45}ms` } as React.CSSProperties} />
                     </div>
-                    <div
-                      className="analytics-bar bar-animated"
-                      style={{
-                        transform: `scaleY(${Math.max(0.03, pct / 100)})`,
-                        background:
-                          day.focusMinutes > 0
-                            ? 'var(--brand-coral-gradient, linear-gradient(180deg, #9757FA 0%, #4D77F9 100%))'
-                            : 'var(--surface-hover)',
-                      }}
-                    />
                     <span className="analytics-day-label">{day.dayName}</span>
                   </div>
-                )
-              })
-            })()
-          ) : (
-            <div style={{ width: '100%', textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
-              Loading activity metrics...
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Session Summaries */}
-      <div className="analytics-velocity-card">
-        <div className="analytics-card-header">
-          <div>
-            <h3 className="tm-table-title">Recent Session Summaries</h3>
-            <span className="analytics-subtitle">Session reflections and feedback</span>
-          </div>
-        </div>
-
-        <div className="analytics-debrief-list">
-          {analyticsData && analyticsData.recentDebriefs.length > 0 ? (
-            analyticsData.recentDebriefs.map((deb: RecentDebrief) => (
-              <div key={deb.sessionId} className="analytics-debrief-card">
-                <div className="analytics-debrief-top">
-                  <div className="analytics-debrief-title">{deb.sessionName}</div>
-                  <div className="analytics-debrief-stars">
-                    {deb.quality != null
-                      ? Array.from({ length: deb.quality }).map((_, i) => (
-                          <span key={i} style={{ color: 'var(--accent-amber, #F59E0B)' }}>★</span>
-                        ))
-                      : '—'}
-                    <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 6 }}>
-                      ({deb.durationMinutes}m)
-                    </span>
-                  </div>
-                </div>
-                {deb.accomplishment && (
-                  <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>
-                    Outcome: {deb.accomplishment}
-                  </div>
-                )}
-                {deb.reflectionNote && (
-                  <div className="analytics-debrief-note">
-                    "{deb.reflectionNote}"
-                  </div>
-                )}
+                ))}
               </div>
-            ))
-          ) : (
-            <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>
-              No session summaries recorded yet. Complete a focus session to review your reflections here.
             </div>
+          ) : (
+            <div className="analytics-chart-empty">{analyticsLoading ? 'Loading your activity…' : 'Focus sessions from the last 7 days will appear here.'}</div>
           )}
+        </article>
+
+        <aside className="analytics-panel analytics-week-panel">
+          <div className="analytics-panel-heading">
+            <div><span className="analytics-eyebrow">WEEK AT A GLANCE</span><h2>Your rhythm</h2></div>
+            <span className="analytics-rhythm-icon"><Icon name="target" size={17} /></span>
+          </div>
+          <div className="analytics-week-stat"><span>Focus sessions</span><strong>{weekSessions}</strong></div>
+          <div className="analytics-week-stat"><span>Daily average</span><strong>{formatDuration(Math.round(weekMinutes / Math.max(week.length, 1)))}</strong></div>
+          <div className="analytics-week-stat"><span>Most focused day</span><strong>{bestDay?.focusMinutes ? bestDay.dayName : '—'}</strong></div>
+          <div className="analytics-week-progress" aria-label={`${analyticsData?.summary.completionRate ?? 0}% task completion rate`}>
+            <div className="analytics-week-progress-heading"><span>Task completion</span><strong>{analyticsData?.summary.completionRate ?? 0}%</strong></div>
+            <div className="analytics-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, analyticsData?.summary.completionRate ?? 0))}%` }} /></div>
+          </div>
+          <p className="analytics-week-note">Small, repeatable sessions build lasting momentum. Keep your next focus block achievable.</p>
+        </aside>
+      </section>
+
+      <section className="analytics-panel analytics-recent-panel">
+        <div className="analytics-panel-heading">
+          <div><span className="analytics-eyebrow">LOOKING BACK</span><h2>Recent reflections</h2><p>Notes and outcomes from your completed sessions.</p></div>
+          <span className="analytics-recent-count">{analyticsData?.recentDebriefs.length ?? 0} sessions</span>
         </div>
-      </div>
-    </div>
+        <div className="analytics-debrief-list">
+          {analyticsData?.recentDebriefs.length ? analyticsData.recentDebriefs.map((deb: RecentDebrief) => (
+            <article key={deb.sessionId} className="analytics-debrief-card">
+              <div className="analytics-debrief-main">
+                <div className="analytics-debrief-title">{deb.sessionName}</div>
+                {deb.accomplishment && <p className="analytics-debrief-outcome">{deb.accomplishment}</p>}
+                {deb.reflectionNote && <p className="analytics-debrief-note">{deb.reflectionNote}</p>}
+                {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note">Intent: {deb.intention}</p>}
+              </div>
+              <div className="analytics-debrief-meta">
+                <span className="analytics-duration-chip">{formatDuration(deb.durationMinutes)}</span>
+                <span className="analytics-quality">{deb.quality != null ? `${'★'.repeat(Math.min(5, Math.max(0, deb.quality)))}${'☆'.repeat(Math.max(0, 5 - deb.quality))}` : 'Not rated'}</span>
+              </div>
+            </article>
+          )) : <div className="analytics-debrief-empty">Your session reflections will show up here after a focus block.</div>}
+        </div>
+      </section>
+    </main>
   )
 }

@@ -146,7 +146,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
           {activeSession?.status === 'PAUSED' && (
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11 }}>
+              <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12 }}>
                 PAUSED — Time frozen
               </span>
             </div>

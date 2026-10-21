@@ -20,6 +20,7 @@ import type { SelectOption } from '../components/ui/Select/types'
 import {
   mapEnforcementOutcome,
   deriveOverallProtectionStatus,
+  formatEnforcementMode,
   groupQuarantineEvents,
 } from '../utils/focusProtectionStatus'
 
@@ -29,8 +30,8 @@ const RULE_POLICY_OPTIONS: SelectOption<'BLOCKED' | 'ALLOWED'>[] = [
 ]
 
 const OVERRIDE_MODE_OPTIONS: SelectOption<'CONTAINMENT' | 'AUDIT_ONLY'>[] = [
-  { value: 'CONTAINMENT', label: 'CONTAINMENT (Allow launch with warning logs)' },
-  { value: 'AUDIT_ONLY', label: 'AUDIT_ONLY (Passive telemetry monitoring only)' },
+  { value: 'CONTAINMENT', label: 'Containment (Allow launch with warning logs)' },
+  { value: 'AUDIT_ONLY', label: 'Monitoring Only (Passive telemetry monitoring only)' },
 ]
 
 export interface TaskManagerViewProps {
@@ -89,6 +90,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   const [newRuleType, setNewRuleType] = useState<'BLOCKED' | 'ALLOWED'>('BLOCKED')
   const [showOverrideModal, setShowOverrideModal] = useState(false)
   const [overridePassword, setOverridePassword] = useState('')
+  const [showOverridePassword, setShowOverridePassword] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideTargetMode, setOverrideTargetMode] = useState<'CONTAINMENT' | 'AUDIT_ONLY'>('CONTAINMENT')
   const [overrideLoading, setOverrideLoading] = useState(false)
@@ -147,8 +149,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       sentinelStatus.enforcementMode === 'STRICT'
         ? 'AUDIT_ONLY'
         : sentinelStatus.enforcementMode === 'AUDIT_ONLY'
-        ? 'CONTAINMENT'
-        : 'STRICT'
+          ? 'CONTAINMENT'
+          : 'STRICT'
     try {
       const updated = await updateSentinelMode(nextMode)
       setSentinelStatus(updated)
@@ -272,10 +274,10 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             <div className="tm-metric-val">
               {deviceSnapshot
                 ? `${(
-                    (deviceSnapshot.systemInfo.totalMemoryBytes -
-                      deviceSnapshot.systemInfo.freeMemoryBytes) /
-                    (1024 * 1024 * 1024)
-                  ).toFixed(1)} GB`
+                  (deviceSnapshot.systemInfo.totalMemoryBytes -
+                    deviceSnapshot.systemInfo.freeMemoryBytes) /
+                  (1024 * 1024 * 1024)
+                ).toFixed(1)} GB`
                 : '0 GB'}
             </div>
             <div className="tm-metric-sub">
@@ -287,19 +289,18 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               <div
                 className="tm-bar-fill emerald"
                 style={{
-                  transform: `scaleX(${
-                    deviceSnapshot
-                      ? Math.min(
-                          1,
-                          Math.max(
-                            0.05,
-                            (deviceSnapshot.systemInfo.totalMemoryBytes -
-                              deviceSnapshot.systemInfo.freeMemoryBytes) /
-                              deviceSnapshot.systemInfo.totalMemoryBytes,
-                          ),
-                        )
-                      : 0.3
-                  })`,
+                  transform: `scaleX(${deviceSnapshot && deviceSnapshot.systemInfo.totalMemoryBytes > 0
+                    ? Math.min(
+                      1,
+                      Math.max(
+                        0.05,
+                        (deviceSnapshot.systemInfo.totalMemoryBytes -
+                          deviceSnapshot.systemInfo.freeMemoryBytes) /
+                        deviceSnapshot.systemInfo.totalMemoryBytes,
+                      ),
+                    )
+                    : 0.05
+                    })`,
                 }}
               />
             </div>
@@ -328,7 +329,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
 
         {/* Sentinel Active Status Card */}
-        <div className="tm-metric-card">
+        <div className="tm-metric-card" data-tutorial="sentinel-status-card">
           <div className="tm-metric-top">
             <span className="tm-metric-label">FOCUS PROTECTION</span>
             <div className={`sentinel-radar-container ${sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE' ? 'active-pulse' : ''}`}>
@@ -336,61 +337,61 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               <div className="sentinel-radar-ring" />
             </div>
           </div>
-            {(() => {
-              const isDefending = sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE'
-              const isStandby = sentinelStatus?.status === 'STANDBY' || sentinelStatus?.status === 'READY'
-              const isUnavailable = !sentinelStatus || sentinelStatus.status === 'UNAVAILABLE' || !sentinelStatus.daemonConnected
+          {(() => {
+            const isDefending = sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE'
+            const isStandby = sentinelStatus?.status === 'STANDBY' || sentinelStatus?.status === 'READY'
+            const isUnavailable = !sentinelStatus || sentinelStatus.status === 'UNAVAILABLE' || !sentinelStatus.daemonConnected
 
-              const statusColor = isDefending
-                ? 'var(--primary-coral)'
-                : isStandby
+            const statusColor = isDefending
+              ? 'var(--primary-coral)'
+              : isStandby
                 ? 'var(--primary-green)'
                 : 'var(--text-3)'
 
-              const barFillClass = isDefending ? 'terracotta' : isStandby ? 'emerald' : ''
+            const barFillClass = isDefending ? 'terracotta' : isStandby ? 'emerald' : ''
 
-              return (
-                <div>
-                  <div
-                    className="tm-metric-val"
-                    style={{
-                      fontSize: 18,
-                      color: statusColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
+            return (
+              <div>
+                <div
+                  className="tm-metric-val"
+                  style={{
+                    fontSize: 18,
+                    color: statusColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span>{sentinelStatus ? sentinelStatus.status.replace('_', ' ') : 'UNAVAILABLE'}</span>
+                  <button
+                    type="button"
+                    className="sentinel-mode-badge"
+                    title={sentinelStatus?.isPolicyLocked ? "Protection Locked: Click to request Emergency Override" : "Click to cycle mode: Strict → Monitoring Only → Containment"}
+                    onClick={handleToggleSentinelMode}
                   >
-                    <span>{sentinelStatus ? sentinelStatus.status.replace('_', ' ') : 'UNAVAILABLE'}</span>
-                    <button
-                      type="button"
-                      className="sentinel-mode-badge"
-                      title={sentinelStatus?.isPolicyLocked ? "Protection Locked: Click to request Emergency Override" : "Click to toggle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT"}
-                      onClick={handleToggleSentinelMode}
-                    >
-                      {sentinelStatus?.enforcementMode ?? 'STRICT'}
-                    </button>
-                    {sentinelStatus?.isPolicyLocked && (
-                      <span className="sentinel-policy-locked-badge" title="Focus protection is locked during an active session">
-                        <Icon name="lock" size={11} />
-                        <span>PROTECTION LOCKED</span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="tm-metric-sub">
-                    {sentinelStatus?.activeFocusSessionName
-                      ? `Protecting: "${sentinelStatus.activeFocusSessionName}"`
-                      : `${sentinelStatus?.totalInterceptedToday ?? 0} Distractions Blocked Today`}
-                  </div>
-                  <div className="tm-bar-track">
-                    <div
-                      className={`tm-bar-fill ${barFillClass}`}
-                      style={{ transform: `scaleX(${isUnavailable ? 0 : 1})` }}
-                    />
-                  </div>
+                    {formatEnforcementMode(sentinelStatus?.enforcementMode)}
+                  </button>
+                  {sentinelStatus?.isPolicyLocked && (
+                    <span className="sentinel-policy-locked-badge" title="Focus protection is locked during an active session">
+                      <Icon name="lock" size={11} />
+                      <span>PROTECTION LOCKED</span>
+                    </span>
+                  )}
                 </div>
-              )
-            })()}
+                <div className="tm-metric-sub">
+                  {sentinelStatus?.activeFocusSessionName
+                    ? `Protecting: "${sentinelStatus.activeFocusSessionName}"`
+                    : `${sentinelStatus?.totalInterceptedToday ?? 0} Distractions Blocked Today`}
+                </div>
+                <div className="tm-bar-track">
+                  <div
+                    className={`tm-bar-fill ${barFillClass}`}
+                    style={{ transform: `scaleX(${isUnavailable ? 0 : 1})` }}
+                  />
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -446,58 +447,60 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           ))}
         </div>
 
-        <button
-          type="button"
-          className="emergency-override-btn"
-          onClick={() => {
-            setOverrideError(null)
-            setShowOverrideModal(true)
-            setShowAddRuleModal(false)
-          }}
-          title="Authorize temporary protection override"
-        >
-          <Icon name="shield" size={14} />
-          <span>Emergency Override</span>
-        </button>
+        <div className="tm-actions-group">
+          <button
+            type="button"
+            className="emergency-override-btn"
+            onClick={() => {
+              setOverrideError(null)
+              setShowOverrideModal(true)
+              setShowAddRuleModal(false)
+            }}
+            title="Authorize temporary protection override"
+          >
+            <Icon name="shield" size={14} />
+            <span>Emergency Override</span>
+          </button>
 
-        <button
-          type="button"
-          className="tm-refresh-btn btn-spring"
-          onClick={handleSentinelSweep}
-          disabled={sentinelSweeping}
-          style={{
-            background: 'var(--accent-red-subtle)',
-            borderColor: 'var(--accent-red-border)',
-            color: 'var(--accent-red)',
-          }}
-          title="Close open distraction applications"
-        >
-          <Icon name="sparkle" size={14} />
-          <span>{sentinelSweeping ? 'Closing...' : 'Close Distractions'}</span>
-        </button>
+          <button
+            type="button"
+            className="tm-refresh-btn btn-spring"
+            onClick={handleSentinelSweep}
+            disabled={sentinelSweeping}
+            style={{
+              background: 'var(--accent-red-subtle)',
+              borderColor: 'var(--accent-red-border)',
+              color: 'var(--accent-red)',
+            }}
+            title="Close open distraction applications"
+          >
+            <Icon name="sparkle" size={14} />
+            <span>{sentinelSweeping ? 'Closing...' : 'Close Distractions'}</span>
+          </button>
 
-        <button
-          type="button"
-          className="tm-refresh-btn btn-spring"
-          onClick={() => {
-            setShowAddRuleModal(true)
-            setShowOverrideModal(false)
-          }}
-          title="Add application to blocked list"
-        >
-          <Icon name="plus" size={14} />
-          <span>Block App</span>
-        </button>
+          <button
+            type="button"
+            className="tm-refresh-btn btn-spring"
+            onClick={() => {
+              setShowAddRuleModal(true)
+              setShowOverrideModal(false)
+            }}
+            title="Add application to blocked list"
+          >
+            <Icon name="plus" size={14} />
+            <span>Block App</span>
+          </button>
 
-        <button
-          type="button"
-          className="tm-refresh-btn btn-spring"
-          onClick={() => setTmRefreshKey((key) => key + 1)}
-          disabled={tmLoading}
-        >
-          <Icon name="refresh" size={14} />
-          <span>{tmLoading ? 'Scanning...' : 'Refresh Processes'}</span>
-        </button>
+          <button
+            type="button"
+            className="tm-refresh-btn btn-spring"
+            onClick={() => setTmRefreshKey((key) => key + 1)}
+            disabled={tmLoading}
+          >
+            <Icon name="refresh" size={14} />
+            <span>{tmLoading ? 'Scanning...' : 'Refresh Processes'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Focus Protection Policy Rules & Activity Feed */}
@@ -539,7 +542,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   title={
                     sentinelStatus?.isPolicyLocked
                       ? 'Protection Locked: Click to request Emergency Override'
-                      : 'Click to cycle mode: STRICT -> AUDIT_ONLY -> CONTAINMENT'
+                      : 'Click to cycle mode: Strict → Monitoring Only → Containment'
                   }
                   onClick={handleToggleSentinelMode}
                 >
@@ -582,7 +585,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 <button
                   type="button"
                   className="emergency-override-btn"
-                  style={{ padding: '4px 10px', fontSize: 11 }}
+                  style={{ padding: '5px 12px', fontSize: 12 }}
                   onClick={() => {
                     setOverrideError(null)
                     setShowOverrideModal(true)
@@ -666,7 +669,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             <div className="sentinel-section-box" style={{ marginTop: 4 }}>
               <div className="sentinel-section-top">
                 <div className="sentinel-section-heading">Recent Enforcement Activity</div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                   {groupedActivities.length} Unique Event{groupedActivities.length === 1 ? '' : 's'}
                 </div>
               </div>
@@ -820,9 +823,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   <Icon name="shield" size={15} />
                   <span>Technical Security & Tamper Audit Log</span>
                   <span
-                    className={`sentinel-tamper-badge-count ${
-                      tamperEvents.length === 0 ? 'clean' : 'alert'
-                    }`}
+                    className={`sentinel-tamper-badge-count ${tamperEvents.length === 0 ? 'clean' : 'alert'
+                      }`}
                   >
                     {tamperEvents.length === 0
                       ? '0 Events Logged'
@@ -881,11 +883,11 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                             <strong style={{ color: 'var(--text-1)' }}>
                               {evt.eventType.replace(/_/g, ' ')}
                             </strong>
-                            <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
+                            <span style={{ color: 'var(--text-3)', fontSize: 12 }}>
                               [{evt.enforcementMode}]
                             </span>
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                             {new Date(evt.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -899,7 +901,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                           </div>
                         )}
                         {evt.details && (
-                          <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                          <div style={{ fontSize: 12.5, color: 'var(--text-2)' }}>
                             {evt.details}
                           </div>
                         )}
@@ -933,7 +935,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   autoFocus
                   required
                 />
-                <span style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>
                   System core processes (systemd, shinpo, bash) are protected and cannot be blocked.
                 </span>
               </div>
@@ -1033,16 +1035,41 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
 
               <div className="quick-form-group">
                 <label className="quick-form-label">ACCOUNT PASSWORD</label>
-                <input
-                  type="password"
-                  className="quick-form-input"
-                  placeholder="Enter your account password..."
-                  value={overridePassword}
-                  onChange={(e) => setOverridePassword(e.target.value)}
-                  required
-                  disabled={overrideLoading}
-                  autoFocus
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showOverridePassword ? 'text' : 'password'}
+                    className="quick-form-input"
+                    placeholder="Enter your account password..."
+                    value={overridePassword}
+                    onChange={(e) => setOverridePassword(e.target.value)}
+                    required
+                    disabled={overrideLoading}
+                    autoFocus
+                    style={{ width: '100%', paddingRight: '38px' }}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowOverridePassword((prev) => !prev)}
+                    aria-label={showOverridePassword ? 'Hide password' : 'Show password'}
+                    title={showOverridePassword ? 'Hide password' : 'Show password'}
+                    tabIndex={0}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-secondary, #94a3b8)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px',
+                    }}
+                  >
+                    <Icon name={showOverridePassword ? 'eye-off' : 'eye'} size={15} />
+                  </button>
+                </div>
               </div>
 
               <div className="quick-form-group">
@@ -1060,9 +1087,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   disabled={overrideLoading}
                 />
                 <div
-                  className={`override-char-counter ${
-                    overrideReason.trim().length >= 15 ? 'valid' : 'invalid'
-                  }`}
+                  className={`override-char-counter ${overrideReason.trim().length >= 15 ? 'valid' : 'invalid'
+                    }`}
                 >
                   {overrideReason.trim().length} / 15 chars min
                 </div>
@@ -1157,13 +1183,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     </td>
                     <td>
                       <span
-                        className={`tm-policy-badge ${
-                          proc.shinpoPolicyState === 'ALLOWED'
-                            ? 'allowed'
-                            : proc.shinpoPolicyState === 'BLOCKED'
+                        className={`tm-policy-badge ${proc.shinpoPolicyState === 'ALLOWED'
+                          ? 'allowed'
+                          : proc.shinpoPolicyState === 'BLOCKED'
                             ? 'blocked'
                             : 'protected'
-                        }`}
+                          }`}
                       >
                         {proc.shinpoPolicyState === 'ALLOWED' && 'Allowed'}
                         {proc.shinpoPolicyState === 'BLOCKED' && 'Blocked'}

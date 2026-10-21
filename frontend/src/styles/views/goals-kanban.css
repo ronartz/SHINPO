@@ -55,7 +55,7 @@
 }
 
 .summary-pill {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   padding: 4px 12px;
   border-radius: 999px;
@@ -201,21 +201,21 @@ html[data-theme='light'] .board-action-btn.primary {
 
 .column-status-dot.dot-coral {
   background: var(--primary-coral);
-  box-shadow: 0 0 8px var(--primary-coral);
+  box-shadow: none;
 }
 
 .column-status-dot.dot-cyan {
   background: var(--accent-cyan);
-  box-shadow: 0 0 8px var(--accent-cyan);
+  box-shadow: none;
 }
 
 .column-status-dot.dot-emerald {
   background: var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green);
+  box-shadow: none;
 }
 
 .column-title-text {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -223,7 +223,7 @@ html[data-theme='light'] .board-action-btn.primary {
 }
 
 .column-count-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-2);
@@ -324,8 +324,8 @@ html[data-theme='light'] .board-action-btn.primary {
 
 .flight-deck-card.is-active-sprint {
   border-color: var(--brand-coral-border);
-  background: linear-gradient(180deg, rgba(255, 77, 94, 0.06) 0%, var(--surface) 100%);
-  box-shadow: 0 0 16px rgba(255, 77, 94, 0.15);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .card-top-row {
@@ -469,7 +469,7 @@ html[data-theme='light'] .board-action-btn.primary {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-3);
   flex-wrap: wrap;
 }
@@ -507,7 +507,7 @@ html[data-theme='light'] .board-action-btn.primary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--accent-cyan);
   background: var(--accent-cyan-subtle);
@@ -520,7 +520,7 @@ html[data-theme='light'] .board-action-btn.primary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-2);
   text-transform: uppercase;
@@ -536,7 +536,7 @@ html[data-theme='light'] .board-action-btn.primary {
   background: var(--surface-card);
   border: 1px solid var(--border);
   color: var(--primary-coral);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition-fast);

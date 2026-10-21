@@ -1,0 +1,127 @@
+{
+  "timestamp": "2026-10-21T10:54:05.739Z",
+  "overallStatus": "PASSED",
+  "dashboardMetrics": {
+    "cardHeights": [
+      197.4375,
+      197.4375,
+      197.4375,
+      197.4375
+    ],
+    "cardDiff": 0,
+    "actionRowDiff": 0,
+    "quoteFamily": "\"Playfair Display\", Georgia, Cambria, \"Times New Roman\", serif",
+    "quoteFontStyle": "italic",
+    "isQuoteSerif": true,
+    "schedGrid": true
+  },
+  "viewTypographyAudits": [
+    {
+      "tab": "dashboard",
+      "totalTextElements": 79,
+      "minFontSize": 12,
+      "maxFontSize": 42,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "goals",
+      "totalTextElements": 77,
+      "minFontSize": 12,
+      "maxFontSize": 20,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "schedule",
+      "totalTextElements": 77,
+      "minFontSize": 12,
+      "maxFontSize": 20,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "focus",
+      "totalTextElements": 78,
+      "minFontSize": 12,
+      "maxFontSize": 64,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "task",
+      "totalTextElements": 51,
+      "minFontSize": 12,
+      "maxFontSize": 26,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "analytics",
+      "totalTextElements": 52,
+      "minFontSize": 12,
+      "maxFontSize": 26,
+      "sub12Count": 0,
+      "sub12Samples": []
+    },
+    {
+      "tab": "eonpai",
+      "totalTextElements": 89,
+      "minFontSize": 12,
+      "maxFontSize": 16,
+      "sub12Count": 0,
+      "sub12Samples": []
+    }
+  ],
+  "modalAudit": {
+    "titleSize": 19,
+    "titleWeight": "800",
+    "descSize": 14,
+    "labelCount": 3,
+    "minLabelSize": 14,
+    "maxLabelSize": 14,
+    "inputHeights": [
+      40,
+      43
+    ],
+    "allLabelsGte14": true
+  },
+  "permutationResults": [
+    {
+      "permutation": "aurora_dark_1440x900",
+      "windowWidth": 1440,
+      "docScrollWidth": 1430,
+      "hasHorizontalOverflow": false
+    },
+    {
+      "permutation": "aurora_light_1440x900",
+      "windowWidth": 1440,
+      "docScrollWidth": 1430,
+      "hasHorizontalOverflow": false
+    },
+    {
+      "permutation": "aurora_dark_1280x800",
+      "windowWidth": 1280,
+      "docScrollWidth": 1270,
+      "hasHorizontalOverflow": false
+    },
+    {
+      "permutation": "aurora_dark_1024x768",
+      "windowWidth": 1024,
+      "docScrollWidth": 1014,
+      "hasHorizontalOverflow": false
+    },
+    {
+      "permutation": "classic_dark_1440x900",
+      "windowWidth": 1440,
+      "docScrollWidth": 1430,
+      "hasHorizontalOverflow": false
+    },
+    {
+      "permutation": "classic_light_1440x900",
+      "windowWidth": 1440,
+      "docScrollWidth": 1430,
+      "hasHorizontalOverflow": false
+    }
+  ]
+}

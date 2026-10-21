@@ -80,12 +80,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-task-title">
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <h3 id="create-task-title" className="modal-title" style={{ margin: 0 }}>Create Task</h3>
+      <div className="modal-box create-task-modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="create-task-modal-header">
+          <h3 id="create-task-title" className="modal-title">Create Task</h3>
           <button
             type="button"
-            className="sidebar-toggle-btn"
+            className="modal-close-button"
             onClick={onClose}
             title="Close"
             aria-label="Close modal"
@@ -105,12 +105,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           )}
 
           <div style={{ marginBottom: 14 }}>
-            <label htmlFor="create-task-goal" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label htmlFor="create-task-goal" className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Associated Goal
             </label>
             {goals.length === 0 ? (
               <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(255, 77, 94, 0.1)', border: '1px solid rgba(255, 77, 94, 0.3)' }}>
-                <p style={{ fontSize: 13, color: 'var(--brand-coral, #FF4D5E)', margin: 0, fontWeight: 600 }}>
+                <p style={{ fontSize: 13.5, color: 'var(--brand-coral, #FF4D5E)', margin: 0, fontWeight: 600 }}>
                   No goals available. Please create a goal first.
                 </p>
               </div>
@@ -126,7 +126,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label htmlFor="create-task-title-input" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label htmlFor="create-task-title-input" className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Task Title
             </label>
             <input
@@ -142,20 +142,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8 }}>
+            <label className="shinpo-field-label" style={{ marginBottom: 8 }}>
               Estimated Duration ({isCustom ? `${isCustomValid ? parsedCustom : 'Custom'} min` : `${duration} min`})
             </label>
 
             {/* 10-Option Duration Selector Grid (5x2) */}
             <div
+              className="create-task-duration-grid"
               role="group"
               aria-label="Duration Presets"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
-                gap: 6,
-                marginBottom: 8,
-              }}
             >
               {DURATION_PRESETS.map((dur) => {
                 const isSelected = !isCustom && duration === dur
@@ -163,14 +158,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <button
                     key={dur}
                     type="button"
-                    className={`btn-timer ${isSelected ? 'primary' : 'secondary'}`}
-                    style={{
-                      padding: '7px 0',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      borderRadius: 8,
-                      outline: isSelected ? '2px solid var(--primary-coral, #9757FA)' : undefined,
-                    }}
+                    className={`btn-timer ${isSelected ? 'primary' : 'secondary'} create-task-duration-button`}
                     onClick={() => handlePresetSelect(dur)}
                     aria-pressed={isSelected}
                   >
@@ -180,14 +168,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               })}
               <button
                 type="button"
-                className={`btn-timer ${isCustom ? 'primary' : 'secondary'}`}
-                style={{
-                  padding: '7px 0',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  outline: isCustom ? '2px solid var(--primary-coral, #9757FA)' : undefined,
-                }}
+                className={`btn-timer ${isCustom ? 'primary' : 'secondary'} create-task-duration-button`}
                 onClick={handleCustomToggle}
                 aria-pressed={isCustom}
               >
@@ -244,7 +225,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <div className="create-task-modal-actions">
             <button
               type="button"
               className="btn-timer secondary"

@@ -1,0 +1,326 @@
+{
+  "timestamp": "2026-10-20T15:19:57.546Z",
+  "summary": {
+    "total": 45,
+    "passed": 45,
+    "failed": 0
+  },
+  "controls": [
+    {
+      "category": "Auth",
+      "name": "Username/Email Field",
+      "type": "input[text]",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Auth",
+      "name": "Password Field",
+      "type": "input[password]",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Auth",
+      "name": "Password Visibility Toggle",
+      "type": "button.password-toggle-btn",
+      "status": "PASS",
+      "details": "Show password"
+    },
+    {
+      "category": "Auth",
+      "name": "Tab Switchers (Sign In / Register)",
+      "type": "button.auth-tab-btn",
+      "status": "PASS",
+      "details": "Sign In | Create Account"
+    },
+    {
+      "category": "Auth",
+      "name": "Submit Form Button",
+      "type": "button[type=\"submit\"]",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Auth",
+      "name": "Password Reveal Action",
+      "type": "state-toggle",
+      "status": "PASS",
+      "details": "type=text"
+    },
+    {
+      "category": "Auth Lifecycle",
+      "name": "Session Restoration & App Shell Load",
+      "type": "session",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Topbar",
+      "name": "No Redundant Theme Toggle (Action 4 Clean)",
+      "type": "guardrail",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Topbar",
+      "name": "Cloud Data Refresh Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Topbar",
+      "name": "Settings Gear Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Topbar",
+      "name": "Profile Identity Badge Card",
+      "type": "card-button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Dashboard",
+      "name": "LiveClock Capsule Component",
+      "type": "clock-capsule",
+      "status": "PASS",
+      "details": "TUE 20 OCT 08 : 49 PM"
+    },
+    {
+      "category": "Dashboard",
+      "name": "Today's Schedule Card",
+      "type": "card",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Dashboard",
+      "name": "LiveClock 12h/24h Click Toggle",
+      "type": "action",
+      "status": "PASS",
+      "details": "format=24H"
+    },
+    {
+      "category": "Navigation Ownership",
+      "name": "Gear Button Routes to Appearance Tab",
+      "type": "routing",
+      "status": "PASS",
+      "details": "tab=Appearance"
+    },
+    {
+      "category": "Navigation Ownership",
+      "name": "Profile Card Routes to Account Tab",
+      "type": "routing",
+      "status": "PASS",
+      "details": "tab=Account"
+    },
+    {
+      "category": "Settings:Account",
+      "name": "Current Username Display",
+      "type": "text",
+      "status": "PASS",
+      "details": "tester_78648"
+    },
+    {
+      "category": "Settings:Account",
+      "name": "Change Username Trigger Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings:Account",
+      "name": "Username Mutation & Backend Persistence",
+      "type": "mutation",
+      "status": "PASS",
+      "details": "persisted=EONX_4959"
+    },
+    {
+      "category": "Settings:Account",
+      "name": "Password Form Eye/Eye-Off Toggles",
+      "type": "toggles",
+      "status": "PASS",
+      "details": "count=3 (expected 3)"
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: Focus Protection",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings:Protection",
+      "name": "Emergency Override Password Toggle",
+      "type": "toggle",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: Browser Companion",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: AI / EONPAI",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: Cloud Server Connection",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings:Connection",
+      "name": "Save & Test Server Connection Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: Privacy & Data",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings Navigation",
+      "name": "Section: About & Health",
+      "type": "tab-switch",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Settings:About",
+      "name": "Run Diagnostics Trigger Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Goals & Missions",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Goals & Tasks"
+    },
+    {
+      "category": "Goals View",
+      "name": "Tasks Sort Single Capsule (No Double Border)",
+      "type": "select",
+      "status": "PASS",
+      "details": "outer border=0px none rgb(245, 247, 255)"
+    },
+    {
+      "category": "Goals View",
+      "name": "New Goal Trigger Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Focus Engine",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Focus"
+    },
+    {
+      "category": "Focus View",
+      "name": "Duration Presets (25m, 45m, 50m, 90m)",
+      "type": "buttons",
+      "status": "PASS",
+      "details": "15m, 30m, 60m, 90m, Custom"
+    },
+    {
+      "category": "Focus View",
+      "name": "Start Focus Session Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Schedule",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Calendar"
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Analytics",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Analytics"
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Task Manager",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Task Manager"
+    },
+    {
+      "category": "Task Manager",
+      "name": "Button Heights Harmonization",
+      "type": "layout",
+      "status": "PASS",
+      "details": "override=34px, refresh=34px"
+    },
+    {
+      "category": "Task Manager",
+      "name": "Human-Readable Mode Badge (\"Monitoring Only\")",
+      "type": "badge",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to AI Assistant",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=EONPAI"
+    },
+    {
+      "category": "EONPAI AI",
+      "name": "Chat Input Box",
+      "type": "textarea",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "EONPAI AI",
+      "name": "Send Message Button",
+      "type": "button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "category": "Sidebar Navigation",
+      "name": "Navigate to Dashboard",
+      "type": "nav-action",
+      "status": "PASS",
+      "details": "title=Dashboard"
+    },
+    {
+      "category": "Auth Lifecycle",
+      "name": "Sign Out Action & Storage Purge",
+      "type": "button",
+      "status": "PASS",
+      "details": "Storage purged, returned to Auth"
+    }
+  ],
+  "consoleErrors": []
+}

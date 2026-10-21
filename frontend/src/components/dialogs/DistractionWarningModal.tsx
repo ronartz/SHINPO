@@ -36,7 +36,7 @@ export const DistractionWarningModal: React.FC<DistractionWarningModalProps> = (
               <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)', margin: 0 }}>
                 Distraction Alert
               </h3>
-              <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>
                 Distraction detected during focus session
               </div>
             </div>

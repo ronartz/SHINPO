@@ -123,7 +123,7 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
                 px: 0.8,
                 py: 0.2,
                 borderRadius: '6px',
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: 600,
                 background: trendPositive ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 77, 94, 0.14)',
                 color: trendPositive ? '#10B981' : '#FF4D5E',

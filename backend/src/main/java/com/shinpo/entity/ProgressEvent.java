@@ -45,6 +45,10 @@ public class ProgressEvent {
         this.createdAt = Instant.now();
     }
 
+    public ProgressEvent(User user, String eventType, Integer amount) {
+        this(user, null, eventType, amount);
+    }
+
     public Long getId() {
         return id;
     }

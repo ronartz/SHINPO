@@ -235,16 +235,18 @@ export function validateStudyResourceDraft(draft: StudyResourceDraft): string | 
     return 'Desktop application exceptions require an active Focus session.'
   }
 
-  const destination = draft.destination.trim()
-  if (!destination) return 'Enter a destination or process name.'
-  if (destination.length > 2048) return 'Destination must be 2,048 characters or fewer.'
+  const rawDestination = draft.destination.trim()
+  if (!rawDestination) return 'Enter a destination or process name.'
+  if (rawDestination.length > 2048) return 'Destination must be 2,048 characters or fewer.'
 
   if (draft.matchType === 'PROCESS') {
     if (draft.resourceType !== 'DESKTOP_PROCESS') {
       return 'Process matching is only available for desktop applications.'
     }
-    return destination.length >= 2 ? null : 'Enter at least two characters for a process name.'
+    return rawDestination.length >= 2 ? null : 'Enter at least two characters for a process name.'
   }
+
+  const destination = !/^https?:\/\//i.test(rawDestination) ? `https://${rawDestination}` : rawDestination
 
   if (draft.matchType === 'DOMAIN') {
     if (!parseDomain(destination)) {
@@ -296,13 +298,17 @@ export function buildStudyResourceRequest(
   if (validationError) throw new Error(validationError)
 
   const duration = draft.durationMinutes
+  const rawDest = draft.destination.trim()
+  const isProcess = draft.resourceType === 'DESKTOP_PROCESS' || draft.matchType === 'PROCESS'
+  const destination = !isProcess && !/^https?:\/\//i.test(rawDest) ? `https://${rawDest}` : rawDest
+
   return {
     ...(draft.missionId ? { missionId: draft.missionId } : {}),
     ...(draft.focusSessionId ? { focusSessionId: draft.focusSessionId } : {}),
     resourceType: draft.resourceType,
     matchType: draft.matchType,
     disposition: draft.disposition,
-    destination: draft.destination.trim(),
+    destination,
     ...(draft.displayName?.trim() ? { displayName: draft.displayName.trim() } : {}),
     ...(duration && duration > 0
       ? { expiresAt: new Date(nowMs + duration * 60_000).toISOString() }

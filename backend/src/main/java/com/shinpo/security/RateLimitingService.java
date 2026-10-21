@@ -1,0 +1,297 @@
+package com.shinpo.security;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+
+/**
+ * Thread-safe sliding-window rate limiting service for authentication endpoints.
+ * Protects against brute-force attacks, credential stuffing, and DoS.
+ * Fully supports reverse-proxy IP resolution (X-Forwarded-For, X-Real-IP).
+ */
+@Service
+public class RateLimitingService {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitingService.class);
+
+    // Default rate limits
+    public static final int MAX_FAILED_LOGINS = 5;
+    public static final Duration FAILED_LOGIN_WINDOW = Duration.ofMinutes(1);
+
+    public static final int MAX_LOGIN_REQUESTS = 20;
+    public static final Duration LOGIN_REQUEST_WINDOW = Duration.ofMinutes(1);
+
+    public static final int MAX_REGISTER_REQUESTS = 5;
+    public static final Duration REGISTER_REQUEST_WINDOW = Duration.ofMinutes(10);
+
+    public static final int MAX_REFRESH_REQUESTS = 60;
+    public static final Duration REFRESH_REQUEST_WINDOW = Duration.ofMinutes(1);
+
+    public static final int MAX_PASSWORD_CHANGE_REQUESTS = 5;
+    public static final Duration PASSWORD_CHANGE_WINDOW = Duration.ofMinutes(1);
+
+    private static final int MAX_ENTRIES_PER_MAP = 5000;
+    private static final Pattern IPV4_PATTERN = Pattern.compile("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$");
+
+    private final Map<String, Deque<Long>> buckets = new ConcurrentHashMap<>();
+    private final Map<String, Deque<Long>> failedLoginBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Deque<Long>> failedAccountBuckets = new ConcurrentHashMap<>();
+
+    /**
+     * Resolves the real client IP address. Forwarded headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP)
+     * are ONLY trusted if the direct connection originates from an explicitly trusted proxy (loopback or private container network).
+     * If an external client connects directly, forwarded headers are rejected to prevent rate-limit evasion.
+     */
+    public String resolveClientIp(HttpServletRequest request) {
+        if (request == null) {
+            return "127.0.0.1";
+        }
+
+        String remoteAddr = request.getRemoteAddr();
+        String directIp = (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr.trim() : "127.0.0.1";
+
+        // Security Hardening: Only trust headers if the direct socket is a trusted proxy
+        if (!isTrustedProxy(directIp)) {
+            return directIp;
+        }
+
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor.trim())) {
+            String[] parts = xForwardedFor.split(",");
+            for (String part : parts) {
+                String candidate = part.trim();
+                if (isValidIp(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank() && !"unknown".equalsIgnoreCase(xRealIp.trim())) {
+            String candidate = xRealIp.trim();
+            if (isValidIp(candidate)) {
+                return candidate;
+            }
+        }
+
+        String cfConnectingIp = request.getHeader("CF-Connecting-IP");
+        if (cfConnectingIp != null && !cfConnectingIp.isBlank() && !"unknown".equalsIgnoreCase(cfConnectingIp.trim())) {
+            String candidate = cfConnectingIp.trim();
+            if (isValidIp(candidate)) {
+                return candidate;
+            }
+        }
+
+        return directIp;
+    }
+
+    public boolean isTrustedProxy(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return false;
+        }
+        String trimmed = ip.trim();
+        // Local loopback
+        if ("127.0.0.1".equals(trimmed) || "::1".equals(trimmed) || "0:0:0:0:0:0:0:1".equals(trimmed) || "localhost".equalsIgnoreCase(trimmed)) {
+            return true;
+        }
+        // Private networks (RFC 1918 / Docker networks): 10.x.x.x, 192.168.x.x
+        if (trimmed.startsWith("10.") || trimmed.startsWith("192.168.")) {
+            return true;
+        }
+        // Docker default bridge & custom subnets: 172.16.0.0 - 172.31.255.255
+        if (trimmed.startsWith("172.")) {
+            String[] parts = trimmed.split("\\.");
+            if (parts.length >= 2) {
+                try {
+                    int secondOctet = Integer.parseInt(parts[1]);
+                    if (secondOctet >= 16 && secondOctet <= 31) {
+                        return true;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isValidIp(String ip) {
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            return false;
+        }
+        return IPV4_PATTERN.matcher(ip).matches() || ip.contains(":") || "localhost".equalsIgnoreCase(ip);
+    }
+
+    /**
+     * Checks if a request is allowed according to the sliding-window rate limit.
+     * Records the request if allowed.
+     */
+    public synchronized boolean tryConsume(String key, int maxRequests, Duration window) {
+        enforceCapacity(buckets);
+        long now = Instant.now().toEpochMilli();
+        long windowMillis = window.toMillis();
+        long cutoff = now - windowMillis;
+
+        Deque<Long> timestamps = buckets.computeIfAbsent(key, k -> new ArrayDeque<>());
+        pruneOldTimestamps(timestamps, cutoff);
+
+        if (timestamps.size() >= maxRequests) {
+            return false;
+        }
+
+        timestamps.addLast(now);
+        return true;
+    }
+
+    /**
+     * Records a failed login attempt for an IP.
+     */
+    public synchronized void recordFailedLogin(String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            return;
+        }
+        enforceCapacity(failedLoginBuckets);
+        long now = Instant.now().toEpochMilli();
+        Deque<Long> timestamps = failedLoginBuckets.computeIfAbsent("login_fail:" + clientIp, k -> new ArrayDeque<>());
+        pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
+        timestamps.addLast(now);
+        log.warn("RATE_LIMIT: Recorded failed login attempt for IP: {}, total recent failures: {}", clientIp, timestamps.size());
+    }
+
+    /**
+     * Resets failed login attempts for an IP on successful login.
+     */
+    public synchronized void recordSuccessfulLogin(String clientIp) {
+        if (clientIp != null) {
+            failedLoginBuckets.remove("login_fail:" + clientIp);
+        }
+    }
+
+    /**
+     * Checks if the IP is currently locked out due to excessive failed logins.
+     */
+    public synchronized boolean isLoginLockedOut(String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            return false;
+        }
+        long now = Instant.now().toEpochMilli();
+        Deque<Long> timestamps = failedLoginBuckets.get("login_fail:" + clientIp);
+        if (timestamps == null) {
+            return false;
+        }
+        pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
+        return timestamps.size() >= MAX_FAILED_LOGINS;
+    }
+
+    /**
+     * Records a failed login attempt for a specific account (mitigates distributed brute force / password spraying).
+     */
+    public synchronized void recordFailedLoginForAccount(String usernameOrEmail) {
+        if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
+            return;
+        }
+        enforceCapacity(failedAccountBuckets);
+        String key = "login_fail_account:" + usernameOrEmail.toLowerCase().trim();
+        long now = Instant.now().toEpochMilli();
+        Deque<Long> timestamps = failedAccountBuckets.computeIfAbsent(key, k -> new ArrayDeque<>());
+        pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
+        timestamps.addLast(now);
+        log.warn("RATE_LIMIT: Recorded failed login for account: {}, total recent failures: {}", usernameOrEmail, timestamps.size());
+    }
+
+    /**
+     * Resets failed login attempts for an account on successful login.
+     */
+    public synchronized void recordSuccessfulLoginForAccount(String usernameOrEmail) {
+        if (usernameOrEmail != null && !usernameOrEmail.isBlank()) {
+            failedAccountBuckets.remove("login_fail_account:" + usernameOrEmail.toLowerCase().trim());
+        }
+    }
+
+    /**
+     * Checks if a specific account is currently locked out due to excessive failed logins across any IP.
+     */
+    public synchronized boolean isAccountLockedOut(String usernameOrEmail) {
+        if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
+            return false;
+        }
+        String key = "login_fail_account:" + usernameOrEmail.toLowerCase().trim();
+        long now = Instant.now().toEpochMilli();
+        Deque<Long> timestamps = failedAccountBuckets.get(key);
+        if (timestamps == null) {
+            return false;
+        }
+        pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
+        return timestamps.size() >= MAX_FAILED_LOGINS;
+    }
+
+    /**
+     * Returns remaining seconds before a blocked key can retry.
+     */
+    public synchronized long getRetryAfterSeconds(String key, Duration window) {
+        long now = Instant.now().toEpochMilli();
+
+        Deque<Long> timestamps = buckets.get(key);
+        if (timestamps == null || timestamps.isEmpty()) {
+            Deque<Long> failTimestamps = failedLoginBuckets.get(key);
+            if (failTimestamps != null && !failTimestamps.isEmpty()) {
+                timestamps = failTimestamps;
+            } else {
+                Deque<Long> accountTimestamps = failedAccountBuckets.get(key);
+                if (accountTimestamps != null && !accountTimestamps.isEmpty()) {
+                    timestamps = accountTimestamps;
+                }
+            }
+        }
+
+        if (timestamps == null || timestamps.isEmpty()) {
+            return window.toSeconds();
+        }
+
+        Long oldest = timestamps.peekFirst();
+        if (oldest == null) {
+            return window.toSeconds();
+        }
+
+        long expiresAt = oldest + window.toMillis();
+        long diff = (expiresAt - now) / 1000L;
+        return Math.max(1L, diff);
+    }
+
+    private void pruneOldTimestamps(Deque<Long> timestamps, long cutoff) {
+        while (!timestamps.isEmpty() && timestamps.peekFirst() < cutoff) {
+            timestamps.pollFirst();
+        }
+    }
+
+    private void enforceCapacity(Map<String, Deque<Long>> map) {
+        if (map.size() > MAX_ENTRIES_PER_MAP) {
+            long now = Instant.now().toEpochMilli();
+            map.entrySet().removeIf(entry -> {
+                Deque<Long> dq = entry.getValue();
+                return dq.isEmpty() || (now - dq.peekLast()) > Duration.ofHours(1).toMillis();
+            });
+            if (map.size() > MAX_ENTRIES_PER_MAP) {
+                map.clear();
+            }
+        }
+    }
+
+    /**
+     * Clears all buckets (useful for unit/integration tests).
+     */
+    public synchronized void reset() {
+        buckets.clear();
+        failedLoginBuckets.clear();
+        failedAccountBuckets.clear();
+    }
+}
+

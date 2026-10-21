@@ -10,6 +10,7 @@ public class AiProperties {
     private boolean enabled = true;
     private String provider = "ollama";
     private OllamaProperties ollama = new OllamaProperties();
+    private GeminiProperties gemini = new GeminiProperties();
 
     public static class OllamaProperties {
         private String baseUrl = "http://localhost:11434";
@@ -22,6 +23,36 @@ public class AiProperties {
 
         public void setBaseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public int getTimeoutSeconds() {
+            return timeoutSeconds;
+        }
+
+        public void setTimeoutSeconds(int timeoutSeconds) {
+            this.timeoutSeconds = timeoutSeconds;
+        }
+    }
+
+    public static class GeminiProperties {
+        private String apiKey;
+        private String model = "gemini-2.5-flash";
+        private int timeoutSeconds = 30;
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
         }
 
         public String getModel() {
@@ -63,5 +94,13 @@ public class AiProperties {
 
     public void setOllama(OllamaProperties ollama) {
         this.ollama = ollama;
+    }
+
+    public GeminiProperties getGemini() {
+        return gemini;
+    }
+
+    public void setGemini(GeminiProperties gemini) {
+        this.gemini = gemini;
     }
 }

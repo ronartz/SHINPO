@@ -23,6 +23,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
   onSelectTab,
   isExpanded = true,
   onToggleExpanded,
+  shinpoMessage,
+  onRefreshShinpoMessage,
   sentinelStatus,
   isDarkMode,
 }) => {
@@ -100,6 +102,85 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
           )}
         </Box>
 
+        {/* Editorial Peach Perspective Quote Card in Aurora Sidebar */}
+        {isExpanded && shinpoMessage && (
+          <Box
+            sx={{
+              p: '14px 16px',
+              borderRadius: '12px',
+              background: isDarkMode
+                ? 'rgba(45, 30, 26, 0.65)'
+                : 'linear-gradient(145deg, #FFF7F2 0%, #FEEFE6 100%)',
+              border: `1px solid ${isDarkMode ? 'rgba(255, 178, 140, 0.18)' : 'rgba(235, 130, 80, 0.22)'}`,
+              boxShadow: isDarkMode
+                ? '0 2px 8px rgba(0, 0, 0, 0.15)'
+                : '0 2px 8px rgba(224, 109, 83, 0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              '&:hover': {
+                borderColor: 'rgba(249, 115, 22, 0.35)',
+              },
+            }}
+            role="region"
+            aria-label="Perspective Quote"
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography
+                sx={{
+                  fontFamily: "'Nunito', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: isDarkMode ? '#F97316' : '#D9532F',
+                }}
+              >
+                PERSPECTIVE
+              </Typography>
+              {onRefreshShinpoMessage && (
+                <Box
+                  component="button"
+                  onClick={onRefreshShinpoMessage}
+                  title="Next message"
+                  aria-label="Cycle motivational quote"
+                  sx={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(45, 30, 26, 0.6)',
+                    cursor: 'pointer',
+                    p: 0.4,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      color: isDarkMode ? '#FFFFFF' : '#2D1E18',
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    },
+                  }}
+                >
+                  <Icon name="refresh" size={13} />
+                </Box>
+              )}
+            </Box>
+            <Typography
+              sx={{
+                fontFamily: "'Playfair Display', Georgia, Cambria, 'Times New Roman', serif",
+                fontSize: 15,
+                fontWeight: 500,
+                fontStyle: 'italic',
+                lineHeight: 1.45,
+                letterSpacing: '-0.01em',
+                color: isDarkMode ? '#F8FAFC' : '#2D1E18',
+              }}
+            >
+              “{shinpoMessage.text}”
+            </Typography>
+          </Box>
+        )}
 
         {/* Navigation Item Stack */}
         <Box component="nav" sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
@@ -114,6 +195,11 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
               >
                 <Box
                   component="button"
+                  className={`aurora-nav-pill ${isActive ? 'active' : ''}`}
+                  data-tab={item.id}
+                  data-tutorial={item.tut}
+                  data-active={isActive ? 'true' : 'false'}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => onSelectTab(item.id)}
                   sx={{
                     width: '100%',
@@ -151,8 +237,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                       background: isActive
                         ? undefined
                         : isDarkMode
-                        ? 'rgba(255, 255, 255, 0.05)'
-                        : 'rgba(77, 119, 249, 0.04)',
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'rgba(77, 119, 249, 0.04)',
                       transform: 'translateX(2px)',
                     },
                   }}
@@ -233,7 +319,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                 height: 9,
                 borderRadius: '50%',
                 backgroundColor: isShieldActive ? '#10B981' : '#F59E0B',
-                boxShadow: isShieldActive ? '0 0 8px #10B981' : 'none',
+                boxShadow: 'none',
               }}
             />
             <Box>
@@ -248,7 +334,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
               >
                 Shield {isShieldActive ? 'Active' : 'Standby'}
               </Typography>
-              <Typography variant="caption" sx={{ fontSize: 11.5, color: 'text.secondary' }}>
+              <Typography variant="caption" sx={{ fontSize: 12, color: 'text.secondary' }}>
                 {violationsToday} events blocked today
               </Typography>
             </Box>
@@ -271,7 +357,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                 height: 10,
                 borderRadius: '50%',
                 backgroundColor: isShieldActive ? '#10B981' : '#F59E0B',
-                boxShadow: isShieldActive ? '0 0 8px #10B981' : 'none',
+                boxShadow: 'none',
               }}
             />
           </Tooltip>

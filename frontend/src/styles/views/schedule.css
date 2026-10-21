@@ -117,7 +117,7 @@ html[data-theme='light'] .schedule-btn-book {
 .schedule-day-tile.selected {
   border-color: var(--brand-coral);
   background: var(--surface-active);
-  box-shadow: 0 0 16px rgba(234, 101, 72, 0.18), inset 0 0 0 1px var(--brand-coral);
+  box-shadow: none;
 }
 
 .schedule-day-tile.is-today .schedule-day-name {
@@ -126,7 +126,7 @@ html[data-theme='light'] .schedule-btn-book {
 }
 
 .schedule-day-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-3);
@@ -142,7 +142,7 @@ html[data-theme='light'] .schedule-btn-book {
 }
 
 .schedule-day-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 999px;
@@ -165,7 +165,7 @@ html[data-theme='light'] .schedule-btn-book {
   height: 6px;
   border-radius: 50%;
   background: var(--accent-red);
-  box-shadow: 0 0 8px var(--accent-red);
+  box-shadow: none;
 }
 
 /* Day Agenda Section */
@@ -327,7 +327,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
 }
 
 .schedule-status-pill {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   padding: 2px 7px;
   border-radius: 4px;
@@ -535,7 +535,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
   height: 8px;
   border-radius: 50%;
   background: var(--accent-emerald);
-  box-shadow: 0 0 10px var(--accent-emerald);
+  box-shadow: none;
 }
 
 .sentinel-radar-ring {
@@ -591,13 +591,13 @@ html[data-theme='light'] .schedule-filter-btn.active {
    ========================================================================== */
 .daily-quote-card {
   position: relative;
-  background: radial-gradient(ellipse at top right, rgba(255, 92, 53, 0.08) 0%, rgba(18, 23, 33, 0.95) 75%), var(--surface-card) !important;
-  border: 1px solid rgba(255, 92, 53, 0.25);
+  background: var(--surface-card) !important;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
   border-radius: var(--radius-md);
   padding: 20px 26px;
   color: var(--text) !important;
   margin-bottom: 24px;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   overflow: hidden;
   display: flex;
   justify-content: space-between;
@@ -608,9 +608,9 @@ html[data-theme='light'] .schedule-filter-btn.active {
 
 html[data-theme='light'] .daily-quote-card,
 .theme-light .daily-quote-card {
-  background: radial-gradient(ellipse at top right, rgba(255, 92, 53, 0.05) 0%, #FFFFFF 75%), #FFFFFF !important;
-  border: 1px solid rgba(255, 92, 53, 0.2);
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 html[data-theme='light'] .btn-timer.secondary {
@@ -707,7 +707,7 @@ html[data-theme='light'] .ai-commit-single-btn:hover:not(:disabled) {
 .daily-quote-pill {
   background: rgba(255, 92, 53, 0.12);
   color: var(--brand-red);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;

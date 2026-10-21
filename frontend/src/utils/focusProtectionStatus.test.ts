@@ -101,6 +101,16 @@ test('deriveOverallProtectionStatus - derives honest operational status from dae
   const s5 = deriveOverallProtectionStatus(null)
   assert.equal(s5.statusKey, 'DISCONNECTED')
   assert.equal(s5.shieldConnected, false)
+
+  // Case 6: AUDIT_ONLY mode maps truth-first without conflicting "Ready" messaging
+  const auditOnlyStatus: SentinelStatus = {
+    ...ready,
+    enforcementMode: 'AUDIT_ONLY',
+  }
+  const s6 = deriveOverallProtectionStatus(auditOnlyStatus)
+  assert.equal(s6.badgeText, 'Monitoring Only')
+  assert.equal(s6.mode, 'Monitoring Only')
+  assert.equal(s6.headline, 'Monitoring Only (Passive)')
 })
 
 test('groupQuarantineEvents - groups repeated events while preserving all records and PIDs', () => {

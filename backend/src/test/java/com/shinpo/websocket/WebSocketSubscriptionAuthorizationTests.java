@@ -155,26 +155,29 @@ public class WebSocketSubscriptionAuthorizationTests {
     }
 
     @Test
-    @DisplayName("SUBSCRIBE: Non-user-scoped topics remain accessible without restriction")
-    void testNonUserScopedTopics_remainUnchanged() {
-        // 1. Global sentinel quarantine topic (no auth required)
+    @DisplayName("SUBSCRIBE & SEND: Unknown and non-user-scoped destinations are DENIED by default")
+    void testUnknownDestinations_deniedByDefault() {
+        // 1. Global sentinel quarantine topic is rejected by default
         Message<?> globalQuarantine = createSubscribeMessage("/topic/sentinel/quarantine", null);
-        Message<?> res1 = interceptor.preSend(globalQuarantine, null);
-        assertNotNull(res1);
+        assertThrows(AccessDeniedException.class, () -> interceptor.preSend(globalQuarantine, null));
 
-        // 2. Global focus session topic (with auth)
+        // 2. Global focus session topic is rejected by default
         Message<?> globalSession = createSubscribeMessage("/topic/focus-session", aliceAuth);
-        Message<?> res2 = interceptor.preSend(globalSession, null);
-        assertNotNull(res2);
+        assertThrows(AccessDeniedException.class, () -> interceptor.preSend(globalSession, null));
 
-        // 3. Queue destination
+        // 3. Arbitrary queue destination without user prefix is rejected
         Message<?> queueMsg = createSubscribeMessage("/queue/notifications", null);
-        Message<?> res3 = interceptor.preSend(queueMsg, null);
-        assertNotNull(res3);
+        assertThrows(AccessDeniedException.class, () -> interceptor.preSend(queueMsg, null));
 
-        // 4. Null destination
+        // 4. Null destination is rejected
         Message<?> nullDest = createSubscribeMessage(null, null);
-        Message<?> res4 = interceptor.preSend(nullDest, null);
-        assertNotNull(res4);
+        assertThrows(AccessDeniedException.class, () -> interceptor.preSend(nullDest, null));
+
+        // 5. SEND command to invalid non-/app destination is rejected
+        StompHeaderAccessor sendAccessor = StompHeaderAccessor.create(StompCommand.SEND);
+        sendAccessor.setDestination("/topic/malicious-inject");
+        sendAccessor.setUser(aliceAuth);
+        Message<?> sendMsg = MessageBuilder.createMessage(new byte[0], sendAccessor.getMessageHeaders());
+        assertThrows(AccessDeniedException.class, () -> interceptor.preSend(sendMsg, null));
     }
 }

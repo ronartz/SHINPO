@@ -36,7 +36,9 @@ export const FloatingToasts: React.FC<FloatingToastsProps> = ({
                     ? 'shield'
                     : alert.type === 'focus'
                       ? 'zap'
-                      : 'sparkle'
+                      : alert.type === 'reward'
+                        ? 'sparkle'
+                        : 'sparkle'
                 }
                 size={18}
               />

@@ -40,8 +40,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             try {
+                if (jwtTokenService.isTokenBlacklisted(token)) {
+                    log.warn("Authentication rejected: access token has been explicitly revoked / blacklisted");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 Long userId = jwtTokenService.extractUserId(token);
+                Long tokenVersion = jwtTokenService.extractTokenVersion(token);
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
+
+                if (userDetails instanceof UserPrincipal principal) {
+                    if (tokenVersion == null || !tokenVersion.equals(principal.getTokenVersion())) {
+                        log.warn("Authentication rejected: access token version mismatch for user ID: {} (tokenVersion={}, currentVersion={})",
+                                userId, tokenVersion, principal.getTokenVersion());
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
 
                 if (userDetails.isEnabled()) {
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

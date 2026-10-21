@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-10-21T11:39:13.007Z",
+  "overallStatus": "PASSED",
+  "packaging": {
+    "verified": true,
+    "artifacts": {
+      "SHINPO-1.0.0-1.x86_64.rpm": {
+        "hash": "39def88c89eff201eff9f9e8d667602163ccbb6e36c0e80473f785bbef77ad49",
+        "sizeBytes": 5088842,
+        "sizeMb": "4.85 MB",
+        "exists": true
+      },
+      "SHINPO_1.0.0_amd64.AppImage": {
+        "hash": "d1ac4eaba11eb4f3b52ad4d6b4b5792e0a6aa45db1365836aa5deb276c33eca4",
+        "sizeBytes": 116947448,
+        "sizeMb": "111.53 MB",
+        "exists": true
+      },
+      "SHINPO_1.0.0_amd64.deb": {
+        "hash": "9dcca06854d7d83b5341fa15389625cad1a8c48d3d794d746558165b23bbfe5e",
+        "sizeBytes": 5088314,
+        "sizeMb": "4.85 MB",
+        "exists": true
+      },
+      "SHINPO_1.0.0_linux_x86_64.tar.gz": {
+        "hash": "27a864a10a3db7284cc24f55898433f0f3036640444d36cdbe309a7b2c6404b9",
+        "sizeBytes": 8020944,
+        "sizeMb": "7.65 MB",
+        "exists": true
+      },
+      "shinpo-desktop": {
+        "hash": "a9d40028431aa9263e73ceb6b123ce0c72f3a59b9964b27b5ba8bfa3fc34c58e",
+        "sizeBytes": 15136056,
+        "sizeMb": "14.43 MB",
+        "exists": true
+      },
+      "shinpo-shield": {
+        "hash": "2562564eb0e1066bff9995f2059269f8a8e78f370ac5ba1d0f96d8c912ff73e4",
+        "sizeBytes": 3922576,
+        "sizeMb": "3.74 MB",
+        "exists": true
+      },
+      "shinpo-browser-host": {
+        "hash": "306728b0cb82e731c90cc3a66098e5a936787b208fcb37de709d1d0b727e1655",
+        "sizeBytes": 3575888,
+        "sizeMb": "3.41 MB",
+        "exists": true
+      }
+    }
+  },
+  "installedTauri": {
+    "binaryPath": "/tmp/shinpo-test-install/usr/bin/shinpo-desktop",
+    "runningConfirmed": true,
+    "persistenceVerified": true,
+    "snapshots": [
+      "01_installed_tauri_cockpit.png",
+      "02_installed_tauri_restarted.png"
+    ]
+  },
+  "backendResilience": {
+    "unreachableBackendHandledCleanly": true,
+    "errorReported": "fetch failed",
+    "concealsWithFakeSuccess": false
+  },
+  "coreInteractiveFlows": {
+    "pilotId": 127,
+    "username": "rc_pilot_1792582753024_verified",
+    "goalId": 178,
+    "taskId": 229,
+    "sessionId": 88,
+    "totalProgress": 125,
+    "level": 2,
+    "levelTitle": "Disciplined Practitioner",
+    "verified": true
+  },
+  "nativeShieldAndCompanion": {
+    "shieldConnected": true,
+    "shieldSweepVerified": true,
+    "emergencyOverrideVerified": true,
+    "companionConfigured": true
+  },
+  "visualRegressionMatrix": [
+    {
+      "configuration": "aurora_dark_100",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_aurora_dark_100.png",
+      "passed": true
+    },
+    {
+      "configuration": "aurora_dark_125",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_aurora_dark_125.png",
+      "passed": true
+    },
+    {
+      "configuration": "aurora_dark_150",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_aurora_dark_150.png",
+      "passed": true
+    },
+    {
+      "configuration": "aurora_light_100",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_aurora_light_100.png",
+      "passed": true
+    },
+    {
+      "configuration": "classic_dark_100",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_classic_dark_100.png",
+      "passed": true
+    },
+    {
+      "configuration": "classic_light_100",
+      "metrics": {
+        "scrollWidth": 1430,
+        "windowWidth": 1440,
+        "hasHorizontalOverflow": false,
+        "sub12Count": 0,
+        "sub12Samples": [],
+        "cardHeights": [],
+        "maxCardDelta": 0,
+        "quoteFont": ""
+      },
+      "snapshot": "matrix_classic_light_100.png",
+      "passed": true
+    }
+  ],
+  "findings": [],
+  "modalGeometry": {
+    "audit": {
+      "titleFontSize": 19,
+      "titleFontWeight": "800",
+      "descFontSize": 0,
+      "inputHeights": [
+        43
+      ],
+      "labelFontSizes": [
+        14,
+        14,
+        14
+      ],
+      "allLabelsGte14": true
+    },
+    "snapshot": "matrix_modal_geometry.png",
+    "passed": true
+  }
+}

@@ -57,7 +57,8 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           <div style={{ marginBottom: 14 }}>
             <label
               htmlFor="edit-goal-title-input"
-              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+              className="shinpo-field-label"
+              style={{ marginBottom: 6 }}
             >
               Goal Title
             </label>
@@ -75,7 +76,8 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           <div style={{ marginBottom: 14 }}>
             <label
               htmlFor="edit-goal-desc-input"
-              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+              className="shinpo-field-label"
+              style={{ marginBottom: 6 }}
             >
               Description
             </label>

@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface ProgressEventRepository
         extends JpaRepository<ProgressEvent, Long> {
 
@@ -14,4 +16,8 @@ public interface ProgressEventRepository
             WHERE p.user.id = :userId
             """)
     Integer getTotalProgressByUserId(@Param("userId") Long userId);
+
+    List<ProgressEvent> findTop10ByUser_IdOrderByCreatedAtDesc(Long userId);
+
+    boolean existsByUser_IdAndEventType(Long userId, String eventType);
 }

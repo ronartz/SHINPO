@@ -30,8 +30,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 650;
   color: var(--text-2, #B0B5C2);
   letter-spacing: -0.01em;
   user-select: none;
@@ -48,9 +48,9 @@ html[data-theme='light'] .shinpo-field-label,
 }
 
 .shinpo-field-helper {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-3, #9096A4);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 html[data-theme='light'] .shinpo-field-helper,
@@ -59,7 +59,7 @@ html[data-theme='light'] .shinpo-field-helper,
 }
 
 .shinpo-field-error {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--brand-red, #F87171);
   display: flex;
@@ -82,7 +82,7 @@ html[data-theme='light'] .shinpo-field-helper,
   border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
   border-radius: var(--radius-md, 10px);
   color: var(--text, #F3F4F6);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   outline: none;
@@ -356,7 +356,7 @@ html[data-theme='light'] .shinpo-select-option.is-selected,
 }
 
 .shinpo-select-option-secondary {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text-3, #9096A4);
   margin-left: 6px;
 }
@@ -375,7 +375,7 @@ html[data-theme='light'] .shinpo-select-check-icon,
 .shinpo-select-empty {
   padding: 16px 12px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--text-3, #9096A4);
 }
 
@@ -495,8 +495,8 @@ html[data-theme='light'] .shinpo-calendar-title,
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
   text-align: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-3, #9096A4);
   margin-bottom: 6px;
   user-select: none;
@@ -517,7 +517,7 @@ html[data-theme='light'] .shinpo-calendar-title,
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   color: var(--text, #F3F4F6);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -742,7 +742,7 @@ html[data-theme='light'] .shinpo-dialog-title,
 
 .shinpo-dialog-description {
   margin: 4px 0 0 0;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-2, #B0B5C2);
   line-height: 1.4;
 }
@@ -824,21 +824,21 @@ html[data-theme='light'] .shinpo-dialog-footer,
 }
 
 .shinpo-btn.size-sm {
-  height: 32px;
+  height: 34px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .shinpo-btn.size-md {
   height: 40px;
   padding: 0 16px;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .shinpo-btn.size-lg {
   height: 48px;
   padding: 0 22px;
-  font-size: 15px;
+  font-size: 15.5px;
 }
 
 /* Variants */
@@ -920,7 +920,7 @@ html[data-theme='light'] .shinpo-btn.variant-ghost:hover:not(:disabled),
   border-radius: var(--radius-md, 10px);
   color: var(--text, #F3F4F6);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

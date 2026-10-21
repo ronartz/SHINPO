@@ -1,0 +1,392 @@
+{
+  "viewports": [
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "name": "1080p_desktop"
+      },
+      "lightStyles": {
+        "modal": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgba(77, 119, 249, 0.16)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "header": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgb(23, 33, 58) rgb(23, 33, 58) rgba(77, 119, 249, 0.12)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "headerTitle": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "17px",
+          "fontWeight": "800"
+        },
+        "activeTab": {
+          "color": "rgb(43, 88, 230)",
+          "backgroundColor": "rgba(77, 119, 249, 0.12)",
+          "borderColor": "rgba(77, 119, 249, 0.3)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "groupCard": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgba(77, 119, 249, 0.14)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "cardLabel": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "13.5px",
+          "fontWeight": "700"
+        },
+        "cardDesc": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(91, 107, 138)",
+          "fontSize": "12.5px",
+          "fontWeight": "400"
+        },
+        "activePill": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(77, 119, 249, 0.1)",
+          "borderColor": "rgb(43, 88, 230)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "inactivePill": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(203, 213, 225)",
+          "fontSize": "13px",
+          "fontWeight": "500"
+        },
+        "isLightClass": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "name": "widescreen_laptop"
+      },
+      "lightStyles": {
+        "modal": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgba(77, 119, 249, 0.16)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "header": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgb(23, 33, 58) rgb(23, 33, 58) rgba(77, 119, 249, 0.12)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "headerTitle": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "17px",
+          "fontWeight": "800"
+        },
+        "activeTab": {
+          "color": "rgb(43, 88, 230)",
+          "backgroundColor": "rgba(77, 119, 249, 0.12)",
+          "borderColor": "rgba(77, 119, 249, 0.3)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "groupCard": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgba(77, 119, 249, 0.14)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "cardLabel": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "13.5px",
+          "fontWeight": "700"
+        },
+        "cardDesc": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(91, 107, 138)",
+          "fontSize": "12.5px",
+          "fontWeight": "400"
+        },
+        "activePill": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(77, 119, 249, 0.1)",
+          "borderColor": "rgb(43, 88, 230)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "inactivePill": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(203, 213, 225)",
+          "fontSize": "13px",
+          "fontWeight": "500"
+        },
+        "isLightClass": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800,
+        "name": "compact_laptop"
+      },
+      "lightStyles": {
+        "modal": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgba(77, 119, 249, 0.16)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "header": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgb(23, 33, 58) rgb(23, 33, 58) rgba(77, 119, 249, 0.12)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "headerTitle": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "17px",
+          "fontWeight": "800"
+        },
+        "activeTab": {
+          "color": "rgb(43, 88, 230)",
+          "backgroundColor": "rgba(77, 119, 249, 0.12)",
+          "borderColor": "rgba(77, 119, 249, 0.3)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "groupCard": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgba(77, 119, 249, 0.14)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "cardLabel": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "13.5px",
+          "fontWeight": "700"
+        },
+        "cardDesc": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(91, 107, 138)",
+          "fontSize": "12.5px",
+          "fontWeight": "400"
+        },
+        "activePill": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(77, 119, 249, 0.1)",
+          "borderColor": "rgb(43, 88, 230)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "inactivePill": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(203, 213, 225)",
+          "fontSize": "13px",
+          "fontWeight": "500"
+        },
+        "isLightClass": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1000,
+        "height": 768,
+        "name": "min_desktop"
+      },
+      "lightStyles": {
+        "modal": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgba(77, 119, 249, 0.16)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "header": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgb(23, 33, 58) rgb(23, 33, 58) rgba(77, 119, 249, 0.12)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "headerTitle": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "17px",
+          "fontWeight": "800"
+        },
+        "activeTab": {
+          "color": "rgb(43, 88, 230)",
+          "backgroundColor": "rgba(77, 119, 249, 0.12)",
+          "borderColor": "rgba(77, 119, 249, 0.3)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "groupCard": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgb(248, 250, 253)",
+          "borderColor": "rgba(77, 119, 249, 0.14)",
+          "fontSize": "14px",
+          "fontWeight": "400"
+        },
+        "cardLabel": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(23, 33, 58)",
+          "fontSize": "13.5px",
+          "fontWeight": "700"
+        },
+        "cardDesc": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "borderColor": "rgb(91, 107, 138)",
+          "fontSize": "12.5px",
+          "fontWeight": "400"
+        },
+        "activePill": {
+          "color": "rgb(23, 33, 58)",
+          "backgroundColor": "rgba(77, 119, 249, 0.1)",
+          "borderColor": "rgb(43, 88, 230)",
+          "fontSize": "13px",
+          "fontWeight": "700"
+        },
+        "inactivePill": {
+          "color": "rgb(91, 107, 138)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(203, 213, 225)",
+          "fontSize": "13px",
+          "fontWeight": "500"
+        },
+        "isLightClass": true
+      }
+    }
+  ],
+  "contrastMetrics": [],
+  "navbarRedundancy": {
+    "found": false
+  },
+  "schedulePermutations": [
+    {
+      "testCase": "Empty State",
+      "result": {
+        "found": true,
+        "itemCount": 0,
+        "measurements": []
+      }
+    },
+    {
+      "testCase": "Single Scheduled Entry",
+      "result": {
+        "found": true,
+        "itemCount": 1,
+        "measurements": [
+          {
+            "index": 0,
+            "containerClientWidth": 454,
+            "containerScrollWidth": 454,
+            "hasHorizontalOverflow": false,
+            "detailsClientWidth": 310,
+            "titleScrollWidth": 310,
+            "titleClientWidth": 310,
+            "titleTextOverflow": "ellipsis",
+            "subTextOverflow": "ellipsis"
+          }
+        ]
+      }
+    },
+    {
+      "testCase": "Multi-Entry Mixed States (Active, Paused, Scheduled, Completed)",
+      "result": {
+        "found": true,
+        "itemCount": 3,
+        "measurements": [
+          {
+            "index": 0,
+            "containerClientWidth": 454,
+            "containerScrollWidth": 454,
+            "hasHorizontalOverflow": false,
+            "detailsClientWidth": 310,
+            "titleScrollWidth": 310,
+            "titleClientWidth": 310,
+            "titleTextOverflow": "ellipsis",
+            "subTextOverflow": "ellipsis"
+          },
+          {
+            "index": 1,
+            "containerClientWidth": 454,
+            "containerScrollWidth": 454,
+            "hasHorizontalOverflow": false,
+            "detailsClientWidth": 310,
+            "titleScrollWidth": 310,
+            "titleClientWidth": 310,
+            "titleTextOverflow": "ellipsis",
+            "subTextOverflow": "ellipsis"
+          },
+          {
+            "index": 2,
+            "containerClientWidth": 454,
+            "containerScrollWidth": 454,
+            "hasHorizontalOverflow": false,
+            "detailsClientWidth": 310,
+            "titleScrollWidth": 310,
+            "titleClientWidth": 310,
+            "titleTextOverflow": "ellipsis",
+            "subTextOverflow": "ellipsis"
+          }
+        ]
+      }
+    },
+    {
+      "testCase": "Extreme Long Title & Long Intention Stress Test",
+      "result": {
+        "found": true,
+        "itemCount": 1,
+        "measurements": [
+          {
+            "index": 0,
+            "containerClientWidth": 454,
+            "containerScrollWidth": 454,
+            "hasHorizontalOverflow": false,
+            "detailsClientWidth": 310,
+            "titleScrollWidth": 937,
+            "titleClientWidth": 310,
+            "titleTextOverflow": "ellipsis",
+            "subTextOverflow": "ellipsis"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-10-20T16:02:54.904Z",
+  "actionRow": {
+    "sentinelHeight": 38,
+    "newTaskHeight": 38,
+    "heightDiff": 0,
+    "sentinelFontSize": "13.5px",
+    "newTaskFontSize": "13.5px",
+    "sentinelBorderRadius": "10px",
+    "newTaskBorderRadius": "10px"
+  },
+  "summaryCards": {
+    "cardCount": 4,
+    "heights": [
+      197.4375,
+      197.4375,
+      197.4375,
+      197.4375
+    ],
+    "maxDiff": 0,
+    "cards": [
+      {
+        "index": 1,
+        "height": 197.4375,
+        "title": "Active Goals",
+        "value": "5 tasks completed",
+        "subtitle": "1"
+      },
+      {
+        "index": 2,
+        "height": 197.4375,
+        "title": "Focus Logged",
+        "value": "1 sessions completed",
+        "subtitle": "52m"
+      },
+      {
+        "index": 3,
+        "height": 197.4375,
+        "title": "Tasks In Queue",
+        "value": "5 finished today",
+        "subtitle": "0"
+      },
+      {
+        "index": 4,
+        "height": 197.4375,
+        "title": "Completion Rate",
+        "value": "",
+        "subtitle": "100%"
+      }
+    ]
+  },
+  "scheduleCard": {
+    "found": true,
+    "totalItemsDisplayed": 2,
+    "items": [
+      {
+        "index": 1,
+        "height": 58.734375,
+        "titleFontSize": "14px",
+        "lineHeight": "18.9px",
+        "overflow": "hidden"
+      },
+      {
+        "index": 2,
+        "height": 58.734375,
+        "titleFontSize": "14px",
+        "lineHeight": "18.9px",
+        "overflow": "hidden"
+      }
+    ],
+    "hasFooter": true
+  },
+  "quoteCard": {
+    "found": true,
+    "eyebrowText": "PERSPECTIVE",
+    "eyebrowColor": "rgb(249, 115, 22)",
+    "eyebrowLetterSpacing": "1.32px",
+    "quoteFontFamily": "\"Playfair Display\", Georgia, Cambria, \"Times New Roman\", serif",
+    "quoteFontStyle": "italic",
+    "quoteFontSize": "15px",
+    "backgroundColor": "rgba(255, 255, 255, 0.03)",
+    "borderColor": "rgba(255, 255, 255, 0.06)",
+    "hasRefreshButton": true
+  },
+  "studyResourcesAudit": {
+    "totalTextElements": 5,
+    "minSize": 12,
+    "maxSize": 16,
+    "elementsBelow12px": []
+  }
+}

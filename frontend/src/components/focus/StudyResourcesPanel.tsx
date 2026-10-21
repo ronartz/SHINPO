@@ -289,8 +289,9 @@ export function StudyResourcesPanel({
       setDestination('')
       setFormError(null)
       setShowAddForm(false)
-    } catch {
-      // The hook surfaces the authenticated API error in the panel.
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save study resource.'
+      setFormError(msg)
     }
   }
 
@@ -318,7 +319,10 @@ export function StudyResourcesPanel({
   ]
 
   return (
-    <section className={`study-resources-panel ${surface === 'card' ? 'bento-card' : 'is-plain'}`}>
+    <section
+      className={`study-resources-panel ${surface === 'card' ? 'bento-card' : 'is-plain'}`}
+      data-tutorial="study-resources-panel"
+    >
       <div className="study-resources-header">
         <div className="study-resources-heading">
           <span className="study-resources-icon"><Icon name="journal" size={17} /></span>
@@ -480,6 +484,11 @@ export function StudyResourcesPanel({
                   autoFocus
                 />
               </div>
+              {formError && (
+                <div className="study-resource-error" role="alert" style={{ marginTop: 8, marginBottom: 4 }}>
+                  <span>{formError}</span>
+                </div>
+              )}
               <div className="study-resource-form-footer">
                 <p>
                   Exact resources never approve lookalike hostnames. Browser channel coverage applies only where an adapter can identify the route.

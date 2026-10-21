@@ -4,6 +4,8 @@ import { Icon } from '../../components/common/Icon'
 import type { AppView } from '../../types/navigation'
 import { getViewHeaderTitle } from '../../types/navigation'
 import type { AuthUser } from '../../api/auth'
+import type { ProgressResponse } from '../../api/progress'
+import type { SettingsSection } from '../../components/dialogs/SettingsModal'
 
 export interface AuroraTopbarProps {
   activeTab?: AppView
@@ -15,7 +17,10 @@ export interface AuroraTopbarProps {
   isDarkMode: boolean
   onToggleTheme: () => void
   onRefreshData?: () => void
+  isRefreshing?: boolean
+  onOpenSettings?: (section?: SettingsSection) => void
   currentUser?: AuthUser | null
+  userProgress?: ProgressResponse | null
   onLogout?: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
@@ -28,12 +33,15 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
   unreadAlertCount = 0,
   onToggleAlertsDrawer,
   isDarkMode,
-  onToggleTheme,
+  onToggleTheme: _onToggleTheme,
   onRefreshData,
+  isRefreshing = false,
+  onOpenSettings,
   currentUser,
+  userProgress,
   onLogout,
-  onToggleV2Preview,
-  isV2Preview = true,
+  onToggleV2Preview: _onToggleV2Preview,
+  isV2Preview: _isV2Preview = true,
 }) => {
   return (
     <Box
@@ -109,6 +117,9 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
         <Box
           component="button"
           type="button"
+          onClick={() => {
+            if (topSearchQuery) onSearchChange?.('')
+          }}
           sx={{
             background: 'transparent',
             border: 'none',
@@ -120,10 +131,10 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             borderRadius: '6px',
             '&:hover': { color: 'primary.main' },
           }}
-          title="Search Filter"
-          aria-label="Search filter"
+          title={topSearchQuery ? 'Clear search' : 'Search filter'}
+          aria-label={topSearchQuery ? 'Clear search' : 'Search filter'}
         >
-          <Icon name="sparkle" size={13} />
+          <Icon name={topSearchQuery ? 'close' : 'sparkle'} size={13} />
         </Box>
       </Box>
 
@@ -166,56 +177,38 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
           </IconButton>
         )}
 
-        {/* View Switcher Button */}
-        {onToggleV2Preview && (
-          <button
-            onClick={onToggleV2Preview}
-            style={{
-              padding: '6px 13px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: `1px solid ${isDarkMode ? 'rgba(151, 87, 250, 0.4)' : 'rgba(151, 87, 250, 0.3)'}`,
-              background: 'linear-gradient(135deg, rgba(151, 87, 250, 0.14) 0%, rgba(77, 119, 249, 0.14) 100%)',
-              color: isDarkMode ? '#F5F7FF' : '#17213A',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              transition: 'all 0.15s ease',
-            }}
-            title="Toggle between Classic UI and V2 Preview"
-          >
-            <span>⇄</span>
-            <span>{isV2Preview ? 'Classic View' : 'V2 Preview'}</span>
-          </button>
-        )}
-
-        {/* Theme Toggle Button */}
-        <IconButton
-          onClick={onToggleTheme}
-          size="small"
-          sx={{
-            borderRadius: '10px',
-            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
-            background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
-            color: 'text.primary',
-            width: 36,
-            height: 36,
-            '&:hover': {
-              background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
-            },
-          }}
-          title={isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-        >
-          <Icon name={isDarkMode ? 'sun' : 'moon'} size={15} />
-        </IconButton>
-
         {/* Refresh Data Button */}
         {onRefreshData && (
           <IconButton
             onClick={onRefreshData}
+            disabled={isRefreshing}
+            size="small"
+            sx={{
+              borderRadius: '10px',
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
+              color: 'text.primary',
+              width: 36,
+              height: 36,
+              opacity: isRefreshing ? 0.7 : 1,
+              '&:hover': {
+                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+              },
+              '& svg': {
+                animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+              },
+            }}
+            title={isRefreshing ? 'Synchronizing with cloud...' : 'Refresh Data'}
+            aria-label="Refresh Data"
+          >
+            <Icon name="refresh" size={15} />
+          </IconButton>
+        )}
+
+        {/* Settings Button */}
+        {onOpenSettings && (
+          <IconButton
+            onClick={() => onOpenSettings('appearance')}
             size="small"
             sx={{
               borderRadius: '10px',
@@ -228,7 +221,8 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
               },
             }}
-            title="Refresh Data"
+            title="Settings"
+            aria-label="Settings"
           >
             <Icon name="settings" size={15} />
           </IconButton>
@@ -237,6 +231,15 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
         {/* Profile Badge */}
         {currentUser && (
           <Box
+            onClick={() => onOpenSettings?.('account')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onOpenSettings?.('account')
+              }
+            }}
             sx={{
               display: { xs: 'none', md: 'flex' },
               alignItems: 'center',
@@ -247,8 +250,14 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
               border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
               height: 36,
+              cursor: onOpenSettings ? 'pointer' : 'default',
+              transition: 'all 0.15s ease',
+              '&:hover': onOpenSettings ? {
+                borderColor: '#4D77F9',
+                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+              } : undefined,
             }}
-            title={`Signed in as ${currentUser.username} (${currentUser.email})`}
+            title={`Signed in as ${currentUser.username} (${currentUser.email})${onOpenSettings ? ' • Click for Account Settings' : ''}`}
           >
             <Box
               sx={{
@@ -266,12 +275,30 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             >
               {currentUser.username.charAt(0).toUpperCase()}
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 12.5, color: 'text.primary' }}>
-                {currentUser.username}
-              </Typography>
-              <Typography sx={{ fontSize: 10.5, color: 'text.secondary', fontWeight: 500 }}>
-                Personal Workspace
+            <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: 'text.primary' }}>
+                  {currentUser.username}
+                </Typography>
+                <Box
+                  component="span"
+                  className="user-level-badge"
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: isDarkMode ? '#A78BFA' : '#7C3AED',
+                    background: isDarkMode ? 'rgba(167, 139, 250, 0.15)' : 'rgba(124, 58, 237, 0.1)',
+                    px: 0.7,
+                    py: 0.1,
+                    borderRadius: '4px',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Lvl {userProgress?.level || 1}
+                </Box>
+              </Box>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 600 }}>
+                {userProgress ? `${userProgress.totalProgress} XP • ${userProgress.levelTitle}` : 'Personal Workspace'}
               </Typography>
             </Box>
           </Box>

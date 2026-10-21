@@ -8,11 +8,13 @@ import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.Mission;
+import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.SessionPlan;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
+import com.shinpo.repository.ProgressEventRepository;
 import com.shinpo.repository.SessionPlanRepository;
 import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
@@ -43,6 +45,7 @@ public class FocusSessionService {
     private final SessionPlanRepository sessionPlanRepository;
     private final WebSocketEventService webSocketEventService;
     private final MissionCompletionService missionCompletionService;
+    private final ProgressEventRepository progressEventRepository;
 
     public FocusSessionService(
             FocusSessionRepository focusSessionRepository,
@@ -52,7 +55,7 @@ public class FocusSessionService {
             SessionPlanRepository sessionPlanRepository,
             WebSocketEventService webSocketEventService
     ) {
-        this(focusSessionRepository, userRepository, goalRepository, missionRepository, sessionPlanRepository, webSocketEventService, null);
+        this(focusSessionRepository, userRepository, goalRepository, missionRepository, sessionPlanRepository, webSocketEventService, null, null);
     }
 
     @Autowired
@@ -63,7 +66,8 @@ public class FocusSessionService {
             MissionRepository missionRepository,
             SessionPlanRepository sessionPlanRepository,
             WebSocketEventService webSocketEventService,
-            @Lazy MissionCompletionService missionCompletionService
+            @Lazy MissionCompletionService missionCompletionService,
+            @Autowired(required = false) ProgressEventRepository progressEventRepository
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
@@ -72,6 +76,7 @@ public class FocusSessionService {
         this.sessionPlanRepository = sessionPlanRepository;
         this.webSocketEventService = webSocketEventService;
         this.missionCompletionService = missionCompletionService;
+        this.progressEventRepository = progressEventRepository;
     }
 
     @Transactional
@@ -369,6 +374,17 @@ public class FocusSessionService {
         session.setStatus(FocusSessionStatus.COMPLETED);
         session.setEndedAt(now);
         session.incrementContextPolicyRevision();
+
+        if (progressEventRepository != null) {
+            int earnedProgress = (session.getDurationMinutes() != null && session.getDurationMinutes() >= 45) ? 25 : 15;
+            ProgressEvent progressEvent = new ProgressEvent(
+                    session.getUser(),
+                    null,
+                    "FOCUS_SESSION_COMPLETED",
+                    earnedProgress
+            );
+            progressEventRepository.save(progressEvent);
+        }
 
         if (request != null) {
             session.setCompletionQuality(request.quality());

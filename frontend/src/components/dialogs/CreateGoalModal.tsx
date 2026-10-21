@@ -36,23 +36,35 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
         </p>
 
         <form onSubmit={onSubmit}>
-          <input
-            type="text"
-            placeholder="Goal title (e.g. Master Distributed Systems)..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="modal-field"
-            required
-            autoFocus
-          />
+          <div style={{ marginBottom: 14 }}>
+            <label htmlFor="create-goal-title" className="shinpo-field-label" style={{ marginBottom: 6 }}>
+              Goal Title
+            </label>
+            <input
+              id="create-goal-title"
+              type="text"
+              placeholder="e.g. Master Distributed Systems, Finish Q3 Milestone..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="modal-field"
+              required
+              autoFocus
+            />
+          </div>
 
-          <textarea
-            placeholder="Description or target outcome (optional)..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="modal-field"
-            rows={3}
-          />
+          <div style={{ marginBottom: 14 }}>
+            <label htmlFor="create-goal-desc" className="shinpo-field-label" style={{ marginBottom: 6 }}>
+              Description (optional)
+            </label>
+            <textarea
+              id="create-goal-desc"
+              placeholder="Description or target outcome..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="modal-field"
+              rows={3}
+            />
+          </div>
 
           <div style={{ marginBottom: 20 }}>
             <ShinpoDatePicker

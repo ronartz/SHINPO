@@ -3,6 +3,8 @@ import type { AppView } from '../../types/navigation'
 import { getViewHeaderTitle } from '../../types/navigation'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
+import type { ProgressResponse } from '../../api/progress'
+import type { SettingsSection } from '../dialogs/SettingsModal'
 
 export interface TopBarProps {
   activeTab: AppView
@@ -14,7 +16,10 @@ export interface TopBarProps {
   isDarkMode: boolean
   onToggleTheme: () => void
   onRefreshData: () => void
+  isRefreshing?: boolean
+  onOpenSettings?: (section?: SettingsSection) => void
   currentUser: AuthUser | null
+  userProgress?: ProgressResponse | null
   onLogout: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
@@ -29,13 +34,16 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   unreadAlertCount,
   isAlertsDrawerOpen,
   onToggleAlertsDrawer,
-  isDarkMode,
-  onToggleTheme,
+  isDarkMode: _isDarkMode,
+  onToggleTheme: _onToggleTheme,
   onRefreshData,
+  isRefreshing = false,
+  onOpenSettings,
   currentUser,
+  userProgress,
   onLogout,
-  onToggleV2Preview,
-  isV2Preview,
+  onToggleV2Preview: _onToggleV2Preview,
+  isV2Preview: _isV2Preview,
 }) => {
   trackRender('TopBar')
   return (
@@ -57,8 +65,16 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label="Global search"
         />
-        <button type="button" className="top-search-filter-btn" title="Filter & Focus" aria-label="Search filter">
-          <Icon name="sparkle" size={13} />
+        <button
+          type="button"
+          className="top-search-filter-btn"
+          title={topSearchQuery ? 'Clear search' : 'Search filter'}
+          onClick={() => {
+            if (topSearchQuery) onSearchChange('')
+          }}
+          aria-label={topSearchQuery ? 'Clear search' : 'Search filter'}
+        >
+          <Icon name={topSearchQuery ? 'close' : 'sparkle'} size={13} />
         </button>
       </div>
 
@@ -72,41 +88,42 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           <Icon name="bell" size={17} />
           {unreadAlertCount > 0 && <span className="bell-red-dot" />}
         </button>
-        {onToggleV2Preview && (
-          <button
-            type="button"
-            className={`action-btn-pill v2-preview-btn ${isV2Preview ? 'active' : ''}`}
-            onClick={onToggleV2Preview}
-            title={isV2Preview ? 'Switch to Classic View' : 'Toggle V2 Cinematic Aurora Preview'}
-          >
-            <span>{isV2Preview ? '⇄' : '★'}</span>
-            <span>{isV2Preview ? 'Classic View' : 'V2 AURORA'}</span>
-          </button>
-        )}
         <button
-          className="action-btn-circle"
-          onClick={onToggleTheme}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          <Icon name={isDarkMode ? 'sun' : 'moon'} size={17} />
-        </button>
-        <button
-          className="action-btn-circle"
+          className={`action-btn-circle ${isRefreshing ? 'is-spinning' : ''}`}
           onClick={onRefreshData}
-          title="Refresh Data"
+          disabled={isRefreshing}
+          title={isRefreshing ? 'Synchronizing with cloud...' : 'Refresh Data'}
           aria-label="Refresh Data"
         >
-          <Icon name="settings" size={17} />
+          <Icon name="refresh" size={16} />
         </button>
+        {onOpenSettings && (
+          <button
+            className="action-btn-circle"
+            onClick={() => onOpenSettings('appearance')}
+            title="Settings"
+            aria-label="Settings"
+            data-tutorial="topbar-settings-btn"
+          >
+            <Icon name="settings" size={17} />
+          </button>
+        )}
         {currentUser && (
-          <div className="profile-badge-card" title={`Signed in as ${currentUser.username} (${currentUser.email})`}>
+          <div
+            className="profile-badge-card"
+            data-tutorial="profile-badge-card"
+            onClick={() => onOpenSettings ? onOpenSettings('account') : undefined}
+            style={{ cursor: onOpenSettings ? 'pointer' : 'default' }}
+            title={`Signed in as ${currentUser.username} (${currentUser.email})${onOpenSettings ? ' • Click for Account Settings' : ''}`}
+          >
             <div className="profile-avatar-circle">
               {currentUser.username.charAt(0).toUpperCase()}
             </div>
             <div className="profile-text-wrap">
               <span className="profile-username">{currentUser.username}</span>
-              <span className="profile-role">Personal Workspace</span>
+              <span className="profile-role">
+                {userProgress ? `Lvl ${userProgress.level} • ${userProgress.totalProgress} XP` : 'Personal Workspace'}
+              </span>
             </div>
           </div>
         )}

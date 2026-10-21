@@ -734,11 +734,16 @@ public class AiService {
         String status = fullyReady ? "CONNECTED" : (available ? "MODEL_MISSING" : "OFFLINE");
         String message;
         if (fullyReady) {
-            message = "Local · " + provider.getModelName();
+            String origin = "gemini".equalsIgnoreCase(provider.getProviderName()) ? "Cloud (Free Tier)" : "Local";
+            message = origin + " · " + provider.getModelName();
         } else if (available) {
             message = "Model '" + provider.getModelName() + "' missing. Run 'ollama pull " + provider.getModelName() + "'";
         } else {
-            message = "Ollama is offline. Start Ollama service on http://localhost:11434";
+            if ("gemini".equalsIgnoreCase(provider.getProviderName())) {
+                message = "Gemini Cloud API is unreachable or SHINPO_GEMINI_API_KEY is not configured.";
+            } else {
+                message = "Ollama is offline. Start Ollama service on http://localhost:11434";
+            }
         }
 
         Map<String, Object> res = new HashMap<>();

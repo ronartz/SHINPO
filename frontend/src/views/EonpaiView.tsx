@@ -483,7 +483,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
           <button
             type="button"
             className="eonpai-command-row"
-            onClick={() => handleStartTutorial(0)}
+            data-command="guided-tour"
+            onClick={() => handleStartTutorial()}
           >
             <div className="command-row-main">
               <Icon name="sparkle" size={14} />
@@ -720,7 +721,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                     <button
                       type="button"
                       className="ai-tutorial-btn"
-                      onClick={() => handleStartTutorial(0)}
+                      onClick={() => handleStartTutorial()}
                     >
                       <span>Start interactive tour</span>
                       <Icon name="arrow-up-right" size={12} />
@@ -1013,7 +1014,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
         )}
 
         {/* Fixed Modern Composer at Bottom */}
-        <footer className="eonpai-composer">
+        <footer className="eonpai-composer" data-tutorial="eonpai-composer">
           <div className="eonpai-composer-inner">
             <textarea
               ref={textareaRef}

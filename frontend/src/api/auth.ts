@@ -182,3 +182,34 @@ export async function refreshAccessToken(): Promise<string | null> {
     return null
   }
 }
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null)
+    throw new Error(errorData?.message || `Failed to change password (${res.status})`)
+  }
+  return res.json()
+}
+
+export async function updateUsername(username: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/users/me/username`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ username }),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null)
+    throw new Error(errorData?.message || `Failed to update username (${res.status})`)
+  }
+  const user: AuthUser = await res.json()
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
+  return user
+}

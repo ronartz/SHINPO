@@ -924,6 +924,7 @@ class ShinpoApplicationTests {
         assertEquals(200, sysInfoResp.getStatusCode().value());
         assertNotNull(sysInfoResp.getBody());
         assertTrue(sysInfoResp.getBody().totalMemoryBytes() > 0);
+        assertEquals(0, sysInfoResp.getBody().processCount());
 
         ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessInfo[]> procResp = restTemplate.getForEntity(
                 baseUrl() + "/api/device/processes",
@@ -931,7 +932,7 @@ class ShinpoApplicationTests {
         );
         assertEquals(200, procResp.getStatusCode().value());
         assertNotNull(procResp.getBody());
-        assertTrue(procResp.getBody().length > 0);
+        assertEquals(0, procResp.getBody().length, "Server host processes must not be leaked to clients");
 
         ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessSnapshot> snapResp = restTemplate.getForEntity(
                 baseUrl() + "/api/device/snapshot",
@@ -939,21 +940,21 @@ class ShinpoApplicationTests {
         );
         assertEquals(200, snapResp.getStatusCode().value());
         assertNotNull(snapResp.getBody());
-        assertTrue(snapResp.getBody().processes().size() > 0);
+        assertEquals(0, snapResp.getBody().processes().size(), "Snapshot processes must be empty by default");
     }
 
     @Test
     void shouldPreventTerminatingProtectedSystemProcess() {
-        // PID 1 is systemd / init or protected
+        // PID 1 is systemd / init or protected, remote termination is forbidden
         ResponseEntity<com.shinpo.dto.TaskManagerDtos.ProcessControlResult> result = restTemplate.postForEntity(
                 baseUrl() + "/api/device/processes/1/terminate",
                 null,
                 com.shinpo.dto.TaskManagerDtos.ProcessControlResult.class
         );
-        assertEquals(200, result.getStatusCode().value());
+        assertEquals(403, result.getStatusCode().value());
         assertNotNull(result.getBody());
         assertEquals("REJECTED", result.getBody().status());
-        assertTrue(result.getBody().message().contains("Cannot terminate core system process 1"));
+        assertTrue(result.getBody().message().contains("Server-side process termination is disabled"));
     }
 
     @Test

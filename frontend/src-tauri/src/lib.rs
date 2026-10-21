@@ -36,11 +36,22 @@ fn get_shield_status() -> Result<ShieldStatusDto, String> {
 
 #[tauri::command]
 fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Result<String, String> {
+    let url = api_url.unwrap_or_else(|| "http://localhost:8080".to_string()).trim().to_string();
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Invalid api_url: must start with http:// or https://".to_string());
+    }
+    if url.contains(|c: char| c.is_control() || c.is_whitespace()) {
+        return Err("Invalid api_url: contains illegal characters".to_string());
+    }
+    if let Some(ref t) = token {
+        if t.contains(|c: char| c.is_control() || c == '\r' || c == '\n') {
+            return Err("Invalid auth token: contains illegal control characters".to_string());
+        }
+    }
+
     if SHIELD_ACTIVE.swap(true, Ordering::SeqCst) {
         return Ok("Shield is already active".to_string());
     }
-
-    let url = api_url.unwrap_or_else(|| "http://localhost:8080".to_string());
 
     thread::spawn(move || {
         log::info!("[SHINPO Desktop Shield] Starting native enforcement thread against: {}", url);

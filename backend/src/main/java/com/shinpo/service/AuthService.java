@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -32,6 +33,7 @@ public class AuthService {
     private final MissionRepository missionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final com.shinpo.security.RateLimitingService rateLimitingService;
 
     public AuthService(
             UserRepository userRepository,
@@ -40,14 +42,37 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenService jwtTokenService
     ) {
+        this(userRepository, goalRepository, missionRepository, passwordEncoder, jwtTokenService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthService(
+            UserRepository userRepository,
+            GoalRepository goalRepository,
+            MissionRepository missionRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenService jwtTokenService,
+            com.shinpo.security.RateLimitingService rateLimitingService
+    ) {
         this.userRepository = userRepository;
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
+        this.rateLimitingService = rateLimitingService;
+    }
+
+    private void validatePasswordSafety(String password) {
+        if (password == null || password.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be empty");
+        }
+        if (password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password exceeds maximum allowable length of 72 bytes");
+        }
     }
 
     public AuthResponse register(RegisterRequest request) {
+        validatePasswordSafety(request.password());
         if (userRepository.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
         }
@@ -97,16 +122,41 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        validatePasswordSafety(request.password());
+
+        if (rateLimitingService != null && rateLimitingService.isAccountLockedOut(request.usernameOrEmail())) {
+            long retryAfter = rateLimitingService.getRetryAfterSeconds(
+                    "login_fail_account:" + request.usernameOrEmail().toLowerCase().trim(),
+                    com.shinpo.security.RateLimitingService.FAILED_LOGIN_WINDOW
+            );
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many failed login attempts for this account. Account locked for " + retryAfter + " seconds.");
+        }
+
         User user = userRepository.findByUsername(request.usernameOrEmail())
                 .or(() -> userRepository.findByEmail(request.usernameOrEmail()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password"));
+                .orElse(null);
+
+        if (user == null) {
+            if (rateLimitingService != null) {
+                rateLimitingService.recordFailedLoginForAccount(request.usernameOrEmail());
+            }
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
+        }
 
         if (!user.isActive()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is disabled");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            if (rateLimitingService != null) {
+                rateLimitingService.recordFailedLoginForAccount(request.usernameOrEmail());
+            }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
+        }
+
+        if (rateLimitingService != null) {
+            rateLimitingService.recordSuccessfulLoginForAccount(request.usernameOrEmail());
         }
 
         UserPrincipal principal = UserPrincipal.create(user);
@@ -149,5 +199,24 @@ public class AuthService {
 
     public void logout(String refreshToken) {
         jwtTokenService.revokeRefreshToken(refreshToken);
+    }
+
+    public void logoutAllForUser(Long userId) {
+        jwtTokenService.revokeAllUserTokens(userId);
+    }
+
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        validatePasswordSafety(newPassword);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password does not match");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.save(user);
+
+        // Security Hardening: Revoke all refresh tokens on password change to terminate other active sessions
+        jwtTokenService.revokeAllUserTokens(userId);
     }
 }

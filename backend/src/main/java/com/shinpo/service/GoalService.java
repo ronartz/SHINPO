@@ -4,10 +4,12 @@ import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.GoalResponse;
 import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.entity.Goal;
-import com.shinpo.entity.User;
 import com.shinpo.entity.Mission;
+import com.shinpo.entity.ProgressEvent;
+import com.shinpo.entity.User;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
+import com.shinpo.repository.ProgressEventRepository;
 import com.shinpo.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,18 +22,23 @@ import java.util.List;
 @Transactional
 public class GoalService {
 
+    private static final int GOAL_COMPLETION_PROGRESS = 50;
+
     private final GoalRepository goalRepository;
     private final MissionRepository missionRepository;
     private final UserRepository userRepository;
+    private final ProgressEventRepository progressEventRepository;
 
     public GoalService(
             GoalRepository goalRepository,
             MissionRepository missionRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ProgressEventRepository progressEventRepository
     ) {
         this.goalRepository = goalRepository;
         this.missionRepository = missionRepository;
         this.userRepository = userRepository;
+        this.progressEventRepository = progressEventRepository;
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +85,8 @@ public class GoalService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Goal not found: " + id);
         }
 
+        boolean wasCompleted = "COMPLETED".equalsIgnoreCase(goal.getStatus());
+
         goal.update(
                 request.title(),
                 request.description(),
@@ -85,6 +94,17 @@ public class GoalService {
                 request.targetDate(),
                 request.status()
         );
+
+        boolean isNowCompleted = "COMPLETED".equalsIgnoreCase(goal.getStatus());
+        if (!wasCompleted && isNowCompleted) {
+            ProgressEvent goalProgressEvent = new ProgressEvent(
+                    goal.getUser(),
+                    null,
+                    "GOAL_COMPLETED",
+                    GOAL_COMPLETION_PROGRESS
+            );
+            progressEventRepository.save(goalProgressEvent);
+        }
 
         Goal savedGoal = goalRepository.save(goal);
         return toResponse(savedGoal);

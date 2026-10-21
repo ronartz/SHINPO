@@ -16,6 +16,8 @@ import com.shinpo.repository.SentinelTamperEventRepository;
 import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -81,6 +83,8 @@ public class SentinelEnforcementService {
 
     private volatile Instant lastGlobalSweep = Instant.now();
 
+    private final boolean serverProcessScanningEnabled;
+
     public SentinelEnforcementService(
             FocusSessionRepository focusSessionRepository,
             SentinelQuarantineRepository quarantineRepository,
@@ -93,6 +97,24 @@ public class SentinelEnforcementService {
             FocusSessionEnforcementExceptionService exceptionService,
             SentinelWarningService warningService
     ) {
+        this(focusSessionRepository, quarantineRepository, policyRuleRepository, tamperEventRepository,
+                userRepository, passwordEncoder, transactionManager, webSocketEventService, exceptionService, warningService, false);
+    }
+
+    @Autowired
+    public SentinelEnforcementService(
+            FocusSessionRepository focusSessionRepository,
+            SentinelQuarantineRepository quarantineRepository,
+            SentinelPolicyRuleRepository policyRuleRepository,
+            SentinelTamperEventRepository tamperEventRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            PlatformTransactionManager transactionManager,
+            WebSocketEventService webSocketEventService,
+            FocusSessionEnforcementExceptionService exceptionService,
+            SentinelWarningService warningService,
+            @Value("${shinpo.sentinel.server-process-scanning.enabled:false}") boolean serverProcessScanningEnabled
+    ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
         this.policyRuleRepository = policyRuleRepository;
@@ -104,6 +126,11 @@ public class SentinelEnforcementService {
         this.webSocketEventService = webSocketEventService;
         this.exceptionService = exceptionService;
         this.warningService = warningService;
+        this.serverProcessScanningEnabled = serverProcessScanningEnabled;
+    }
+
+    public boolean isServerProcessScanningEnabled() {
+        return serverProcessScanningEnabled;
     }
 
     public boolean isSweepRunning() {
@@ -241,6 +268,19 @@ public class SentinelEnforcementService {
 
     @Transactional
     public SentinelSweepResponse triggerSweep(Long userId) {
+        if (!serverProcessScanningEnabled) {
+            log.info("SENTINEL_SWEEP_REQUEST: user={} - server-side host scanning disabled (delegated to SHINPO Shield daemon)", userId);
+            lastGlobalSweep = Instant.now();
+            return new SentinelSweepResponse(
+                    0,
+                    0,
+                    List.of(),
+                    List.of(),
+                    "Server-side process scanning is disabled in cloud deployment. Enforcement is actively managed by your connected SHINPO Shield daemon.",
+                    lastGlobalSweep
+            );
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -253,6 +293,11 @@ public class SentinelEnforcementService {
 
     @Scheduled(fixedDelay = 5000)
     public void periodicSentinelDaemon() {
+        if (!serverProcessScanningEnabled) {
+            log.trace("Sentinel periodic host sweep skipped: server-side process scanning disabled (cloud/production mode)");
+            return;
+        }
+
         if (!isSweepRunning.compareAndSet(false, true)) {
             log.debug("Sentinel periodic sweep skipped: previous sweep still in progress");
             return;
@@ -419,28 +464,9 @@ public class SentinelEnforcementService {
 
                             log.error("SENTINEL_PID_REUSE_ABORT: pid={} expected={} current={}", pid, name, currentName);
                         } else {
-                            try {
-                                actionTaken = enforceProcess(revalidatedHandle, mode);
-                                if ("TERMINATED".equals(actionTaken)) {
-                                    reason = "Autonomous sprint enforcement: process exit confirmed";
-                                } else if ("TERMINATE_ATTEMPTED".equals(actionTaken)) {
-                                    reason = "Autonomous sprint enforcement: process remained alive after forced termination request";
-                                } else if ("CONTAINED".equals(actionTaken)) {
-                                    reason = "Autonomous sprint containment: process exit confirmed";
-                                } else if ("CONTAINMENT_FAILED".equals(actionTaken)) {
-                                    reason = "Autonomous sprint containment: process remained alive after termination escalation";
-                                } else {
-                                    reason = "Sentinel audit: distraction detected during focus window";
-                                }
-                            } catch (SecurityException se) {
-                                actionTaken = "PERMISSION_DENIED";
-                                reason = "OS security policy denied termination: " + se.getMessage();
-                                log.error("SENTINEL_SECURITY_DENIAL: pid={} user={} error={}", pid, userId, se.getMessage());
-                            } catch (Exception ex) {
-                                actionTaken = "CONTAINMENT_FAILED";
-                                reason = "Process containment failed: " + ex.getMessage();
-                                log.error("SENTINEL_CONTAINMENT_EXCEPTION: pid={} user={} error={}", pid, userId, ex.getMessage());
-                            }
+                            actionTaken = "FLAGGED";
+                            reason = "Distraction process flagged during sprint (server-side termination disabled; enforcement managed by client Shield)";
+                            log.info("SENTINEL_SWEEP_AUDIT: Process {} (PID {}) flagged during focus session. Server-side termination disabled.", name, pid);
                         }
                     }
                 } else {

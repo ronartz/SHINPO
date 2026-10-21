@@ -11,6 +11,7 @@ import { getAuroraTheme } from './v2/theme/auroraTheme'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { Icon } from './components/common/Icon'
 
 
 import {
@@ -74,6 +75,14 @@ import {
   register,
 } from './api/auth'
 import type { AuthUser } from './api/auth'
+import { getCurrentUserProgress, claimOnboardingReward } from './api/progress'
+import type { ProgressResponse } from './api/progress'
+import {
+  getOnboardingState,
+  recordOnboardingStep,
+  pauseOnboarding,
+  skipOnboarding,
+} from './api/onboarding'
 import {
   fetchDeviceSnapshot,
   terminateProcess,
@@ -94,6 +103,7 @@ import type {
 } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse } from './api/analytics'
+import { getBackendBaseUrl, getCustomServerUrl, setCustomServerUrl } from './api/config'
 import { ShinpoLogo } from './components/ShinpoLogo'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { ConfirmationDialog } from './components/ConfirmationDialog'
@@ -106,6 +116,8 @@ import { EditTaskModal } from './components/dialogs/EditTaskModal'
 import { ScheduleSessionModal } from './components/dialogs/ScheduleSessionModal'
 import { TelemetryDrawer } from './components/dialogs/TelemetryDrawer'
 import { FloatingToasts } from './components/dialogs/FloatingToasts'
+import { SettingsModal } from './components/dialogs/SettingsModal'
+import type { SettingsSection } from './components/dialogs/SettingsModal'
 import type { LiveAlertItem } from './types/telemetry'
 import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
@@ -215,8 +227,12 @@ export function App() {
   const [authIdentifier, setAuthIdentifier] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
+  const [showServerConfig, setShowServerConfig] = useState(false)
+  const [customServerUrlInput, setCustomServerUrlInput] = useState(() => getCustomServerUrl() || getBackendBaseUrl())
+  const [serverConfigSaved, setServerConfigSaved] = useState(false)
 
   const [_dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
@@ -278,6 +294,9 @@ export function App() {
   const [liveAlerts, setLiveAlerts] = useState<LiveAlertItem[]>([])
   const [toastAlerts, setToastAlerts] = useState<LiveAlertItem[]>([])
   const [isAlertsDrawerOpen, setIsAlertsDrawerOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('appearance')
+  const [isDataRefreshing, setIsDataRefreshing] = useState(false)
   const [isWsConnected, setIsWsConnected] = useState(false)
   const [unreadAlertCount, setUnreadAlertCount] = useState(0)
   const [shinpoMessage, setShinpoMessage] = useState<ShinpoMessage>(() => getInitialShinpoMessage())
@@ -402,70 +421,45 @@ export function App() {
   }
 
 
-  // Interactive Guided Tour State
+  // Rewards & Progression State
+  const [userProgress, setUserProgress] = useState<ProgressResponse | null>(null)
+
+  // Interactive Guided Tour State & Scoped Storage Helpers
   const [isTutorialActive, setIsTutorialActive] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
 
-  const handleStartTutorial = (initialStepIndex = 0) => {
-    setIsTutorialActive(true)
-    setTutorialStepIndex(initialStepIndex)
-    const step = SHINPO_ONBOARDING_STEPS[initialStepIndex]
-    if (step && step.targetTab) {
-      if (isAppView(step.targetTab)) setActiveTab(step.targetTab)
-    }
-  }
-
-  const handleNextTutorialStep = () => {
-    if (tutorialStepIndex < SHINPO_ONBOARDING_STEPS.length - 1) {
-      const nextIndex = tutorialStepIndex + 1
-      setTutorialStepIndex(nextIndex)
-      const nextStep = SHINPO_ONBOARDING_STEPS[nextIndex]
-      if (nextStep && nextStep.targetTab) {
-        if (isAppView(nextStep.targetTab)) setActiveTab(nextStep.targetTab)
-      }
-    } else {
-      handleCompleteTutorial()
-    }
-  }
-
-  const handlePrevTutorialStep = () => {
-    if (tutorialStepIndex > 0) {
-      const prevIndex = tutorialStepIndex - 1
-      setTutorialStepIndex(prevIndex)
-      const prevStep = SHINPO_ONBOARDING_STEPS[prevIndex]
-      if (prevStep && prevStep.targetTab) {
-        if (isAppView(prevStep.targetTab)) setActiveTab(prevStep.targetTab)
-      }
-    }
-  }
-
-  const handleExitTutorial = () => {
-    setIsTutorialActive(false)
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text: 'No problem. You can restart the walkthrough whenever you need it by asking "How do I use SHINPO?" or clicking "Start Guided Walkthrough".',
-        suggestionType: 'COACH',
-      },
-    ])
-  }
-
-  const handleCompleteTutorial = () => {
-    setIsTutorialActive(false)
+  const getTutorialStorageItem = (prefix: string, userId?: number | null): string | null => {
     try {
-      localStorage.setItem('shinpo_tutorial_completed', 'true')
+      if (userId) {
+        const scopedVal = localStorage.getItem(`${prefix}_${userId}`)
+        if (scopedVal !== null) return scopedVal
+      }
+      return null
     } catch {
-      // ignore storage failure
+      return null
     }
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text: "You're all set. You now know the complete core SHINPO loop: Goal -> Task -> Schedule -> Focus Session -> Focus Protection -> Session Summary -> Analytics.",
-        suggestionType: 'COACH',
-      },
-    ])
+  }
+
+  const setTutorialStorageItem = (prefix: string, value: string, userId?: number | null) => {
+    try {
+      if (userId) {
+        localStorage.setItem(`${prefix}_${userId}`, value)
+      }
+      localStorage.setItem(prefix, value)
+    } catch {
+      // localStorage may be unavailable in restricted browser contexts.
+    }
+  }
+
+  const removeTutorialStorageItem = (prefix: string, userId?: number | null) => {
+    try {
+      if (userId) {
+        localStorage.removeItem(`${prefix}_${userId}`)
+      }
+      localStorage.removeItem(prefix)
+    } catch {
+      // localStorage may be unavailable in restricted browser contexts.
+    }
   }
 
   // Goals & Missions Deck State
@@ -527,6 +521,7 @@ export function App() {
 
   // Sentinel Discipline Warning & Grace Period State (Item 3 & 4)
   const [activeWarnings, setActiveWarnings] = useState<SentinelWarningItem[]>([])
+  const pendingWarning = activeWarnings.find((w) => w.status === 'ISSUED') ?? null
   const [selectedGraceMinutes, setSelectedGraceMinutes] = useState(5)
   const [warningSubmitting, setWarningSubmitting] = useState(false)
   const [warningError, setWarningError] = useState<string | null>(null)
@@ -553,6 +548,22 @@ export function App() {
   const [quickMissionDuration, setQuickMissionDuration] = useState(25)
   const [isSubmittingQuickMission, setIsSubmittingQuickMission] = useState(false)
   const [quickMissionError, setQuickMissionError] = useState<string | null>(null)
+
+  // Comprehensive active modal / drawer detection for tutorial coordination
+  const hasActiveModal = Boolean(
+    isCreatingQuickMission ||
+    isCreatingGoal ||
+    Boolean(editingGoal) ||
+    Boolean(editingMission) ||
+    isBookingSession ||
+    isSettingsOpen ||
+    isAlertsDrawerOpen ||
+    Boolean(pendingWarning) ||
+    Boolean(completingSessionId) ||
+    confirmDialog.isOpen
+  )
+
+  const isTutorialPendingLaunch = useRef<number | null>(null)
 
   const handleQuickCreateMission = async (e: FormEvent) => {
     e.preventDefault()
@@ -602,14 +613,18 @@ export function App() {
   }
 
   const nextActionMission = useMemo(() => {
-    return missions.find((m) => m.status !== 'COMPLETED') || null
-  }, [missions])
+    const completedGoalIds = new Set(
+      goals.filter((goal) => goal.status === 'COMPLETED').map((goal) => goal.id),
+    )
+    return missions.find((m) => m.status !== 'COMPLETED' && !completedGoalIds.has(m.goalId)) || null
+  }, [goals, missions])
 
 
 
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
+    document.body.classList.add('shinpo-glass-ui')
     if (isDarkMode) {
       document.body.classList.remove('theme-light')
       document.body.classList.add('theme-dark')
@@ -649,7 +664,8 @@ export function App() {
     }
   }, [activeTaskMenu])
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (): Promise<{ success: boolean; failedServices: string[] }> => {
+    const failedServices: string[] = []
     try {
       const res = await fetch('/api/dashboard', { headers: authHeaders() })
       if (res.ok) {
@@ -658,31 +674,45 @@ export function App() {
       } else if (res.status === 401) {
         clearAuthSession()
         setCurrentUser(null)
-        return
+        return { success: false, failedServices: ['Session Expired'] }
+      } else {
+        failedServices.push('Dashboard')
       }
     } catch {
-      // Keep offline
+      failedServices.push('Dashboard')
     }
 
     try {
-      const [goalsRes, missionsRes, sessionsRes, analytics, sentStatus, briefing, warnings] =
+      const [goalsRes, missionsRes, sessionsRes, analytics, sentStatus, briefing, warnings, progressRes] =
         await Promise.all([
           getGoals().catch((err) => {
             console.error('Failed to fetch goals', err)
+            failedServices.push('Goals')
             return null
           }),
           getMissions().catch((err) => {
             console.error('Failed to fetch missions', err)
+            failedServices.push('Tasks')
             return null
           }),
           getFocusSessions().catch((err) => {
             console.error('Failed to fetch focus sessions', err)
+            failedServices.push('Sessions')
             return null
           }),
-          fetchAnalyticsDashboard().catch(() => null),
-          fetchSentinelStatus().catch(() => null),
+          fetchAnalyticsDashboard().catch((err) => {
+            console.error('Failed to fetch analytics', err)
+            failedServices.push('Analytics')
+            return null
+          }),
+          fetchSentinelStatus().catch((err) => {
+            console.error('Failed to fetch sentinel status', err)
+            failedServices.push('Focus Protection')
+            return null
+          }),
           getExecutiveBriefing().catch(() => null),
           fetchActiveWarnings().catch(() => []),
+          getCurrentUserProgress().catch(() => null),
         ])
       if (goalsRes !== null) setGoals(goalsRes)
       if (missionsRes !== null) setMissions(missionsRes)
@@ -691,10 +721,15 @@ export function App() {
       if (sentStatus) setSentinelStatus(sentStatus)
       if (briefing) setExecutiveBriefing(briefing)
       if (warnings) setActiveWarnings(warnings)
+      if (progressRes !== null) setUserProgress(progressRes)
     } catch (err) {
       console.error('Failed during loadData execution', err)
     }
 
+    return {
+      success: failedServices.length === 0,
+      failedServices,
+    }
   }, [setSentinelStatus])
 
   const refreshBriefing = async () => {
@@ -768,6 +803,60 @@ export function App() {
     return () => clearTimeout(timer)
   }, [currentUser, loadData, loadActiveConversation])
 
+  // First-Time User Onboarding Detection (Section 3.1 - Per-Account & Ledger Scoped)
+  useEffect(() => {
+    if (!currentUser) return
+    let active = true
+
+    getOnboardingState()
+      .then((state) => {
+        if (!active) return
+        if (state.status === 'COMPLETED' || state.status === 'SKIPPED') {
+          return
+        }
+        const dismissed = getTutorialStorageItem('shinpo_onboarding_dismissed', currentUser.id)
+        if (!dismissed) {
+          const timer = setTimeout(() => {
+            if (active) {
+              if (hasActiveModal) {
+                isTutorialPendingLaunch.current = state.currentStep || 0
+              } else {
+                handleStartTutorial(state.currentStep || 0)
+              }
+            }
+          }, 800)
+          return () => clearTimeout(timer)
+        }
+      })
+      .catch(() => {
+        if (!active) return
+        try {
+          const completed = getTutorialStorageItem('shinpo_onboarding_completed', currentUser.id)
+          const dismissed = getTutorialStorageItem('shinpo_onboarding_dismissed', currentUser.id)
+          if (!completed && !dismissed) {
+            const savedProgress = getTutorialStorageItem('shinpo_onboarding_progress', currentUser.id)
+            const initialStep = savedProgress ? parseInt(savedProgress, 10) : 0
+            const timer = setTimeout(() => {
+              if (active) {
+                if (hasActiveModal) {
+                  isTutorialPendingLaunch.current = isNaN(initialStep) ? 0 : initialStep
+                } else {
+                  handleStartTutorial(isNaN(initialStep) ? 0 : initialStep)
+                }
+              }
+            }, 800)
+            return () => clearTimeout(timer)
+          }
+        } catch {
+          // storage inaccessible
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [currentUser])
+
   const recentToastsTracker = useRef<Map<string, number>>(new Map())
 
   const shouldSuppressToast = useCallback((key: string, cooldownMs = 2800): boolean => {
@@ -822,6 +911,56 @@ export function App() {
       setToastAlerts((prev) => prev.filter((current) => current.id !== item.id))
     }, 4500)
   }, [shouldSuppressToast])
+
+  const handleOpenSettings = useCallback((section: SettingsSection = 'appearance') => {
+    setSettingsSection(section)
+    setIsSettingsOpen(true)
+  }, [])
+
+  const handleRefreshWithFeedback = useCallback(async () => {
+    if (isDataRefreshing) return
+    setIsDataRefreshing(true)
+    const startTime = performance.now()
+    try {
+      const result = await loadData()
+      const elapsed = Math.round(performance.now() - startTime)
+      if (!currentUser) return
+
+      if (result.success) {
+        pushToast({
+          title: 'Data Synchronized',
+          description: `All workspace data refreshed successfully (${elapsed}ms).`,
+          type: 'focus',
+          timestamp: new Date().toISOString(),
+        })
+      } else if (result.failedServices.length < 5) {
+        pushToast({
+          title: 'Partial Sync Completed',
+          description: `Updated with warnings: ${result.failedServices.join(', ')} unreachable.`,
+          type: 'sentinel',
+          timestamp: new Date().toISOString(),
+        })
+      } else {
+        pushToast({
+          title: 'Sync Failed',
+          description: 'Could not reach backend services. Please check connection.',
+          type: 'quarantine',
+          timestamp: new Date().toISOString(),
+        })
+      }
+    } catch (err) {
+      pushToast({
+        title: 'Refresh Error',
+        description: err instanceof Error ? err.message : 'An error occurred while refreshing data.',
+        type: 'quarantine',
+        timestamp: new Date().toISOString(),
+      })
+    } finally {
+      window.setTimeout(() => {
+        setIsDataRefreshing(false)
+      }, 400)
+    }
+  }, [isDataRefreshing, loadData, currentUser, pushToast])
 
   useEffect(() => {
     return wsClient.onConnectionChange((connected) => {
@@ -994,12 +1133,16 @@ export function App() {
       cancelLabel: 'Cancel',
       isDestructive: true,
       onConfirm: async () => {
-        const res = await terminateProcess(proc.pid, false)
-        if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
-          setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
-          setTmRefreshKey((key) => key + 1)
-        } else {
-          setTmToast(`Notice: ${res.message}`)
+        try {
+          const res = await terminateProcess(proc.pid, false)
+          if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
+            setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
+            setTmRefreshKey((key) => key + 1)
+          } else {
+            setTmToast(`Notice: ${res.message}`)
+          }
+        } catch (err: unknown) {
+          setTmToast(`Notice: ${err instanceof Error ? err.message : 'Process control is managed by local desktop Shield'}`)
         }
         setTimeout(() => setTmToast(null), 4000)
       },
@@ -1128,10 +1271,16 @@ export function App() {
     })
   }, [])
 
+  const handleSaveServerUrl = () => {
+    setCustomServerUrl(customServerUrlInput)
+    setServerConfigSaved(true)
+    setTimeout(() => setServerConfigSaved(false), 3000)
+  }
+
   const handleQuickDemoFill = () => {
     setAuthMode('LOGIN')
-    setAuthIdentifier('EONX')
-    setAuthPassword('shinpo_dev')
+    setAuthIdentifier('demo')
+    setAuthPassword('shinpo_demo')
   }
 
   const handleCreateGoal = async (e: FormEvent) => {
@@ -1190,6 +1339,16 @@ export function App() {
         status: editGoalStatus,
       })
       setGoals((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
+      if (updated.status === 'COMPLETED' && editingGoal.status !== 'COMPLETED') {
+        const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
+        pushToast({
+          title: isMinimal ? 'Goal Completed' : 'Strategic Goal Completed! +50 XP',
+          description: isMinimal ? 'Strategic outcome achieved' : 'Major milestone completed and recorded in progression ledger.',
+          type: 'reward',
+          badge: '+50 XP',
+          timestamp: new Date().toISOString(),
+        })
+      }
       setEditingGoal(null)
       loadData()
     } catch (err) {
@@ -1355,10 +1514,12 @@ export function App() {
       setMissions((prev) =>
         prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
       )
+      const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
       pushToast({
-        title: 'Task Completed',
-        description: 'Task marked as completed',
-        type: 'focus',
+        title: isMinimal ? 'Task Completed' : 'Task Completed! +10 XP',
+        description: isMinimal ? 'Task marked as completed' : 'Execution objective achieved and logged in progress ledger.',
+        type: 'reward',
+        badge: '+10 XP',
         timestamp: new Date().toISOString(),
       })
       await loadData()
@@ -1549,7 +1710,6 @@ export function App() {
   }, [sessions])
 
   // Sentinel Warning & Grace Computations (Item 3 & 4)
-  const pendingWarning = activeWarnings.find((w) => w.status === 'ISSUED') ?? null
   const activeGraceWarning = activeWarnings.find((w) => w.status === 'GRACE_ACTIVE') ?? null
 
   // Timer ticker with background-tab throttling resilience
@@ -1632,6 +1792,176 @@ export function App() {
     }
   }
 
+  // When all conflicting modals close, resume any pending tutorial launch cleanly
+  useEffect(() => {
+    if (!hasActiveModal && isTutorialPendingLaunch.current !== null) {
+      const stepToLaunch = isTutorialPendingLaunch.current
+      isTutorialPendingLaunch.current = null
+      handleStartTutorial(stepToLaunch)
+    }
+  }, [hasActiveModal])
+
+  function handleStartTutorial(initialStepIndex?: number) {
+    let stepIndex = initialStepIndex
+    if (stepIndex === undefined) {
+      try {
+        const saved = getTutorialStorageItem('shinpo_onboarding_progress', currentUser?.id)
+        stepIndex = saved ? parseInt(saved, 10) : 0
+      } catch {
+        stepIndex = 0
+      }
+    }
+    if (isNaN(stepIndex) || stepIndex < 0 || stepIndex >= SHINPO_ONBOARDING_STEPS.length) {
+      stepIndex = 0
+    }
+
+    // Modal conflict guard
+    if (hasActiveModal) {
+      const hasUnsavedDraft =
+        (isCreatingQuickMission && quickMissionTitle.trim().length > 0) ||
+        (isCreatingGoal && newGoalTitle.trim().length > 0) ||
+        Boolean(editingGoal) ||
+        Boolean(editingMission) ||
+        Boolean(isBookingSession && bookName.trim().length > 0) ||
+        Boolean(pendingWarning) ||
+        Boolean(completingSessionId)
+
+      if (hasUnsavedDraft) {
+        pushToast({
+          type: 'focus',
+          title: 'Action In Progress',
+          description: 'Please finish or close your active draft before starting the guided tour.',
+          timestamp: new Date().toISOString(),
+        })
+        isTutorialPendingLaunch.current = stepIndex
+        return
+      }
+
+      // Safe to close clean / empty modals before starting tour
+      setIsCreatingQuickMission(false)
+      setIsCreatingGoal(false)
+      setIsBookingSession(false)
+      setIsSettingsOpen(false)
+      setIsAlertsDrawerOpen(false)
+    }
+
+    setIsTutorialActive(true)
+    setTutorialStepIndex(stepIndex)
+    setTutorialStorageItem('shinpo_onboarding_progress', String(stepIndex), currentUser?.id)
+    removeTutorialStorageItem('shinpo_onboarding_dismissed', currentUser?.id)
+    const step = SHINPO_ONBOARDING_STEPS[stepIndex]
+    if (step && step.targetTab) {
+      if (isAppView(step.targetTab)) setActiveTab(step.targetTab)
+    }
+  }
+
+  const handleNextTutorialStep = () => {
+    recordOnboardingStep(tutorialStepIndex, true).catch(() => {})
+    if (tutorialStepIndex < SHINPO_ONBOARDING_STEPS.length - 1) {
+      const nextIndex = tutorialStepIndex + 1
+      setTutorialStepIndex(nextIndex)
+      setTutorialStorageItem('shinpo_onboarding_progress', String(nextIndex), currentUser?.id)
+      const nextStep = SHINPO_ONBOARDING_STEPS[nextIndex]
+      if (nextStep && nextStep.targetTab) {
+        if (isAppView(nextStep.targetTab)) setActiveTab(nextStep.targetTab)
+      }
+    } else {
+      handleCompleteTutorial()
+    }
+  }
+
+  const handlePrevTutorialStep = () => {
+    if (tutorialStepIndex > 0) {
+      const prevIndex = tutorialStepIndex - 1
+      setTutorialStepIndex(prevIndex)
+      setTutorialStorageItem('shinpo_onboarding_progress', String(prevIndex), currentUser?.id)
+      const prevStep = SHINPO_ONBOARDING_STEPS[prevIndex]
+      if (prevStep && prevStep.targetTab) {
+        if (isAppView(prevStep.targetTab)) setActiveTab(prevStep.targetTab)
+      }
+    }
+  }
+
+  const handleExitTutorial = () => {
+    setIsTutorialActive(false)
+    setTutorialStorageItem('shinpo_onboarding_dismissed', 'true', currentUser?.id)
+    setTutorialStorageItem('shinpo_onboarding_progress', String(tutorialStepIndex), currentUser?.id)
+    pauseOnboarding(tutorialStepIndex).catch(() => {})
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: 'Walkthrough paused. You can resume right where you left off anytime by asking "How do I use SHINPO?" or clicking "Guided tour".',
+        suggestionType: 'COACH',
+      },
+    ])
+  }
+
+  const handleSkipTutorial = () => {
+    setIsTutorialActive(false)
+    setTutorialStorageItem('shinpo_onboarding_completed', 'true', currentUser?.id)
+    setTutorialStorageItem('shinpo_onboarding_dismissed', 'true', currentUser?.id)
+    removeTutorialStorageItem('shinpo_onboarding_progress', currentUser?.id)
+    skipOnboarding().catch(() => {})
+    pushToast({
+      type: 'focus',
+      title: 'Walkthrough Skipped',
+      description: 'You can replay the guided tour anytime from EONPAI or Settings.',
+      timestamp: new Date().toISOString(),
+    })
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: 'Guided walkthrough skipped. You can restart the tour anytime by asking "How do I use SHINPO?" or clicking "Guided tour".',
+        suggestionType: 'COACH',
+      },
+    ])
+  }
+
+  const handleCompleteTutorial = () => {
+    setIsTutorialActive(false)
+    setTutorialStorageItem('shinpo_onboarding_completed', 'true', currentUser?.id)
+    setTutorialStorageItem('shinpo_tutorial_completed', 'true', currentUser?.id)
+    removeTutorialStorageItem('shinpo_onboarding_progress', currentUser?.id)
+    removeTutorialStorageItem('shinpo_onboarding_dismissed', currentUser?.id)
+
+    // Claim the +50 XP onboarding certification reward from backend
+    claimOnboardingReward()
+      .then((prog) => {
+        if (prog) setUserProgress(prog)
+        pushToast({
+          type: 'reward',
+          title: 'Onboarding Completed! +50 XP',
+          description: 'You are now certified in the SHINPO Execution Operating System.',
+          badge: '+50 XP',
+          timestamp: new Date().toISOString(),
+        })
+      })
+      .catch((err) => {
+        console.warn('Onboarding reward claim rejected or already claimed:', err)
+      })
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: "You're all set! You now know the complete core SHINPO loop: Goal -> Task -> Schedule -> Focus Session -> Focus Protection -> Session Summary -> Analytics. Execution begins now.",
+        suggestionType: 'COACH',
+      },
+    ])
+  }
+
+  useEffect(() => {
+    ;(window as any).__SHINPO_START_TUTORIAL__ = handleStartTutorial
+    ;(window as any).__SHINPO_NAVIGATE_TAB__ = (tab: AppView) => {
+      if (isAppView(tab)) setActiveTab(tab)
+    }
+    return () => {
+      delete (window as any).__SHINPO_START_TUTORIAL__
+      delete (window as any).__SHINPO_NAVIGATE_TAB__
+    }
+  }, [])
 
   const handleStartSession = async () => {
     if (!currentUser) return
@@ -1815,10 +2145,14 @@ export function App() {
       setAccomplishment('')
       setReflectionNotes('')
       setCompleteSessionError(null)
+      const sessionDuration = res.durationMinutes || 25
+      const earnedXp = sessionDuration >= 45 ? 25 : 15
+      const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
       pushToast({
-        type: 'focus',
-        title: 'Session Completed',
-        description: `Focus block recorded with quality rating ${completionQuality}/5.`,
+        type: 'reward',
+        title: isMinimal ? 'Session Completed' : `Focus Sprint Completed! +${earnedXp} XP`,
+        description: `Focus block recorded with quality rating ${completionQuality}/5. XP ledger updated.`,
+        badge: `+${earnedXp} XP`,
         timestamp: new Date().toISOString(),
       })
       await loadData()
@@ -1866,7 +2200,7 @@ export function App() {
 
   const handleAiSend = async (messageText?: string, contextualSessionId?: number) => {
     const prompt = messageText || ''
-    if (!prompt.trim()) return
+    if (!prompt.trim() || aiLoading) return
 
     setChatMessages((prev) => [...prev, { role: 'user', text: prompt }])
     setAiLoading(true)
@@ -2202,7 +2536,8 @@ export function App() {
 
   if (!currentUser) {
     return (
-      <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
+      <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
+        <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
         <div className="auth-card">
           <div className="auth-brand-row">
             <ShinpoLogo size={36} variant="full" />
@@ -2244,7 +2579,7 @@ export function App() {
               <input
                 className="auth-input"
                 type="text"
-                placeholder={authMode === 'LOGIN' ? 'eonx / user@shinpo.local' : 'e.g. Alex'}
+                placeholder={authMode === 'LOGIN' ? 'alex / user@shinpo.app' : 'e.g. Alex'}
                 value={authIdentifier}
                 onChange={(e) => setAuthIdentifier(e.target.value)}
                 required
@@ -2258,7 +2593,7 @@ export function App() {
                 <input
                   className="auth-input"
                   type="email"
-                  placeholder="alex@shinpo.local"
+                  placeholder="alex@shinpo.app"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   required
@@ -2268,14 +2603,40 @@ export function App() {
 
             <div className="auth-field-group">
               <label className="auth-label">Password</label>
-              <input
-                className="auth-input"
-                type="password"
-                placeholder="••••••••••••"
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                required
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  className="auth-input"
+                  type={showAuthPassword ? 'text' : 'password'}
+                  placeholder="••••••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  required
+                  style={{ width: '100%', paddingRight: '40px' }}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowAuthPassword((prev) => !prev)}
+                  aria-label={showAuthPassword ? 'Hide password' : 'Show password'}
+                  title={showAuthPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={0}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary, #94a3b8)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Icon name={showAuthPassword ? 'eye-off' : 'eye'} size={16} />
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={authLoading}>
@@ -2288,13 +2649,88 @@ export function App() {
                 className="auth-quick-fill-btn"
                 onClick={handleQuickDemoFill}
               >
-                Quick Fill (EONX / Dev Seed)
+                Quick Fill (Demo Credentials)
               </button>
             )}
+
+            {/* Server Endpoint Configuration for Desktop Distribution */}
+            <div className="auth-server-config-section" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
+              <button
+                type="button"
+                className="auth-server-toggle-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-3, #94a3b8)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '4px 0',
+                }}
+                onClick={() => setShowServerConfig((prev) => !prev)}
+                title="Configure Cloud Backend Endpoint"
+              >
+                <span>🌐 Server: <strong style={{ color: 'var(--text-2, #e2e8f0)' }}>{getBackendBaseUrl() || 'Direct / Proxy (/api)'}</strong></span>
+              </button>
+
+              {showServerConfig && (
+                <div className="auth-server-dropdown" style={{ marginTop: '10px', textAlign: 'left' }}>
+                  <label className="auth-label" style={{ fontSize: '11px', marginBottom: '4px', display: 'block', color: 'var(--text-3, #94a3b8)' }}>
+                    Remote Server URL (e.g. https://shinpo.yourteam.com)
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      className="auth-input"
+                      type="url"
+                      placeholder="https://shinpo.example.com"
+                      value={customServerUrlInput}
+                      onChange={(e) => setCustomServerUrlInput(e.target.value)}
+                      style={{ fontSize: '12px', padding: '6px 10px', flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="auth-tab-btn active"
+                      style={{ padding: '6px 14px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
+                      onClick={handleSaveServerUrl}
+                    >
+                      {serverConfigSaved ? 'Saved ✓' : 'Save'}
+                    </button>
+                  </div>
+                  {getCustomServerUrl() && (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-3, #94a3b8)',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        marginTop: '6px',
+                        textDecoration: 'underline',
+                        padding: 0,
+                      }}
+                      onClick={() => {
+                        setCustomServerUrl('')
+                        setCustomServerUrlInput('')
+                        setServerConfigSaved(true)
+                        setTimeout(() => setServerConfigSaved(false), 2000)
+                      }}
+                    >
+                      Reset to Default Server
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </form>
         </div>
       </div>
-    )
+    </ThemeProvider>
+  )
   }
 
   const renderTabContent = () => (
@@ -2529,8 +2965,8 @@ export function App() {
   )
 
   return (
-    <>
-      <div className={`app-shell ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''}`}>
+    <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
+      <div className={`app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''}`}>
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />
         )}
@@ -2564,27 +3000,45 @@ export function App() {
             onToggleAlertsDrawer={handleToggleAlertsDrawer}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-            onRefreshData={loadData}
+            onRefreshData={handleRefreshWithFeedback}
+            isRefreshing={isDataRefreshing}
+            onOpenSettings={handleOpenSettings}
             currentUser={currentUser}
+            userProgress={userProgress}
             onLogout={handleLogout}
             onToggleV2Preview={handleToggleV2Preview}
             isV2Preview={isV2Preview}
           />
 
-          {isV2Preview ? (
-            <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
-              <ErrorBoundary>
-                {renderTabContent()}
-              </ErrorBoundary>
-            </ThemeProvider>
-          ) : (
-            <ErrorBoundary>
-              {renderTabContent()}
-            </ErrorBoundary>
-          )}
+          <ErrorBoundary>
+            {renderTabContent()}
+          </ErrorBoundary>
 
         </main>
       </div>
+
+      {/* Real Functional Settings Modal (8 Working Areas) */}
+      <SettingsModal
+        key={settingsSection}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialSection={settingsSection}
+        isDarkMode={isDarkMode}
+        onToggleTheme={handleToggleTheme}
+        isV2Preview={isV2Preview}
+        onToggleV2Preview={handleToggleV2Preview}
+        currentUser={currentUser}
+        onUserUpdated={setCurrentUser}
+        onLogout={handleLogout}
+        sentinelStatus={sentinelStatus}
+        onSentinelStatusChange={setSentinelStatus}
+        isWsConnected={isWsConnected}
+        onRefreshData={handleRefreshWithFeedback}
+        isRefreshing={isDataRefreshing}
+        goals={goals}
+        missions={missions}
+        sessions={sessions}
+      />
 
       {/* Focus Protection Warning & Grace Period Modal */}
       <DistractionWarningModal
@@ -2714,29 +3168,34 @@ export function App() {
       />
 
       {/* Interactive Guided Tour Spotlight Overlay */}
-      {isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex] && (
+      {isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex] && !hasActiveModal && (
         <TutorialOverlay
           step={SHINPO_ONBOARDING_STEPS[tutorialStepIndex]}
           stepIndex={tutorialStepIndex}
           totalSteps={SHINPO_ONBOARDING_STEPS.length}
+          userId={currentUser?.id}
+          hasActiveModal={hasActiveModal}
           onNext={handleNextTutorialStep}
           onPrev={handlePrevTutorialStep}
           onExit={handleExitTutorial}
+          onSkipTour={handleSkipTutorial}
+          onNavigateTab={(tab) => {
+            if (isAppView(tab)) setActiveTab(tab)
+          }}
           onTargetInteract={() => {
             const stepId = SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id
             if (stepId === 'CREATE_GOAL') {
               setIsCreatingGoal(true)
-            } else if (stepId === 'OPEN_SCHEDULE') {
+            } else if (stepId === 'SCHEDULE_COMMITMENT') {
               setActiveTab('Schedule')
-              handleNextTutorialStep()
             } else if (stepId === 'FOCUS_CONTROLS') {
               setActiveTab('Focus Engine')
-            } else if (stepId === 'VIEW_ANALYTICS') {
-              setActiveTab('Analytics')
-              handleNextTutorialStep()
-            } else if (stepId === 'CHECK_PROGRESS') {
-              setActiveTab('Dashboard')
-              handleCompleteTutorial()
+            } else if (stepId === 'FOCUS_PROTECTION') {
+              setActiveTab('Task Manager')
+            } else if (stepId === 'EONPAI_ASSISTANT') {
+              setActiveTab('AI Assistant')
+            } else if (stepId === 'SETTINGS_PREFERENCES') {
+              handleOpenSettings('appearance')
             }
           }}
         />
@@ -2791,7 +3250,7 @@ export function App() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirmation}
       />
-    </>
+    </ThemeProvider>
   )
 }
 

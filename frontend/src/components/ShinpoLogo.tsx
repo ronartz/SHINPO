@@ -83,7 +83,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
             className="shinpo-logo-wordmark"
             style={{
               fontFamily:
-                "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif",
+                "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
               fontSize: Math.round(size * 0.62),
               fontWeight: 800,
               letterSpacing: '0.08em',

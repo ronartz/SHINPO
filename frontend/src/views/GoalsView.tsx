@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Goal, Mission } from '../api/goalsAndMissions'
 import type { GoalDecomposition, ProposedMission } from '../api/ai'
 import { Icon } from '../components/common/Icon'
@@ -196,6 +196,43 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
     return result
   }, [missions, activeStatusFilter, searchQuery, sortBy, goals])
 
+  // Board Mode Lane Filter & Sort (Does NOT hide cards based on old List status filter)
+  const filterAndSortBoardLane = useCallback(
+    (laneTasks: Mission[]) => {
+      let result = laneTasks
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        result = result.filter((m) => {
+          const parentGoal = goals.find((g) => g.id === m.goalId)
+          const matchTitle = m.title.toLowerCase().includes(q)
+          const matchDesc = m.description ? m.description.toLowerCase().includes(q) : false
+          const matchGoal = parentGoal ? parentGoal.title.toLowerCase().includes(q) : false
+          return matchTitle || matchDesc || matchGoal
+        })
+      }
+
+      if (sortBy === 'title') {
+        result = [...result].sort((a, b) => a.title.localeCompare(b.title))
+      } else if (sortBy === 'duration-asc') {
+        result = [...result].sort((a, b) => (a.estimatedMinutes || 25) - (b.estimatedMinutes || 25))
+      } else if (sortBy === 'duration-desc') {
+        result = [...result].sort((a, b) => (b.estimatedMinutes || 25) - (a.estimatedMinutes || 25))
+      } else if (sortBy === 'date') {
+        result = [...result].sort((a, b) => {
+          if (!a.scheduledDate) return 1
+          if (!b.scheduledDate) return -1
+          return a.scheduledDate.localeCompare(b.scheduledDate)
+        })
+      }
+      return result
+    },
+    [searchQuery, sortBy, goals]
+  )
+
+  const boardInProgress = useMemo(() => filterAndSortBoardLane(inProgressMissions), [filterAndSortBoardLane, inProgressMissions])
+  const boardReady = useMemo(() => filterAndSortBoardLane(readyMissions), [filterAndSortBoardLane, readyMissions])
+  const boardCompleted = useMemo(() => filterAndSortBoardLane(completedMissions), [filterAndSortBoardLane, completedMissions])
+
   // Kanban Card Renderer (for Board Mode)
   const renderKanbanCard = (m: Mission) => {
     const parentGoal = goals.find((g) => g.id === m.goalId)
@@ -233,7 +270,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
             <span>{m.estimatedMinutes || 25}m</span>
           </span>
           {m.scheduledDate && (
-            <span style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
               📅 {m.scheduledDate}
             </span>
           )}
@@ -798,45 +835,47 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       </div>
 
       {/* Task Filters, Search, Sort, and View Switcher */}
-      <div className="tasks-filter-bar">
-        {/* Status Filter Tabs with Real Counts */}
-        <div className="tasks-status-tabs">
-          <button
-            type="button"
-            className={`status-tab-btn ${activeStatusFilter === 'ALL' ? 'active' : ''}`}
-            onClick={() => handleFilterChange('ALL')}
-          >
-            <span>All</span>
-            <span className="tab-count-badge">{allCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`status-tab-btn ${activeStatusFilter === 'IN_PROGRESS' ? 'active' : ''}`}
-            onClick={() => handleFilterChange('IN_PROGRESS')}
-          >
-            <span className="status-dot-mini dot-coral" />
-            <span>In Progress</span>
-            <span className="tab-count-badge">{inProgressCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`status-tab-btn ${activeStatusFilter === 'READY' ? 'active' : ''}`}
-            onClick={() => handleFilterChange('READY')}
-          >
-            <span className="status-dot-mini dot-cyan" />
-            <span>Ready</span>
-            <span className="tab-count-badge">{readyCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`status-tab-btn ${activeStatusFilter === 'COMPLETED' ? 'active' : ''}`}
-            onClick={() => handleFilterChange('COMPLETED')}
-          >
-            <span className="status-dot-mini dot-emerald" />
-            <span>Done</span>
-            <span className="tab-count-badge">{completedCount}</span>
-          </button>
-        </div>
+      <div className={`tasks-filter-bar ${taskViewMode === 'board' ? 'is-board-mode' : ''}`}>
+        {/* Status Filter Tabs with Real Counts (List Mode Only) */}
+        {taskViewMode === 'list' && (
+          <div className="tasks-status-tabs">
+            <button
+              type="button"
+              className={`status-tab-btn ${activeStatusFilter === 'ALL' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('ALL')}
+            >
+              <span>All</span>
+              <span className="tab-count-badge">{allCount}</span>
+            </button>
+            <button
+              type="button"
+              className={`status-tab-btn ${activeStatusFilter === 'IN_PROGRESS' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('IN_PROGRESS')}
+            >
+              <span className="status-dot-mini dot-coral" />
+              <span>In Progress</span>
+              <span className="tab-count-badge">{inProgressCount}</span>
+            </button>
+            <button
+              type="button"
+              className={`status-tab-btn ${activeStatusFilter === 'READY' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('READY')}
+            >
+              <span className="status-dot-mini dot-cyan" />
+              <span>Ready</span>
+              <span className="tab-count-badge">{readyCount}</span>
+            </button>
+            <button
+              type="button"
+              className={`status-tab-btn ${activeStatusFilter === 'COMPLETED' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('COMPLETED')}
+            >
+              <span className="status-dot-mini dot-emerald" />
+              <span>Done</span>
+              <span className="tab-count-badge">{completedCount}</span>
+            </button>
+          </div>
+        )}
 
         {/* Search, Sort & View Mode Toggle */}
         <div className="tasks-controls-right">
@@ -922,11 +961,11 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 <span className="column-status-dot dot-coral" />
                 <span className="column-title-text">In Progress</span>
               </div>
-              <span className="column-count-badge">{inProgressMissions.length}</span>
+              <span className="column-count-badge">{boardInProgress.length}</span>
             </div>
             <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
-              {inProgressMissions.length > 0 ? (
-                inProgressMissions.map(renderKanbanCard)
+              {boardInProgress.length > 0 ? (
+                boardInProgress.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
                   <div className="empty-icon-circle">
@@ -946,11 +985,11 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 <span className="column-status-dot dot-cyan" />
                 <span className="column-title-text">Ready</span>
               </div>
-              <span className="column-count-badge">{readyMissions.length}</span>
+              <span className="column-count-badge">{boardReady.length}</span>
             </div>
             <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
-              {readyMissions.length > 0 ? (
-                readyMissions.map(renderKanbanCard)
+              {boardReady.length > 0 ? (
+                boardReady.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
                   <div className="empty-icon-circle">
@@ -970,11 +1009,11 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 <span className="column-status-dot dot-emerald" />
                 <span className="column-title-text">Completed</span>
               </div>
-              <span className="column-count-badge">{completedMissions.length}</span>
+              <span className="column-count-badge">{boardCompleted.length}</span>
             </div>
             <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
-              {completedMissions.length > 0 ? (
-                completedMissions.map(renderKanbanCard)
+              {boardCompleted.length > 0 ? (
+                boardCompleted.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
                   <div className="empty-icon-circle">

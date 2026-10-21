@@ -84,6 +84,13 @@ export async function terminateProcess(pid: number, force: boolean = false): Pro
     method: 'POST',
     headers: authHeaders(),
   })
+  if (res.status === 403 || res.status === 409 || res.status === 400 || res.status === 501) {
+    try {
+      return await res.json()
+    } catch {
+      // fallback
+    }
+  }
   if (!res.ok) throw new Error(`Failed to terminate process: ${res.status}`)
   return res.json()
 }

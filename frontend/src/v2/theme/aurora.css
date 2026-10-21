@@ -16,106 +16,58 @@
 .app-shell.theme-aurora:not(.theme-light) {
   background-color: #0A0F20;
   color: #F5F7FF;
+  --text-primary: #F5F7FF;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --surface-muted: #111B31;
 }
 
 .aurora-viewport.theme-light,
 .app-shell.theme-aurora.theme-light {
   background-color: #F4F6FD;
   color: #17213A;
+  --text-primary: #17213A;
+  --text-secondary: #5B6B8A;
+  --text-muted: #8B9BB4;
+  --surface-muted: #ECEFFB;
 }
 
-/* Atmospheric Ambient Lights (Cinematic Aurora Glow) */
+/* Atmospheric Ambient Lights — disabled for clean desktop look */
 .aurora-ambient-glow {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.theme-dark .aurora-ambient-glow::before,
-.aurora-viewport.theme-dark .aurora-ambient-glow::before,
-.app-shell.theme-aurora:not(.theme-light) .aurora-ambient-glow::before {
-  content: '';
-  position: absolute;
-  top: -20%;
-  left: 20%;
-  width: 70vw;
-  height: 60vh;
-  background: radial-gradient(ellipse at center, rgba(151, 87, 250, 0.16) 0%, rgba(77, 119, 249, 0.08) 45%, transparent 75%);
-  filter: blur(80px);
-  border-radius: 50%;
-}
-
-.theme-dark .aurora-ambient-glow::after,
-.aurora-viewport.theme-dark .aurora-ambient-glow::after,
-.app-shell.theme-aurora:not(.theme-light) .aurora-ambient-glow::after {
-  content: '';
-  position: absolute;
-  bottom: 0%;
-  right: 5%;
-  width: 50vw;
-  height: 50vh;
-  background: radial-gradient(ellipse at center, rgba(27, 201, 222, 0.10) 0%, rgba(77, 119, 249, 0.05) 50%, transparent 75%);
-  filter: blur(90px);
-  border-radius: 50%;
-}
-
-.theme-light .aurora-ambient-glow::before,
-.aurora-viewport.theme-light .aurora-ambient-glow::before,
-.app-shell.theme-aurora.theme-light .aurora-ambient-glow::before {
-  content: '';
-  position: absolute;
-  top: -15%;
-  left: 15%;
-  width: 65vw;
-  height: 55vh;
-  background: radial-gradient(ellipse at center, rgba(151, 87, 250, 0.08) 0%, rgba(77, 119, 249, 0.05) 50%, transparent 75%);
-  filter: blur(70px);
-  border-radius: 50%;
+  display: none !important;
 }
 
 /* ==========================================================================
-   FLOATING TILT ANIMATION (STEP 4 MANDATORY REQUIREMENT)
+   CARDS & HOVER INTERACTIONS (Clean, stable, no decorative tilt/rotation)
    ========================================================================== */
 
 .aurora-card-interactive {
   position: relative;
-  border-radius: 16px;
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, box-shadow;
-  transform: translateZ(0);
+  border-radius: 12px;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
 }
 
-/* Subtle, refined lift without exaggerated rotation */
+/* Flat, level hover states — zero tilt rotation */
 .aurora-tilt-lift:hover,
-.aurora-tilt-lift:focus-visible {
-  transform: translateY(-3px);
-}
-
+.aurora-tilt-lift:focus-visible,
 .aurora-tilt-right:hover,
-.aurora-tilt-right:focus-visible {
-  transform: translateY(-3px) rotate(0.5deg);
-}
-
+.aurora-tilt-right:focus-visible,
 .aurora-tilt-left:hover,
 .aurora-tilt-left:focus-visible {
-  transform: translateY(-3px) rotate(-0.5deg);
+  transform: none !important;
 }
 
-/* Refined Hover Shadow & Edge Definition (No loud glowing halo) */
+/* Refined Hover Shadow & Edge Definition (No glowing halo) */
 .aurora-viewport.theme-dark .aurora-card-interactive:hover,
 .aurora-viewport.theme-dark .aurora-card-interactive:focus-visible {
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.40);
-  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .aurora-viewport.theme-light .aurora-card-interactive:hover,
 .aurora-viewport.theme-light .aurora-card-interactive:focus-visible {
-  box-shadow: 0 10px 24px rgba(77, 119, 249, 0.10);
-  border-color: rgba(77, 119, 249, 0.25);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  border-color: rgba(121, 50, 230, 0.22);
 }
 
 /* Keyboard accessibility outline */
@@ -135,41 +87,115 @@
   }
 }
 
+/* Catch feature-specific cards and panels without requiring each view to opt in. */
+.app-shell.shinpo-glass-ui :is(
+  [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
+  .glass-surface, .aurora-glass, .MuiCard-root
+) {
+  background-color: color-mix(in srgb, var(--surface-card, #192541) 80%, transparent);
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--surface-card, #192541) 88%, transparent),
+    color-mix(in srgb, var(--surface, #0E1428) 78%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.app-shell.shinpo-glass-ui.theme-light :is(
+  [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
+  .glass-surface, .aurora-glass, .MuiCard-root
+) {
+  background-color: color-mix(in srgb, var(--surface-card, #FFFFFF) 80%, transparent);
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--surface-card, #FFFFFF) 90%, transparent),
+    color-mix(in srgb, var(--bg, #F4F6FD) 78%, transparent));
+  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 150%, transparent);
+  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+body.shinpo-glass-ui :is(
+  [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
+  .glass-surface, .aurora-glass, .MuiCard-root, .MuiPaper-root, [role="dialog"]
+) {
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.app-shell.shinpo-glass-ui :is(
+  [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
+  .glass-surface, .aurora-glass, .MuiCard-root
+):hover {
+  border-color: color-mix(in srgb, var(--accent, #9757FA) 34%, var(--border, transparent));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.shinpo-glass-ui :is(
+    [class~="card"], [class*="-card"], [class~="panel"], [class*="-panel"],
+    .glass-surface, .aurora-glass, .MuiCard-root
+  ) { animation: none; transition: none; }
+}
+
 /* ==========================================================================
-   GLASSMORPHISM & FROSTED SURFACES
+   GLASSMORPHISM & FROSTED SURFACES (Restrained, elegant depth with fallback)
    ========================================================================== */
 
 .aurora-glass {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(18, 24, 40, 0.78);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.32);
+}
+
+.aurora-viewport.theme-light .aurora-glass,
+.app-shell.theme-aurora.theme-light .aurora-glass {
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  border: 1px solid rgba(77, 119, 249, 0.12);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Fallback for environments where backdrop-filter is unsupported */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .aurora-glass {
+    background: #18191E !important;
+  }
+  .aurora-viewport.theme-light .aurora-glass,
+  .app-shell.theme-aurora.theme-light .aurora-glass {
+    background: #FFFFFF !important;
+  }
 }
 
 .aurora-viewport.theme-dark .aurora-glass,
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar,
 .app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(17, 27, 49, 0.75);
+  background: rgba(18, 24, 40, 0.82);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
 }
 
 .aurora-viewport.theme-light .aurora-glass,
 .app-shell.theme-aurora.theme-light .icon-sidebar,
 .app-shell.theme-aurora.theme-light .cockpit-top-bar {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
   background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
   border: 1px solid rgba(77, 119, 249, 0.12);
-  box-shadow: 0 8px 24px rgba(77, 119, 249, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
 /* Aurora Navigation Button Styling on Classic Sidebar */
 .app-shell.theme-aurora .icon-sidebar .sidebar-btn {
   color: rgba(245, 247, 255, 0.75);
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 150ms ease;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn {
@@ -182,22 +208,22 @@
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn:hover {
-  background: rgba(77, 119, 249, 0.06);
+  background: rgba(121, 50, 230, 0.05);
   color: #17213A;
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn.active {
-  background: linear-gradient(135deg, rgba(151, 87, 250, 0.22) 0%, rgba(77, 119, 249, 0.16) 100%);
+  background: rgba(151, 87, 250, 0.14);
   color: #FFFFFF;
   border: 1px solid rgba(151, 87, 250, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(151, 87, 250, 0.35), 0 4px 16px rgba(77, 119, 249, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn.active {
-  background: linear-gradient(135deg, rgba(151, 87, 250, 0.12) 0%, rgba(77, 119, 249, 0.08) 100%);
-  color: #3563F6;
-  border: 1px solid rgba(77, 119, 249, 0.25);
-  box-shadow: inset 0 0 0 1px rgba(77, 119, 249, 0.25), 0 4px 12px rgba(77, 119, 249, 0.08);
+  background: #F5F0FF;
+  color: #7932E6;
+  border: 1px solid rgba(121, 50, 230, 0.30);
+  box-shadow: 0 1px 4px rgba(121, 50, 230, 0.10);
 }
 
 /* Aurora Search Input Pill */
@@ -207,13 +233,13 @@
 }
 
 .app-shell.theme-aurora.theme-light .top-search-command {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(77, 119, 249, 0.15);
+  background: #FFFFFF;
+  border: 1px solid #E9E7E3;
 }
 
 .app-shell.theme-aurora:not(.theme-light) .top-search-command:focus-within {
-  border-color: #4D77F9;
-  box-shadow: 0 0 0 3px rgba(77, 119, 249, 0.18);
+  border-color: #9757FA;
+  box-shadow: 0 0 0 2px rgba(151, 87, 250, 0.25);
 }
 
 /* Aurora Sidebar Quote */
@@ -223,89 +249,104 @@
 }
 
 .app-shell.theme-aurora.theme-light .sidebar-upper-quote {
-  background: rgba(77, 119, 249, 0.04);
-  border: 1px solid rgba(77, 119, 249, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Aurora Sidebar Footer Status Pill */
 .app-shell.theme-aurora:not(.theme-light) .sidebar-status-quiet {
-  background: rgba(25, 37, 65, 0.5);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .app-shell.theme-aurora.theme-light .sidebar-status-quiet {
-  background: rgba(240, 244, 255, 0.8);
-  border: 1px solid rgba(77, 119, 249, 0.12);
+  background: #FFFFFF;
+  border: 1px solid #E9E7E3;
 }
 
 /* Featured Card: prominent through composition, clean typography and actions */
 .aurora-featured-card {
   position: relative;
-  border-radius: 18px;
+  border-radius: 14px;
   overflow: hidden;
   height: 100%;
 }
 
 .aurora-viewport.theme-dark .aurora-featured-card {
-  background: #111B31;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: #1D1E24;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
 }
 
 .aurora-viewport.theme-light .aurora-featured-card {
   background: #FFFFFF;
-  border: 1px solid rgba(77, 119, 249, 0.14);
-  box-shadow: 0 8px 24px rgba(77, 119, 249, 0.06);
+  border: 1px solid #E9E7E3;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .aurora-featured-inner {
-  padding: 24px 28px;
+  padding: 22px 24px;
   height: 100%;
 }
 
-
 /* ==========================================================================
-   AURORA BUTTONS & PILLS
+   AURORA BUTTONS & PILLS (Standardized, restrained brand color)
    ========================================================================== */
 
 .aurora-btn-primary,
 button.aurora-btn-primary {
-  background: linear-gradient(135deg, #9757FA 0%, #4D77F9 50%, #1BC9DE 100%) !important;
+  background: var(--primary-violet, #9757FA) !important;
   color: #FFFFFF !important;
   border: none !important;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 14.5px;
-  padding: 10px 24px;
+  font-size: 14px;
+  height: 38px;
+  padding: 0 20px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 220ms ease;
-  box-shadow: 0 4px 16px rgba(77, 119, 249, 0.35);
+  transition: all 150ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
   text-decoration: none;
 }
 
 .aurora-btn-primary:hover,
 button.aurora-btn-primary:hover {
-  background: linear-gradient(135deg, #A86EFB 0%, #5E85FA 50%, #30D2E4 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(77, 119, 249, 0.50);
+  background: var(--brand-coral-hover, #AB75FC) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.aurora-viewport.theme-light .aurora-btn-primary,
+.theme-light .aurora-btn-primary,
+.aurora-viewport.theme-light button.aurora-btn-primary,
+.theme-light button.aurora-btn-primary {
+  background: var(--primary-violet, #7932E6) !important;
+}
+
+.aurora-viewport.theme-light .aurora-btn-primary:hover,
+.theme-light .aurora-btn-primary:hover,
+.aurora-viewport.theme-light button.aurora-btn-primary:hover,
+.theme-light button.aurora-btn-primary:hover {
+  background: var(--brand-coral-hover, #6825D4) !important;
 }
 
 .aurora-btn-secondary,
 button.aurora-btn-secondary {
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
   font-size: 14px;
-  padding: 9px 20px;
+  height: 38px;
+  padding: 0 18px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 200ms ease;
+  transition: all 150ms ease;
   text-decoration: none;
 }
 
@@ -313,8 +354,8 @@ button.aurora-btn-secondary {
 .theme-dark .aurora-btn-secondary,
 .aurora-viewport.theme-dark button.aurora-btn-secondary,
 .theme-dark button.aurora-btn-secondary {
-  background: rgba(25, 37, 65, 0.70) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: #24252D !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
   color: #F5F7FF !important;
 }
 
@@ -322,8 +363,8 @@ button.aurora-btn-secondary {
 .theme-dark .aurora-btn-secondary:hover,
 .aurora-viewport.theme-dark button.aurora-btn-secondary:hover,
 .theme-dark button.aurora-btn-secondary:hover {
-  background: rgba(30, 44, 77, 0.90) !important;
-  border-color: rgba(151, 87, 250, 0.50) !important;
+  background: #282A33 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
   transform: translateY(-1px);
 }
 
@@ -332,17 +373,17 @@ button.aurora-btn-secondary {
 .aurora-viewport.theme-light button.aurora-btn-secondary,
 .theme-light button.aurora-btn-secondary {
   background: #FFFFFF !important;
-  border: 1px solid rgba(77, 119, 249, 0.22) !important;
-  color: #17213A !important;
-  box-shadow: 0 2px 8px rgba(77, 119, 249, 0.08);
+  border: 1px solid #E9E7E3 !important;
+  color: #18191B !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .aurora-viewport.theme-light .aurora-btn-secondary:hover,
 .theme-light .aurora-btn-secondary:hover,
 .aurora-viewport.theme-light button.aurora-btn-secondary:hover,
 .theme-light button.aurora-btn-secondary:hover {
-  background: #F8F9FE !important;
-  border-color: rgba(77, 119, 249, 0.45) !important;
+  background: #F2EFEB !important;
+  border-color: #DBD8D3 !important;
   transform: translateY(-1px);
 }
 
@@ -456,36 +497,445 @@ button.aurora-btn-secondary {
    ========================================================================== */
 
 .aurora-neumorphic-chip {
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 13.5px;
-  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 180ms ease;
-  border: none;
+  transition: all 150ms ease;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip {
-  background: #111B31;
-  color: #94A3B8;
-  box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.45), -3px -3px 8px rgba(255, 255, 255, 0.02);
+  background: var(--surface-subtle, #18191E);
+  color: var(--text-secondary, #94A3B8);
+  border-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
+  box-shadow: none;
+}
+
+.aurora-viewport.theme-dark .aurora-neumorphic-chip:hover {
+  background: var(--surface-hover, #24252D);
+  color: var(--text-primary, #F8FAFC);
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip.active {
-  background: #192541;
-  color: #1BC9DE;
-  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.6), inset -2px -2px 6px rgba(255, 255, 255, 0.04);
+  background: rgba(151, 87, 250, 0.15);
+  color: #C084FC;
+  border-color: rgba(151, 87, 250, 0.4);
+  box-shadow: none;
 }
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip {
   background: #FFFFFF;
-  color: #5B6B8A;
-  box-shadow: 3px 3px 10px rgba(180, 190, 220, 0.4), -3px -3px 10px #FFFFFF;
+  color: var(--text-secondary, #64748B);
+  border-color: var(--border-subtle, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.aurora-viewport.theme-light .aurora-neumorphic-chip:hover {
+  background: #F8FAFC;
+  color: var(--text-primary, #0F172A);
 }
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip.active {
-  background: #F0F4FF;
-  color: #3563F6;
-  box-shadow: inset 2px 2px 6px rgba(77, 119, 249, 0.15), inset -2px -2px 6px #FFFFFF;
+  background: #F3E8FF;
+  color: #7932E6;
+  border-color: rgba(121, 50, 230, 0.3);
+  box-shadow: none;
+}
+
+/* Immersive glass system shared by Aurora screens, surfaces, and controls. */
+
+@keyframes shinpo-aurora-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.app-shell.theme-aurora,
+.aurora-viewport {
+  --aurora-glass-dark: rgba(18, 24, 40, 0.78);
+  --aurora-glass-dark-strong: rgba(14, 20, 40, 0.9);
+  --aurora-glass-light: rgba(255, 255, 255, 0.78);
+  --aurora-glass-border-dark: rgba(255, 255, 255, 0.1);
+  --aurora-glass-border-light: rgba(77, 119, 249, 0.16);
+  --aurora-glass-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --aurora-glass-shadow-light: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.app-shell.theme-aurora:not(.theme-light) .aurora-glass,
+.app-shell.theme-aurora:not(.theme-light) .MuiCard-root,
+.app-shell.theme-aurora:not(.theme-light) .MuiPaper-root,
+.aurora-viewport.theme-dark .aurora-glass,
+.aurora-viewport.theme-dark .MuiCard-root,
+.aurora-viewport.theme-dark .MuiPaper-root {
+  background: linear-gradient(135deg, rgba(25, 37, 65, 0.86), rgba(14, 20, 40, 0.78), rgba(25, 37, 65, 0.82));
+  background-size: 220% 220%;
+  border-color: var(--aurora-glass-border-dark);
+  box-shadow: var(--aurora-glass-shadow-dark);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  animation: shinpo-aurora-drift 18s ease-in-out infinite;
+}
+
+.app-shell.theme-aurora.theme-light .aurora-glass,
+.app-shell.theme-aurora.theme-light .MuiCard-root,
+.app-shell.theme-aurora.theme-light .MuiPaper-root,
+.aurora-viewport.theme-light .aurora-glass,
+.aurora-viewport.theme-light .MuiCard-root,
+.aurora-viewport.theme-light .MuiPaper-root {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(244, 246, 253, 0.78), rgba(255, 255, 255, 0.86));
+  background-size: 220% 220%;
+  border-color: var(--aurora-glass-border-light);
+  box-shadow: var(--aurora-glass-shadow-light);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  animation: shinpo-aurora-drift 18s ease-in-out infinite;
+}
+
+.app-shell.theme-aurora:not(.theme-light) :is(
+  .analytics-card, .analytics-velocity-card, .tm-metric-card, .tm-panel,
+  .flight-deck-board-panel, .status-column, .cockpit-panel,
+  .bento-card, .ai-sidebar-card, .ai-chat-card,
+  .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
+  .schedule-card, .schedule-panel, .schedule-view-container, .daily-quote-card, .calendar-card,
+  .goal-single-summary-card, .goal-card-item, .goal-detail-card, .companion-next-action-card, .goals-empty-card,
+  .study-resources-panel, .study-resources-dialog-card,
+  .eonpai-utility-panel, .eonpai-conversation-card, .ai-plan-card, .ai-tutorial-card,
+  .ai-bug-card, .ai-bug-draft-card, .ai-bug-receipt-card, .ai-mission-card,
+  .analytics-debrief-card, .task-manager-card,
+  .settings-modal-box, .settings-content-panel, .settings-group-card,
+  .shinpo-dialog-card, .modal-box, .taskmaster-modal-card,
+  .quick-modal-card, .confirmation-dialog-card, .telemetry-drawer-panel, .shinpo-exit-confirm-card,
+  .eonpai-card, .eonpai-panel, .study-resource-card,
+  .sentinel-panel, .sentinel-activity-card, .timeline-content-card,
+  .ai-daily-agenda-card, .timesheet-item, .activity-feed-item
+),
+body.aurora-mode:not(.theme-light) :is(
+  .MuiDialog-paper, .MuiPopover-paper, .MuiMenu-paper,
+  .shinpo-dialog-card, .modal-box, .settings-modal-box,
+  .taskmaster-modal-card, .flight-deck-card-menu, .flight-deck-quick-modal-card
+) {
+  background-color: rgba(25, 37, 65, 0.72);
+  background-image: linear-gradient(135deg, rgba(25, 37, 65, 0.88), rgba(14, 20, 40, 0.76), rgba(25, 37, 65, 0.82));
+  background-size: 180% 180%;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+}
+
+.app-shell.theme-aurora.theme-light :is(
+  .analytics-card, .analytics-velocity-card, .tm-metric-card, .tm-panel,
+  .flight-deck-board-panel, .status-column, .cockpit-panel,
+  .bento-card, .ai-sidebar-card, .ai-chat-card,
+  .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
+  .schedule-card, .schedule-panel, .schedule-view-container, .daily-quote-card, .calendar-card,
+  .goal-single-summary-card, .goal-card-item, .goal-detail-card, .companion-next-action-card, .goals-empty-card,
+  .study-resources-panel, .study-resources-dialog-card,
+  .eonpai-utility-panel, .eonpai-conversation-card, .ai-plan-card, .ai-tutorial-card,
+  .ai-bug-card, .ai-bug-draft-card, .ai-bug-receipt-card, .ai-mission-card,
+  .analytics-debrief-card, .task-manager-card,
+  .settings-modal-box, .settings-content-panel, .settings-group-card,
+  .shinpo-dialog-card, .modal-box, .taskmaster-modal-card,
+  .quick-modal-card, .confirmation-dialog-card, .telemetry-drawer-panel, .shinpo-exit-confirm-card,
+  .eonpai-card, .eonpai-panel, .study-resource-card,
+  .sentinel-panel, .sentinel-activity-card, .timeline-content-card,
+  .ai-daily-agenda-card, .timesheet-item, .activity-feed-item
+),
+body.aurora-mode.theme-light :is(
+  .MuiDialog-paper, .MuiPopover-paper, .MuiMenu-paper,
+  .shinpo-dialog-card, .modal-box, .settings-modal-box,
+  .taskmaster-modal-card, .flight-deck-card-menu, .flight-deck-quick-modal-card
+) {
+  background-color: rgba(255, 255, 255, 0.74);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(236, 239, 251, 0.76), rgba(255, 255, 255, 0.84));
+  background-size: 180% 180%;
+  border-color: rgba(77, 119, 249, 0.16);
+  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+}
+
+/* Apply the glass material system across both app layouts and every view. */
+.app-shell.shinpo-glass-ui:not(.theme-light) :is(
+  .icon-sidebar, .cockpit-top-bar, .auth-card,
+  .analytics-card, .analytics-velocity-card, .tm-metric-card, .tm-panel,
+  .flight-deck-board-panel, .status-column, .cockpit-panel, .dashboard-metric-card,
+  .dashboard-sidecar-card, .priority-hero-card, .bento-card, .ai-sidebar-card, .ai-chat-card,
+  .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
+  .schedule-container, .schedule-top-toolbar, .schedule-week-strip, .schedule-day-tile,
+  .schedule-agenda-board, .schedule-empty-box, .daily-quote-card,
+  .goal-single-summary-card, .goal-card-item,
+  .companion-next-action-card, .goals-empty-card, .study-resources-panel,
+  .study-resources-dialog-card, .eonpai-utility-panel, .eonpai-conversation-card,
+  .ai-plan-card, .ai-tutorial-card, .ai-bug-card, .ai-bug-draft-card, .ai-bug-receipt-card,
+  .ai-mission-card, .analytics-debrief-card, .settings-modal-box, .settings-content-panel,
+  .settings-group-card, .quick-modal-card, .confirmation-dialog-card, .telemetry-drawer-panel,
+  .shinpo-exit-confirm-card, .sentinel-panel, .sentinel-activity-card,
+  .timeline-content-card, .ai-daily-agenda-card, .timesheet-item, .activity-feed-item,
+  .shinpo-dialog-card, .taskmaster-modal-card, .MuiCard-root, .MuiPaper-root
+) {
+  background-color: color-mix(in srgb, var(--surface-card, #192541) 78%, transparent);
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--surface-card, #192541) 86%, transparent), color-mix(in srgb, var(--surface, #0E1428) 78%, transparent), color-mix(in srgb, var(--surface-card, #192541) 82%, transparent));
+  background-size: 180% 180%;
+  border-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+}
+
+.app-shell.shinpo-glass-ui.theme-light :is(
+  .icon-sidebar, .cockpit-top-bar, .auth-card,
+  .analytics-card, .analytics-velocity-card, .tm-metric-card, .tm-panel,
+  .flight-deck-board-panel, .status-column, .cockpit-panel, .dashboard-metric-card,
+  .dashboard-sidecar-card, .priority-hero-card, .bento-card, .ai-sidebar-card, .ai-chat-card,
+  .card-timer-hud, .card-session-creator, .card-session-history, .custom-duration-card,
+  .schedule-container, .schedule-top-toolbar, .schedule-week-strip, .schedule-day-tile,
+  .schedule-agenda-board, .schedule-empty-box, .daily-quote-card,
+  .goal-single-summary-card, .goal-card-item,
+  .companion-next-action-card, .goals-empty-card, .study-resources-panel,
+  .study-resources-dialog-card, .eonpai-utility-panel, .eonpai-conversation-card,
+  .ai-plan-card, .ai-tutorial-card, .ai-bug-card, .ai-bug-draft-card, .ai-bug-receipt-card,
+  .ai-mission-card, .analytics-debrief-card, .settings-modal-box, .settings-content-panel,
+  .settings-group-card, .quick-modal-card, .confirmation-dialog-card, .telemetry-drawer-panel,
+  .shinpo-exit-confirm-card, .sentinel-panel, .sentinel-activity-card,
+  .timeline-content-card, .ai-daily-agenda-card, .timesheet-item, .activity-feed-item,
+  .shinpo-dialog-card, .taskmaster-modal-card, .MuiCard-root, .MuiPaper-root
+) {
+  background-color: color-mix(in srgb, var(--surface-card, #FFFFFF) 76%, transparent);
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--surface-card, #FFFFFF) 86%, transparent), color-mix(in srgb, var(--bg, #F4F6FD) 76%, transparent), color-mix(in srgb, var(--surface-card, #FFFFFF) 82%, transparent));
+  background-size: 180% 180%;
+  border-color: color-mix(in srgb, var(--border, rgba(77, 119, 249, 0.16)) 150%, transparent);
+  box-shadow: 0 10px 28px rgba(77, 119, 249, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  animation: shinpo-aurora-drift 24s ease-in-out infinite;
+}
+
+body.shinpo-glass-ui:not(.theme-light) :is(
+  .MuiDialog-paper, .MuiPopover-paper, .MuiMenu-paper, .shinpo-dialog-card,
+  .modal-box, .settings-modal-box, .quick-modal-card, .confirmation-dialog-card,
+  .taskmaster-modal-card, .telemetry-drawer-panel, .shinpo-exit-confirm-card,
+  .flight-deck-card-menu, .flight-deck-quick-modal-card, .shinpo-popover-surface,
+  .shinpo-calendar-panel, .shinpo-timepicker-panel
+) {
+  background-color: rgba(25, 37, 65, 0.84);
+  background-image: linear-gradient(135deg, rgba(25, 37, 65, 0.92), rgba(14, 20, 40, 0.86));
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+}
+
+body.shinpo-glass-ui.theme-light :is(
+  .MuiDialog-paper, .MuiPopover-paper, .MuiMenu-paper, .shinpo-dialog-card,
+  .modal-box, .settings-modal-box, .quick-modal-card, .confirmation-dialog-card,
+  .taskmaster-modal-card, .telemetry-drawer-panel, .shinpo-exit-confirm-card,
+  .flight-deck-card-menu, .flight-deck-quick-modal-card, .shinpo-popover-surface,
+  .shinpo-calendar-panel, .shinpo-timepicker-panel
+) {
+  background-color: rgba(255, 255, 255, 0.88);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(236, 239, 251, 0.88));
+  border-color: rgba(77, 119, 249, 0.18);
+  box-shadow: 0 16px 40px rgba(77, 119, 249, 0.12);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+.app-shell.shinpo-glass-ui :is(button, a, [role='button'], .MuiButtonBase-root, .flight-deck-card, .schedule-session-item, .goal-card-item, .analytics-card, .tm-table tbody tr) {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.app-shell.shinpo-glass-ui :is(button, a, [role='button'], .MuiButtonBase-root):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.app-shell.shinpo-glass-ui :is(input, textarea, select, .shinpo-select-trigger, .shinpo-datepicker-trigger, .shinpo-popover-surface) {
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.app-shell.shinpo-glass-ui :is(input, textarea, select, .shinpo-select-trigger, .shinpo-datepicker-trigger):focus-visible {
+  outline: 2px solid rgba(151, 87, 250, 0.72);
+  outline-offset: 2px;
+}
+
+.auth-fullscreen-container.theme-dark,
+body.shinpo-glass-ui.theme-dark .auth-fullscreen-container {
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse at 50% 28%, rgba(151, 87, 250, 0.15), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(77, 119, 249, 0.1), transparent 42%);
+  background-size: 160% 160%;
+  animation: shinpo-aurora-drift 28s ease-in-out infinite;
+}
+
+.auth-fullscreen-container.theme-light,
+body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse at 50% 28%, rgba(121, 50, 230, 0.1), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(43, 88, 230, 0.08), transparent 42%);
+  background-size: 160% 160%;
+  animation: shinpo-aurora-drift 28s ease-in-out infinite;
+}
+
+.app-shell.shinpo-glass-ui .icon-sidebar {
+  background-color: color-mix(in srgb, var(--sidebar-bg, #0A0F20) 78%, transparent);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-bg, #0A0F20) 84%, transparent), color-mix(in srgb, var(--surface, #0E1428) 74%, transparent));
+  border-right-color: color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 150%, transparent);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+.app-shell.shinpo-glass-ui :is(.schedule-session-item, .schedule-day-tile, .schedule-agenda-board, .settings-modal-box, .settings-content-panel) {
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+body.shinpo-glass-ui .auth-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--surface-card, #192541) 78%, transparent);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px) saturate(130%);
+  -webkit-backdrop-filter: blur(24px) saturate(130%);
+}
+
+body.shinpo-glass-ui.theme-light .auth-card {
+  border-color: rgba(77, 119, 249, 0.18);
+  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 82%, transparent);
+  box-shadow: 0 20px 60px rgba(77, 119, 249, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+body.shinpo-glass-ui .MuiDialog-paper,
+body.shinpo-glass-ui .MuiPopover-paper,
+body.shinpo-glass-ui .MuiMenu-paper {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+}
+
+body.shinpo-glass-ui :is(button, a, [role='button'], .MuiButtonBase-root) {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+body.shinpo-glass-ui :is(button, a, [role='button'], .MuiButtonBase-root):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.app-shell.theme-aurora :is(.schedule-session-item, .flight-deck-card, .goal-task-card, .tm-table tbody tr, .calendar-event, .timeline-item) {
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+}
+
+.app-shell.theme-aurora :is(button, a, [role='button'], .MuiButtonBase-root) {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.app-shell.theme-aurora :is(button, a, [role='button'], .MuiButtonBase-root):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.app-shell.theme-aurora :is(input, textarea, select, .shinpo-select-trigger, .shinpo-datepicker-trigger, .shinpo-popover-surface) {
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.app-shell.theme-aurora .MuiDialog-paper,
+.app-shell.theme-aurora .MuiPopover-paper,
+.app-shell.theme-aurora .MuiMenu-paper,
+.app-shell.theme-aurora .MuiTooltip-tooltip,
+.app-shell.theme-aurora input,
+.app-shell.theme-aurora textarea,
+.app-shell.theme-aurora select,
+.aurora-viewport .MuiDialog-paper,
+.aurora-viewport .MuiPopover-paper,
+.aurora-viewport .MuiMenu-paper,
+.aurora-viewport .MuiTooltip-tooltip,
+.aurora-viewport input,
+.aurora-viewport textarea,
+.aurora-viewport select {
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+.app-shell.theme-aurora .MuiDialog-paper,
+.app-shell.theme-aurora .MuiPopover-paper,
+.app-shell.theme-aurora .MuiMenu-paper,
+.aurora-viewport .MuiDialog-paper,
+.aurora-viewport .MuiPopover-paper,
+.aurora-viewport .MuiMenu-paper {
+  border: 1px solid var(--aurora-glass-border-dark);
+  box-shadow: var(--aurora-glass-shadow-dark);
+}
+
+.app-shell.theme-aurora .MuiButton-root,
+.app-shell.theme-aurora button,
+.aurora-viewport button {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.app-shell.theme-aurora .MuiButton-root:hover,
+.app-shell.theme-aurora button:hover,
+.aurora-viewport button:hover {
+  transform: translateY(-1px);
+}
+
+.app-shell.theme-aurora input:focus,
+.app-shell.theme-aurora textarea:focus,
+.app-shell.theme-aurora select:focus,
+.aurora-viewport input:focus,
+.aurora-viewport textarea:focus,
+.aurora-viewport select:focus {
+  outline: none;
+  border-color: rgba(151, 87, 250, 0.72);
+  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.16), 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 720px) {
+  .app-shell.shinpo-glass-ui :is(.analytics-card, .analytics-velocity-card, .tm-metric-card, .flight-deck-board-panel, .status-column, .cockpit-panel, .dashboard-metric-card, .dashboard-sidecar-card, .bento-card, .MuiCard-root) {
+    border-radius: 14px;
+  }
+
+  body.shinpo-glass-ui .MuiDialog-paper {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    margin: 12px;
+  }
+
+  .app-shell.theme-aurora .MuiCard-root,
+  .aurora-viewport .MuiCard-root {
+    border-radius: 14px;
+  }
+
+  .app-shell.theme-aurora .MuiDialog-paper,
+  .aurora-viewport .MuiDialog-paper {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    margin: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.theme-aurora .aurora-glass,
+  .app-shell.theme-aurora .MuiCard-root,
+  .app-shell.theme-aurora .MuiPaper-root,
+  .aurora-viewport .aurora-glass,
+  .aurora-viewport .MuiCard-root,
+  .aurora-viewport .MuiPaper-root {
+    animation: none;
+    transition: none;
+  }
+
+  .app-shell.shinpo-glass-ui *,
+  body.shinpo-glass-ui * {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 

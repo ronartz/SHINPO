@@ -1,0 +1,51 @@
+{
+    email {$TLS_EMAIL:admin@shinpo.app}
+    admin off
+}
+
+{$DOMAIN_NAME:localhost} {
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # API Proxy
+    handle /api/* {
+        reverse_proxy backend:8080 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Actuator Health Check
+    handle /actuator/* {
+        reverse_proxy backend:8080 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # WebSocket STOMP & Native Client Proxy
+    handle /ws* {
+        reverse_proxy backend:8080 {
+            header_up Upgrade {>Upgrade}
+            header_up Connection {>Connection}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Frontend Web App & Static Assets
+    handle {
+        reverse_proxy frontend:80
+    }
+}
+

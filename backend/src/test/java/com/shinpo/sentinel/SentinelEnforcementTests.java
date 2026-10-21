@@ -115,12 +115,15 @@ public class SentinelEnforcementTests {
     }
 
     @Test
-    @DisplayName("Triggering a Sentinel sweep scans OS processes without killing protected core daemons")
+    @DisplayName("Triggering a Sentinel sweep safely delegates to local Shield without scanning or killing server host processes")
     void testTriggerSweepSafety() {
         SentinelSweepResponse sweep = sentinelService.triggerSweep(testUser.getId());
         assertNotNull(sweep);
-        assertTrue(sweep.scannedProcessCount() > 0, "Sweep should inspect at least one OS process");
+        assertEquals(0, sweep.scannedProcessCount(), "Server host processes must not be scanned");
+        assertTrue(sweep.interceptedPids().isEmpty(), "No server host processes may be intercepted");
         assertNotNull(sweep.message());
+        assertTrue(sweep.message().contains("Server-side process scanning is disabled"),
+                "Message must confirm server scanning is disabled");
     }
 
     @Test

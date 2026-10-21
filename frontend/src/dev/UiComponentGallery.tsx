@@ -136,7 +136,7 @@ export const UiComponentGallery: React.FC = () => {
                 type="button"
                 className={`shinpo-btn ${themeMode === t ? 'variant-primary' : 'variant-ghost'} size-sm`}
                 onClick={() => handleThemeChange(t)}
-                style={{ fontSize: 11.5, padding: '0 8px', height: 28 }}
+                style={{ fontSize: 12, padding: '0 8px', height: 28 }}
               >
                 {t.replace('-', ' ').toUpperCase()}
               </button>
@@ -147,7 +147,7 @@ export const UiComponentGallery: React.FC = () => {
             type="button"
             className={`shinpo-btn ${reducedMotion ? 'variant-primary' : 'variant-secondary'} size-sm`}
             onClick={() => setReducedMotion(!reducedMotion)}
-            style={{ fontSize: 11.5, height: 28 }}
+            style={{ fontSize: 12, height: 28 }}
           >
             {reducedMotion ? 'Reduced Motion: ON' : 'Reduced Motion: OFF'}
           </button>

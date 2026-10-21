@@ -106,7 +106,8 @@ class Slice63BackendReliabilityTests {
                 transactionManager,
                 webSocketEventService,
                 exceptionService,
-                warningService
+                warningService,
+                true
         );
 
         focusSessionService = new FocusSessionService(

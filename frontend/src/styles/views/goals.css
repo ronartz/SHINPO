@@ -31,7 +31,7 @@
 }
 
 .deck-counter-badge {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -93,7 +93,7 @@
 }
 
 .goal-kicker {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -192,6 +192,19 @@
   border-top: 1px solid var(--border);
 }
 
+.goal-summary-actions .btn-timer,
+.goal-summary-actions .btn-ai-deconstruct {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
 /* Companion Execution Overview Panel */
 .goal-summary-companion {
   background: var(--surface-subtle);
@@ -240,7 +253,7 @@
 }
 
 .companion-stat-item .stat-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-3);
   text-transform: uppercase;
@@ -268,7 +281,7 @@
 }
 
 .next-action-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-3);
@@ -276,7 +289,7 @@
 }
 
 .next-action-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--accent-cyan, #1BC9DE);
   background: var(--accent-cyan-subtle, rgba(27, 201, 222, 0.12));
@@ -507,6 +520,10 @@
   margin-bottom: 12px;
 }
 
+.tasks-filter-bar.is-board-mode {
+  justify-content: flex-end;
+}
+
 .tasks-status-tabs {
   display: flex;
   align-items: center;
@@ -552,21 +569,21 @@
 
 .status-dot-mini.dot-coral {
   background: var(--primary-coral, #FF4D5E);
-  box-shadow: 0 0 6px rgba(255, 77, 94, 0.5);
+  box-shadow: none;
 }
 
 .status-dot-mini.dot-cyan {
   background: var(--accent-cyan, #1BC9DE);
-  box-shadow: 0 0 6px rgba(27, 201, 222, 0.5);
+  box-shadow: none;
 }
 
 .status-dot-mini.dot-emerald {
   background: var(--accent-green, #10B981);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  box-shadow: none;
 }
 
 .tab-count-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 999px;
@@ -620,44 +637,12 @@
 
 .tasks-sort-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .tasks-sort-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: var(--surface-card);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239096A4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 28px 6px 12px;
-  color: var(--text-2);
-  font-size: 12.5px;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-  height: 34px;
-  box-sizing: border-box;
-  transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.tasks-sort-select:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.tasks-sort-select:focus {
-  border-color: var(--primary-coral, #9757FA);
-  box-shadow: 0 0 0 2px var(--brand-coral-subtle);
-  color: var(--text);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239757FA' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-}
-
-.tasks-sort-select option {
-  background-color: #1D1E24;
-  color: #F3F4F6;
-  padding: 6px 10px;
+  display: inline-flex;
 }
 
 /* View Mode Toggle Button Group */
@@ -812,7 +797,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
@@ -833,7 +818,7 @@
 }
 
 .task-row-status-pill {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -869,7 +854,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
+  height: 28px;
+  padding: 0 12px;
   border-radius: 6px;
   background: var(--primary-coral, #9757FA);
   color: #FFFFFF;
@@ -879,11 +865,19 @@
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .task-row-focus-btn:hover {
   background: var(--brand-coral-hover, #AB75FC);
   transform: translateY(-1px);
+}
+
+.task-row-actions .task-row-resource-btn {
+  height: 28px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 6px;
 }
 
 .task-row-icons-group {
@@ -1089,12 +1083,12 @@ html[data-theme='light'] .overflow-menu-dropdown,
    AI GOAL DECOMPOSITION RESULT BANNER (EONPAI BREAKDOWN)
    ========================================================================== */
 .ai-decomp-banner {
-  background: linear-gradient(135deg, rgba(151, 87, 250, 0.08) 0%, rgba(77, 119, 249, 0.04) 100%), var(--surface-card);
-  border: 1px solid rgba(151, 87, 250, 0.32);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
   border-radius: var(--radius-lg, 14px);
   padding: 22px 24px;
   margin-bottom: 24px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), 0 0 16px rgba(151, 87, 250, 0.10);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1181,7 +1175,7 @@ html[data-theme='light'] .overflow-menu-dropdown,
 }
 
 .decomp-analysis-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -1249,7 +1243,7 @@ html[data-theme='light'] .overflow-menu-dropdown,
 }
 
 .decomp-step-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-3);
   background: rgba(255, 255, 255, 0.06);
@@ -1259,7 +1253,7 @@ html[data-theme='light'] .overflow-menu-dropdown,
 }
 
 .decomp-duration-badge {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   color: #38BDF8;
   background: rgba(56, 189, 248, 0.12);

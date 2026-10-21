@@ -47,9 +47,7 @@
 }
 
 .auth-fullscreen-container.theme-dark {
-  background-image:
-    radial-gradient(ellipse at 76% 18%, rgba(255, 122, 24, 0.11), transparent 38%),
-    radial-gradient(ellipse at 22% 82%, rgba(53, 227, 111, 0.08), transparent 42%);
+  background-color: var(--bg);
 }
 
 @media (max-width: 768px) {
@@ -62,7 +60,7 @@
 /* Sentinel Active Pulse (Coral Protocol) */
 .sentinel-radar-container.active-pulse .sentinel-radar-core {
   background: var(--accent-coral, #FF4D5E);
-  box-shadow: 0 0 12px var(--accent-coral, #FF4D5E);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .sentinel-radar-container.active-pulse .sentinel-radar-ring {
@@ -86,7 +84,7 @@
   background: var(--accent-red-subtle);
   border: 1px solid var(--accent-red-border);
   color: var(--accent-red);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 8px;
@@ -132,13 +130,13 @@ html[data-theme='light'] .sentinel-mode-badge,
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: none;
 }
 
 .sentinel-interception-badge {
   background: var(--accent-coral, #FF4D5E);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 999px;
@@ -214,7 +212,7 @@ html[data-theme='light'] .sentinel-mode-badge,
   background: rgba(27, 201, 222, 0.14);
   color: #1BC9DE;
   border: 1px solid rgba(27, 201, 222, 0.35);
-  box-shadow: 0 0 12px rgba(27, 201, 222, 0.18);
+  box-shadow: none;
 }
 
 .sentinel-status-pill.standby {
@@ -272,7 +270,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 
 .sentinel-overview-dot.connected {
   background: #1BC9DE;
-  box-shadow: 0 0 8px #1BC9DE;
+  box-shadow: none;
 }
 
 .sentinel-overview-dot.disconnected {
@@ -295,7 +293,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 }
 
 .sentinel-section-heading {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -340,7 +338,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 }
 
 .sentinel-rule-action-tag {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 3px;
@@ -415,7 +413,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 }
 
 .sentinel-activity-count-badge {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 9999px;
@@ -425,7 +423,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 }
 
 .sentinel-activity-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 2.5px 8px;
   border-radius: 4px;
@@ -493,7 +491,7 @@ html[data-theme='light'] .sentinel-mode-badge,
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-3, #94A3B8);
 }
 
@@ -514,7 +512,7 @@ html[data-theme='light'] .sentinel-mode-badge,
 }
 
 .activity-detail-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-3, #64748B);
   text-transform: uppercase;
@@ -599,18 +597,18 @@ html[data-theme='light'] .activity-detail-val,
   background: rgba(255, 77, 94, 0.16);
   border: 1px solid rgba(255, 77, 94, 0.4);
   color: var(--accent-coral, #FF4D5E);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 999px;
-  box-shadow: 0 0 10px rgba(255, 77, 94, 0.2);
+  box-shadow: none;
   letter-spacing: 0.03em;
 }
 
 .sentinel-rule-locked-indicator {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent-coral, #FF4D5E);
   opacity: 0.85;
   cursor: help;
@@ -668,7 +666,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .override-char-counter {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   align-self: flex-end;
   margin-top: 4px;
@@ -721,7 +719,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .sentinel-tamper-badge-count {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -764,7 +762,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .warning-cmdline {
-  font-size: 11.5px;
+  font-size: 12px;
   font-family: monospace;
   color: var(--text-3);
   word-break: break-all;
@@ -781,7 +779,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .warning-countdown-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -799,7 +797,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .warning-countdown-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-3);
   margin-top: 4px;
 }
@@ -836,7 +834,7 @@ html[data-theme='light'] .activity-detail-val,
   background: rgba(245, 158, 11, 0.15);
   border-color: var(--accent-yellow, #F59E0B);
   color: var(--accent-yellow, #F59E0B);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+  box-shadow: none;
 }
 
 /* Live Grace Banner in Execution Cockpit and Focus Engine */
@@ -861,7 +859,7 @@ html[data-theme='light'] .activity-detail-val,
 
   50% {
     border-color: rgba(245, 158, 11, 0.7);
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+    box-shadow: none;
   }
 }
 
@@ -882,7 +880,7 @@ html[data-theme='light'] .activity-detail-val,
 }
 
 .grace-banner-subtitle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-3);
   margin-top: 1px;
 }
@@ -902,14 +900,12 @@ html[data-theme='light'] .activity-detail-val,
 /* Status indicator colors in sidebar */
 .status-dot-active.warning-engaged {
   background: var(--accent-coral, #FF4D5E);
-  box-shadow: 0 0 8px #FF4D5E;
-  animation: pulseDot 1s infinite;
+  box-shadow: none;
 }
 
 .status-dot-active.grace-engaged {
   background: var(--accent-yellow, #F59E0B);
-  box-shadow: 0 0 8px #F59E0B;
-  animation: pulseDot 1.5s infinite;
+  box-shadow: none;
 }
 
 .badge-tag.yellow {
@@ -989,7 +985,7 @@ html[data-theme='light'] .sentinel-tamper-badge-count.alert,
 }
 
 .sentinel-severity-badge {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1022,7 +1018,7 @@ html[data-theme='light'] .sentinel-tamper-badge-count.alert,
 }
 
 .sentinel-tamper-justification {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-2, #94A3B8);
   background: rgba(0, 0, 0, 0.2);
   padding: 6px 10px;

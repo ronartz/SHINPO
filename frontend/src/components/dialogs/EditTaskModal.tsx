@@ -78,7 +78,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           <div style={{ marginBottom: 14 }}>
             <label
               htmlFor="edit-task-title-input"
-              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+              className="shinpo-field-label"
+              style={{ marginBottom: 6 }}
             >
               Task Title
             </label>
@@ -96,7 +97,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           <div style={{ marginBottom: 14 }}>
             <label
               htmlFor="edit-task-desc-input"
-              style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+              className="shinpo-field-label"
+              style={{ marginBottom: 6 }}
             >
               Task Notes (optional)
             </label>
@@ -122,7 +124,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             <div>
               <label
                 htmlFor="edit-task-duration-input"
-                style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}
+                className="shinpo-field-label"
+                style={{ marginBottom: 6 }}
               >
                 Estimated Minutes
               </label>

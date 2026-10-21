@@ -16,19 +16,25 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final boolean active;
+    private final long tokenVersion;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserPrincipal(Long userId, String username, String email, String password, boolean active, Collection<? extends GrantedAuthority> authorities) {
+    public UserPrincipal(Long userId, String username, String email, String password, boolean active, long tokenVersion, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.username = username;
         this.email = email;
         this.password = password;
         this.active = active;
+        this.tokenVersion = tokenVersion;
         this.authorities = authorities;
     }
 
+    public UserPrincipal(Long userId, String username, String email, String password, boolean active, Collection<? extends GrantedAuthority> authorities) {
+        this(userId, username, email, password, active, 1L, authorities);
+    }
+
     public UserPrincipal(Long userId, String username, String email, String password, Collection<? extends GrantedAuthority> authorities) {
-        this(userId, username, email, password, true, authorities);
+        this(userId, username, email, password, true, 1L, authorities);
     }
 
     public static UserPrincipal create(User user) {
@@ -40,12 +46,17 @@ public class UserPrincipal implements UserDetails {
                 user.getEmail(),
                 user.getPasswordHash(),
                 user.isActive(),
+                user.getTokenVersion(),
                 authorities
         );
     }
 
     public Long getUserId() {
         return userId;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
     }
 
     public String getEmail() {

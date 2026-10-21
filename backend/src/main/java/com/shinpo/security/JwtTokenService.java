@@ -4,14 +4,20 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.shinpo.entity.RefreshToken;
 import com.shinpo.entity.User;
 import com.shinpo.repository.RefreshTokenRepository;
+import com.shinpo.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -22,6 +28,10 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class JwtTokenService {
@@ -39,12 +49,35 @@ public class JwtTokenService {
     private final Algorithm algorithm;
     private final JWTVerifier verifier;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final TransactionTemplate requiresNewTransactionTemplate;
+    private final Map<String, Instant> blacklistedTokens = new ConcurrentHashMap<>();
 
     public JwtTokenService(
             @Value("${shinpo.jwt.secret:}") String secret,
             Environment environment,
             RefreshTokenRepository refreshTokenRepository
+    ) {
+        this(secret, environment, refreshTokenRepository, null, null);
+    }
+
+    public JwtTokenService(
+            @Value("${shinpo.jwt.secret:}") String secret,
+            Environment environment,
+            RefreshTokenRepository refreshTokenRepository,
+            PlatformTransactionManager transactionManager
+    ) {
+        this(secret, environment, refreshTokenRepository, null, transactionManager);
+    }
+
+    @Autowired
+    public JwtTokenService(
+            @Value("${shinpo.jwt.secret:}") String secret,
+            Environment environment,
+            RefreshTokenRepository refreshTokenRepository,
+            @Autowired(required = false) UserRepository userRepository,
+            @Autowired(required = false) PlatformTransactionManager transactionManager
     ) {
         boolean isProduction = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
@@ -73,6 +106,13 @@ public class JwtTokenService {
         this.algorithm = Algorithm.HMAC256(secret);
         this.verifier = JWT.require(algorithm).withIssuer(ISSUER).build();
         this.refreshTokenRepository = refreshTokenRepository;
+        this.userRepository = userRepository;
+        if (transactionManager != null) {
+            this.requiresNewTransactionTemplate = new TransactionTemplate(transactionManager);
+            this.requiresNewTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        } else {
+            this.requiresNewTransactionTemplate = null;
+        }
     }
 
     public String generateAccessToken(UserPrincipal principal) {
@@ -82,9 +122,11 @@ public class JwtTokenService {
         return JWT.create()
                 .withIssuer(ISSUER)
                 .withSubject(String.valueOf(principal.getUserId()))
+                .withJWTId(UUID.randomUUID().toString())
                 .withClaim("userId", principal.getUserId())
                 .withClaim("username", principal.getUsername())
                 .withClaim("email", principal.getEmail())
+                .withClaim("tokenVersion", principal.getTokenVersion())
                 .withIssuedAt(now)
                 .withExpiresAt(expiresAt)
                 .sign(algorithm);
@@ -113,14 +155,21 @@ public class JwtTokenService {
         return rawToken;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = {IllegalArgumentException.class})
     public TokenPair rotateRefreshToken(String rawRefreshToken) {
         String tokenHash = hashToken(rawRefreshToken);
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 
-        if (!refreshToken.isValid()) {
-            throw new IllegalArgumentException("Refresh token is expired or revoked");
+        if (refreshToken.isRevoked()) {
+            // Replay detection: An already-revoked refresh token was presented!
+            // Revoke all tokens for this user immediately (token family compromise)
+            revokeAllUserTokens(refreshToken.getUser().getId());
+            throw new IllegalArgumentException("Refresh token replay detected. All sessions have been revoked.");
+        }
+
+        if (refreshToken.isExpired()) {
+            throw new IllegalArgumentException("Refresh token is expired");
         }
 
         // Revoke the old token (one-time use / rotation)
@@ -128,6 +177,10 @@ public class JwtTokenService {
         refreshTokenRepository.save(refreshToken);
 
         User user = refreshToken.getUser();
+        if (!user.isActive()) {
+            throw new IllegalArgumentException("User account is disabled");
+        }
+
         UserPrincipal principal = UserPrincipal.create(user);
 
         String newAccessToken = generateAccessToken(principal);
@@ -146,6 +199,81 @@ public class JwtTokenService {
             token.revoke();
             refreshTokenRepository.save(token);
         });
+    }
+
+    public Long extractTokenVersion(String token) throws JWTVerificationException {
+        DecodedJWT decoded = verifyAccessToken(token);
+        Claim claim = decoded.getClaim("tokenVersion");
+        return (claim != null && !claim.isNull()) ? claim.asLong() : null;
+    }
+
+    public String extractJwtId(String token) throws JWTVerificationException {
+        DecodedJWT decoded = verifyAccessToken(token);
+        return decoded.getId();
+    }
+
+    public void blacklistToken(String token) {
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        try {
+            DecodedJWT jwt = verifyAccessToken(token);
+            String jti = jwt.getId();
+            Instant expiresAt = jwt.getExpiresAtAsInstant();
+            if (jti != null && expiresAt != null && expiresAt.isAfter(Instant.now())) {
+                blacklistedTokens.put(jti, expiresAt);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    public boolean isTokenBlacklisted(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        try {
+            DecodedJWT jwt = verifyAccessToken(token);
+            String jti = jwt.getId();
+            if (jti == null) {
+                return false;
+            }
+            Instant expiresAt = blacklistedTokens.get(jti);
+            if (expiresAt == null) {
+                return false;
+            }
+            if (Instant.now().isAfter(expiresAt)) {
+                blacklistedTokens.remove(jti);
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    @Transactional
+    public void revokeAllUserTokens(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        Runnable revokeTask = () -> {
+            if (userRepository != null) {
+                userRepository.incrementTokenVersion(userId);
+            }
+            List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUser_Id(userId);
+            for (RefreshToken token : activeTokens) {
+                if (!token.isRevoked()) {
+                    token.revoke();
+                }
+            }
+            refreshTokenRepository.saveAll(activeTokens);
+        };
+
+        if (requiresNewTransactionTemplate != null) {
+            requiresNewTransactionTemplate.executeWithoutResult(status -> revokeTask.run());
+        } else {
+            revokeTask.run();
+        }
     }
 
     public static String hashToken(String token) {

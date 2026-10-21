@@ -22,9 +22,11 @@ public class AuthDtos {
 
     public record LoginRequest(
             @NotBlank(message = "Username or email is required")
+            @Size(max = 100, message = "Username or email cannot exceed 100 characters")
             String usernameOrEmail,
 
             @NotBlank(message = "Password is required")
+            @Size(max = 128, message = "Password cannot exceed 128 characters")
             String password
     ) {}
 
@@ -44,4 +46,20 @@ public class AuthDtos {
             return new AuthResponse(accessToken, refreshToken, "Bearer", 3600L, user);
         }
     }
+
+    public record ChangePasswordRequest(
+            @NotBlank(message = "Current password is required")
+            @Size(max = 128, message = "Current password cannot exceed 128 characters")
+            String currentPassword,
+
+            @NotBlank(message = "New password is required")
+            @Size(min = 6, max = 100, message = "New password must be at least 6 characters")
+            String newPassword
+    ) {}
+
+    public record UpdateUsernameRequest(
+            @NotBlank(message = "Username is required")
+            @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+            String username
+    ) {}
 }

@@ -191,9 +191,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       </div>
 
       {isVisuallyExpanded && (
-        <div className="sidebar-upper-quote" role="region" aria-label="Motivational Quote">
+        <div className="sidebar-upper-quote" role="region" aria-label="Perspective Quote">
           <div className="sidebar-upper-quote-header">
-            <span className="sidebar-upper-quote-tag">SHINPO</span>
+            <span className="sidebar-upper-quote-eyebrow">PERSPECTIVE</span>
             <button
               type="button"
               className="sidebar-quote-refresh-btn"
@@ -201,11 +201,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               title="Next message"
               aria-label="Cycle motivational quote"
             >
-              <Icon name="refresh" size={12} />
+              <Icon name="refresh" size={13} />
             </button>
           </div>
           <p className="sidebar-upper-quote-text">
-            "{shinpoMessage.text}"
+            “{shinpoMessage.text}”
           </p>
         </div>
       )}
@@ -223,6 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => onSelectTab(item.id)}
             title={item.label}
+            data-tab={item.id}
             data-tooltip={item.label}
             data-tutorial={item.tut}
           >

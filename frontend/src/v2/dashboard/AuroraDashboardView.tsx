@@ -68,9 +68,9 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
   activeGraceWarning,
   graceSecondsLeft = 0,
   timerSeconds = 0,
-  handlePause = () => {},
-  handleResume = () => {},
-  setCompletingSessionId = () => {},
+  handlePause = () => { },
+  handleResume = () => { },
+  setCompletingSessionId = () => { },
   topSearchQuery = '',
   setTopSearchQuery,
   isDarkMode = true,
@@ -140,10 +140,18 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
     ? pendM.slice(1)
     : pendM
 
+  const completedGoalIds = useMemo(
+    () => new Set(goals.filter((goal) => goal.status === 'COMPLETED').map((goal) => goal.id)),
+    [goals],
+  )
+  const firstActionableMission = missions.find(
+    (mission) => mission.status !== 'COMPLETED' && !completedGoalIds.has(mission.goalId),
+  ) || null
+
   // 4. Primary Featured Action Task
   const primaryActionTask = activeSession
     ? null
-    : (nextActionMission || (displayPending.length > 0 ? displayPending[0] : (missions.find((m) => m.status !== 'COMPLETED') || null)))
+    : (nextActionMission || (displayPending.find((mission) => !completedGoalIds.has(mission.goalId)) || firstActionableMission))
   const primaryActionGoal = primaryActionTask ? goalMap.get(primaryActionTask.goalId) : null
 
   // 5. Render individual task card for the Kanban columns
@@ -164,13 +172,12 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           p: '12px 14px',
           borderRadius: '10px',
           background: isDarkMode ? '#192541' : '#FFFFFF',
-          border: `1px solid ${
-            isActive
-              ? '#FF4D5E'
-              : isDone
+          border: `1px solid ${isActive
+            ? '#FF4D5E'
+            : isDone
               ? isDarkMode ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.25)'
               : isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(77, 119, 249, 0.12)'
-          }`,
+            }`,
           boxShadow: isDarkMode ? '0 2px 8px rgba(0, 0, 0, 0.25)' : '0 2px 8px rgba(77, 119, 249, 0.04)',
           display: 'flex',
           flexDirection: 'column',
@@ -272,7 +279,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 borderRadius: '6px',
                 background: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(77, 119, 249, 0.08)',
                 color: isDarkMode ? 'text.secondary' : '#3563F6',
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: 600,
                 maxWidth: 160,
                 overflow: 'hidden',
@@ -290,7 +297,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
           <Box
             sx={{
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: 700,
               px: 1,
               py: 0.2,
@@ -369,18 +376,20 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             {/* Focus Protection Status Pill */}
             {sentinelStatus && (
               <Box
+                id="aurora-focus-protection-pill"
                 onClick={() => setActiveTab('Task Manager')}
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 1,
                   px: 1.8,
-                  py: 0.8,
-                  borderRadius: '999px',
+                  height: 38,
+                  boxSizing: 'border-box',
+                  borderRadius: '10px',
                   background: isDarkMode ? 'rgba(25, 37, 65, 0.7)' : '#FFFFFF',
                   border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(77, 119, 249, 0.2)'}`,
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 13.5,
                   fontWeight: 700,
                   color: 'text.primary',
                   boxShadow: isDarkMode ? 'none' : '0 2px 6px rgba(77, 119, 249, 0.06)',
@@ -397,7 +406,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     height: 7,
                     borderRadius: '50%',
                     bgcolor: sentinelStatus.status === 'ACTIVE_DEFENSE' ? '#FF4D5E' : '#10B981',
-                    boxShadow: sentinelStatus.status === 'ACTIVE_DEFENSE' ? '0 0 8px #FF4D5E' : '0 0 8px #10B981',
+                    boxShadow: 'none',
                   }}
                 />
                 <span>
@@ -417,7 +426,16 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 }
                 setIsCreatingQuickMission(true)
               }}
-              style={{ padding: '8px 18px', fontSize: '13.5px', borderRadius: '10px' }}
+              style={{
+                height: '38px',
+                padding: '0 18px',
+                fontSize: '13.5px',
+                borderRadius: '10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                boxSizing: 'border-box',
+                gap: '7px',
+              }}
               title="Create a new task"
             >
               <Icon name="plus" size={13} />
@@ -443,6 +461,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             sm: 'repeat(2, minmax(0, 1fr))',
             md: 'repeat(4, minmax(0, 1fr))',
           },
+          gridAutoRows: '1fr',
           gap: '16px', // Exact V1 metrics grid gap
           width: '100%',
         }}
@@ -455,9 +474,12 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           onClick={() => setActiveTab('Goals & Missions')}
           sx={{
             p: '20px 22px',
+            height: '100%',
+            minHeight: 168,
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
+            justifyContent: 'space-between',
             gap: 1.2,
           }}
           title="View all goals"
@@ -506,9 +528,12 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           onClick={() => setActiveTab('Analytics')}
           sx={{
             p: '20px 22px',
+            height: '100%',
+            minHeight: 168,
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
+            justifyContent: 'space-between',
             gap: 1.2,
           }}
           title="View Focus Analytics"
@@ -554,15 +579,19 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="lift"
           glass
+          data-tutorial="metric-completion"
           onClick={() => {
             const board = document.getElementById('aurora-tasks-board')
             if (board) board.scrollIntoView({ behavior: 'smooth' })
           }}
           sx={{
             p: '20px 22px',
+            height: '100%',
+            minHeight: 168,
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
+            justifyContent: 'space-between',
             gap: 1.2,
           }}
           title="View Tasks Board"
@@ -611,9 +640,12 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           onClick={() => setActiveTab('Analytics')}
           sx={{
             p: '20px 22px',
+            height: '100%',
+            minHeight: 168,
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
+            justifyContent: 'space-between',
             gap: 1.2,
           }}
           title="View Execution Analytics"
@@ -650,27 +682,31 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           >
             {velocityRate}%
           </Typography>
-          <Box
-            sx={{
-              width: '100%',
-              height: 6,
-              borderRadius: 999,
-              bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(77, 119, 249, 0.1)',
-              overflow: 'hidden',
-              mt: 0.5,
-            }}
-          >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, width: '100%' }}>
+            <Typography sx={{ fontSize: 13.5, color: 'text.secondary', fontWeight: 500 }}>
+              Velocity rate this week
+            </Typography>
             <Box
               sx={{
-                height: '100%',
                 width: '100%',
-                transform: `scaleX(${Math.min(1, Math.max(0, velocityRate / 100))})`,
-                transformOrigin: 'left',
-                background: 'linear-gradient(135deg, #9757FA 0%, #4D77F9 100%)',
+                height: 6,
                 borderRadius: 999,
-                transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(77, 119, 249, 0.1)',
+                overflow: 'hidden',
               }}
-            />
+            >
+              <Box
+                sx={{
+                  height: '100%',
+                  width: '100%',
+                  transform: `scaleX(${Math.min(1, Math.max(0, velocityRate / 100))})`,
+                  transformOrigin: 'left',
+                  background: 'linear-gradient(135deg, #9757FA 0%, #4D77F9 100%)',
+                  borderRadius: 999,
+                  transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              />
+            </Box>
           </Box>
         </AuroraCard>
       </Box>
@@ -692,6 +728,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="none"
           glass
+          noPadding
+          data-tutorial="cockpit-priority"
           sx={{
             p: '20px 22px',
             display: 'flex',
@@ -730,7 +768,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                         height: 7,
                         borderRadius: '50%',
                         bgcolor: '#FF4D5E',
-                        boxShadow: '0 0 8px #FF4D5E',
+                        boxShadow: 'none',
                       }}
                     />
                     <span>{activeSession.status === 'PAUSED' ? 'PAUSED' : 'ACTIVE FOCUS SPRINT'}</span>
@@ -1021,13 +1059,15 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="none"
           glass
+          noPadding
+          data-tutorial="todays-schedule-card"
           sx={{
             p: '20px 22px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'flex-start',
             height: '100%',
-            gap: 1.5,
+            gap: 2,
           }}
           aria-label="Today's Schedule"
         >
@@ -1083,7 +1123,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           {/* Card Body: Renders sorted sessions with 3-column CSS Grid geometry */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, justifyContent: 'flex-start' }}>
             {sortedScheduleSessions.length > 0 ? (
-              sortedScheduleSessions.slice(0, 3).map((s, idx) => {
+              sortedScheduleSessions.slice(0, 4).map((s, idx) => {
                 const isActive = s.status === 'ACTIVE' || s.status === 'PAUSED' || (activeSession && activeSession.id === s.id)
                 const isDone = s.status === 'COMPLETED'
                 const canStart = s.status === 'SCHEDULED' && !activeSession
@@ -1098,7 +1138,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     }}
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: '28px 1fr 64px',
+                      gridTemplateColumns: '28px minmax(0, 1fr) 64px',
                       alignItems: 'center',
                       gap: 1.5,
                       p: '10px 14px',
@@ -1118,25 +1158,28 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                         borderRadius: '6px',
                         background: isDone
                           ? isDarkMode ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5'
-                          : isActive
-                          ? isDarkMode ? 'rgba(0, 229, 255, 0.16)' : '#E0F2FE'
-                          : isDarkMode ? '#111B31' : '#FFFFFF',
-                        border: `1px solid ${
-                          isDone
-                            ? 'rgba(16, 185, 129, 0.3)'
+                          : s.status === 'PAUSED'
+                            ? isDarkMode ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB'
                             : isActive
-                            ? 'rgba(0, 229, 255, 0.35)'
-                            : isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'
-                        }`,
-                        color: isDone ? '#10B981' : isActive ? '#00E5FF' : 'text.secondary',
-                        fontSize: 12.5,
+                              ? isDarkMode ? 'rgba(0, 229, 255, 0.16)' : '#E0F2FE'
+                              : isDarkMode ? '#111B31' : '#FFFFFF',
+                        border: `1px solid ${isDone
+                          ? 'rgba(16, 185, 129, 0.3)'
+                          : s.status === 'PAUSED'
+                            ? 'rgba(245, 158, 11, 0.35)'
+                            : isActive
+                              ? 'rgba(0, 229, 255, 0.35)'
+                              : isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'
+                          }`,
+                        color: isDone ? '#10B981' : s.status === 'PAUSED' ? '#F59E0B' : isActive ? '#00E5FF' : 'text.secondary',
+                        fontSize: 13,
                         fontWeight: 700,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      {isDone ? '✓' : isActive ? '▶' : idx + 1}
+                      {isDone ? '✓' : s.status === 'PAUSED' ? '❚❚' : isActive ? '▶' : idx + 1}
                     </Box>
 
                     {/* Flexible Col 2: Title + Distinct Secondary Details */}
@@ -1157,7 +1200,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: 12.5,
+                          fontSize: 13,
                           color: 'text.secondary',
                           lineHeight: 1.25,
                           whiteSpace: 'nowrap',
@@ -1171,34 +1214,37 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     </Box>
 
                     {/* Fixed-width Col 3: Outcome / Action Badge */}
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 64 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 64, minWidth: 0 }}>
                       <Box
                         sx={{
                           width: '100%',
                           textAlign: 'center',
                           px: 0.8,
-                          py: 0.35,
+                          py: 0.4,
                           borderRadius: '999px',
-                          fontSize: 11.5,
+                          fontSize: 12,
                           fontWeight: 700,
                           background: isDone
                             ? isDarkMode ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5'
-                            : isActive
-                            ? isDarkMode ? 'rgba(0, 229, 255, 0.16)' : '#E0F2FE'
-                            : isDarkMode ? 'rgba(255, 77, 94, 0.14)' : '#FFF0E9',
-                          color: isDone ? '#10B981' : isActive ? '#00E5FF' : '#FF4D5E',
-                          border: `1px solid ${
-                            isDone
-                              ? 'rgba(16, 185, 129, 0.3)'
+                            : s.status === 'PAUSED'
+                              ? isDarkMode ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB'
                               : isActive
-                              ? 'rgba(0, 229, 255, 0.3)'
-                              : 'rgba(255, 77, 94, 0.28)'
-                          }`,
+                                ? isDarkMode ? 'rgba(0, 229, 255, 0.16)' : '#E0F2FE'
+                                : isDarkMode ? 'rgba(255, 77, 94, 0.14)' : '#FFF0E9',
+                          color: isDone ? '#10B981' : s.status === 'PAUSED' ? '#F59E0B' : isActive ? '#00E5FF' : '#FF4D5E',
+                          border: `1px solid ${isDone
+                            ? 'rgba(16, 185, 129, 0.3)'
+                            : s.status === 'PAUSED'
+                              ? 'rgba(245, 158, 11, 0.35)'
+                              : isActive
+                                ? 'rgba(0, 229, 255, 0.3)'
+                                : 'rgba(255, 77, 94, 0.28)'
+                            }`,
                           whiteSpace: 'nowrap',
                           boxSizing: 'border-box',
                         }}
                       >
-                        {isDone ? 'Done' : isActive ? 'Active' : `${s.durationMinutes}m`}
+                        {isDone ? 'Done' : s.status === 'PAUSED' ? 'Paused' : isActive ? 'Active' : `${s.durationMinutes}m`}
                       </Box>
                     </Box>
                   </Box>
@@ -1213,23 +1259,60 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 1,
-                  py: 2.5,
+                  py: 3,
                   textAlign: 'center',
                 }}
               >
                 <Icon name="schedule" size={24} />
-                <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 13.5 }}>
                   No scheduled sessions today
                 </Typography>
                 <button
                   className="aurora-btn-secondary"
                   onClick={() => setActiveTab('Schedule')}
-                  style={{ fontSize: '12px', padding: '5px 12px' }}
+                  style={{ fontSize: '13px', padding: '6px 14px', borderRadius: '8px' }}
                 >
                   + Schedule Focus Block
                 </button>
               </Box>
             )}
+
+            {/* Bottom Card Footer: Symmetrical anchor eliminating dead space */}
+            <Box
+              sx={{
+                mt: 'auto',
+                pt: 1.5,
+                borderTop: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.07)' : 'rgba(77, 119, 249, 0.1)'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 500 }}>
+                {sortedScheduleSessions.length > 0 ? `${sortedScheduleSessions.length} total today` : 'Ready to plan'}
+              </Typography>
+              <Box
+                component="button"
+                onClick={() => setActiveTab('Schedule')}
+                sx={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: isDarkMode ? '#9757FA' : '#7932E6',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  p: 0,
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                + Schedule Focus Block
+              </Box>
+            </Box>
           </Box>
         </AuroraCard>
 
@@ -1379,7 +1462,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     height: 8,
                     borderRadius: '50%',
                     bgcolor: '#FF4D5E',
-                    boxShadow: '0 0 8px rgba(255, 77, 94, 0.6)',
+                    boxShadow: 'none',
                   }}
                 />
                 <Typography sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary' }}>
@@ -1490,7 +1573,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     height: 8,
                     borderRadius: '50%',
                     bgcolor: '#1BC9DE',
-                    boxShadow: '0 0 8px rgba(27, 201, 222, 0.6)',
+                    boxShadow: 'none',
                   }}
                 />
                 <Typography sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary' }}>
@@ -1565,6 +1648,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           <AuroraCard
             tiltVariant="none"
             glass
+            data-tutorial="completed-column"
             sx={{
               p: '18px 20px',
               minHeight: 410,
@@ -1592,7 +1676,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     height: 8,
                     borderRadius: '50%',
                     bgcolor: '#10B981',
-                    boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
+                    boxShadow: 'none',
                   }}
                 />
                 <Typography sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary' }}>

@@ -278,6 +278,7 @@ class Slice62SecurityHardeningTests {
     void testStompConnectWithValidToken() {
         JwtTokenService jwtTokenService = mock(JwtTokenService.class);
         when(jwtTokenService.extractUserId("valid_jwt")).thenReturn(100L);
+        when(jwtTokenService.extractTokenVersion("valid_jwt")).thenReturn(testUserPrincipal.getTokenVersion());
         when(userDetailsService.loadUserById(100L)).thenReturn(testUserPrincipal);
 
         WebSocketConfig wsConfig = new WebSocketConfig(jwtTokenService, userDetailsService);

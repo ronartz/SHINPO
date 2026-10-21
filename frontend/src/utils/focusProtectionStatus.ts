@@ -128,13 +128,28 @@ export interface ProtectionStatusInfo {
 }
 
 /**
+ * Formats backend technical enforcement mode strings into human-readable user labels.
+ * Specifically maps AUDIT_ONLY to "Monitoring Only" and CONTAINMENT to "Containment".
+ */
+export function formatEnforcementMode(mode?: string | null): string {
+  if (!mode) return 'Strict'
+  const normalized = mode.trim().toUpperCase()
+  if (normalized === 'AUDIT_ONLY') return 'Monitoring Only'
+  if (normalized === 'CONTAINMENT') return 'Containment'
+  if (normalized === 'STRICT') return 'Strict'
+  return mode
+}
+
+/**
  * Derives honest overall protection health based on real session state,
  * daemon heartbeat connectivity, and enforcement mode.
  */
 export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | null): ProtectionStatusInfo {
   const isSessionActive = Boolean(sentinelStatus?.activeFocusSessionId)
   const shieldConnected = Boolean(sentinelStatus?.daemonConnected)
-  const mode = sentinelStatus?.enforcementMode || 'STRICT'
+  const rawMode = sentinelStatus?.enforcementMode || 'STRICT'
+  const isAuditOnly = rawMode.toUpperCase() === 'AUDIT_ONLY'
+  const mode = formatEnforcementMode(rawMode)
   const isPolicyLocked = Boolean(sentinelStatus?.isPolicyLocked)
   const activeSessionName = sentinelStatus?.activeFocusSessionName || null
 
@@ -142,10 +157,12 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     if (shieldConnected) {
       return {
         statusKey: 'ACTIVE_DEFENSE',
-        badgeText: 'Active Defense',
+        badgeText: isAuditOnly ? 'Active Monitoring' : 'Active Defense',
         badgeVariant: 'active',
         headline: activeSessionName ? `Protecting: "${activeSessionName}"` : 'Active Focus Session Protected',
-        description: 'Native Shield daemon is actively defending workstation against distraction applications.',
+        description: isAuditOnly
+          ? 'Focus session active in Monitoring Only mode. Workstation activity is logged; no applications will be terminated.'
+          : 'Native Shield daemon is actively defending workstation against distraction applications.',
         shieldConnected: true,
         mode,
         isPolicyLocked,
@@ -170,10 +187,12 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     if (rawStatus === 'STANDBY') {
       return {
         statusKey: 'STANDBY',
-        badgeText: 'Standby',
+        badgeText: isAuditOnly ? 'Monitoring Standby' : 'Standby',
         badgeVariant: 'standby',
         headline: 'Standby (Upcoming Sprint)',
-        description: 'Daemon heartbeat verified. Shield is ready to arm protection when scheduled session starts.',
+        description: isAuditOnly
+          ? 'Daemon heartbeat verified. Shield is ready in Monitoring Only mode when scheduled session starts.'
+          : 'Daemon heartbeat verified. Shield is ready to arm protection when scheduled session starts.',
         shieldConnected: true,
         mode,
         isPolicyLocked,
@@ -182,10 +201,12 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     }
     return {
       statusKey: 'READY',
-      badgeText: 'Ready',
-      badgeVariant: 'ready',
-      headline: 'Ready (Passive Standby)',
-      description: 'No active focus session. Workstation monitored in passive telemetry standby.',
+      badgeText: isAuditOnly ? 'Monitoring Only' : 'Ready',
+      badgeVariant: isAuditOnly ? 'standby' : 'ready',
+      headline: isAuditOnly ? 'Monitoring Only (Passive)' : 'Ready (Passive Standby)',
+      description: isAuditOnly
+        ? 'No active focus session. Workstation is in passive telemetry monitoring mode; applications will not be terminated.'
+        : 'No active focus session. Workstation monitored in passive telemetry standby.',
       shieldConnected: true,
       mode,
       isPolicyLocked,

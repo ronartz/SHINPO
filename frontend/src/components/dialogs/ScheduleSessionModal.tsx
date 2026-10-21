@@ -111,7 +111,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Session Name
             </label>
             <input
@@ -125,7 +125,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Session Intention (Optional)
             </label>
             <input
@@ -158,7 +158,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Focus Plan (Optional)
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -187,7 +187,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
               </button>
             </div>
 
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-3)', marginBottom: 6 }}>
+            <label className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Duration Preset ({duration} min)
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>

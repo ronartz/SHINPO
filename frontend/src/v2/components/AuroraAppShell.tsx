@@ -7,6 +7,7 @@ import type { AppView } from '../../types/navigation'
 import type { ShinpoMessage } from '../../utils/shinpoMessages'
 import type { SentinelStatus } from '../../api/device'
 import type { AuthUser } from '../../api/auth'
+import type { ProgressResponse } from '../../api/progress'
 import '../theme/aurora.css'
 
 export interface AuroraAppShellProps {
@@ -33,7 +34,10 @@ export interface AuroraAppShellProps {
   isAlertsDrawerOpen?: boolean
   onToggleAlertsDrawer?: () => void
   onRefreshData?: () => void
+  isRefreshing?: boolean
+  onOpenSettings?: () => void
   currentUser?: AuthUser | null
+  userProgress?: ProgressResponse | null
   onLogout?: () => void
 }
 
@@ -56,7 +60,10 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
   isAlertsDrawerOpen = false,
   onToggleAlertsDrawer,
   onRefreshData,
+  isRefreshing = false,
+  onOpenSettings,
   currentUser = null,
+  userProgress = null,
   onLogout,
 }) => {
   const muiTheme = React.useMemo(() => getAuroraTheme(isDarkMode ? 'dark' : 'light'), [isDarkMode])
@@ -73,7 +80,7 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
           display: 'flex',
           position: 'relative',
           overflow: 'hidden',
-          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontFamily: "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         }}
       >
         {/* Background Atmospheric Aurora Glow */}
@@ -118,7 +125,10 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
             isDarkMode={isDarkMode}
             onToggleTheme={onToggleTheme}
             onRefreshData={onRefreshData}
+            isRefreshing={isRefreshing}
+            onOpenSettings={onOpenSettings}
             currentUser={currentUser}
+            userProgress={userProgress}
             onLogout={onLogout}
             onToggleV2Preview={onToggleV2Preview}
             isV2Preview={isV2Preview}

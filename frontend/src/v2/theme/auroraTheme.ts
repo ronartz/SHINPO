@@ -1,7 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 import {
   auroraColors,
-  auroraGradients,
   auroraShadows,
   auroraTypography,
 } from './auroraTokens'
@@ -51,39 +50,80 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       },
     },
     typography: {
-      fontFamily: auroraTypography.fontBody,
+      fontFamily: auroraTypography.fontFamily,
+      allVariants: {
+        fontFamily: auroraTypography.fontFamily,
+      },
       h1: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 700,
-        letterSpacing: '-0.03em',
+        fontSize: '32px',
+        fontWeight: 800,
+        letterSpacing: '-0.025em',
       },
       h2: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 700,
+        fontSize: '28px',
+        fontWeight: 800,
         letterSpacing: '-0.02em',
       },
       h3: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 600,
+        fontSize: '24px',
+        fontWeight: 700,
         letterSpacing: '-0.015em',
       },
       h4: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 600,
+        fontSize: '20px',
+        fontWeight: 700,
         letterSpacing: '-0.01em',
       },
       h5: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 600,
+        fontSize: '18px',
+        fontWeight: 700,
       },
       h6: {
         fontFamily: auroraTypography.fontHeading,
-        fontWeight: 600,
+        fontSize: '16px',
+        fontWeight: 700,
+      },
+      subtitle1: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '16px',
+        fontWeight: 650,
+      },
+      subtitle2: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '15px',
+        fontWeight: 650,
+      },
+      body1: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '15px',
+        fontWeight: 400,
+      },
+      body2: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '14px',
+        fontWeight: 500,
       },
       button: {
         textTransform: 'none',
-        fontWeight: 600,
+        fontSize: '14px',
+        fontWeight: 700,
         fontFamily: auroraTypography.fontBody,
+      },
+      caption: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '12.5px',
+        fontWeight: 500,
+      },
+      overline: {
+        fontFamily: auroraTypography.fontBody,
+        fontSize: '12px',
+        fontWeight: 700,
+        letterSpacing: '0.08em',
       },
     },
     shape: {
@@ -120,33 +160,185 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
         styleOverrides: {
           root: {
             backgroundImage: 'none',
+            fontFamily: auroraTypography.fontBody,
           },
         },
       },
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 12,
-            padding: '10px 22px',
-            fontSize: '14.5px',
-            fontWeight: 600,
-            transition: 'all 200ms ease',
+            borderRadius: 10,
+            padding: '8px 20px',
+            fontSize: '14px',
+            fontWeight: 700,
+            fontFamily: auroraTypography.fontBody,
+            transition: 'all 180ms ease',
+            '&:focus-visible': {
+              outline: `2px solid ${c.accentPurple}`,
+              outlineOffset: 2,
+            },
           },
           contained: {
-            background: auroraGradients.primary,
+            backgroundColor: c.accentPurple,
             color: '#FFFFFF',
             boxShadow: mode === 'dark'
-              ? '0 4px 18px rgba(151, 87, 250, 0.35)'
-              : '0 4px 16px rgba(77, 119, 249, 0.28)',
+              ? '0 1px 3px rgba(0, 0, 0, 0.25)'
+              : '0 1px 2px rgba(0, 0, 0, 0.08)',
             '&:hover': {
-              background: auroraGradients.primaryHover,
+              backgroundColor: mode === 'dark' ? '#AB75FC' : '#6825D4',
               boxShadow: mode === 'dark'
-                ? '0 6px 24px rgba(151, 87, 250, 0.50)'
-                : '0 6px 22px rgba(77, 119, 249, 0.40)',
+                ? '0 2px 6px rgba(0, 0, 0, 0.30)'
+                : '0 2px 5px rgba(0, 0, 0, 0.12)',
               transform: 'translateY(-1px)',
             },
           },
-
+          outlined: {
+            borderColor: c.border,
+            color: c.textPrimary,
+            '&:hover': {
+              borderColor: c.accentPurple,
+              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.08)' : 'rgba(121, 50, 230, 0.06)',
+            },
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+            borderRadius: 10,
+            backgroundColor: mode === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+            borderColor: c.border,
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: c.borderStrong,
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: c.accentPurple,
+              borderWidth: '1.5px',
+            },
+          },
+          input: {
+            fontFamily: auroraTypography.fontBody,
+            fontSize: '14px',
+          },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+            fontSize: '14px',
+            color: c.textSecondary,
+            '&.Mui-focused': {
+              color: c.accentPurple,
+            },
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: mode === 'dark' ? 'rgba(21, 28, 48, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(16px)',
+            border: `1px solid ${c.border}`,
+            borderRadius: 14,
+            boxShadow: s.lg,
+            fontFamily: auroraTypography.fontBody,
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+            fontSize: '13.5px',
+            fontWeight: 600,
+            padding: '8px 14px',
+            borderRadius: 8,
+            margin: '2px 6px',
+            color: c.textPrimary,
+            transition: 'background-color 150ms ease',
+            '&:hover': {
+              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.12)' : 'rgba(121, 50, 230, 0.08)',
+            },
+            '&.Mui-selected': {
+              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.2)' : 'rgba(121, 50, 230, 0.12)',
+              fontWeight: 700,
+            },
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: mode === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.97)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${c.border}`,
+            borderRadius: 20,
+            boxShadow: s.lg,
+            fontFamily: auroraTypography.fontBody,
+          },
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontHeading,
+            fontWeight: 800,
+            fontSize: '18px',
+            color: c.textPrimary,
+          },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: mode === 'dark' ? 'rgba(15, 23, 42, 0.96)' : 'rgba(30, 41, 59, 0.96)',
+            border: `1px solid ${c.border}`,
+            borderRadius: 8,
+            fontFamily: auroraTypography.fontBody,
+            fontSize: '12px',
+            fontWeight: 600,
+            boxShadow: s.md,
+            padding: '6px 12px',
+          },
+        },
+      },
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+          },
+          indicator: {
+            backgroundColor: c.accentPurple,
+            height: 3,
+            borderRadius: '3px 3px 0 0',
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+            textTransform: 'none',
+            fontSize: '14px',
+            fontWeight: 700,
+            color: c.textSecondary,
+            '&.Mui-selected': {
+              color: c.accentPurple,
+            },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            fontFamily: auroraTypography.fontBody,
+            fontSize: '12px',
+            fontWeight: 700,
+            borderRadius: 8,
+          },
         },
       },
     },

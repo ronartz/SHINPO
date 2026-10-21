@@ -75,7 +75,7 @@ export const AuroraFeaturedCard: React.FC<AuroraFeaturedCardProps> = ({
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
             {metaItems.map((item, idx) => (
               <Box key={idx}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11.5, fontWeight: 700 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 12, fontWeight: 700 }}>
                   {item.label}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', fontSize: 14.5 }}>
