@@ -49,13 +49,18 @@ public class RateLimitingService {
     private final Map<String, Deque<Long>> failedAccountBuckets = new ConcurrentHashMap<>();
 
     public RateLimitingService(@Value("${shinpo.security.rate-limit.trusted-proxies:}") String trustedProxies) {
-        trustedProxyMatchers = trustedProxies == null || trustedProxies.isBlank()
-                ? List.of()
-                : java.util.Arrays.stream(trustedProxies.split(","))
-                    .map(String::trim)
-                    .filter(value -> !value.isEmpty())
-                    .map(IpAddressMatcher::new)
-                    .toList();
+        if (trustedProxies == null || trustedProxies.isBlank()) {
+            trustedProxyMatchers = List.of();
+        } else {
+            List<IpAddressMatcher> matchers = new java.util.ArrayList<>();
+            for (String token : trustedProxies.split(",")) {
+                String trimmed = token.trim();
+                if (!trimmed.isEmpty()) {
+                    matchers.add(new IpAddressMatcher(trimmed));
+                }
+            }
+            trustedProxyMatchers = List.copyOf(matchers);
+        }
     }
 
     /**

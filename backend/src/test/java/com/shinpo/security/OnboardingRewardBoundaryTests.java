@@ -12,6 +12,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -24,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @AutoConfigureTestRestTemplate
 class OnboardingRewardBoundaryTests {
+
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {};
 
     @LocalServerPort
     private int port;
@@ -51,27 +54,30 @@ class OnboardingRewardBoundaryTests {
             headers.setBearerAuth(token);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            ResponseEntity<Map> forgedStep = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> forgedStep = restTemplate.exchange(
                     url("/api/onboarding/step"), HttpMethod.POST,
-                    new HttpEntity<>("{\"stepIndex\":5,\"actionVerified\":true}", headers), Map.class);
+                    new HttpEntity<>("{\"stepIndex\":5,\"actionVerified\":true}", headers), MAP_TYPE);
             assertThat(forgedStep.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(forgedStep.getBody()).isNotNull();
             assertThat(((Number) forgedStep.getBody().get("completedStepsCount")).intValue()).isZero();
             assertThat(forgedStep.getBody().get("verifiedSteps")).isEqualTo("");
 
-            ResponseEntity<Map> finish = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> finish = restTemplate.exchange(
                     url("/api/onboarding/finish"), HttpMethod.POST,
-                    new HttpEntity<>("{}", headers), Map.class);
+                    new HttpEntity<>("{}", headers), MAP_TYPE);
             assertThat(finish.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(finish.getBody()).isNotNull();
             assertThat(finish.getBody().get("canClaimReward")).isEqualTo(false);
 
-            ResponseEntity<Map> claim = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> claim = restTemplate.exchange(
                     url("/api/progress/onboarding"), HttpMethod.POST,
-                    new HttpEntity<>(headers), Map.class);
+                    new HttpEntity<>(headers), MAP_TYPE);
             assertThat(claim.getStatusCode().value()).isEqualTo(400);
 
-            ResponseEntity<Map> progress = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> progress = restTemplate.exchange(
                     url("/api/progress"), HttpMethod.GET,
-                    new HttpEntity<>(headers), Map.class);
+                    new HttpEntity<>(headers), MAP_TYPE);
+            assertThat(progress.getBody()).isNotNull();
             assertThat(((Number) progress.getBody().get("totalProgress")).intValue()).isZero();
         } finally {
             userRepository.deleteById(user.getId());
