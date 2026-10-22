@@ -546,7 +546,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
         {/* Restrained Single Workspace Header */}
         <header className="eonpai-chat-header">
           <div className="eonpai-identity-wrap">
-            <div className="eonpai-avatar-badge">
+            <div className={`eonpai-avatar-badge${aiLoading ? ' is-thinking' : ''}`} data-presence={aiLoading ? 'thinking' : 'idle'}>
               <Icon name="sparkle" size={15} />
             </div>
             <div className="eonpai-title-meta">

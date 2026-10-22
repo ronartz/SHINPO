@@ -26,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestRestTemplate
 class OnboardingRewardBoundaryTests {
 
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {
+    };
 
     @LocalServerPort
     private int port;

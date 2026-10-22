@@ -16,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 
 /**
- * Thread-safe sliding-window rate limiting service for authentication endpoints.
+ * Thread-safe sliding-window rate limiting service for authentication
+ * endpoints.
  * Protects against brute-force attacks, credential stuffing, and DoS.
  * Forwarded client addresses are trusted only from configured proxy CIDRs.
  */
@@ -64,9 +65,12 @@ public class RateLimitingService {
     }
 
     /**
-     * Resolves the real client IP address. Forwarded headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP)
-     * are trusted only if the direct connection originates from a configured proxy CIDR.
-     * If an external client connects directly, forwarded headers are rejected to prevent rate-limit evasion.
+     * Resolves the real client IP address. Forwarded headers (X-Forwarded-For,
+     * X-Real-IP, CF-Connecting-IP)
+     * are trusted only if the direct connection originates from a configured proxy
+     * CIDR.
+     * If an external client connects directly, forwarded headers are rejected to
+     * prevent rate-limit evasion.
      */
     public String resolveClientIp(HttpServletRequest request) {
         if (request == null) {
@@ -77,32 +81,38 @@ public class RateLimitingService {
         String directIp = (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr.trim() : "127.0.0.1";
         String fallbackIp = directIp;
 
-        // Security Hardening: Only trust headers if the direct socket is a trusted proxy
+        // Security Hardening: Only trust headers if the direct socket is a trusted
+        // proxy
         if (!isTrustedProxy(directIp)) {
             return directIp;
         }
 
         String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded == null || forwarded.isBlank()) return directIp;
+        if (forwarded == null || forwarded.isBlank())
+            return directIp;
 
         String[] chain = forwarded.split(",");
         for (int i = chain.length - 1; i >= 0; i--) {
             String candidate = chain[i].trim();
-            if (!isValidIp(candidate)) return fallbackIp;
+            if (!isValidIp(candidate))
+                return fallbackIp;
             directIp = candidate;
-            if (!isTrustedProxy(candidate)) return candidate;
+            if (!isTrustedProxy(candidate))
+                return candidate;
         }
         return directIp;
     }
 
     public boolean isTrustedProxy(String ip) {
-        if (!isValidIp(ip)) return false;
+        if (!isValidIp(ip))
+            return false;
         String address = ip.trim();
         return trustedProxyMatchers.stream().anyMatch(matcher -> matcher.matches(address));
     }
 
     private boolean isValidIp(String ip) {
-        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) return false;
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip))
+            return false;
         try {
             return new IpAddressMatcher(ip.trim()).matches(ip.trim());
         } catch (IllegalArgumentException invalidAddress) {
@@ -143,7 +153,8 @@ public class RateLimitingService {
         Deque<Long> timestamps = failedLoginBuckets.computeIfAbsent("login_fail:" + clientIp, k -> new ArrayDeque<>());
         pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
         timestamps.addLast(now);
-        log.warn("RATE_LIMIT: Recorded failed login attempt for IP: {}, total recent failures: {}", clientIp, timestamps.size());
+        log.warn("RATE_LIMIT: Recorded failed login attempt for IP: {}, total recent failures: {}", clientIp,
+                timestamps.size());
     }
 
     /**
@@ -172,7 +183,8 @@ public class RateLimitingService {
     }
 
     /**
-     * Records a failed login attempt for a specific account (mitigates distributed brute force / password spraying).
+     * Records a failed login attempt for a specific account (mitigates distributed
+     * brute force / password spraying).
      */
     public synchronized void recordFailedLoginForAccount(String usernameOrEmail) {
         if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
@@ -184,7 +196,8 @@ public class RateLimitingService {
         Deque<Long> timestamps = failedAccountBuckets.computeIfAbsent(key, k -> new ArrayDeque<>());
         pruneOldTimestamps(timestamps, now - FAILED_LOGIN_WINDOW.toMillis());
         timestamps.addLast(now);
-        log.warn("RATE_LIMIT: Recorded failed login for account: {}, total recent failures: {}", usernameOrEmail, timestamps.size());
+        log.warn("RATE_LIMIT: Recorded failed login for account: {}, total recent failures: {}", usernameOrEmail,
+                timestamps.size());
     }
 
     /**
@@ -197,7 +210,8 @@ public class RateLimitingService {
     }
 
     /**
-     * Checks if a specific account is currently locked out due to excessive failed logins across any IP.
+     * Checks if a specific account is currently locked out due to excessive failed
+     * logins across any IP.
      */
     public synchronized boolean isAccountLockedOut(String usernameOrEmail) {
         if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
@@ -274,4 +288,3 @@ public class RateLimitingService {
         failedAccountBuckets.clear();
     }
 }
-

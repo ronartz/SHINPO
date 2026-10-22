@@ -103,7 +103,7 @@ async function main() {
     })
     const evaluate = async (expression) => {
       const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
-      if (result.result.exceptionDetails) throw new Error(result.result.exceptionDetails.text)
+      if (result.result.exceptionDetails) throw new Error(`Browser evaluation failed: ${JSON.stringify(result.result.exceptionDetails)}`)
       return result.result.result.value
     }
 
@@ -163,6 +163,158 @@ async function main() {
       }
       console.log('Fresh-account walkthrough skipped through confirmation UI; PostgreSQL-backed API reports SKIPPED, 0 XP, 0 events.')
     } else throw new Error('Fresh disposable account did not launch the first-login walkthrough within 10 seconds of app readiness')
+
+    await evaluate("Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === 'Dashboard')?.click()")
+    await sleep(700)
+    const dashboardMotion = await evaluate(`(() => {
+      const route = document.querySelector('.kinetic-route-dashboard');
+      const firstPanel = route?.querySelector('.kinetic-dashboard-layout > :first-child');
+      return { route: route?.dataset.view, routeAnimation: route && getComputedStyle(route).animationName, panelAnimation: firstPanel && getComputedStyle(firstPanel).animationName };
+    })()`)
+    assert.equal(dashboardMotion.route, 'Dashboard', `Dashboard navigation must resolve to the Dashboard content: ${JSON.stringify(dashboardMotion)}`)
+    assert.equal(dashboardMotion.routeAnimation, 'kinetic-page-enter', `Route entry motion must be present: ${JSON.stringify(dashboardMotion)}`)
+    assert.equal(dashboardMotion.panelAnimation, 'kinetic-dashboard-reveal', `Dashboard panels must reveal from the real route: ${JSON.stringify(dashboardMotion)}`)
+    await evaluate("Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === 'Goals & Missions')?.click()")
+    await sleep(360)
+    const markerAlignment = await evaluate(`(() => {
+      const marker = document.querySelector('.sidebar-active-indicator')?.getBoundingClientRect();
+      const active = document.querySelector('.sidebar-btn.active')?.getBoundingClientRect();
+      return { route: document.querySelector('.kinetic-route')?.dataset.view, delta: marker && active ? Math.round((marker.top + marker.height / 2 - active.top - active.height / 2) * 100) / 100 : null };
+    })()`)
+    assert.equal(markerAlignment.route, 'Goals & Missions', `Navigation must reach the selected function: ${JSON.stringify(markerAlignment)}`)
+    assert.ok(Math.abs(markerAlignment.delta) <= 1, `Active marker must align with its selected navigation row: ${JSON.stringify(markerAlignment)}`)
+    await evaluate("document.querySelector('.sidebar-search-control')?.click()")
+    assert.equal(await evaluate("document.activeElement?.classList.contains('top-search-input')"), true, 'Sidebar search must focus the real global search input')
+    await evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+    await sleep(300)
+
+    console.log('Starting sidebar pointer/focus/pin checks at 1280×800.')
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false })
+    await evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+    const sidebarSetup = await evaluate(`(() => {
+      const sidebar = document.querySelector('.icon-sidebar');
+      const toggle = sidebar?.querySelector('.sidebar-toggle-btn');
+      if (!sidebar || !toggle) return null;
+      if (toggle.getAttribute('aria-expanded') === 'true') toggle.click();
+      return { sidebar: sidebar.getBoundingClientRect().width, mainLeft: document.querySelector('.app-main')?.getBoundingClientRect().left };
+    })()`)
+    assert.ok(sidebarSetup, 'Sidebar controls must be present before testing expansion')
+    console.log(`Sidebar baseline: ${JSON.stringify(sidebarSetup)}`)
+    await sleep(250)
+    assert.ok(sidebarSetup.sidebar <= 90, `Fresh audit sidebar should collapse before temporary expansion: ${JSON.stringify(sidebarSetup)}`)
+    const navPoint = await evaluate(`(() => { const r = document.querySelector('.sidebar-btn')?.getBoundingClientRect(); return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`)
+    assert.ok(navPoint, 'Collapsed navigation item must have a pointer target')
+    const appRenderBaseline = await evaluate('window.__SHINPO_RENDER_COUNTS?.App ?? 0')
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...navPoint })
+    await sleep(360)
+    const hoverExpansion = await evaluate(`(() => ({
+      expanded: document.querySelector('.icon-sidebar')?.classList.contains('expanded'),
+      width: document.querySelector('.icon-sidebar')?.getBoundingClientRect().width,
+      mainLeft: document.querySelector('.app-main')?.getBoundingClientRect().left,
+      appRenders: window.__SHINPO_RENDER_COUNTS?.App ?? 0,
+    }))()`)
+    assert.ok(hoverExpansion.expanded && hoverExpansion.width >= 240, `Pointer hover must reveal the expanded rail: ${JSON.stringify(hoverExpansion)}`)
+    assert.ok(Math.abs(hoverExpansion.mainLeft - hoverExpansion.width) <= 1, `Desktop expansion must reserve the rail width so page content is not obscured: ${JSON.stringify(hoverExpansion)}`)
+    assert.equal(hoverExpansion.appRenders, appRenderBaseline, 'Sidebar hover must not rerender the application root')
+    console.log(`Sidebar hover result: ${JSON.stringify(hoverExpansion)}`)
+    const expandedCapture = await send('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(captures, 'sidebar-hover-expanded-dark.png'), Buffer.from(expandedCapture.result.data, 'base64'))
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
+    await sleep(360)
+    assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), false, 'Temporary hover expansion must collapse after the pointer exits')
+
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...navPoint })
+    await sleep(360)
+    const expandedNavPoint = await evaluate(`(() => { const r = document.querySelector('.sidebar-btn[data-tab="Goals & Missions"]')?.getBoundingClientRect(); return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`)
+    assert.ok(expandedNavPoint, 'Expanded navigation item must retain its hit target')
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...expandedNavPoint, button: 'left', buttons: 1, clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...expandedNavPoint, button: 'left', buttons: 0, clickCount: 1 })
+    await sleep(80)
+    const pointerFocusedTab = await evaluate('document.activeElement?.getAttribute(\'data-tab\')')
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
+    await sleep(360)
+    assert.ok(pointerFocusedTab, 'Pointer navigation should leave the selected control keyboard-focusable')
+    assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), false, 'Pointer-click focus must not keep the temporary sidebar stuck open')
+    assert.equal(await evaluate('document.activeElement?.getAttribute(\'data-tab\')'), pointerFocusedTab, 'Pointer collapse must preserve the focused navigation control')
+
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab' })
+    await evaluate("document.querySelector('.sidebar-btn')?.focus()")
+    await sleep(80)
+    assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), true, 'Keyboard focus must reveal navigation labels')
+    const focusedNav = await evaluate('document.activeElement?.getAttribute(\'data-tab\')')
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' })
+    await sleep(80)
+    assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), false, 'Escape must dismiss temporary expansion')
+    assert.equal(await evaluate('document.activeElement?.getAttribute(\'data-tab\')'), focusedNav, 'Dismissal must retain keyboard focus on its navigation item')
+    await evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+    await sleep(250)
+
+    await evaluate("document.querySelector('.sidebar-toggle-btn')?.click()")
+    await sleep(360)
+    const pinnedSidebar = await evaluate(`({
+      expanded: document.querySelector('.sidebar-toggle-btn')?.getAttribute('aria-expanded'),
+      width: document.querySelector('.icon-sidebar')?.getBoundingClientRect().width,
+      mainLeft: document.querySelector('.app-main')?.getBoundingClientRect().left,
+      preference: localStorage.getItem('shinpo_sidebar_pinned'),
+    })`)
+    assert.equal(pinnedSidebar.expanded, 'true', `Pin must retain expanded layout: ${JSON.stringify(pinnedSidebar)}`)
+    assert.equal(pinnedSidebar.preference, 'true', 'Pin state must persist')
+    assert.ok(Math.abs(pinnedSidebar.mainLeft - pinnedSidebar.width) <= 1, `Pinned desktop rail must reserve its width: ${JSON.stringify(pinnedSidebar)}`)
+    await evaluate("document.querySelector('.sidebar-toggle-btn')?.click()")
+    await sleep(360)
+
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+    const compactMainLeft = await evaluate("document.querySelector('.app-main')?.getBoundingClientRect().left")
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab' })
+    await evaluate("document.querySelector('.sidebar-btn')?.focus()")
+    await sleep(360)
+    const compactFocusExpansion = await evaluate(`({
+      expanded: document.querySelector('.icon-sidebar')?.classList.contains('expanded'),
+      width: document.querySelector('.icon-sidebar')?.getBoundingClientRect().width,
+      mainLeft: document.querySelector('.app-main')?.getBoundingClientRect().left,
+      labelsVisible: (() => { const label = document.querySelector('.sidebar-btn-label'); return Boolean(label && getComputedStyle(label).display !== 'none'); })(),
+      activeElement: document.activeElement?.getAttribute('data-tab'),
+    })`)
+    assert.ok(compactFocusExpansion.expanded && compactFocusExpansion.width >= 240 && compactFocusExpansion.labelsVisible, `Compact viewport must expose usable focused navigation: ${JSON.stringify(compactFocusExpansion)}`)
+    assert.ok(Math.abs(compactFocusExpansion.mainLeft - compactMainLeft) <= 1, `Compact temporary expansion must overlay without shifting content: ${JSON.stringify({ compactMainLeft, compactFocusExpansion })}`)
+    await evaluate(`(() => { document.documentElement.dataset.theme = 'light'; for (const el of [document.documentElement, document.body, document.querySelector('.app-shell')].filter(Boolean)) el.classList.add('theme-light'); })()`)
+    await sleep(350)
+    await evaluate("document.querySelectorAll('.shinpo-toast-dismiss').forEach((button) => button.click())")
+    await sleep(100)
+    const lightSidebarSurface = await evaluate("getComputedStyle(document.querySelector('.icon-sidebar')).backgroundColor")
+    const backgroundAlpha = lightSidebarSurface.match(/rgba\([^)]*,\s*([\d.]+)\s*\)|\/\s*([\d.]+)\s*\)/i)?.slice(1).find(Boolean)
+    assert.ok(!backgroundAlpha || Number(backgroundAlpha) === 1, `Light navigation rail must be an opaque surface: ${lightSidebarSurface}`)
+    const compactCapture = await send('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(captures, 'sidebar-keyboard-expanded-light-390.png'), Buffer.from(compactCapture.result.data, 'base64'))
+    await evaluate(`(() => { document.documentElement.dataset.theme = 'dark'; for (const el of [document.documentElement, document.body, document.querySelector('.app-shell')].filter(Boolean)) el.classList.remove('theme-light'); })()`)
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] })
+    const reducedMotionDuration = await evaluate("getComputedStyle(document.querySelector('.icon-sidebar')).transitionDuration")
+    assert.ok(reducedMotionDuration.split(',').every((duration) => Number.parseFloat(duration) <= 0.001), `Reduced-motion preference must remove sidebar movement: ${reducedMotionDuration}`)
+    await send('Emulation.setEmulatedMedia', { features: [] })
+    await evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
+    await sleep(270)
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false })
+    await sleep(250)
+    const desktopNavPoint = await evaluate(`(() => { const r = document.querySelector('.sidebar-btn')?.getBoundingClientRect(); return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`)
+    const cycleDurations = []
+    for (let cycle = 0; cycle < 50; cycle++) {
+      const startedAt = performance.now()
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...desktopNavPoint })
+      await sleep(25)
+      assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), true, `Sidebar failed to open on hover cycle ${cycle + 1}`)
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
+      await sleep(235)
+      assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), false, `Sidebar remained open after hover cycle ${cycle + 1}`)
+      cycleDurations.push(performance.now() - startedAt)
+    }
+    cycleDurations.sort((a, b) => a - b)
+    const cycleP95 = Math.round(cycleDurations[Math.ceil(cycleDurations.length * 0.95) - 1])
+    const finalAppRenders = await evaluate('window.__SHINPO_RENDER_COUNTS?.App ?? 0')
+    console.log(`Sidebar interactions PASS: immediate hover did not rerender App (${appRenderBaseline}), hover exit after pointer-focused navigation, keyboard focus/Escape, persistent pin, compact viewport, reduced motion; 50/50 hover cycles, p95 ${cycleP95}ms including 220ms exit grace. App render count after the 13s cycle batch: ${finalAppRenders} (includes independent 6s protection-status polling). Captures: ${captures}/sidebar-hover-expanded-dark.png and ${captures}/sidebar-keyboard-expanded-light-390.png`)
 
     const results = []
     for (const viewport of viewports) {

@@ -44,6 +44,15 @@
   pointer-events: none;
 }
 
+@media (max-width: 768px) {
+  .shinpo-toast-container {
+    left: calc(var(--sidebar-w-collapsed, 72px) + 12px);
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 .shinpo-toast-item {
   pointer-events: auto;
   border-radius: 14px;

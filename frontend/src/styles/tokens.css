@@ -6,6 +6,12 @@
 :root {
   --sidebar-w: 260px;
   --sidebar-w-collapsed: 72px;
+  --motion-hover: 150ms;
+  --motion-control: 210ms;
+  --motion-panel: 320ms;
+  --motion-page: 380ms;
+  --motion-stagger: 32ms;
+  --ease-kinetic: cubic-bezier(0.2, 0.85, 0.25, 1);
 
   /* Global Semantic Typography Scale */
   --font-size-display: 28px;

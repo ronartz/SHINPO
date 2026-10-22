@@ -10,6 +10,7 @@ export interface TopBarProps {
   activeTab: AppView
   topSearchQuery: string
   onSearchChange: (query: string) => void
+  searchInputRef?: React.RefObject<HTMLInputElement | null>
   unreadAlertCount: number
   isAlertsDrawerOpen: boolean
   onToggleAlertsDrawer: () => void
@@ -32,6 +33,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   activeTab,
   topSearchQuery,
   onSearchChange,
+  searchInputRef,
   unreadAlertCount,
   isAlertsDrawerOpen,
   onToggleAlertsDrawer,
@@ -60,6 +62,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
       <div className="top-search-command" role="search">
         <Icon name="search" size={15} />
         <input
+          ref={searchInputRef}
           type="text"
           className="top-search-input"
           placeholder="Search tasks, goals, or sessions..."
