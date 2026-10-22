@@ -1,0 +1,104 @@
+{
+  "validity": {
+    "status": "INVALIDATED",
+    "reason": "The recorded screenshots show the sign-in page, not the authenticated app. The verifier injected obsolete shinpo_token/shinpo_user keys, so its UI claims were not demonstrated.",
+    "supersededBy": "SUPPORTING_EXPERIENCE_OCTOBER_22_RETEST.json"
+  },
+  "timestamp": "2026-10-21T18:44:25.398Z",
+  "milestone": "October 23 — Supporting Experience",
+  "testUser": "oct23_214144",
+  "targetBackend": "http://127.0.0.1:18080",
+  "targetFrontend": "http://127.0.0.1:5174",
+  "summary": {
+    "totalChecks": 10,
+    "verified": 7,
+    "partial": 3,
+    "failed": 0,
+    "consoleErrors": 0,
+    "networkErrors": 0
+  },
+  "findings": [
+    {
+      "category": "Session",
+      "feature": "User Hydration",
+      "status": "VERIFIED",
+      "details": "Disposable user @oct23_214144 (ID: 158) authenticated and hydrated in desktop UI",
+      "screenshot": "01_app_hydrated.png",
+      "timestamp": "2026-10-21T18:43:40.059Z"
+    },
+    {
+      "category": "EONPAI",
+      "feature": "Goal Decomposition",
+      "status": "PARTIAL",
+      "details": "EONPAI returned response but structured decomposition block did not render within timeout",
+      "screenshot": "03_eonpai_decomposition_rendered.png",
+      "timestamp": "2026-10-21T18:44:09.534Z"
+    },
+    {
+      "category": "EONPAI",
+      "feature": "AI Suggestion Mutation",
+      "status": "VERIFIED",
+      "details": "Successfully committed 1 AI-suggested missions directly into database",
+      "screenshot": "04_eonpai_tasks_committed.png",
+      "timestamp": "2026-10-21T18:44:12.264Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Honest Daemon Telemetry",
+      "status": "VERIFIED",
+      "details": "Focus Protection accurately displays status () without fake daemon connected state",
+      "screenshot": "05_focus_protection_view.png",
+      "timestamp": "2026-10-21T18:44:14.003Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Policy Mode Toggle",
+      "status": "VERIFIED",
+      "details": "Protection mode successfully toggled to STRICT and persisted",
+      "screenshot": "05_focus_protection_view.png",
+      "timestamp": "2026-10-21T18:44:15.526Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Blacklist Policy Rule CRUD",
+      "status": "PARTIAL",
+      "details": "Rule was not found in backend policy rules list",
+      "screenshot": "07_rule_added.png",
+      "timestamp": "2026-10-21T18:44:18.292Z"
+    },
+    {
+      "category": "Study Resources",
+      "feature": "Contextual Whitelist CRUD",
+      "status": "VERIFIED",
+      "details": "Created and verified study whitelist resource \"Spring Framework Reference Docs\" (docs.spring.io)",
+      "screenshot": null,
+      "timestamp": "2026-10-21T18:44:18.354Z"
+    },
+    {
+      "category": "Study Resources",
+      "feature": "Resource Deletion",
+      "status": "VERIFIED",
+      "details": "Safely removed study resource 39 with no orphan records",
+      "screenshot": null,
+      "timestamp": "2026-10-21T18:44:18.384Z"
+    },
+    {
+      "category": "Progression",
+      "feature": "Achievements & Milestones Modal",
+      "status": "PARTIAL",
+      "details": "Modal did not render upon clicking level badge",
+      "screenshot": "08_achievements_modal.png",
+      "timestamp": "2026-10-21T18:44:19.789Z"
+    },
+    {
+      "category": "Settings",
+      "feature": "Multi-Tab Navigation",
+      "status": "VERIFIED",
+      "details": "Navigated Appearance, Protection, Privacy, and About tabs smoothly without crashes",
+      "screenshot": "12_settings_about.png",
+      "timestamp": "2026-10-21T18:44:24.597Z"
+    }
+  ],
+  "consoleErrors": [],
+  "networkErrors": []
+}

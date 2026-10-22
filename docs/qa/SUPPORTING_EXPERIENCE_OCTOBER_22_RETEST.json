@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-10-22T07:38:06.307Z",
+  "milestone": "October 23 — Supporting Experience",
+  "testUser": "oct23_658779",
+  "targetBackend": "http://127.0.0.1:18080",
+  "targetFrontend": "http://127.0.0.1:5173",
+  "captureDirectory": "/tmp/shinpo-supporting-experience-1792654658776",
+  "supersedes": "SUPPORTING_EXPERIENCE_OCTOBER_23.json (its screenshots show the sign-in page; UI results were not authenticated)",
+  "summary": {
+    "totalChecks": 10,
+    "verified": 10,
+    "partial": 0,
+    "failed": 0,
+    "consoleErrors": 0,
+    "networkErrors": 0
+  },
+  "findings": [
+    {
+      "category": "Session",
+      "feature": "User Hydration",
+      "status": "VERIFIED",
+      "details": "Disposable user @oct23_658779 (ID: 2) authenticated and hydrated in desktop UI",
+      "screenshot": "01_app_hydrated.png",
+      "timestamp": "2026-10-22T07:37:42.124Z"
+    },
+    {
+      "category": "EONPAI",
+      "feature": "Goal Decomposition",
+      "status": "VERIFIED",
+      "details": "EONPAI rendered structured decomposition cards with atomic estimated missions",
+      "screenshot": "03_eonpai_decomposition_rendered.png",
+      "timestamp": "2026-10-22T07:37:48.055Z"
+    },
+    {
+      "category": "EONPAI",
+      "feature": "AI Suggestion Mutation",
+      "status": "VERIFIED",
+      "details": "Committed 5 suggested tasks through the app and confirmed them through the authenticated API",
+      "screenshot": "04_eonpai_tasks_committed.png",
+      "timestamp": "2026-10-22T07:37:50.760Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Honest Daemon Telemetry",
+      "status": "VERIFIED",
+      "details": "Focus Protection accurately displays status (Protection UnavailableDaemon offlineView Protection→) without fake daemon connected state",
+      "screenshot": "05_focus_protection_view.png",
+      "timestamp": "2026-10-22T07:37:52.527Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Policy Mode Toggle",
+      "status": "VERIFIED",
+      "details": "Protection mode successfully toggled to STRICT and persisted",
+      "screenshot": "05_focus_protection_view.png",
+      "timestamp": "2026-10-22T07:37:54.038Z"
+    },
+    {
+      "category": "Focus Protection",
+      "feature": "Blacklist Policy Rule CRUD",
+      "status": "VERIFIED",
+      "details": "Created distraction rule [discord: BLOCKED] (ID: 2)",
+      "screenshot": "07_rule_added.png",
+      "timestamp": "2026-10-22T07:37:57.579Z"
+    },
+    {
+      "category": "Study Resources",
+      "feature": "Contextual Whitelist CRUD",
+      "status": "VERIFIED",
+      "details": "Created and verified study whitelist resource \"Spring Framework Reference Docs\" (docs.spring.io)",
+      "screenshot": null,
+      "timestamp": "2026-10-22T07:37:57.603Z"
+    },
+    {
+      "category": "Study Resources",
+      "feature": "Resource Deletion",
+      "status": "VERIFIED",
+      "details": "Safely removed study resource 2 with no orphan records",
+      "screenshot": null,
+      "timestamp": "2026-10-22T07:37:57.615Z"
+    },
+    {
+      "category": "Progression",
+      "feature": "Achievements & Milestones Modal",
+      "status": "VERIFIED",
+      "details": "Modal rendered with title \"Focus Initiate\" and 8 milestone cards",
+      "screenshot": "08_achievements_modal.png",
+      "timestamp": "2026-10-22T07:37:59.680Z"
+    },
+    {
+      "category": "Settings",
+      "feature": "Multi-Tab Navigation",
+      "status": "VERIFIED",
+      "details": "Navigated Appearance, Protection, Privacy, and About tabs smoothly without crashes",
+      "screenshot": "12_settings_about.png",
+      "timestamp": "2026-10-22T07:38:05.506Z"
+    }
+  ],
+  "consoleErrors": [],
+  "networkErrors": []
+}

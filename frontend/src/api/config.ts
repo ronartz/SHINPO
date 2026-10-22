@@ -40,24 +40,6 @@ export function getCustomServerUrl(): string {
   return ''
 }
 
-export async function setCustomServerUrl(url: string): Promise<void> {
-  if (typeof window !== 'undefined') {
-    const current = localStorage.getItem('shinpo_custom_server_url') || ''
-    const clean = url.trim().replace(/\/+$/, '')
-    const validation = isValidServerUrl(clean)
-    if (!validation.valid) throw new Error(validation.reason || 'Invalid server URL')
-    if (clean !== current.trim().replace(/\/+$/, '')) {
-      const { clearAuthSession } = await import('./auth.ts')
-      await clearAuthSession()
-    }
-    if (clean) {
-      localStorage.setItem('shinpo_custom_server_url', clean)
-    } else {
-      localStorage.removeItem('shinpo_custom_server_url')
-    }
-  }
-}
-
 export function isValidServerUrl(url: string): { valid: boolean; reason?: string } {
   const trimmed = url.trim()
   if (!trimmed) return { valid: true }

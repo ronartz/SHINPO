@@ -1,14 +1,4 @@
-import { TaskManagerView } from './views/TaskManagerView'
-import { AnalyticsView } from './views/AnalyticsView'
-import { ScheduleView } from './views/ScheduleView'
-import { GoalsView } from './views/GoalsView'
-import { OverviewView } from './views/OverviewView'
-import { EonpaiView } from './views/EonpaiView'
-import { FocusView } from './views/FocusView'
-import { AuroraDashboardView } from './v2/dashboard/AuroraDashboardView'
-import { ThemeProvider } from '@mui/material'
-import { getAuroraTheme } from './v2/theme/auroraTheme'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { Icon } from './components/common/Icon'
@@ -72,6 +62,7 @@ import {
   login,
   logout,
   register,
+  setCustomServerUrl,
 } from './api/auth'
 import type { AuthUser } from './api/auth'
 import { getCurrentUserProgress, claimOnboardingReward } from './api/progress'
@@ -103,7 +94,7 @@ import type {
 } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse } from './api/analytics'
-import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl, setCustomServerUrl } from './api/config'
+import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from './api/config'
 import { ShinpoLogo } from './components/ShinpoLogo'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { ConfirmationDialog } from './components/ConfirmationDialog'
@@ -151,9 +142,20 @@ import {
 import { NAVIGATION_ITEMS } from './types/navigation'
 import type { AppView } from './types/navigation'
 import { trackRender } from './utils/renderTracker'
+import { toLocalScheduleIso } from './utils/localScheduleTime'
 
 const isAppView = (value: string): value is AppView =>
   NAVIGATION_ITEMS.some((item) => item.id === value)
+
+const TaskManagerView = lazy(() => import('./views/TaskManagerView').then(({ TaskManagerView }) => ({ default: TaskManagerView })))
+const AnalyticsView = lazy(() => import('./views/AnalyticsView').then(({ AnalyticsView }) => ({ default: AnalyticsView })))
+const ScheduleView = lazy(() => import('./views/ScheduleView').then(({ ScheduleView }) => ({ default: ScheduleView })))
+const GoalsView = lazy(() => import('./views/GoalsView').then(({ GoalsView }) => ({ default: GoalsView })))
+const OverviewView = lazy(() => import('./views/OverviewView').then(({ OverviewView }) => ({ default: OverviewView })))
+const EonpaiView = lazy(() => import('./views/EonpaiView').then(({ EonpaiView }) => ({ default: EonpaiView })))
+const FocusView = lazy(() => import('./views/FocusView').then(({ FocusView }) => ({ default: FocusView })))
+const AuroraDashboardView = lazy(() => import('./v2/dashboard/ThemedAuroraDashboardView')
+  .then(({ ThemedAuroraDashboardView }) => ({ default: ThemedAuroraDashboardView })))
 
 import './App.css'
 
@@ -504,6 +506,8 @@ export function App() {
     return new URLSearchParams(window.location.search).get('date') || localCalendarDate()
   })
   const [isBookingSession, setIsBookingSession] = useState(() => new URLSearchParams(window.location.search).get('book') === 'true')
+  const [isBookingSaving, setIsBookingSaving] = useState(false)
+  const bookingSaveInProgressRef = useRef(false)
   const [bookMissionId, setBookMissionId] = useState<number | null>(null)
   const [bookName, setBookName] = useState('')
   const [bookIntention, setBookIntention] = useState('')
@@ -1501,11 +1505,33 @@ export function App() {
     )
     try {
       const activeGoalId = goals.length > 0 ? goals[0].id : undefined
+      if (!activeGoalId) {
+        pushToast({
+          title: 'Goal Required',
+          description: 'Please create an execution goal first before adding AI tasks.',
+          type: 'focus',
+          timestamp: new Date().toISOString(),
+        })
+        setChatMessages((prev) =>
+          prev.map((msg, idx) =>
+            idx === msgIndex ? { ...msg, committing: false } : msg,
+          ),
+        )
+        return
+      }
       await commitSuggestion(suggestionId, {
         targetGoalId: activeGoalId,
         selectedMissions: specificMission ? [specificMission] : undefined,
       })
       await loadData()
+      pushToast({
+        title: 'Tasks Added',
+        description: specificMission
+          ? `Added task: "${specificMission.title}"`
+          : 'AI suggested tasks added to your plan.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
       setChatMessages((prev) =>
         prev.map((msg, idx) =>
           idx === msgIndex
@@ -1515,6 +1541,12 @@ export function App() {
       )
     } catch (err) {
       console.error('Failed to commit suggestion', err)
+      pushToast({
+        title: 'Action Failed',
+        description: 'Could not add suggested tasks. Please try again.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
       setChatMessages((prev) =>
         prev.map((msg, idx) =>
           idx === msgIndex ? { ...msg, committing: false } : msg,
@@ -1539,6 +1571,12 @@ export function App() {
         selectedItems: plan.planItems,
       })
       await loadData()
+      pushToast({
+        title: 'Agenda Scheduled',
+        description: 'Daily plan scheduled into your calendar.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
       setChatMessages((prev) =>
         prev.map((msg, idx) =>
           idx === msgIndex
@@ -1548,6 +1586,12 @@ export function App() {
       )
     } catch (err) {
       console.error('Failed to commit daily plan to schedule:', err)
+      pushToast({
+        title: 'Schedule Failed',
+        description: 'Could not schedule daily plan. Please try again.',
+        type: 'focus',
+        timestamp: new Date().toISOString(),
+      })
       setChatMessages((prev) =>
         prev.map((msg, idx) =>
           idx === msgIndex ? { ...msg, committing: false } : msg,
@@ -2545,26 +2589,24 @@ export function App() {
 
   const handleConfirmBookSession = async (e: FormEvent) => {
     e.preventDefault()
-    if (!currentUser) return
+    if (!currentUser || bookingSaveInProgressRef.current) return
+    bookingSaveInProgressRef.current = true
+    setIsBookingSaving(true)
     const userId = currentUser.id
-    const mission = missions.find((m) => m.id === bookMissionId)
-    const sessionTitle = bookName.trim() || mission?.title || `${bookDuration}m Focus Session`
-    const intention = bookIntention.trim() || mission?.title || 'Execution block'
-
-    let scheduledAt: string | undefined = undefined
-    if (bookDate) {
-      const timePart = bookTime ? (bookTime.length === 5 ? `${bookTime}:00` : bookTime) : '09:00:00'
-      const parsed = new Date(`${bookDate}T${timePart}`)
-      const now = new Date()
-      if (parsed.getTime() < now.getTime() - 60000 && bookDate === localCalendarDate()) {
-        const safeFuture = new Date(now.getTime() + 5 * 60000)
-        scheduledAt = safeFuture.toISOString()
-      } else {
-        scheduledAt = parsed.toISOString()
-      }
-    }
 
     try {
+      const mission = missions.find((m) => m.id === bookMissionId)
+      const sessionTitle = bookName.trim() || mission?.title || `${bookDuration}m Focus Session`
+      const intention = bookIntention.trim() || mission?.title || 'Execution block'
+      let scheduledAt: string | undefined
+      if (bookDate) {
+        scheduledAt = toLocalScheduleIso(bookDate, bookTime || '09:00') || undefined
+        if (!scheduledAt) throw new Error('That date and time is not valid in your local timezone. Choose another time.')
+        if (new Date(scheduledAt).getTime() < Date.now() - 60000 && bookDate === localCalendarDate()) {
+          scheduledAt = new Date(Date.now() + 5 * 60000).toISOString()
+        }
+      }
+
       if (editingScheduleSession) {
         const updated = await updateFocusSession(editingScheduleSession.id, {
           name: sessionTitle,
@@ -2613,6 +2655,9 @@ export function App() {
         type: 'focus',
         timestamp: new Date().toISOString(),
       })
+    } finally {
+      bookingSaveInProgressRef.current = false
+      setIsBookingSaving(false)
     }
   }
 
@@ -2685,7 +2730,6 @@ export function App() {
 
   if (!currentUser) {
     return (
-      <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
         <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
         <div className="auth-card">
           <div className="auth-brand-row">
@@ -2756,7 +2800,6 @@ export function App() {
                 <input
                   className="auth-input"
                   type={showAuthPassword ? 'text' : 'password'}
-                  placeholder="••••••••••••"
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   required
@@ -2874,7 +2917,6 @@ export function App() {
           </form>
         </div>
       </div>
-    </ThemeProvider>
   )
   }
 
@@ -3112,7 +3154,7 @@ export function App() {
   )
 
   return (
-    <ThemeProvider theme={getAuroraTheme(isDarkMode ? 'dark' : 'light')}>
+    <>
       <div className={`app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''}`}>
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />
@@ -3159,7 +3201,9 @@ export function App() {
           />
 
           <ErrorBoundary>
-            {renderTabContent()}
+            <Suspense fallback={<div role="status" aria-busy="true" className="bento-card" style={{ margin: 20, padding: 24 }}>Loading {activeTab}…</div>}>
+              {renderTabContent()}
+            </Suspense>
           </ErrorBoundary>
 
         </main>
@@ -3313,6 +3357,7 @@ export function App() {
         setDuration={setBookDuration}
         onSubmit={handleConfirmBookSession}
         isEditing={Boolean(editingScheduleSession)}
+        isSubmitting={isBookingSaving}
       />
 
       {/* Interactive Guided Tour Spotlight Overlay */}
@@ -3408,7 +3453,7 @@ export function App() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirmation}
       />
-    </ThemeProvider>
+    </>
   )
 }
 

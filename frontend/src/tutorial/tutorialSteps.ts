@@ -17,14 +17,14 @@ export const SHINPO_ONBOARDING_STEPS: TutorialStepDef[] = [
     id: 'CREATE_GOAL', number: 1, title: 'Choose a goal', targetTab: 'Goals & Missions',
     targetSelector: "[data-tutorial='new-goal'], button.btn-new-goal", fallbackSelector: "[data-tutorial='nav-goals']",
     placement: 'bottom', eonpaiDialogue: 'Start with an outcome that matters to you.',
-    instruction: 'Create a goal; you can finish this guide before doing the work.',
+    instruction: 'New accounts include a starter example. Edit it or create a goal that reflects your own outcome.',
     whyItMatters: 'A clear goal gives your work direction.', completionCondition: 'GOAL',
   },
   {
     id: 'CREATE_TASK', number: 2, title: 'Make it actionable', targetTab: 'Goals & Missions',
     targetSelector: "[data-tutorial='new-task'], [data-tutorial='missions-queue']", fallbackSelector: "[data-tutorial='nav-goals']",
     placement: 'bottom', eonpaiDialogue: 'Turn the goal into a small next action.',
-    instruction: 'Add a task and link it to your goal.',
+    instruction: 'The starter task is only an example. Edit it or add your own task linked to the goal.',
     whyItMatters: 'A concrete task is easier to start.', completionCondition: 'TASK',
   },
   {

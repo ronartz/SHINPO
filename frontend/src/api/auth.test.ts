@@ -9,6 +9,7 @@ import {
   getRefreshToken,
   fetchCurrentUser,
   authHeaders,
+  setCustomServerUrl,
 } from './auth.ts'
 
 const storage = new Map<string, string>()
@@ -159,6 +160,25 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     await clearAuthSession()
     assert.strictEqual(getStoredUser(), null)
     assert.strictEqual(authHeaders()['Authorization'], undefined)
+  })
+
+  await t.test('changing the server clears the session before storing the endpoint', async () => {
+    storage.set('shinpo_custom_server_url', 'https://old.example.com/')
+    storage.set('shinpo_access_token', 'old-access-token')
+    storage.set('shinpo_refresh_token', 'old-refresh-token')
+    storage.set('shinpo_auth_user', JSON.stringify({ id: 7, username: 'qa', email: 'qa@example.test' }))
+
+    await setCustomServerUrl('https://new.example.com/')
+    assert.strictEqual(storage.get('shinpo_custom_server_url'), 'https://new.example.com')
+    assert.strictEqual(storage.has('shinpo_access_token'), false)
+    assert.strictEqual(storage.has('shinpo_refresh_token'), false)
+    assert.strictEqual(storage.has('shinpo_auth_user'), false)
+
+    storage.set('shinpo_access_token', 'new-access-token')
+    await setCustomServerUrl('https://new.example.com')
+    assert.strictEqual(storage.get('shinpo_access_token'), 'new-access-token')
+    await assert.rejects(setCustomServerUrl('ftp://invalid.example.com'))
+    assert.strictEqual(storage.get('shinpo_access_token'), 'new-access-token')
   })
 
   await t.test('native sessions keep tokens out of localStorage and migrate legacy tokens securely', async () => {

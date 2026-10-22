@@ -123,6 +123,16 @@ export async function clearAuthSession(): Promise<void> {
   if (isTauriEnvironment()) await invokeTauriCommand<void>('delete_secure_refresh_token')
 }
 
+export async function setCustomServerUrl(url: string): Promise<void> {
+  if (typeof window === 'undefined') return
+  const clean = url.trim().replace(/\/+$/, '')
+  const validation = isValidServerUrl(clean)
+  if (!validation.valid) throw new Error(validation.reason || 'Invalid server URL')
+  if (clean !== getCustomServerUrl().trim().replace(/\/+$/, '')) await clearAuthSession()
+  if (clean) localStorage.setItem('shinpo_custom_server_url', clean)
+  else localStorage.removeItem('shinpo_custom_server_url')
+}
+
 export function authHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
   const token = getAuthToken()
   const headers: Record<string, string> = {
@@ -135,7 +145,7 @@ export function authHeaders(customHeaders: Record<string, string> = {}): Record<
   return headers
 }
 
-import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
+import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from './config.ts'
 import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
 
 const apiBase = () => `${getBackendBaseUrl()}/api`

@@ -45,7 +45,7 @@ export interface AuroraDashboardViewProps {
 import { DailyObjectivesCard } from '../../components/dashboard/DailyObjectivesCard'
 
 import {
-  getSortedScheduleSessions,
+  getTodayScheduleSessions,
   getSessionSecondaryInfo,
 } from '../../utils/scheduleHelpers'
 
@@ -90,7 +90,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
   // 1.5 Symmetrical sorted schedule sessions
   const sortedScheduleSessions = useMemo(() => {
-    return getSortedScheduleSessions(sessions, activeSession)
+    return getTodayScheduleSessions(sessions, activeSession)
   }, [sessions, activeSession])
 
   // 2. Metrics calculation matching V1 exact formulas
@@ -475,6 +475,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="lift"
           glass
+          noPadding
           onClick={() => setActiveTab('Goals & Missions')}
           sx={{
             p: '20px 22px',
@@ -489,7 +490,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           title="View all goals"
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.secondary' }}>
+            <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Active Goals
             </Typography>
             <Box
@@ -529,6 +530,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="lift"
           glass
+          noPadding
           onClick={() => setActiveTab('Analytics')}
           sx={{
             p: '20px 22px',
@@ -543,7 +545,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           title="View Focus Analytics"
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.secondary' }}>
+            <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Focus Logged
             </Typography>
             <Box
@@ -583,6 +585,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="lift"
           glass
+          noPadding
           data-tutorial="metric-completion"
           onClick={() => {
             const board = document.getElementById('aurora-tasks-board')
@@ -601,7 +604,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           title="View Tasks Board"
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.secondary' }}>
+            <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Tasks In Queue
             </Typography>
             <Box
@@ -641,6 +644,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         <AuroraCard
           tiltVariant="lift"
           glass
+          noPadding
           onClick={() => setActiveTab('Analytics')}
           sx={{
             p: '20px 22px',
@@ -655,7 +659,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           title="View Execution Analytics"
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.secondary' }}>
+            <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Completion Rate
             </Typography>
             <Box
@@ -687,7 +691,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             {velocityRate}%
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, width: '100%' }}>
-            <Typography sx={{ fontSize: 13.5, color: 'text.secondary', fontWeight: 500 }}>
+            <Typography noWrap sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 500 }}>
               Velocity rate this week
             </Typography>
             <Box
@@ -1449,6 +1453,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           <AuroraCard
             tiltVariant="none"
             glass
+            noPadding
             sx={{
               p: '18px 20px',
               minHeight: 410,
@@ -1560,6 +1565,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           <AuroraCard
             tiltVariant="none"
             glass
+            noPadding
             sx={{
               p: '18px 20px',
               minHeight: 410,
@@ -1662,6 +1668,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           <AuroraCard
             tiltVariant="none"
             glass
+            noPadding
             data-tutorial="completed-column"
             sx={{
               p: '18px 20px',

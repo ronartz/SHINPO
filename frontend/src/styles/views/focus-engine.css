@@ -388,9 +388,7 @@ html[data-theme='light'] .btn-timer.warning:hover,
 }
 
 .active-intention-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--brand-coral-subtle);
@@ -398,10 +396,10 @@ html[data-theme='light'] .btn-timer.warning:hover,
   font-size: 13px;
   font-weight: 700;
   margin-bottom: 14px;
-  max-width: 90%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: min(90%, 42rem);
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.45;
 }
 
 .pomodoro-plan-grid {

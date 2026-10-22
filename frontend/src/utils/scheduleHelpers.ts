@@ -33,6 +33,22 @@ export function getSortedScheduleSessions(
   })
 }
 
+export function getTodayScheduleSessions(
+  sessions: FocusSession[],
+  activeSession?: FocusSession | null,
+  now = new Date(),
+): FocusSession[] {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return getSortedScheduleSessions(sessions.filter((session) => {
+    if (session.status === 'CANCELLED' || session.status === 'EXPIRED' || session.status === 'FAILED') return false
+    const timestamp = session.scheduledAt || session.startedAt || session.endedAt || session.createdAt
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return false
+    const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    return localDate === today
+  }), activeSession)
+}
+
 export function getSessionSecondaryInfo(s: FocusSession): string {
   // 1. If active
   if (s.status === 'ACTIVE') {

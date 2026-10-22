@@ -12,7 +12,7 @@ export interface FloatingPositionOptions {
 
 export interface FloatingPositionResult {
   style: React.CSSProperties
-  placement: 'bottom' | 'top'
+  placement: 'bottom' | 'top' | 'left' | 'right'
   isInsideDialog: boolean
   recalculate: () => void
 }
@@ -34,7 +34,7 @@ export function useFloatingPosition({
     left: 0,
     visibility: 'hidden',
   })
-  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom')
+  const [placement, setPlacement] = useState<'bottom' | 'top' | 'left' | 'right'>('bottom')
   const [isInsideDialog, setIsInsideDialog] = useState(false)
 
   const calculatePosition = useCallback(() => {
@@ -55,6 +55,8 @@ export function useFloatingPosition({
 
     const spaceBelow = viewportHeight - triggerRect.bottom - offset - padding
     const spaceAbove = triggerRect.top - offset - padding
+    const spaceRight = viewportWidth - triggerRect.right - offset - padding
+    const spaceLeft = triggerRect.left - offset - padding
 
     const popoverHeight = popover ? popover.offsetHeight : 240
     const popoverWidth = matchTriggerWidth
@@ -62,8 +64,14 @@ export function useFloatingPosition({
       : Math.max(minWidth || 0, popover ? popover.offsetWidth : triggerRect.width)
 
     // Flip logic: if insufficient space below and more space above, open upwards
-    let nextPlacement: 'bottom' | 'top' = 'bottom'
-    if (spaceBelow < Math.min(popoverHeight, 200) && spaceAbove > spaceBelow) {
+    let nextPlacement: 'bottom' | 'top' | 'left' | 'right' = 'bottom'
+    if (inDialog && spaceRight >= popoverWidth) {
+      nextPlacement = 'right'
+    } else if (inDialog && spaceLeft >= popoverWidth) {
+      nextPlacement = 'left'
+    } else if (inDialog && spaceAbove >= Math.min(popoverHeight, 200)) {
+      nextPlacement = 'top'
+    } else if (spaceBelow < Math.min(popoverHeight, 200) && spaceAbove > spaceBelow) {
       nextPlacement = 'top'
     }
     setPlacement(nextPlacement)
@@ -71,8 +79,15 @@ export function useFloatingPosition({
     // Vertical top coordinate
     let top: number
     let maxHeight: number
+    let left = triggerRect.left
 
-    if (nextPlacement === 'bottom') {
+    if (nextPlacement === 'right' || nextPlacement === 'left') {
+      top = Math.min(Math.max(padding, triggerRect.top), viewportHeight - padding - 100)
+      maxHeight = Math.max(100, Math.min(320, viewportHeight - top - padding))
+      left = nextPlacement === 'right'
+        ? triggerRect.right + offset
+        : triggerRect.left - popoverWidth - offset
+    } else if (nextPlacement === 'bottom') {
       top = triggerRect.bottom + offset
       maxHeight = Math.max(100, Math.min(320, spaceBelow))
     } else {
@@ -81,8 +96,7 @@ export function useFloatingPosition({
     }
 
     // Horizontal left coordinate with edge protection
-    let left = triggerRect.left
-    if (left + popoverWidth > viewportWidth - padding) {
+    if (nextPlacement !== 'left' && left + popoverWidth > viewportWidth - padding) {
       left = Math.max(padding, viewportWidth - popoverWidth - padding)
     }
     if (left < padding) {

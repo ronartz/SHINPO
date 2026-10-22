@@ -3,6 +3,8 @@ import type { FocusSession } from '../api/focusSessions'
 import type { AppView } from '../types/navigation'
 import { Icon } from '../components/common/Icon'
 import { trackRender } from '../utils/renderTracker'
+import { layoutOverlappingSessions } from '../utils/scheduleLayout'
+import { formatScheduleDuration, summarizeSchedule } from '../utils/scheduleSummary'
 
 const formatLocalCalendarDate = (date: Date): string => {
   const year = date.getFullYear()
@@ -43,7 +45,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   handleDeleteSession, handleEditSession,
 }) => {
   trackRender('ScheduleView')
-  const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+  const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED'>('ALL')
   const [miniMonth, setMiniMonth] = useState(() => new Date(`${selectedScheduleDate}T00:00:00`))
 
   const weekDays = useMemo(() => {
@@ -71,9 +73,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const filteredSessions = useMemo(() => sessions.filter(session => {
     if (scheduleFilter === 'PENDING') return session.status === 'SCHEDULED' || session.status === 'ACTIVE' || session.status === 'PAUSED'
     if (scheduleFilter === 'COMPLETED') return session.status === 'COMPLETED'
-    return true
+    if (scheduleFilter === 'CANCELLED') return session.status === 'CANCELLED' || session.status === 'EXPIRED' || session.status === 'FAILED'
+    return session.status !== 'CANCELLED' && session.status !== 'EXPIRED' && session.status !== 'FAILED'
   }), [sessions, scheduleFilter])
+  const allWeekSessions = sessions.filter(session => weekDays.some(day => sessionDate(session) === day.dateStr))
   const weekSessions = filteredSessions.filter(session => weekDays.some(day => sessionDate(session) === day.dateStr))
+  const weekSummary = summarizeSchedule(allWeekSessions)
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
   const eventStarts = timedSessions.map(session => {
@@ -86,6 +91,19 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const dayLayouts = new Map(weekDays.map((day) => {
+    const sessions = timedSessions.filter((session) => sessionDate(session) === day.dateStr)
+    const positions = layoutOverlappingSessions(sessions.map((session) => {
+      const date = new Date(session.scheduledAt || session.startedAt!)
+      return {
+        id: session.id,
+        startMinute: date.getHours() * 60 + date.getMinutes(),
+        durationMinutes: Math.max(session.durationMinutes, 50 * 60 / 62),
+      }
+    }))
+    const laneCount = Math.max(1, ...[...positions.values()].map((position) => position.laneCount))
+    return [day.dateStr, { positions, laneCount }] as const
+  }))
   const selectDate = (date: string) => {
     setSelectedScheduleDate(date)
     const next = new Date(`${date}T00:00:00`)
@@ -95,12 +113,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const renderActions = (session: FocusSession) => (
     <div className="schedule-session-actions">
       {session.status === 'SCHEDULED' && <>
-        <button type="button" className="schedule-btn-engage" onClick={() => handleStartFromSchedule(session.id)}><Icon name="play" size={12} /><span>Start</span></button>
-        {handleEditSession && <button type="button" className="schedule-btn-edit" title="Edit Session" onClick={() => handleEditSession(session)}><Icon name="edit" size={12} /></button>}
-        <button type="button" className="schedule-btn-cancel" onClick={() => handleCancelFromSchedule(session.id)}>Cancel</button>
+        <button type="button" className="schedule-btn-engage" aria-label={`Start ${session.name}`} title="Start session" onClick={() => handleStartFromSchedule(session.id)}><Icon name="play" size={12} /><span>Start</span></button>
+        {handleEditSession && <button type="button" className="schedule-btn-edit" aria-label={`Edit ${session.name}`} title="Edit session" onClick={() => handleEditSession(session)}><Icon name="edit" size={12} /></button>}
+        <button type="button" className="schedule-btn-cancel" aria-label={`Cancel ${session.name}`} onClick={() => handleCancelFromSchedule(session.id)}>Cancel</button>
       </>}
       {(session.status === 'ACTIVE' || session.status === 'PAUSED') && <button type="button" className="schedule-btn-engage" onClick={() => setActiveTab('Focus Engine')}>Open Focus</button>}
-      <button type="button" className="btn-icon-delete" title="Delete Session" onClick={() => handleDeleteSession(session.id)}><Icon name="trash" size={13} /></button>
+      <button type="button" className="btn-icon-delete" aria-label={`Delete ${session.name}`} title="Delete session" onClick={() => handleDeleteSession(session.id)}><Icon name="trash" size={13} /></button>
     </div>
   )
 
@@ -139,8 +157,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       <div className="schedule-sidebar-section">
         <div className="schedule-sidebar-section-title"><span>MY SCHEDULE</span><span>{weekSessions.length}</span></div>
-        {(['ALL', 'PENDING', 'COMPLETED'] as const).map(filter => <button type="button" key={filter} className={`schedule-sidebar-filter${scheduleFilter === filter ? ' active' : ''}`} onClick={() => setScheduleFilter(filter)}>
-          <span className={`schedule-filter-dot ${filter.toLowerCase()}`} />{filter === 'ALL' ? 'All sessions' : filter === 'PENDING' ? 'Upcoming & active' : 'Completed'}<span className="schedule-filter-count">{filter === 'ALL' ? weekSessions.length : weekSessions.filter(s => filter === 'PENDING' ? s.status === 'SCHEDULED' || s.status === 'ACTIVE' || s.status === 'PAUSED' : s.status === 'COMPLETED').length}</span>
+        {(['ALL', 'PENDING', 'COMPLETED', 'CANCELLED'] as const).map(filter => <button type="button" key={filter} className={`schedule-sidebar-filter${scheduleFilter === filter ? ' active' : ''}`} onClick={() => setScheduleFilter(filter)}>
+          <span className={`schedule-filter-dot ${filter.toLowerCase()}`} />{filter === 'ALL' ? 'All sessions' : filter === 'PENDING' ? 'Upcoming & active' : filter === 'COMPLETED' ? 'Completed' : 'Cancelled / ended'}<span className="schedule-filter-count">{filter === 'ALL' ? weekSessions.length : weekSessions.filter(s => filter === 'PENDING' ? s.status === 'SCHEDULED' || s.status === 'ACTIVE' || s.status === 'PAUSED' : filter === 'COMPLETED' ? s.status === 'COMPLETED' : s.status === 'CANCELLED' || s.status === 'EXPIRED' || s.status === 'FAILED').length}</span>
         </button>)}
       </div>
 
@@ -157,10 +175,21 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
         </div><button type="button" className="schedule-btn-book" onClick={() => handleOpenBookingModal(selectedScheduleDate)} data-tutorial="schedule-book-btn"><Icon name="plus" size={14} /><span>Book session</span></button></div>
       </header>
 
+      <div className="schedule-week-summary" role="group" aria-label="This week's plan and progress">
+        <div><span>Planned focus</span><strong>{formatScheduleDuration(weekSummary.plannedMinutes)}</strong><small>across {weekSummary.plannedCount} session{weekSummary.plannedCount === 1 ? '' : 's'}</small></div>
+        <div><span>Focus recorded</span><strong>{formatScheduleDuration(weekSummary.actualSeconds / 60)}</strong><small>actual active time</small></div>
+        <div><span>Completed</span><strong>{weekSummary.completed}</strong><small>of {weekSummary.plannedCount} planned</small></div>
+        <div><span>Upcoming</span><strong>{weekSummary.upcoming}</strong><small>ready to start</small></div>
+      </div>
+
       {flexibleSessions.length > 0 && <div className="schedule-flexible-row"><span>FLEXIBLE</span><div>{flexibleSessions.map(session => renderSession(session, true))}</div></div>}
 
       <div className="schedule-calendar-scroll">
-        <div className="schedule-week-grid" style={{ '--schedule-hours': hours.length, '--schedule-grid-height': `${hours.length * 62}px` } as React.CSSProperties}>
+        <div className="schedule-week-grid" style={{
+          '--schedule-hours': hours.length,
+          '--schedule-grid-height': `${hours.length * 62}px`,
+          gridTemplateColumns: `58px ${weekDays.map((day) => `minmax(${Math.max(120, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 120)}px, 1fr)`).join(' ')}`,
+        } as React.CSSProperties}>
           <div className="schedule-grid-corner">LOCAL TIME</div>
           {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => selectDate(day.dateStr)}>
             <span>{day.dayName}</span><strong>{day.dayNum}</strong><small>{day.date.toLocaleDateString('en-US', { month: 'short' })}</small>
@@ -168,6 +197,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
           <div className="schedule-time-axis">{hours.map(hour => <div className="schedule-time-label" key={hour}>{new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: 'numeric' })}</div>)}</div>
           {weekDays.map(day => {
             const daySessions = timedSessions.filter(session => sessionDate(session) === day.dateStr)
+            const dayLayout = dayLayouts.get(day.dateStr)!
             return <div className={`schedule-day-column${day.isToday ? ' today' : ''}`} key={day.dateStr}>
               {hours.map(hour => <div className="schedule-hour-cell" key={hour} />)}
               {daySessions.map(session => {
@@ -177,8 +207,21 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                 const startMinutes = (date.getHours() - startHour) * 60 + date.getMinutes()
                 const top = Math.max(0, startMinutes / 60 * 62)
                 const height = Math.max(50, session.durationMinutes / 60 * 62)
-                return <div key={session.id} className={`schedule-grid-event status-${session.status}`} aria-label={`${session.name}, ${session.status.toLowerCase()}, ${eventTime}, ${session.durationMinutes} minutes`} style={{ top, height: Math.min(height, hours.length * 62 - top) }}>
-                  <div className="schedule-grid-event-accent" />{renderSession(session, true)}
+                const layout = dayLayout.positions.get(session.id) ?? { lane: 0, laneCount: 1 }
+                const laneWidth = 100 / layout.laneCount
+                return <div key={session.id} className={`schedule-grid-event${session.durationMinutes >= 45 ? ' is-roomy' : ' is-compact'} status-${session.status}`} aria-label={`${session.name}, ${session.status.toLowerCase()}, ${eventTime}, ${session.durationMinutes} minutes`} style={{
+                  top,
+                  height: Math.min(height, hours.length * 62 - top),
+                  left: `calc(${layout.lane * laneWidth}% + 4px)`,
+                  width: `calc(${laneWidth}% - 8px)`,
+                  right: 'auto',
+                }}>
+                  <div className="schedule-grid-event-accent" />
+                  <div className="schedule-grid-event-heading">
+                    <span className="schedule-grid-event-title" title={session.name}>{session.name}</span>
+                    <time>{eventTime}</time>
+                  </div>
+                  {renderActions(session)}
                 </div>
               })}
             </div>

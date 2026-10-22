@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SHINPO GLASS SURFACES — shared finish for the product shell and major panels
+   SHINPO SURFACE FINISHES — solid shared panels; glass is explicit opt-in
    ========================================================================== */
 .app-shell:not(.theme-light) {
   background-color: var(--bg);
@@ -35,10 +35,8 @@
 
 .bento-task-subcard,
 .bento-bottom-pill-bar {
-  background: var(--glass-surface-elevated, rgba(24, 30, 38, 0.86));
-  border-color: var(--border, rgba(255, 255, 255, 0.08));
-  -webkit-backdrop-filter: blur(16px) saturate(125%);
-  backdrop-filter: blur(16px) saturate(125%);
+  background: var(--surface-elevated);
+  border-color: var(--border);
 }
 
 .bento-card:hover,

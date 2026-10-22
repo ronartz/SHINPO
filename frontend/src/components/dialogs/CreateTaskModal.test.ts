@@ -31,13 +31,13 @@ test('CreateTaskModal duration boundaries enforce 5 to 480 minutes', () => {
 
 test('CreateTaskModal Associated Goal list reflects exact database rows without slicing', () => {
   const dbGoals = [
-    { id: 1, title: 'Master Execution System', targetDate: '2026-12-31', status: 'ACTIVE' },
+    { id: 1, title: 'Starter goal: Master Execution System', targetDate: '2026-12-31', status: 'ACTIVE' },
   ]
 
   // Mapping preserves exact length without artificial limit
   const dropdownOptions = dbGoals.map((g) => ({ value: g.id, label: g.title }))
   assert.equal(dropdownOptions.length, 1)
-  assert.equal(dropdownOptions[0].label, 'Master Execution System')
+  assert.equal(dropdownOptions[0].label, 'Starter goal: Master Execution System')
 
   // When database has 2 goals
   const dbTwoGoals = [

@@ -90,18 +90,18 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // Seed initial starter goal and mission for this new user
+        // Seed clearly labeled examples; onboarding actions are recorded separately.
         Goal initialGoal = goalRepository.save(new Goal(
-                "Master Execution System",
-                "Build disciplined execution habits with SHINPO",
+                "Starter goal: Master Execution System",
+                "Starter example — edit or replace this goal with an outcome that matters to you.",
                 LocalDate.now(),
                 LocalDate.now().plusMonths(3),
                 savedUser
         ));
 
         missionRepository.save(new Mission(
-                "Complete First Focus Session",
-                "Initiate and complete a 25-minute deep focus session",
+                "Starter task: First Focus Session",
+                "Starter example — edit or replace this with a concrete next action for your goal.",
                 LocalDate.now(),
                 25,
                 initialGoal

@@ -11,7 +11,7 @@ import { Icon } from '../components/common/Icon'
 import { LiveClock } from '../components/common/LiveClock'
 import { formatTimerDigits } from '../utils/focusTimer'
 import { trackRender } from '../utils/renderTracker'
-import { getSortedScheduleSessions, getSessionSecondaryInfo } from '../utils/scheduleHelpers'
+import { getTodayScheduleSessions, getSessionSecondaryInfo } from '../utils/scheduleHelpers'
 import { DailyObjectivesCard } from '../components/dashboard/DailyObjectivesCard'
 
 export interface OverviewViewProps {
@@ -105,7 +105,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     sessions.filter((s) => s.status === 'COMPLETED').length
 
   const sortedSessions = React.useMemo(() => {
-    return getSortedScheduleSessions(sessions, activeSession)
+    return getTodayScheduleSessions(sessions, activeSession)
   }, [sessions, activeSession])
 
 

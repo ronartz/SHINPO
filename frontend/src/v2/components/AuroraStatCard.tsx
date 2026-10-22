@@ -46,6 +46,7 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
     <AuroraCard
       tiltVariant={tiltVariant}
       glass
+      noPadding
       sx={{
         height: '100%',
         minHeight: 140,
@@ -57,8 +58,10 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, mb: 1.5 }}>
         <Typography
+          noWrap
           variant="subtitle2"
           sx={{
+            minWidth: 0,
             fontWeight: 600,
             fontSize: 14,
             letterSpacing: '-0.01em',

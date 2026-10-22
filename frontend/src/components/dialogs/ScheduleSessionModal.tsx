@@ -26,6 +26,7 @@ export interface ScheduleSessionModalProps {
   setDuration: (val: number) => void
   onSubmit: (e: React.FormEvent) => void
   isEditing?: boolean
+  isSubmitting?: boolean
 }
 
 export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
@@ -50,6 +51,7 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
   setDuration,
   onSubmit,
   isEditing = false,
+  isSubmitting = false,
 }) => {
   const taskOptions = React.useMemo(() => {
     const list: Array<{ value: number | ''; label: string; secondaryLabel?: string }> = [
@@ -70,19 +72,20 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
 
   const handleTaskChange = (val: number | '') => {
     const id = val === '' ? null : Number(val)
+    const currentMission = missions.find((item) => item.id === missionId)
     setMissionId(id)
     const m = missions.find((item) => item.id === id)
     if (m) {
-      setName(m.title)
-      setIntention(m.title)
-      if (m.estimatedMinutes) setDuration(m.estimatedMinutes)
+      if (!name.trim() || name === currentMission?.title) setName(m.title)
+      if (!intention.trim() || intention === currentMission?.title) setIntention(m.title)
+      if (m.estimatedMinutes && (duration === 25 || duration === currentMission?.estimatedMinutes)) setDuration(m.estimatedMinutes)
     }
   }
 
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="presentation">
+    <div className="modal-overlay" onClick={() => { if (!isSubmitting) onClose() }} role="presentation">
       <div
         className="modal-box"
         onClick={(e) => e.stopPropagation()}
@@ -210,12 +213,13 @@ export const ScheduleSessionModal: React.FC<ScheduleSessionModalProps> = ({
               type="button"
               className="btn-timer secondary"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button type="submit" className="btn-timer primary">
+            <button type="submit" className="btn-timer primary" disabled={isSubmitting}>
               <Icon name="check" size={14} />
-              <span>{isEditing ? 'Save Changes' : 'Schedule Session'}</span>
+              <span>{isSubmitting ? 'Saving…' : isEditing ? 'Save Changes' : 'Schedule Session'}</span>
             </button>
           </div>
         </form>
