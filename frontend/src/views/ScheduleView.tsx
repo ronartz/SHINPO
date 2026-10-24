@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { FocusSession } from '../api/focusSessions'
 import type { AppView } from '../types/navigation'
 import { Icon } from '../components/common/Icon'
@@ -47,6 +47,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   trackRender('ScheduleView')
   const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED'>('ALL')
   const [miniMonth, setMiniMonth] = useState(() => new Date(`${selectedScheduleDate}T00:00:00`))
+  const calendarScrollRef = useRef<HTMLDivElement>(null)
 
   const weekDays = useMemo(() => {
     const monday = dayStart(new Date(`${selectedScheduleDate}T00:00:00`))
@@ -103,6 +104,37 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
     const next = new Date(`${date}T00:00:00`)
     if (next.getMonth() !== miniMonth.getMonth() || next.getFullYear() !== miniMonth.getFullYear()) setMiniMonth(next)
   }
+
+  useEffect(() => {
+    const calendar = calendarScrollRef.current
+    if (!calendar) return
+
+    const handleWheel = (event: WheelEvent) => {
+      const current = calendar.scrollTop
+      const maximum = calendar.scrollHeight - calendar.clientHeight
+      const next = Math.max(0, Math.min(maximum, current + event.deltaY))
+      let remainder = event.deltaY - (next - current)
+      if (Math.abs(remainder) < 1) return
+
+      event.preventDefault()
+      calendar.scrollTop = next
+
+      for (let parent = calendar.parentElement; parent; parent = parent.parentElement) {
+        const canScroll = ['auto', 'scroll'].includes(getComputedStyle(parent).overflowY)
+        if (canScroll && parent.scrollHeight > parent.clientHeight + 1) {
+          const before = parent.scrollTop
+          parent.scrollTop = Math.max(0, Math.min(parent.scrollHeight - parent.clientHeight, before + remainder))
+          remainder -= parent.scrollTop - before
+          if (Math.abs(remainder) < 1) return
+        }
+      }
+
+      window.scrollBy(0, remainder)
+    }
+
+    calendar.addEventListener('wheel', handleWheel, { passive: false })
+    return () => calendar.removeEventListener('wheel', handleWheel)
+  }, [])
 
   const renderActions = (session: FocusSession) => (
     <div className="schedule-session-actions">
@@ -178,7 +210,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {flexibleSessions.length > 0 && <div className="schedule-flexible-row"><span>FLEXIBLE</span><div>{flexibleSessions.map(session => renderSession(session, true))}</div></div>}
 
-      <div className="schedule-calendar-scroll">
+      <div className="schedule-calendar-scroll" ref={calendarScrollRef}>
         <div className="schedule-week-grid" style={{
           '--schedule-hours': hours.length,
           '--schedule-grid-height': `${hours.length * 62}px`,

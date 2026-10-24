@@ -613,7 +613,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
 .schedule-sidebar-book { padding: 8px 10px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-subtle); color: var(--text-1); display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .schedule-sidebar-book:hover { border-color: var(--accent-violet); color: var(--accent-violet); }
 
-.schedule-calendar-main { padding: 22px; overflow: hidden; }
+.schedule-calendar-main { padding: 22px; overflow: visible; }
 .schedule-calendar-toolbar { align-items: flex-end; margin-bottom: 18px; }
 .schedule-toolbar-title h1 { margin: 5px 0; font-size: clamp(20px, 2vw, 27px); line-height: 1.2; }
 .schedule-toolbar-title p { margin: 0; color: var(--text-3); font-size: 13px; }
