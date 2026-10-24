@@ -219,8 +219,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                     transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                     background: isActive
                       ? isDarkMode
-                        ? 'linear-gradient(135deg, rgba(151, 87, 250, 0.22) 0%, rgba(77, 119, 249, 0.16) 100%)'
-                        : 'linear-gradient(135deg, rgba(151, 87, 250, 0.12) 0%, rgba(77, 119, 249, 0.08) 100%)'
+                        ? 'linear-gradient(135deg, rgba(49, 86, 216, 0.22) 0%, rgba(59, 130, 246, 0.16) 100%)'
+                        : 'linear-gradient(135deg, rgba(49, 86, 216, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%)'
                       : 'transparent',
                     color: isActive
                       ? isDarkMode
@@ -229,8 +229,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                       : 'text.secondary',
                     boxShadow: isActive
                       ? isDarkMode
-                        ? 'inset 0 0 0 1px rgba(151, 87, 250, 0.35), 0 4px 16px rgba(77, 119, 249, 0.15)'
-                        : 'inset 0 0 0 1px rgba(77, 119, 249, 0.25), 0 4px 12px rgba(77, 119, 249, 0.08)'
+                        ? 'inset 0 0 0 1px rgba(49, 86, 216, 0.35), 0 4px 16px rgba(59, 130, 246, 0.15)'
+                        : 'inset 0 0 0 1px rgba(59, 130, 246, 0.25), 0 4px 12px rgba(59, 130, 246, 0.08)'
                       : 'none',
                     '&:hover': {
                       color: 'text.primary',
@@ -238,7 +238,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                         ? undefined
                         : isDarkMode
                           ? 'rgba(255, 255, 255, 0.05)'
-                          : 'rgba(77, 119, 249, 0.04)',
+                          : 'rgba(59, 130, 246, 0.04)',
                       transform: 'translateX(2px)',
                     },
                   }}
@@ -253,8 +253,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                         bottom: '20%',
                         width: 4,
                         borderRadius: '0 4px 4px 0',
-                        background: 'linear-gradient(180deg, #9757FA 0%, #1BC9DE 100%)',
-                        boxShadow: '0 0 10px #9757FA',
+                        background: 'linear-gradient(180deg, #3156D8 0%, #19D3C5 100%)',
+                        boxShadow: '0 0 10px #3156D8',
                       }}
                     />
                   )}
@@ -267,7 +267,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                       color: isActive
                         ? isDarkMode
                           ? '#A86EFB'
-                          : '#4D77F9'
+                          : '#3B82F6'
                         : 'inherit',
                       fontSize: 18,
                     }}
@@ -306,7 +306,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
             background: isDarkMode
               ? 'rgba(25, 37, 65, 0.5)'
               : 'rgba(240, 244, 255, 0.8)',
-            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(77, 119, 249, 0.12)'}`,
+            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(59, 130, 246, 0.12)'}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

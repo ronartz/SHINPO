@@ -194,7 +194,7 @@ html[data-theme='light'] select.quick-form-input:focus,
 .theme-light .quick-field-select:focus,
 html[data-theme='light'] .quick-field-select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237932E6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  border-color: var(--primary-coral, #7932E6);
+  border-color: var(--primary-coral, #2847B8);
 }
 
 .theme-light select.quick-form-input option,

@@ -29,14 +29,14 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
     >
       <defs>
         <linearGradient id="shinpoTopShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#1BC9DE" />
-          <stop offset="48%" stopColor="#4D77F9" />
-          <stop offset="100%" stopColor="#9757FA" />
+          <stop offset="0%" stopColor="#19D3C5" />
+          <stop offset="48%" stopColor="#3B82F6" />
+          <stop offset="100%" stopColor="#3156D8" />
         </linearGradient>
         <linearGradient id="shinpoBotShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#1BC9DE" />
-          <stop offset="52%" stopColor="#4D77F9" />
-          <stop offset="100%" stopColor="#9757FA" />
+          <stop offset="0%" stopColor="#19D3C5" />
+          <stop offset="52%" stopColor="#3B82F6" />
+          <stop offset="100%" stopColor="#3156D8" />
         </linearGradient>
       </defs>
 
@@ -100,7 +100,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
                 fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
                 fontSize: Math.max(12, Math.round(size * 0.36)),
                 fontWeight: 700,
-                color: 'var(--primary-violet, #9757FA)',
+                color: 'var(--primary-violet, #3156D8)',
                 letterSpacing: '0.04em',
               }}
             >

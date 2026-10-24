@@ -5,7 +5,6 @@ import com.shinpo.dto.GoalResponse;
 import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.entity.Goal;
 import com.shinpo.entity.Mission;
-import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.User;
 import com.shinpo.repository.GoalRepository;
 import com.shinpo.repository.MissionRepository;
@@ -97,13 +96,8 @@ public class GoalService {
 
         boolean isNowCompleted = "COMPLETED".equalsIgnoreCase(goal.getStatus());
         if (!wasCompleted && isNowCompleted) {
-            ProgressEvent goalProgressEvent = new ProgressEvent(
-                    goal.getUser(),
-                    null,
-                    "GOAL_COMPLETED",
-                    GOAL_COMPLETION_PROGRESS
-            );
-            progressEventRepository.save(goalProgressEvent);
+            progressEventRepository.insertGoalCompletionReward(
+                    goal.getUser().getId(), goal.getId(), GOAL_COMPLETION_PROGRESS);
         }
 
         Goal savedGoal = goalRepository.save(goal);

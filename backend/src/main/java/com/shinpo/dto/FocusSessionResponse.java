@@ -2,6 +2,7 @@ package com.shinpo.dto;
 
 import com.shinpo.entity.FocusSession;
 import com.shinpo.entity.FocusSessionStatus;
+import com.shinpo.entity.SessionIntervalType;
 
 import java.time.Instant;
 
@@ -36,6 +37,15 @@ public class FocusSessionResponse {
     private String reflectionNote;
     private String accomplishment;
     private SessionResultResponse result;
+    private boolean pomodoroEnabled;
+    private Integer pomodoroFocusCycles;
+    private Integer pomodoroShortBreakMinutes;
+    private Integer pomodoroLongBreakMinutes;
+    private Integer pomodoroGraceMinutes;
+    private Integer completedFocusCycles;
+    private SessionIntervalType currentPhase;
+    private Long focusActiveSeconds;
+    private Long breakActiveSeconds;
 
     public static FocusSessionResponse from(FocusSession session) {
         FocusSessionResponse response = new FocusSessionResponse();
@@ -49,6 +59,17 @@ public class FocusSessionResponse {
         response.name = session.getName();
         response.intention = session.getIntention();
         response.durationMinutes = session.getDurationMinutes();
+        response.pomodoroEnabled = session.isPomodoroEnabled();
+        response.pomodoroFocusCycles = session.getPomodoroFocusCycles();
+        response.pomodoroShortBreakMinutes = session.getPomodoroShortBreakMinutes();
+        response.pomodoroLongBreakMinutes = session.getPomodoroLongBreakMinutes();
+        response.pomodoroGraceMinutes = session.getPomodoroGraceMinutes();
+        response.completedFocusCycles = session.getCompletedFocusCycles();
+        response.currentPhase = session.getCurrentPhase();
+        response.focusActiveSeconds = session.calculateActiveSeconds(now);
+        response.breakActiveSeconds = session.getBreakActiveSeconds() + (session.isPomodoroEnabled() && session.getCurrentPhase() != SessionIntervalType.FOCUS && session.getCurrentPhase() != SessionIntervalType.COMPLETE
+                ? session.getPhaseElapsedSeconds() + (session.getStatus() == FocusSessionStatus.ACTIVE && session.getPhaseStartedAt() != null ? Math.max(0L, java.time.Duration.between(session.getPhaseStartedAt(), now).toSeconds()) : 0L)
+                : 0L);
         response.status = session.getStatus();
         response.scheduledAt = session.getScheduledAt();
         response.startedAt = session.getStartedAt();
@@ -166,4 +187,14 @@ public class FocusSessionResponse {
     public SessionResultResponse getResult() {
         return result;
     }
+
+    public boolean isPomodoroEnabled() { return pomodoroEnabled; }
+    public Integer getPomodoroFocusCycles() { return pomodoroFocusCycles; }
+    public Integer getPomodoroShortBreakMinutes() { return pomodoroShortBreakMinutes; }
+    public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
+    public Integer getPomodoroGraceMinutes() { return pomodoroGraceMinutes; }
+    public Integer getCompletedFocusCycles() { return completedFocusCycles; }
+    public SessionIntervalType getCurrentPhase() { return currentPhase; }
+    public Long getFocusActiveSeconds() { return focusActiveSeconds; }
+    public Long getBreakActiveSeconds() { return breakActiveSeconds; }
 }

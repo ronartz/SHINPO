@@ -23,7 +23,7 @@ export const ShinpoToast: React.FC<ShinpoToastProps> = ({
         return 'var(--brand-red, #F87171)'
       case 'info':
       default:
-        return 'var(--primary-violet, #9757FA)'
+        return 'var(--primary-violet, #3156D8)'
     }
   }
 

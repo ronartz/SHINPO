@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateRemainingSeconds, formatTimerDigits } from './focusTimer.ts'
+import { calculateRemainingSeconds, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
 import type { FocusSession } from '../api/focusSessions.ts'
 
 function createMockSession(overrides: Partial<FocusSession> = {}): FocusSession {
@@ -35,6 +35,11 @@ test('formatTimerDigits formats minutes and seconds correctly', () => {
   assert.equal(formatTimerDigits(-10), '00:00')
 })
 
+test('focus presets describe the actual single-session behavior without promising breaks', () => {
+  assert.deepEqual(pomodoroPlans.map(({ totalMinutes }) => totalMinutes), [55, 60, 90])
+  assert.ok(pomodoroPlans.every(({ schedule }) => schedule === 'One continuous focus session'))
+})
+
 test('calculateRemainingSeconds returns fallback duration when no active session exists', () => {
   const result = calculateRemainingSeconds(null, Date.now(), 30)
   assert.equal(result, 1800)
@@ -58,6 +63,18 @@ test('calculateRemainingSeconds counts down accurately for ACTIVE session using 
 
   // 5 minutes later: 1200s remaining
   assert.equal(calculateRemainingSeconds(session, serverTimeMs + 300_000), 1200)
+})
+
+test('Pomodoro break countdown uses the backend phase remaining-time anchor', () => {
+  const serverTime = '2026-10-23T12:00:00.000Z'
+  const anchor = new Date(serverTime).getTime()
+  const session = createMockSession({
+    pomodoroEnabled: true,
+    currentPhase: 'SHORT_BREAK',
+    remainingSeconds: 300,
+    serverTime,
+  })
+  assert.equal(calculateRemainingSeconds(session, anchor + 12_000), 288)
 })
 
 test('calculateRemainingSeconds freezes countdown in PAUSED state', () => {

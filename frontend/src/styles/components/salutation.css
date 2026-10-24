@@ -123,7 +123,7 @@ html[data-theme='light'] .sidebar-upper-quote-text,
 }
 
 .sidebar-quote-refresh-btn:focus-visible {
-  outline: 2px solid var(--primary-violet, #9757FA);
+  outline: 2px solid var(--primary-violet, #3156D8);
   outline-offset: 1px;
 }
 

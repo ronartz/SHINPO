@@ -70,6 +70,19 @@ class OnboardingServiceTests {
     }
 
     @Test
+    @DisplayName("Concurrent first onboarding writes recheck after locking the user")
+    void testGetOrCreateRechecksAfterUserLock() {
+        UserOnboarding createdByConcurrentRequest = new UserOnboarding(testUser);
+        when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.empty(), Optional.of(createdByConcurrentRequest));
+        when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
+
+        UserOnboarding result = onboardingService.getOrCreateEntity(1L);
+
+        assertThat(result).isSameAs(createdByConcurrentRequest);
+        verify(onboardingRepository, never()).save(any(UserOnboarding.class));
+    }
+
+    @Test
     @DisplayName("startOnboarding transitions state to IN_PROGRESS")
     void testStartOnboarding() {
         UserOnboarding onboarding = new UserOnboarding(testUser);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { FocusSession } from '../api/focusSessions'
 import type { AppView } from '../types/navigation'
 import { Icon } from '../components/common/Icon'
@@ -47,6 +47,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   trackRender('ScheduleView')
   const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED'>('ALL')
   const [miniMonth, setMiniMonth] = useState(() => new Date(`${selectedScheduleDate}T00:00:00`))
+  const calendarScrollRef = useRef<HTMLDivElement>(null)
 
   const weekDays = useMemo(() => {
     const monday = dayStart(new Date(`${selectedScheduleDate}T00:00:00`))
@@ -81,14 +82,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const weekSummary = summarizeSchedule(allWeekSessions)
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
-  const eventStarts = timedSessions.map(session => {
-    const date = new Date(session.scheduledAt || session.startedAt!)
-    return date.getHours() + date.getMinutes() / 60
-  })
-  const startHour = timedSessions.length ? Math.max(0, Math.floor(Math.min(8, ...eventStarts))) : 8
-  const latestEventEnd = timedSessions.length ? Math.max(...timedSessions.map((session, index) => eventStarts[index] + session.durationMinutes / 60)) : 18
-  const endHour = Math.min(28, Math.max(startHour + 1, Math.ceil(Math.max(18, latestEventEnd))))
-  const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
+  const startHour = 0
+  const hours = Array.from({ length: 24 }, (_, index) => index)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const dayLayouts = new Map(weekDays.map((day) => {
@@ -109,6 +104,37 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
     const next = new Date(`${date}T00:00:00`)
     if (next.getMonth() !== miniMonth.getMonth() || next.getFullYear() !== miniMonth.getFullYear()) setMiniMonth(next)
   }
+
+  useEffect(() => {
+    const calendar = calendarScrollRef.current
+    if (!calendar) return
+
+    const handleWheel = (event: WheelEvent) => {
+      const current = calendar.scrollTop
+      const maximum = calendar.scrollHeight - calendar.clientHeight
+      const next = Math.max(0, Math.min(maximum, current + event.deltaY))
+      let remainder = event.deltaY - (next - current)
+      if (Math.abs(remainder) < 1) return
+
+      event.preventDefault()
+      calendar.scrollTop = next
+
+      for (let parent = calendar.parentElement; parent; parent = parent.parentElement) {
+        const canScroll = ['auto', 'scroll'].includes(getComputedStyle(parent).overflowY)
+        if (canScroll && parent.scrollHeight > parent.clientHeight + 1) {
+          const before = parent.scrollTop
+          parent.scrollTop = Math.max(0, Math.min(parent.scrollHeight - parent.clientHeight, before + remainder))
+          remainder -= parent.scrollTop - before
+          if (Math.abs(remainder) < 1) return
+        }
+      }
+
+      window.scrollBy(0, remainder)
+    }
+
+    calendar.addEventListener('wheel', handleWheel, { passive: false })
+    return () => calendar.removeEventListener('wheel', handleWheel)
+  }, [])
 
   const renderActions = (session: FocusSession) => (
     <div className="schedule-session-actions">
@@ -184,11 +210,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {flexibleSessions.length > 0 && <div className="schedule-flexible-row"><span>FLEXIBLE</span><div>{flexibleSessions.map(session => renderSession(session, true))}</div></div>}
 
-      <div className="schedule-calendar-scroll">
+      <div className="schedule-calendar-scroll" ref={calendarScrollRef}>
         <div className="schedule-week-grid" style={{
           '--schedule-hours': hours.length,
           '--schedule-grid-height': `${hours.length * 62}px`,
-          gridTemplateColumns: `58px ${weekDays.map((day) => `minmax(${Math.max(120, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 120)}px, 1fr)`).join(' ')}`,
+          gridTemplateColumns: `72px ${weekDays.map((day) => `minmax(${Math.max(96, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 96)}px, 1fr)`).join(' ')}`,
         } as React.CSSProperties}>
           <div className="schedule-grid-corner">LOCAL TIME</div>
           {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => selectDate(day.dateStr)}>

@@ -140,6 +140,14 @@ export function Icon({
           <polyline points="15 18 9 12 15 6" />
         </svg>
       )
+    case 'menu':
+      return (
+        <svg {...common}>
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="18" x2="20" y2="18" />
+        </svg>
+      )
     case 'play':
       return (
         <svg {...common}>

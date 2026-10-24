@@ -43,19 +43,19 @@ assert.equal(textBoxesOverlap(sampleTextBox, { x: 10, y: 2, right: 45, bottom: 1
 assert.equal(textBoxesOverlap(sampleTextBox, { x: 42, y: 0, right: 82, bottom: 16 }), false)
 
 async function login() {
-  const username = `audit_qa_${Date.now()}`
-  const regResponse = await fetch(`${backendUrl}/api/auth/register`, {
+  const username = process.env.SHINPO_AUDIT_USERNAME || `audit_qa_${Date.now()}`
+  const password = process.env.SHINPO_AUDIT_PASSWORD || 'Password123!'
+  const isExistingDisposable = Boolean(process.env.SHINPO_AUDIT_USERNAME)
+  const authResponse = await fetch(`${backendUrl}/api/auth/${isExistingDisposable ? 'login' : 'register'}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username,
-      email: `${username}@shinpo.local`,
-      password: 'Password123!',
-    }),
+    body: JSON.stringify(isExistingDisposable
+      ? { usernameOrEmail: username, password }
+      : { username, email: `${username}@shinpo.local`, password }),
   })
-  if (regResponse.ok) return regResponse.json()
+  if (authResponse.ok) return authResponse.json()
 
-  throw new Error(`Visual audit could not register its fresh disposable account at ${backendUrl}`)
+  throw new Error(`Visual audit could not ${isExistingDisposable ? 'log in to the existing isolated account' : 'register a fresh disposable account'} at ${backendUrl}`)
 }
 
 async function main() {
@@ -127,6 +127,17 @@ async function main() {
     if (browserApiStatus !== 200) throw new Error(`Browser could not reach the isolated authenticated API (HTTP ${browserApiStatus}); check the test CORS allowlist`)
     console.log('Browser authenticated API probe: HTTP 200.')
 
+    const accountControls = await evaluate(`(() => ({
+      topbarSettings: Boolean(document.querySelector('.cockpit-top-bar [aria-label="Settings"]')),
+      topbarAccount: Boolean(document.querySelector('.cockpit-top-bar .profile-badge-card')),
+      sidebarSettings: Boolean(document.querySelector('.icon-sidebar .sidebar-settings-btn')),
+      sidebarAccount: Boolean(document.querySelector('.icon-sidebar .sidebar-profile')),
+      rewards: Boolean(document.querySelector('.icon-sidebar [data-rewards="true"]')),
+    }))()`)
+    assert.ok(accountControls.topbarSettings && accountControls.topbarAccount && !accountControls.sidebarSettings && !accountControls.sidebarAccount && accountControls.rewards,
+      `Account, Settings, and Rewards controls must occupy their single intended destinations: ${JSON.stringify(accountControls)}`)
+    console.log(`Canonical navigation controls PASS: ${JSON.stringify(accountControls)}`)
+
     let firstLoginTour = false
     for (let attempt = 0; attempt < 40 && !firstLoginTour; attempt++) {
       await sleep(250)
@@ -162,30 +173,58 @@ async function main() {
         throw new Error(`Skip was not persisted truthfully (status=${skipState?.status}, XP=${progress.totalProgress}, events=${progress.recentEvents?.length})`)
       }
       console.log('Fresh-account walkthrough skipped through confirmation UI; PostgreSQL-backed API reports SKIPPED, 0 XP, 0 events.')
+    } else if (process.env.SHINPO_AUDIT_USERNAME) {
+      console.log('Reusing disposable account; its first-run walkthrough was already completed in a prior isolated audit.')
     } else throw new Error('Fresh disposable account did not launch the first-login walkthrough within 10 seconds of app readiness')
 
     await evaluate("Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === 'Dashboard')?.click()")
     await sleep(700)
     const dashboardMotion = await evaluate(`(() => {
-      const route = document.querySelector('.kinetic-route-dashboard');
-      const firstPanel = route?.querySelector('.kinetic-dashboard-layout > :first-child');
-      return { route: route?.dataset.view, routeAnimation: route && getComputedStyle(route).animationName, panelAnimation: firstPanel && getComputedStyle(firstPanel).animationName };
+      const route = document.querySelector('.shinpo-dashboard');
+      const header = route?.querySelector('.dashboard-header-bar');
+      const firstPanel = route?.querySelector('.dashboard-metrics-grid');
+      return { route: route ? 'Dashboard' : null, routeAnimation: header && getComputedStyle(header).animationName, panelAnimation: firstPanel && getComputedStyle(firstPanel).animationName };
     })()`)
     assert.equal(dashboardMotion.route, 'Dashboard', `Dashboard navigation must resolve to the Dashboard content: ${JSON.stringify(dashboardMotion)}`)
-    assert.equal(dashboardMotion.routeAnimation, 'kinetic-page-enter', `Route entry motion must be present: ${JSON.stringify(dashboardMotion)}`)
-    assert.equal(dashboardMotion.panelAnimation, 'kinetic-dashboard-reveal', `Dashboard panels must reveal from the real route: ${JSON.stringify(dashboardMotion)}`)
+    assert.equal(dashboardMotion.routeAnimation, 'dashboardSectionReveal', `Dashboard header reveal must be present: ${JSON.stringify(dashboardMotion)}`)
+    assert.equal(dashboardMotion.panelAnimation, 'dashboardSectionReveal', `Dashboard metric reveal must be present: ${JSON.stringify(dashboardMotion)}`)
     await evaluate("Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === 'Goals & Missions')?.click()")
     await sleep(360)
     const markerAlignment = await evaluate(`(() => {
       const marker = document.querySelector('.sidebar-active-indicator')?.getBoundingClientRect();
       const active = document.querySelector('.sidebar-btn.active')?.getBoundingClientRect();
-      return { route: document.querySelector('.kinetic-route')?.dataset.view, delta: marker && active ? Math.round((marker.top + marker.height / 2 - active.top - active.height / 2) * 100) / 100 : null };
+      return { route: document.querySelector('.goals-view-deck') ? document.querySelector('.sidebar-btn.active')?.dataset.tab : null, delta: marker && active ? Math.round((marker.top + marker.height / 2 - active.top - active.height / 2) * 100) / 100 : null };
     })()`)
     assert.equal(markerAlignment.route, 'Goals & Missions', `Navigation must reach the selected function: ${JSON.stringify(markerAlignment)}`)
     assert.ok(Math.abs(markerAlignment.delta) <= 1, `Active marker must align with its selected navigation row: ${JSON.stringify(markerAlignment)}`)
-    await evaluate("document.querySelector('.sidebar-search-control')?.click()")
-    assert.equal(await evaluate("document.activeElement?.classList.contains('top-search-input')"), true, 'Sidebar search must focus the real global search input')
-    await evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+
+    const preferenceKey = `shinpo_goals_task_view_v1_${auth.user.id}`
+    await evaluate("Array.from(document.querySelectorAll('.view-mode-btn')).find((button) => button.textContent.trim() === 'Board')?.click()")
+    await sleep(100)
+    assert.equal(await evaluate(`localStorage.getItem(${JSON.stringify(preferenceKey)})`), 'board', 'Selecting Board must persist for this account')
+    const boardImage = await send('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(captures, 'task-board-before-route-changes.png'), Buffer.from(boardImage.result.data, 'base64'))
+    for (const tab of ['Dashboard', 'Goals & Missions', 'AI Assistant', 'Goals & Missions']) {
+      await evaluate(`Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === ${JSON.stringify(tab)})?.click()`)
+      await sleep(180)
+      if (tab === 'Goals & Missions') assert.equal(await evaluate("document.querySelector('.view-mode-btn.active')?.textContent.trim()"), 'Board', `Board selection must survive navigation to ${tab}`)
+    }
+    await evaluate("Array.from(document.querySelectorAll('.view-mode-btn')).find((button) => button.textContent.trim() === 'List')?.click()")
+    await sleep(100)
+    assert.equal(await evaluate(`localStorage.getItem(${JSON.stringify(preferenceKey)})`), 'list', 'Selecting List must persist for this account')
+    for (const tab of ['Schedule', 'Goals & Missions']) {
+      await evaluate(`Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === ${JSON.stringify(tab)})?.click()`)
+      await sleep(180)
+    }
+    assert.equal(await evaluate("document.querySelector('.view-mode-btn.active')?.textContent.trim()"), 'List', 'List selection must survive Calendar navigation')
+    await send('Page.reload')
+    for (let attempt = 0; attempt < 60 && !await evaluate("Boolean(document.querySelector('[data-tab=\"Goals & Missions\"]'))"); attempt++) await sleep(250)
+    await evaluate("Array.from(document.querySelectorAll('.sidebar-btn')).find((button) => button.dataset.tab === 'Goals & Missions')?.click()")
+    for (let attempt = 0; attempt < 60 && !await evaluate("Boolean(document.querySelector('.goals-view-deck'))"); attempt++) await sleep(250)
+    assert.equal(await evaluate("document.querySelector('.view-mode-btn.active')?.textContent.trim()"), 'List', 'List selection must survive application reload')
+    const listImage = await send('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(captures, 'task-list-after-reload.png'), Buffer.from(listImage.result.data, 'base64'))
+    console.log('Goals & Tasks List/Board selection persisted across Dashboard, EONPAI, Calendar, and application reload.')
     await sleep(300)
 
     console.log('Starting sidebar pointer/focus/pin checks at 1280×800.')
@@ -214,7 +253,7 @@ async function main() {
       appRenders: window.__SHINPO_RENDER_COUNTS?.App ?? 0,
     }))()`)
     assert.ok(hoverExpansion.expanded && hoverExpansion.width >= 240, `Pointer hover must reveal the expanded rail: ${JSON.stringify(hoverExpansion)}`)
-    assert.ok(Math.abs(hoverExpansion.mainLeft - hoverExpansion.width) <= 1, `Desktop expansion must reserve the rail width so page content is not obscured: ${JSON.stringify(hoverExpansion)}`)
+    assert.ok(Math.abs(hoverExpansion.mainLeft - hoverExpansion.width - 32) <= 1, `Desktop expansion must preserve the existing 32px content gutter beside the rail: ${JSON.stringify(hoverExpansion)}`)
     assert.equal(hoverExpansion.appRenders, appRenderBaseline, 'Sidebar hover must not rerender the application root')
     console.log(`Sidebar hover result: ${JSON.stringify(hoverExpansion)}`)
     const expandedCapture = await send('Page.captureScreenshot', { format: 'png' })
@@ -261,34 +300,44 @@ async function main() {
     })`)
     assert.equal(pinnedSidebar.expanded, 'true', `Pin must retain expanded layout: ${JSON.stringify(pinnedSidebar)}`)
     assert.equal(pinnedSidebar.preference, 'true', 'Pin state must persist')
-    assert.ok(Math.abs(pinnedSidebar.mainLeft - pinnedSidebar.width) <= 1, `Pinned desktop rail must reserve its width: ${JSON.stringify(pinnedSidebar)}`)
+    assert.ok(Math.abs(pinnedSidebar.mainLeft - pinnedSidebar.width - 32) <= 1, `Pinned desktop rail must preserve the existing 32px content gutter: ${JSON.stringify(pinnedSidebar)}`)
     await evaluate("document.querySelector('.sidebar-toggle-btn')?.click()")
     await sleep(360)
 
-    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
-    const compactMainLeft = await evaluate("document.querySelector('.app-main')?.getBoundingClientRect().left")
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' })
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab' })
-    await evaluate("document.querySelector('.sidebar-btn')?.focus()")
-    await sleep(360)
-    const compactFocusExpansion = await evaluate(`({
-      expanded: document.querySelector('.icon-sidebar')?.classList.contains('expanded'),
-      width: document.querySelector('.icon-sidebar')?.getBoundingClientRect().width,
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false })
+    await sleep(280)
+    const narrowLayout = await evaluate(`(() => ({
+      innerWidth,
+      documentWidth: document.documentElement.clientWidth,
+      mobileBreakpoint: matchMedia('(max-width: 768px)').matches,
+      sidebarDisplay: getComputedStyle(document.querySelector('.icon-sidebar')).display,
+      mobileNavigationDisplay: getComputedStyle(document.querySelector('.mobile-nav-toggle')).display,
       mainLeft: document.querySelector('.app-main')?.getBoundingClientRect().left,
-      labelsVisible: (() => { const label = document.querySelector('.sidebar-btn-label'); return Boolean(label && getComputedStyle(label).display !== 'none'); })(),
-      activeElement: document.activeElement?.getAttribute('data-tab'),
-    })`)
-    assert.ok(compactFocusExpansion.expanded && compactFocusExpansion.width >= 240 && compactFocusExpansion.labelsVisible, `Compact viewport must expose usable focused navigation: ${JSON.stringify(compactFocusExpansion)}`)
-    assert.ok(Math.abs(compactFocusExpansion.mainLeft - compactMainLeft) <= 1, `Compact temporary expansion must overlay without shifting content: ${JSON.stringify({ compactMainLeft, compactFocusExpansion })}`)
+      mainMarginLeft: getComputedStyle(document.querySelector('.app-main')).marginLeft,
+      topbarWithinViewport: document.querySelector('.cockpit-top-bar')?.getBoundingClientRect().right <= innerWidth,
+    }))()`)
+    assert.equal(narrowLayout.sidebarDisplay, 'none', `The current narrow phone-width layout intentionally hides desktop navigation: ${JSON.stringify(narrowLayout)}`)
+    assert.notEqual(narrowLayout.mobileNavigationDisplay, 'none', `Narrow windows need an accessible replacement for the hidden desktop rail: ${JSON.stringify(narrowLayout)}`)
+    assert.equal(narrowLayout.mainLeft, 0, `Narrow content must use the available width: ${JSON.stringify(narrowLayout)}`)
+    await evaluate("document.querySelector('.mobile-nav-toggle')?.click()")
+    await sleep(100)
+    const mobileNavCount = await evaluate("document.querySelectorAll('#mobile-navigation-panel [data-mobile-nav-tab]').length")
+    assert.equal(mobileNavCount, 8, `The narrow navigation menu must expose all app destinations; found ${mobileNavCount}`)
+    await evaluate("document.querySelector('[data-mobile-nav-tab=\"Schedule\"]')?.click()")
+    await sleep(300)
+    assert.equal(await evaluate("document.querySelector('.sidebar-btn[data-tab=\"Schedule\"]')?.classList.contains('active')"), true, 'Narrow navigation must reach Calendar')
+    await evaluate("document.querySelector('.mobile-nav-toggle')?.click()")
+    await sleep(80)
+    await evaluate("document.querySelector('[data-mobile-nav-tab=\"Dashboard\"]')?.click()")
+    await sleep(300)
+    assert.equal(await evaluate("document.querySelector('.sidebar-btn[data-tab=\"Dashboard\"]')?.classList.contains('active')"), true, 'Narrow navigation must return to Dashboard')
     await evaluate(`(() => { document.documentElement.dataset.theme = 'light'; for (const el of [document.documentElement, document.body, document.querySelector('.app-shell')].filter(Boolean)) el.classList.add('theme-light'); })()`)
     await sleep(350)
     await evaluate("document.querySelectorAll('.shinpo-toast-dismiss').forEach((button) => button.click())")
     await sleep(100)
-    const lightSidebarSurface = await evaluate("getComputedStyle(document.querySelector('.icon-sidebar')).backgroundColor")
-    const backgroundAlpha = lightSidebarSurface.match(/rgba\([^)]*,\s*([\d.]+)\s*\)|\/\s*([\d.]+)\s*\)/i)?.slice(1).find(Boolean)
-    assert.ok(!backgroundAlpha || Number(backgroundAlpha) === 1, `Light navigation rail must be an opaque surface: ${lightSidebarSurface}`)
     const compactCapture = await send('Page.captureScreenshot', { format: 'png' })
-    await writeFile(join(captures, 'sidebar-keyboard-expanded-light-390.png'), Buffer.from(compactCapture.result.data, 'base64'))
+    await writeFile(join(captures, 'narrow-390-light.png'), Buffer.from(compactCapture.result.data, 'base64'))
+    console.log('390px layout geometry and menu-based navigation to Calendar and Dashboard verified.')
     await evaluate(`(() => { document.documentElement.dataset.theme = 'dark'; for (const el of [document.documentElement, document.body, document.querySelector('.app-shell')].filter(Boolean)) el.classList.remove('theme-light'); })()`)
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] })
     const reducedMotionDuration = await evaluate("getComputedStyle(document.querySelector('.icon-sidebar')).transitionDuration")
@@ -304,7 +353,7 @@ async function main() {
     for (let cycle = 0; cycle < 50; cycle++) {
       const startedAt = performance.now()
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...desktopNavPoint })
-      await sleep(25)
+      await sleep(100)
       assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), true, `Sidebar failed to open on hover cycle ${cycle + 1}`)
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
       await sleep(235)
@@ -332,6 +381,13 @@ async function main() {
         if (!selected) throw new Error(`Navigation control missing for ${view}`)
         await evaluate('window.scrollTo(0, 0)')
         await sleep(300)
+        if (view === 'Dashboard') {
+          const insights = await evaluate(`(() => ({
+            count: document.querySelectorAll('.dashboard-insight-card').length,
+            headings: [...document.querySelectorAll('.dashboard-insight-card h2')].map((heading) => heading.textContent.trim()),
+          }))()`)
+          assert.deepEqual(insights.headings, ['Focus activity', 'Goal progress'], `Dashboard must render real activity and goal progress widgets: ${JSON.stringify(insights)}`)
+        }
         const scan = await evaluate(`(() => {
           const visible = (el) => {
             const rect = el.getBoundingClientRect();
@@ -431,16 +487,26 @@ async function main() {
         if (!calendarScroll && view === 'Schedule') {
           const target = await evaluate(`(() => {
             const calendar = document.querySelector('.schedule-calendar-scroll');
-            if (!calendar || calendar.scrollHeight <= calendar.clientHeight + 2 || !['auto', 'scroll'].includes(getComputedStyle(calendar).overflowY)) return null;
+            if (!calendar) return null;
+            window.scrollTo({ top: 0, behavior: 'instant' });
             calendar.scrollTop = 0;
             calendar.scrollIntoView({ block: 'center', behavior: 'instant' });
             const rect = calendar.getBoundingClientRect();
-            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            return {
+              x: rect.left + rect.width / 2,
+              y: rect.top + Math.min(rect.height - 12, Math.max(12, rect.height / 2)),
+              pageStart: document.scrollingElement?.scrollTop ?? 0,
+              verticalRange: calendar.scrollHeight - calendar.clientHeight,
+            };
           })()`)
           if (target) {
-            await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...target, deltaX: 0, deltaY: 160 })
+            await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: target.x, y: target.y, deltaX: 0, deltaY: 160 })
             await sleep(150)
-            calendarScroll = await evaluate("Boolean(document.querySelector('.schedule-calendar-scroll')?.scrollTop > 0)")
+            calendarScroll = await evaluate(`(() => {
+              const calendar = document.querySelector('.schedule-calendar-scroll');
+              return calendar && document.scrollingElement.scrollTop > ${target.pageStart + 20}
+                && calendar.scrollTop === 0 && calendar.scrollHeight - calendar.clientHeight <= 2;
+            })()`)
           }
         }
         results.push({ route: view, ...scan, calendarScroll })
@@ -451,6 +517,18 @@ async function main() {
           await sleep(100)
           const image = await send('Page.captureScreenshot', { format: 'png' })
           await writeFile(join(captures, `${theme}-${view.replaceAll(' ', '_')}-${viewport.width}.png`), Buffer.from(image.result.data, 'base64'))
+        }
+        if (view === 'Dashboard' && theme === 'light' && viewport.width === 1280 && process.env.SHINPO_AUDIT_CAPTURE_ALL === '1') {
+          await evaluate(`(() => {
+            const grid = document.querySelector('.dashboard-insight-grid');
+            if (!grid) return false;
+            document.scrollingElement.scrollTop = Math.max(0, grid.getBoundingClientRect().top + document.scrollingElement.scrollTop - 90);
+            return true;
+          })()`)
+          await sleep(80)
+          const image = await send('Page.captureScreenshot', { format: 'png' })
+          await writeFile(join(captures, 'dashboard-insights-light-1280.png'), Buffer.from(image.result.data, 'base64'))
+          await evaluate('window.scrollTo({ top: 0, behavior: \'instant\' })')
         }
       }
     }

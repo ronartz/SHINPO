@@ -60,6 +60,9 @@ public class ContextualFocusResource {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "break_only", nullable = false)
+    private boolean breakOnly;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -105,6 +108,8 @@ public class ContextualFocusResource {
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public boolean isBreakOnly() { return breakOnly; }
+    public void setBreakOnly(boolean breakOnly) { this.breakOnly = breakOnly; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -389,7 +389,7 @@ class Slice62SecurityHardeningTests {
         activeSession.setStartedAt(Instant.now().minus(Duration.ofMinutes(10)));
         setId(activeSession, 501L);
 
-        when(focusSessionRepository.findByIdAndUser_Id(501L, testUser.getId())).thenReturn(Optional.of(activeSession));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(501L, testUser.getId())).thenReturn(Optional.of(activeSession));
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(i -> i.getArgument(0));
 
         FocusSessionService sessionService = new FocusSessionService(
@@ -421,7 +421,7 @@ class Slice62SecurityHardeningTests {
         pausedSession.setPausedAt(Instant.now().minus(Duration.ofMinutes(5)));
         setId(pausedSession, 502L);
 
-        when(focusSessionRepository.findByIdAndUser_Id(502L, testUser.getId())).thenReturn(Optional.of(pausedSession));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(502L, testUser.getId())).thenReturn(Optional.of(pausedSession));
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(i -> i.getArgument(0));
 
         FocusSessionService sessionService = new FocusSessionService(
@@ -450,7 +450,7 @@ class Slice62SecurityHardeningTests {
         completedSession.setStatus(FocusSessionStatus.COMPLETED);
         setId(completedSession, 503L);
 
-        when(focusSessionRepository.findByIdAndUser_Id(503L, testUser.getId())).thenReturn(Optional.of(completedSession));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(503L, testUser.getId())).thenReturn(Optional.of(completedSession));
 
         FocusSessionService sessionService = new FocusSessionService(
                 focusSessionRepository,

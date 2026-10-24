@@ -15,6 +15,11 @@ const formatDuration = (minutes: number) => {
   return hours ? `${hours}h${remainder ? ` ${remainder}m` : ''}` : `${minutes}m`
 }
 
+const formatCompletedAt = (value: string) => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Completion date unavailable' : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, analyticsLoading, loadAnalytics }) => {
   trackRender('AnalyticsView')
 
@@ -25,6 +30,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
     !best || day.focusMinutes > best.focusMinutes ? day : best, null)
   const maxMinutes = Math.max(...week.map(day => day.focusMinutes), 60)
   const completionRate = analyticsData?.summary.completionRate ?? null
+  const reflectionCount = analyticsData?.recentDebriefs.length ?? 0
 
   return (
     <main className="analytics-view">
@@ -124,21 +130,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
       <section className="analytics-panel analytics-recent-panel">
         <div className="analytics-panel-heading">
           <div><span className="analytics-eyebrow">Looking back</span><h2>Recent reflections</h2><p>Notes and outcomes from your completed sessions.</p></div>
-          <span className="analytics-recent-count">{analyticsData?.recentDebriefs.length ?? 0} sessions</span>
+          <span className="analytics-recent-count">{reflectionCount} {reflectionCount === 1 ? 'session' : 'sessions'}</span>
         </div>
         <div className="analytics-debrief-list">
           {analyticsData?.recentDebriefs.length ? analyticsData.recentDebriefs.map((deb: RecentDebrief) => (
             <article key={deb.sessionId} className="analytics-debrief-card">
               <div className="analytics-debrief-main">
                 <div className="analytics-debrief-title">{deb.sessionName}</div>
-                {deb.accomplishment && <p className="analytics-debrief-outcome"><span>Outcome</span>{deb.accomplishment}</p>}
-                {deb.reflectionNote && <p className="analytics-debrief-note"><span>Reflection</span>{deb.reflectionNote}</p>}
-                {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note"><span>Intention</span>{deb.intention}</p>}
+                <time className="analytics-debrief-date" dateTime={deb.completedAt}>{formatCompletedAt(deb.completedAt)}</time>
+                {deb.accomplishment && <p className="analytics-debrief-outcome"><span>Outcome</span><span>{deb.accomplishment}</span></p>}
+                {deb.reflectionNote && <p className="analytics-debrief-note"><span>Reflection</span><span>{deb.reflectionNote}</span></p>}
+                {!deb.accomplishment && !deb.reflectionNote && deb.intention && <p className="analytics-debrief-note"><span>Intention</span><span>{deb.intention}</span></p>}
+                {(deb.reflectionNote.length > 150 || deb.accomplishment.length > 150) && <details className="analytics-debrief-details"><summary>Read full reflection</summary><div>{deb.accomplishment && <p><strong>Outcome</strong>{deb.accomplishment}</p>}{deb.reflectionNote && <p><strong>Reflection</strong>{deb.reflectionNote}</p>}</div></details>}
               </div>
               <div className="analytics-debrief-meta">
-                <span className="analytics-duration-chip">{formatDuration(deb.actualFocusMinutes)} active</span>
-                <span className="analytics-planned-duration">Planned {formatDuration(deb.durationMinutes)}</span>
-                <span className="analytics-quality">{deb.quality != null ? `${'★'.repeat(Math.min(5, Math.max(0, deb.quality)))}${'☆'.repeat(Math.max(0, 5 - deb.quality))}` : 'Not rated'}</span>
+                <span className="analytics-duration-chip"><strong>{formatDuration(deb.actualFocusMinutes)}</strong><small>actual focus</small></span>
+                <span className="analytics-duration-chip analytics-planned-chip"><strong>{formatDuration(deb.durationMinutes)}</strong><small>planned</small></span>
+                <span className="analytics-quality" aria-label={deb.quality != null ? `Rated ${deb.quality} out of 5` : 'Not rated'}>{deb.quality != null ? <>{'★'.repeat(Math.min(5, Math.max(0, deb.quality)))}{'☆'.repeat(Math.max(0, 5 - deb.quality))}<small>{deb.quality}/5</small></> : 'Not rated'}</span>
               </div>
             </article>
           )) : <div className="analytics-debrief-empty">Your session reflections will show up here after a focus block.</div>}

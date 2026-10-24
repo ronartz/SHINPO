@@ -57,7 +57,7 @@ test('deriveOverallProtectionStatus - derives honest operational status from dae
   }
   const s1 = deriveOverallProtectionStatus(activeDefending)
   assert.equal(s1.statusKey, 'ACTIVE_DEFENSE')
-  assert.equal(s1.badgeText, 'Active Defense')
+  assert.equal(s1.badgeText, 'Native Defense')
   assert.equal(s1.badgeVariant, 'active')
   assert.equal(s1.shieldConnected, true)
 
@@ -81,7 +81,7 @@ test('deriveOverallProtectionStatus - derives honest operational status from dae
   }
   const s3 = deriveOverallProtectionStatus(ready)
   assert.equal(s3.statusKey, 'READY')
-  assert.equal(s3.badgeText, 'Ready')
+  assert.equal(s3.badgeText, 'Native Shield Ready')
   assert.equal(s3.badgeVariant, 'ready')
   assert.equal(s3.shieldConnected, true)
 
@@ -108,9 +108,23 @@ test('deriveOverallProtectionStatus - derives honest operational status from dae
     enforcementMode: 'AUDIT_ONLY',
   }
   const s6 = deriveOverallProtectionStatus(auditOnlyStatus)
-  assert.equal(s6.badgeText, 'Monitoring Only')
+  assert.equal(s6.badgeText, 'Native Monitoring')
   assert.equal(s6.mode, 'Monitoring Only')
   assert.equal(s6.headline, 'Monitoring Only (Passive)')
+
+  const activeMonitoring = deriveOverallProtectionStatus({
+    ...activeDefending,
+    enforcementMode: 'AUDIT_ONLY',
+  })
+  assert.equal(activeMonitoring.badgeText, 'Native Monitoring')
+  assert.match(activeMonitoring.description, /no applications will be terminated/i)
+
+  const staleActiveState = deriveOverallProtectionStatus({
+    ...activeDefending,
+    daemonConnected: false,
+  })
+  assert.equal(staleActiveState.statusKey, 'DEGRADED')
+  assert.equal(staleActiveState.shieldConnected, false)
 })
 
 test('groupQuarantineEvents - groups repeated events while preserving all records and PIDs', () => {

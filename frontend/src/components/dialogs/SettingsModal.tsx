@@ -269,25 +269,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }
 
-  // Handle Celebration Sound Preference
-  const [celebrationSound, setCelebrationSound] = useState<string>(() => {
-    try {
-      return localStorage.getItem('shinpo_celebration_sound') || 'enabled'
-    } catch {
-      return 'enabled'
-    }
-  })
-
-  const handleCelebrationSoundChange = (mode: string) => {
-    setCelebrationSound(mode)
-    try {
-      localStorage.setItem('shinpo_celebration_sound', mode)
-      window.dispatchEvent(new Event('shinpo:celebration-sound-changed'))
-    } catch {
-      // ignore
-    }
-  }
-
   // Handle Streak Display Preference
   const [streakDisplay, setStreakDisplay] = useState<string>(() => {
     try {
@@ -621,8 +602,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: '8px',
-                background: 'linear-gradient(135deg, rgba(77, 119, 249, 0.2) 0%, rgba(151, 87, 250, 0.2) 100%)',
-                color: '#4D77F9',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(49, 86, 216, 0.2) 100%)',
+                color: '#3B82F6',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -838,40 +819,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span>Minimal (Subtle / Reduced Motion)</span>
                       </div>
                       {celebrationEffects === 'minimal' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Celebration Sound Chime */}
-                <div className="settings-group-card">
-                  <label>
-                    Accomplishment Audio Chime
-                  </label>
-                  <p>
-                    Harmonic synthesizer chime played upon completing tasks, focus sprints, and level tiers.
-                  </p>
-                  <div className="settings-pill-row">
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${celebrationSound !== 'muted' ? 'is-active' : ''}`}
-                      onClick={() => handleCelebrationSoundChange('enabled')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="sparkle" size={15} />
-                        <span>Harmonic Chime (Enabled)</span>
-                      </div>
-                      {celebrationSound !== 'muted' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${celebrationSound === 'muted' ? 'is-active' : ''}`}
-                      onClick={() => handleCelebrationSoundChange('muted')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="close" size={15} />
-                        <span>Muted (Silent Completion)</span>
-                      </div>
-                      {celebrationSound === 'muted' && <span className="settings-pill-indicator">✓</span>}
                     </button>
                   </div>
                 </div>
@@ -1278,7 +1225,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <span className="settings-mode-name">
                               {item.title}
                             </span>
-                            {isSel && <span style={{ fontSize: '12px', color: '#4D77F9', fontWeight: 700 }}>✓ ACTIVE</span>}
+                            {isSel && <span style={{ fontSize: '12px', color: '#3B82F6', fontWeight: 700 }}>✓ ACTIVE</span>}
                           </div>
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.desc}</span>
                         </div>
@@ -1495,7 +1442,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Cloud Backend Server URL
                   </label>
                   <p>
-                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: '#4D77F9' }}>https://shinpo.yourdomain.com</code>).
+                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: '#3B82F6' }}>https://shinpo.yourdomain.com</code>).
                   </p>
                   <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                     <input

@@ -213,7 +213,7 @@ export const ShinpoDatePicker: React.FC<ShinpoDatePickerProps> = ({
         }`}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: 'var(--primary-violet, #9757FA)', display: 'flex', alignItems: 'center' }}>
+          <span style={{ color: 'var(--primary-violet, #3156D8)', display: 'flex', alignItems: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />

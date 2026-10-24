@@ -63,14 +63,14 @@ export const ShinpoCheckbox: React.FC<ShinpoCheckboxProps> = ({
           borderRadius: 5,
           border: checked ? 'none' : '1px solid var(--border-strong, rgba(255, 255, 255, 0.2))',
           backgroundColor: checked
-            ? 'var(--primary-violet, #9757FA)'
+            ? 'var(--primary-violet, #3156D8)'
             : 'var(--surface-card, #1D1E24)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#FFFFFF',
           transition: 'all 0.14s ease',
-          boxShadow: checked ? '0 2px 8px rgba(151, 87, 250, 0.35)' : 'none',
+          boxShadow: checked ? '0 2px 8px rgba(49, 86, 216, 0.35)' : 'none',
           flexShrink: 0,
         }}
       >

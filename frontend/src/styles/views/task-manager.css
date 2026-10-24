@@ -93,12 +93,12 @@
 }
 
 .tm-bar-fill.terracotta {
-  background: var(--brand-coral-gradient, linear-gradient(90deg, #9757FA 0%, #4D77F9 100%));
+  background: var(--brand-coral-gradient, linear-gradient(90deg, #3156D8 0%, #3B82F6 100%));
 }
 
 html[data-theme='light'] .tm-bar-fill.terracotta,
 .theme-light .tm-bar-fill.terracotta {
-  background: linear-gradient(90deg, #7932E6 0%, #2B58E6 100%);
+  background: linear-gradient(90deg, #2847B8 0%, #2563EB 100%);
 }
 
 .tm-bar-fill.emerald {

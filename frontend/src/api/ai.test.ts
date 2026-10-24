@@ -7,6 +7,7 @@ import {
   getPendingAiActions,
   getRecentAiActions,
   getExecutiveBriefing,
+  getAiProviderStatus,
 } from './ai.ts'
 
 // Setup mock window and localStorage for Node test runner
@@ -197,6 +198,29 @@ test('AI Actions API contracts - exact URLs, methods, headers, and lifecycle', a
 
     assert.match(capturedUrl, /\/api\/ai\/briefing$/)
     assert.ok(!capturedUrl.includes('/ai/ai/'), 'URL must not contain duplicate /ai/ai/ segment')
+  })
+
+  await t.test('getAiProviderStatus sends authenticated GET to /api/ai/status and returns configured provider', async () => {
+    let capturedUrl = ''
+    let capturedHeaders: Record<string, string> = {}
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input)
+      capturedHeaders = (init?.headers as Record<string, string>) ?? {}
+      return new Response(JSON.stringify({
+        enabled: true,
+        available: true,
+        provider: 'gemini',
+        model: 'gemini-3.6-flash',
+        status: 'CONNECTED',
+        message: 'Cloud · gemini-3.6-flash',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+
+    const result = await getAiProviderStatus()
+    assert.match(capturedUrl, /\/api\/ai\/status$/)
+    assert.equal(capturedHeaders['Authorization'], 'Bearer test-jwt-token-xyz')
+    assert.equal(result.provider, 'gemini')
+    assert.equal(result.model, 'gemini-3.6-flash')
   })
 
   await t.test('error handling: parseResponse throws meaningful message on HTTP errors', async () => {

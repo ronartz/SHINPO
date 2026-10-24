@@ -2,6 +2,7 @@ package com.shinpo.repository;
 
 import com.shinpo.entity.ProgressEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +21,20 @@ public interface ProgressEventRepository
     List<ProgressEvent> findTop10ByUser_IdOrderByCreatedAtDesc(Long userId);
 
     boolean existsByUser_IdAndEventType(Long userId, String eventType);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO progress_events (user_id, goal_id, event_type, amount, created_at)
+            VALUES (:userId, :goalId, 'GOAL_COMPLETED', :amount, CURRENT_TIMESTAMP)
+            ON CONFLICT (goal_id)
+                WHERE event_type = 'GOAL_COMPLETED' AND goal_id IS NOT NULL
+            DO NOTHING
+            """, nativeQuery = true)
+    int insertGoalCompletionReward(
+            @Param("userId") Long userId,
+            @Param("goalId") Long goalId,
+            @Param("amount") Integer amount
+    );
 
     @Query(value = """
             SELECT EXISTS (

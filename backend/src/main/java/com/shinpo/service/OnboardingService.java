@@ -40,12 +40,13 @@ public class OnboardingService {
 
     @Transactional
     public UserOnboarding getOrCreateEntity(Long userId) {
-        return onboardingRepository.findByUserId(userId).orElseGet(() -> {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-            UserOnboarding newOnboarding = new UserOnboarding(user);
-            return onboardingRepository.save(newOnboarding);
-        });
+        var existing = onboardingRepository.findByUserId(userId);
+        if (existing.isPresent()) return existing.get();
+
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return onboardingRepository.findByUserId(userId)
+                .orElseGet(() -> onboardingRepository.save(new UserOnboarding(user)));
     }
 
     @Transactional(readOnly = true)

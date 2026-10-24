@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { FocusSession } from '../api/focusSessions.ts'
-import { getTodayScheduleSessions } from './scheduleHelpers.ts'
+import { getTodayScheduleSessions, isMissionInFocusSession } from './scheduleHelpers.ts'
 
 const session = (id: number, overrides: Partial<FocusSession> = {}): FocusSession => ({
   id, userId: 1, goalId: null, missionId: null, name: `Session ${id}`, intention: null,
@@ -22,4 +22,11 @@ test('dashboard schedule is local-day scoped, excludes inactive bookings, and re
   ], null, now)
 
   assert.deepEqual(items.map(({ id }) => id), [4, 1, 5])
+})
+
+test('active task matching prefers the persisted mission link after a task rename', () => {
+  const active = session(10, { missionId: 4, name: 'Original task', status: 'ACTIVE' })
+  assert.equal(isMissionInFocusSession({ id: 4, title: 'Renamed task' }, active), true)
+  assert.equal(isMissionInFocusSession({ id: 5, title: 'Original task' }, active), false)
+  assert.equal(isMissionInFocusSession({ id: 4, title: 'Original task' }, session(11, { name: 'Original task' })), true)
 })

@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "test": "node --test 'src/**/*.test.ts'",
     "audit:visual": "node ../scripts/audit_rendered_ui.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

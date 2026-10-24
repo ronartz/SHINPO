@@ -177,7 +177,11 @@ class AIProviderPipelineTests {
 
         assertNotNull(fallbackResponse);
         assertNotNull(fallbackResponse.reply());
-        assertTrue(fallbackResponse.reply().contains("Local AI Model Offline") || fallbackResponse.reply().contains("deterministic rule-based assistant mode"));
+        assertTrue(fallbackResponse.reply().contains("generated AI may be temporarily unavailable"));
+        assertTrue(fallbackResponse.reply().contains("cloud AI provider"));
+        assertFalse(fallbackResponse.reply().contains("Ollama"));
+        assertEquals(2, mockProvider.getRecordedRequests().size(),
+                "chat should attempt generation directly instead of making a provider-availability preflight");
     }
 
     @Test

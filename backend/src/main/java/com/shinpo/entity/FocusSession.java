@@ -38,6 +38,40 @@ public class FocusSession {
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
 
+    @Column(name = "pomodoro_enabled", nullable = false)
+    private boolean pomodoroEnabled;
+
+    @Column(name = "pomodoro_focus_cycles", nullable = false)
+    private Integer pomodoroFocusCycles = 4;
+
+    @Column(name = "pomodoro_short_break_minutes", nullable = false)
+    private Integer pomodoroShortBreakMinutes = 5;
+
+    @Column(name = "pomodoro_long_break_minutes", nullable = false)
+    private Integer pomodoroLongBreakMinutes = 15;
+
+    @Column(name = "pomodoro_grace_minutes", nullable = false)
+    private Integer pomodoroGraceMinutes = 10;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_phase", nullable = false, length = 20)
+    private SessionIntervalType currentPhase = SessionIntervalType.FOCUS;
+
+    @Column(name = "completed_focus_cycles", nullable = false)
+    private Integer completedFocusCycles = 0;
+
+    @Column(name = "phase_started_at")
+    private Instant phaseStartedAt;
+
+    @Column(name = "phase_elapsed_seconds", nullable = false)
+    private Long phaseElapsedSeconds = 0L;
+
+    @Column(name = "focus_active_seconds", nullable = false)
+    private Long focusActiveSeconds = 0L;
+
+    @Column(name = "break_active_seconds", nullable = false)
+    private Long breakActiveSeconds = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private FocusSessionStatus status = FocusSessionStatus.SCHEDULED;
@@ -117,6 +151,15 @@ public class FocusSession {
             return 0L;
         }
 
+        if (pomodoroEnabled) {
+            long currentPhaseSeconds = phaseElapsedSeconds == null ? 0L : phaseElapsedSeconds;
+            if (phaseStartedAt != null && status == FocusSessionStatus.ACTIVE) {
+                currentPhaseSeconds += Math.max(0L, Duration.between(phaseStartedAt, currentInstant).toSeconds());
+            }
+            long completedFocusSeconds = focusActiveSeconds == null ? 0L : focusActiveSeconds;
+            return Math.max(0L, completedFocusSeconds + (currentPhase == SessionIntervalType.FOCUS ? currentPhaseSeconds : 0L));
+        }
+
         Instant effectiveEnd;
         if (status == FocusSessionStatus.COMPLETED || status == FocusSessionStatus.CANCELLED || status == FocusSessionStatus.EXPIRED || status == FocusSessionStatus.FAILED) {
             effectiveEnd = endedAt != null ? endedAt : currentInstant;
@@ -132,10 +175,50 @@ public class FocusSession {
     }
 
     public long calculateRemainingSeconds(Instant currentInstant) {
+        if (pomodoroEnabled) {
+            if (currentPhase == SessionIntervalType.COMPLETE || currentPhase == SessionIntervalType.RETURN_REQUIRED) return 0L;
+            long phaseBudget = (long) currentPhaseDurationMinutes() * 60L;
+            long elapsed = phaseElapsedSeconds == null ? 0L : phaseElapsedSeconds;
+            if (phaseStartedAt != null && status == FocusSessionStatus.ACTIVE) {
+                elapsed += Math.max(0L, Duration.between(phaseStartedAt, currentInstant).toSeconds());
+            }
+            return Math.max(0L, phaseBudget - elapsed);
+        }
         long totalBudgetSeconds = (long) durationMinutes * 60L;
         long active = calculateActiveSeconds(currentInstant);
         return Math.max(0L, totalBudgetSeconds - active);
     }
+
+    public int currentPhaseDurationMinutes() {
+        if (currentPhase == SessionIntervalType.SHORT_BREAK) return pomodoroShortBreakMinutes;
+        if (currentPhase == SessionIntervalType.LONG_BREAK) return pomodoroLongBreakMinutes;
+        if (currentPhase == SessionIntervalType.GRACE) return pomodoroGraceMinutes;
+        if (currentPhase == SessionIntervalType.RETURN_REQUIRED || currentPhase == SessionIntervalType.COMPLETE) return 0;
+        return durationMinutes;
+    }
+
+    public boolean isPomodoroEnabled() { return pomodoroEnabled; }
+    public void setPomodoroEnabled(boolean pomodoroEnabled) { this.pomodoroEnabled = pomodoroEnabled; }
+    public Integer getPomodoroFocusCycles() { return pomodoroFocusCycles; }
+    public void setPomodoroFocusCycles(Integer value) { this.pomodoroFocusCycles = value == null ? 4 : value; }
+    public Integer getPomodoroShortBreakMinutes() { return pomodoroShortBreakMinutes; }
+    public void setPomodoroShortBreakMinutes(Integer value) { this.pomodoroShortBreakMinutes = value == null ? 5 : value; }
+    public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
+    public void setPomodoroLongBreakMinutes(Integer value) { this.pomodoroLongBreakMinutes = value == null ? 15 : value; }
+    public Integer getPomodoroGraceMinutes() { return pomodoroGraceMinutes == null ? 10 : pomodoroGraceMinutes; }
+    public void setPomodoroGraceMinutes(Integer value) { this.pomodoroGraceMinutes = value == null ? 10 : value; }
+    public SessionIntervalType getCurrentPhase() { return currentPhase; }
+    public void setCurrentPhase(SessionIntervalType currentPhase) { this.currentPhase = currentPhase; }
+    public Integer getCompletedFocusCycles() { return completedFocusCycles == null ? 0 : completedFocusCycles; }
+    public void setCompletedFocusCycles(Integer value) { this.completedFocusCycles = value == null ? 0 : value; }
+    public Instant getPhaseStartedAt() { return phaseStartedAt; }
+    public void setPhaseStartedAt(Instant phaseStartedAt) { this.phaseStartedAt = phaseStartedAt; }
+    public Long getPhaseElapsedSeconds() { return phaseElapsedSeconds == null ? 0L : phaseElapsedSeconds; }
+    public void setPhaseElapsedSeconds(Long value) { this.phaseElapsedSeconds = value == null ? 0L : value; }
+    public Long getFocusActiveSeconds() { return focusActiveSeconds == null ? 0L : focusActiveSeconds; }
+    public void setFocusActiveSeconds(Long value) { this.focusActiveSeconds = value == null ? 0L : value; }
+    public Long getBreakActiveSeconds() { return breakActiveSeconds == null ? 0L : breakActiveSeconds; }
+    public void setBreakActiveSeconds(Long value) { this.breakActiveSeconds = value == null ? 0L : value; }
 
     public Long getId() {
         return id;

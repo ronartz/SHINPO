@@ -121,21 +121,21 @@
 
 .board-action-btn.primary {
   background: var(--brand-coral-gradient);
-  background-color: var(--primary-coral, #9757FA);
+  background-color: var(--primary-coral, #3156D8);
   color: #FFFFFF;
-  box-shadow: 0 4px 16px rgba(151, 87, 250, 0.32);
+  box-shadow: 0 4px 16px rgba(49, 86, 216, 0.32);
 }
 
 html[data-theme='light'] .board-action-btn.primary {
   background: var(--brand-coral-gradient);
-  background-color: var(--primary-coral, #7932E6);
+  background-color: var(--primary-coral, #2847B8);
   color: #FFFFFF;
 }
 
 .board-action-btn.primary:hover {
   background: var(--brand-coral-hover, #AB75FC);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(151, 87, 250, 0.42);
+  box-shadow: 0 6px 20px rgba(49, 86, 216, 0.42);
   filter: brightness(1.05);
 }
 

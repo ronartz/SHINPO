@@ -12,6 +12,8 @@
     INACTIVE: 'INACTIVE',
   })
   const MODES = new Set(['GUIDED', 'PROTECTED', 'STRICT'])
+  const PHASES = new Set(['FOCUS', 'SHORT_BREAK', 'LONG_BREAK', 'BREAK', 'GRACE', 'RETURN_REQUIRED', 'COMPLETE'])
+  const BREAK_PHASES = new Set(['SHORT_BREAK', 'LONG_BREAK', 'BREAK', 'GRACE'])
   const TERMINAL_SESSION_STATES = new Set(['PAUSED', 'COMPLETED', 'CANCELLED', 'EXPIRED', 'FAILED'])
 
   function normalizePolicy(rawPolicy, now = Date.now()) {
@@ -22,11 +24,18 @@
     const modeCandidate = String(rawPolicy.mode || 'GUIDED').toUpperCase()
     const mode = MODES.has(modeCandidate) ? modeCandidate : 'GUIDED'
     const policyVersion = normalizeVersion(rawPolicy.policyVersion ?? rawPolicy.revision ?? 0)
+    const phaseCandidate = String(rawPolicy.currentPhase || rawPolicy.phase || 'UNKNOWN').toUpperCase()
+    const currentPhase = PHASES.has(phaseCandidate)
+      ? phaseCandidate
+      : 'UNKNOWN'
+    const phaseRemainingSeconds = normalizeVersion(rawPolicy.phaseRemainingSeconds ?? 0)
+    const phaseDeadlineAtMs = timestamp(rawPolicy.phaseDeadlineAt)
     const leaseExpiresAtMs = timestamp(
       rawPolicy._hostLeaseExpiresAtMs ?? rawPolicy.leaseExpiresAt ?? rawPolicy.expiresAt,
     )
     const issuedAtMs = timestamp(rawPolicy.issuedAt) || now
-    const active = Boolean(sessionId) && status === 'ACTIVE' && leaseExpiresAtMs > now
+    const active = Boolean(sessionId) && status === 'ACTIVE' && currentPhase !== 'UNKNOWN' && currentPhase !== 'COMPLETE' && leaseExpiresAtMs > now
+      && (!BREAK_PHASES.has(currentPhase) || phaseDeadlineAtMs > 0)
     const resources = Array.isArray(rawPolicy.resources)
       ? rawPolicy.resources.map(normalizeResource).filter(Boolean)
       : []
@@ -39,6 +48,7 @@
     return {
       schemaVersion: 1,
       active,
+      degraded: rawPolicy.degraded === true,
       inactiveReason: active
         ? null
         : inactiveReason(status, sessionId, leaseExpiresAtMs, now),
@@ -46,6 +56,9 @@
       status,
       mode,
       policyVersion,
+      currentPhase,
+      phaseRemainingSeconds,
+      phaseDeadlineAtMs,
       taskId: scalarString(rawPolicy.taskId),
       taskTitle: safeText(rawPolicy.taskTitle || rawPolicy.sessionName || 'Current Focus session', 180),
       issuedAtMs,
@@ -75,6 +88,7 @@
       resourceType,
       matchType,
       disposition,
+      breakOnly: rawResource.breakOnly === true,
       value: value.trim(),
       destination: typeof rawResource.destination === 'string' ? rawResource.destination.trim() : null,
       expiresAtMs: timestamp(rawResource.expiresAt),
@@ -86,17 +100,35 @@
     const policy = rawPolicy?.schemaVersion === 1 && 'active' in rawPolicy
       ? rawPolicy
       : normalizePolicy(rawPolicy, now)
+    if (policy.degraded) {
+      const target = canonical.canonicalizeUrl(destination)
+      if (!target.ok) return decision(DECISIONS.INACTIVE, target.error, null, policy)
+      const restriction = policy.resources.find((resource) => resourceMatches(resource, target.url))
+      return restriction
+        ? decision(DECISIONS.RESTRICT, 'A known Focus restriction remains active while SHINPO is disconnected', target.url, policy, restriction)
+        : decision(DECISIONS.UNCERTAIN, 'SHINPO is disconnected; no active policy is being claimed', target.url, policy)
+    }
     if (!policy.active || policy.leaseExpiresAtMs <= now || TERMINAL_SESSION_STATES.has(policy.status)) {
       return decision(DECISIONS.INACTIVE, policy.inactiveReason || 'Focus protection is inactive', null, policy)
     }
 
+    const phase = effectivePhase(policy, now)
+    const evaluationPolicy = phase === policy.currentPhase ? policy : { ...policy, currentPhase: phase }
+    const breakPhase = BREAK_PHASES.has(phase)
     const target = canonical.canonicalizeUrl(destination)
     if (!target.ok) {
       return decision(DECISIONS.INACTIVE, target.error, null, policy)
     }
 
+    if (!breakPhase && policy.resources.some((resource) => resource.breakOnly
+      && (!resource.expiresAtMs || resource.expiresAtMs > now)
+      && resourceMatches(resource, target.url))) {
+      return decision(DECISIONS.RESTRICT, 'This resource is only permitted during the configured break', target.url, evaluationPolicy)
+    }
+
     const matches = policy.resources
       .filter((resource) => !resource.expiresAtMs || resource.expiresAtMs > now)
+      .filter((resource) => resource.disposition === 'BLOCKED' || (breakPhase ? resource.breakOnly : !resource.breakOnly))
       .filter((resource) => resourceMatches(resource, target.url))
 
     const approved = matches.find((resource) => resource.disposition === 'APPROVED')
@@ -104,32 +136,38 @@
       const reason = approved.temporary
         ? 'A time-limited exception allows this exact resource'
         : 'This resource is approved for the current Focus session'
-      return decision(DECISIONS.ALLOW, reason, target.url, policy, approved)
+      return decision(DECISIONS.ALLOW, reason, target.url, evaluationPolicy, approved)
     }
 
     const blocked = matches.find((resource) => resource.disposition === 'BLOCKED')
     if (blocked) {
-      const outcome = policy.mode === 'GUIDED' ? DECISIONS.WARN : DECISIONS.RESTRICT
-      return decision(outcome, 'This destination is outside your configured Focus rules', target.url, policy, blocked)
+      const outcome = breakPhase
+        ? DECISIONS.RESTRICT
+        : evaluationPolicy.mode === 'GUIDED' ? DECISIONS.WARN : DECISIONS.RESTRICT
+      return decision(outcome, 'This destination is outside your configured Focus rules', target.url, evaluationPolicy, blocked)
+    }
+
+    if (breakPhase) {
+      return decision(DECISIONS.RESTRICT, 'This destination is not on the approved break-resource list', target.url, evaluationPolicy)
     }
 
     const youtube = canonical.parseYouTubeResource(target.url)
-    if (youtube) return evaluateYouTube(policy, youtube)
+    if (youtube) return evaluateYouTube(evaluationPolicy, youtube)
 
     const discord = canonical.parseDiscordRoute(target.url)
-    if (discord) return evaluateDiscord(policy, discord)
+    if (discord) return evaluateDiscord(evaluationPolicy, discord)
 
     const instagram = canonical.parseInstagramRoute(target.url)
-    if (instagram) return evaluateInstagram(policy, instagram)
+    if (instagram) return evaluateInstagram(evaluationPolicy, instagram)
 
-    if (policy.mode === 'GUIDED') {
-      return decision(DECISIONS.ALLOW, 'Guided Focus keeps ordinary browsing available', target.url, policy)
+    if (evaluationPolicy.mode === 'GUIDED') {
+      return decision(DECISIONS.ALLOW, 'Guided Focus keeps ordinary browsing available', target.url, evaluationPolicy)
     }
     return decision(
       DECISIONS.UNCERTAIN,
       'This destination has no explicit Focus rule and was not blocked',
       target.url,
-      policy,
+      evaluationPolicy,
     )
   }
 
@@ -157,6 +195,25 @@
       youtube.canonical.url,
       policy,
     )
+  }
+
+  function effectivePhase(policy, now) {
+    return BREAK_PHASES.has(policy.currentPhase) && policy.phaseDeadlineAtMs > 0 && policy.phaseDeadlineAtMs <= now
+      ? 'RETURN_REQUIRED'
+      : policy.currentPhase
+  }
+
+  function degradedPolicy(previous, reason) {
+    return {
+      ...inactivePolicy(reason),
+      degraded: true,
+      sessionId: previous.sessionId,
+      taskTitle: previous.taskTitle,
+      policyVersion: previous.policyVersion,
+      resources: previous.resources
+        .filter((resource) => resource.disposition === 'BLOCKED' || resource.breakOnly)
+        .map((resource) => ({ ...resource, disposition: 'BLOCKED', breakOnly: false })),
+    }
   }
 
   function evaluateDiscord(policy, discord) {
@@ -298,6 +355,9 @@
       status: 'INACTIVE',
       mode: 'GUIDED',
       policyVersion: 0,
+      currentPhase: 'UNKNOWN',
+      phaseRemainingSeconds: 0,
+      phaseDeadlineAtMs: 0,
       taskId: null,
       taskTitle: 'No active Focus session',
       issuedAtMs: 0,
@@ -353,6 +413,8 @@
     DECISIONS,
     normalizePolicy,
     normalizeResource,
+    effectivePhase,
+    degradedPolicy,
     evaluateUrl,
     resourceMatches,
     inactivePolicy,

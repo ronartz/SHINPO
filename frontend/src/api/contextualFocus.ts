@@ -31,6 +31,7 @@ export interface StudyResource {
   resourceType: StudyResourceType
   matchType: StudyResourceMatchType
   disposition: StudyResourceDisposition
+  breakOnly: boolean
   destination: string
   canonicalDestination: string
   displayName: string | null
@@ -45,6 +46,7 @@ export interface CreateStudyResourceRequest {
   resourceType: StudyResourceType
   matchType: StudyResourceMatchType
   disposition: StudyResourceDisposition
+  breakOnly?: boolean
   destination: string
   displayName?: string
   expiresAt?: string
@@ -78,6 +80,7 @@ export interface StudyResourceDraft {
   resourceType: StudyResourceType
   matchType: StudyResourceMatchType
   disposition: StudyResourceDisposition
+  breakOnly?: boolean
   destination: string
   displayName?: string
   durationMinutes?: number | null
@@ -234,6 +237,9 @@ export function validateStudyResourceDraft(draft: StudyResourceDraft): string | 
   if (draft.resourceType === 'DESKTOP_PROCESS' && !draft.focusSessionId) {
     return 'Desktop application exceptions require an active Focus session.'
   }
+  if (draft.breakOnly && (!draft.focusSessionId || draft.disposition !== 'APPROVED')) {
+    return 'Break-only permissions must be approved and scoped to a Focus session.'
+  }
 
   const rawDestination = draft.destination.trim()
   if (!rawDestination) return 'Enter a destination or process name.'
@@ -308,6 +314,7 @@ export function buildStudyResourceRequest(
     resourceType: draft.resourceType,
     matchType: draft.matchType,
     disposition: draft.disposition,
+    ...(draft.breakOnly ? { breakOnly: true } : {}),
     destination,
     ...(draft.displayName?.trim() ? { displayName: draft.displayName.trim() } : {}),
     ...(duration && duration > 0

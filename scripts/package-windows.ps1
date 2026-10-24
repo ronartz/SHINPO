@@ -44,6 +44,20 @@ param (
 
 $ErrorActionPreference = "Stop"
 
+$ServerUrl = $env:VITE_SHINPO_SERVER_URL
+$ParsedServerUrl = $null
+if ([string]::IsNullOrWhiteSpace($ServerUrl) -or
+    -not [Uri]::TryCreate($ServerUrl, [UriKind]::Absolute, [ref]$ParsedServerUrl) -or
+    $ParsedServerUrl.Scheme -ne "https" -or $ParsedServerUrl.UserInfo -or
+    $ParsedServerUrl.Query -or $ParsedServerUrl.Fragment) {
+    throw "Set VITE_SHINPO_SERVER_URL to the deployed remote HTTPS server before packaging."
+}
+$ServerIp = $null
+if ($ParsedServerUrl.Host -eq "localhost" -or
+    ([Net.IPAddress]::TryParse($ParsedServerUrl.Host.Trim('[', ']'), [ref]$ServerIp) -and [Net.IPAddress]::IsLoopback($ServerIp))) {
+    throw "VITE_SHINPO_SERVER_URL must point to a remote HTTPS server, not this computer."
+}
+
 Write-Host "=================================================================" -ForegroundColor Cyan
 Write-Host "  進歩 (SHINPO) Windows Desktop Installer Builder" -ForegroundColor Cyan
 Write-Host "  Target: Single Standalone Installer (SHINPO-Setup.exe)" -ForegroundColor Cyan

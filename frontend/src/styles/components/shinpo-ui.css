@@ -1,7 +1,7 @@
 /* ==========================================================================
    SHINPO UI CORE — AUTHORITATIVE REUSABLE DESIGN SYSTEM (SLICE 8.2)
-   Aurora Violet (#9757FA) | Electric Blue (#4D77F9) | Glacial Cyan (#1BC9DE)
-   Light Alternatives: #7932E6 | #2B58E6 | #008CA3
+   Aurora Violet (#3156D8) | Electric Blue (#3B82F6) | Glacial Cyan (#19D3C5)
+   Light Alternatives: #2847B8 | #2563EB | #0F9F9A
    Cross-Platform: Linux + Windows (Zero Native OS Popup Reliance)
    ========================================================================== */
 
@@ -99,28 +99,28 @@ html[data-theme='light'] .shinpo-select-trigger,
 }
 
 .shinpo-select-trigger:hover:not(:disabled) {
-  border-color: rgba(151, 87, 250, 0.45);
+  border-color: rgba(49, 86, 216, 0.45);
   background-color: var(--surface-hover, #262730);
 }
 
 html[data-theme='light'] .shinpo-select-trigger:hover:not(:disabled),
 .theme-light .shinpo-select-trigger:hover:not(:disabled) {
-  border-color: rgba(121, 50, 230, 0.45);
+  border-color: rgba(40, 71, 184, 0.45);
   background-color: #F8FAFC;
 }
 
 .shinpo-select-trigger:focus-visible,
 .shinpo-select-trigger.is-open {
-  border-color: var(--primary-violet, #9757FA);
-  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+  border-color: var(--primary-violet, #3156D8);
+  box-shadow: 0 0 0 3px rgba(49, 86, 216, 0.22);
 }
 
 html[data-theme='light'] .shinpo-select-trigger:focus-visible,
 html[data-theme='light'] .shinpo-select-trigger.is-open,
 .theme-light .shinpo-select-trigger:focus-visible,
 .theme-light .shinpo-select-trigger.is-open {
-  border-color: var(--primary-violet, #7932E6);
-  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+  border-color: var(--primary-violet, #2847B8);
+  box-shadow: 0 0 0 3px rgba(40, 71, 184, 0.18);
 }
 
 .shinpo-select-trigger:disabled {
@@ -186,12 +186,12 @@ html[data-theme='light'] .shinpo-select-placeholder,
 
 .shinpo-select-trigger.is-open .shinpo-select-arrow {
   transform: rotate(180deg);
-  color: var(--primary-violet, #9757FA);
+  color: var(--primary-violet, #3156D8);
 }
 
 html[data-theme='light'] .shinpo-select-trigger.is-open .shinpo-select-arrow,
 .theme-light .shinpo-select-trigger.is-open .shinpo-select-arrow {
-  color: var(--primary-violet, #7932E6);
+  color: var(--primary-violet, #2847B8);
 }
 
 /* ==========================================================================
@@ -270,12 +270,12 @@ html[data-theme='light'] .shinpo-select-search-input,
 }
 
 .shinpo-select-search-input:focus {
-  border-color: var(--primary-violet, #9757FA);
+  border-color: var(--primary-violet, #3156D8);
 }
 
 html[data-theme='light'] .shinpo-select-search-input:focus,
 .theme-light .shinpo-select-search-input:focus {
-  border-color: var(--primary-violet, #7932E6);
+  border-color: var(--primary-violet, #2847B8);
 }
 
 /* Select List & Options */
@@ -310,7 +310,7 @@ html[data-theme='light'] .shinpo-select-option,
 
 .shinpo-select-option:hover,
 .shinpo-select-option.is-highlighted {
-  background-color: rgba(151, 87, 250, 0.14);
+  background-color: rgba(49, 86, 216, 0.14);
   color: #FFFFFF;
 }
 
@@ -319,19 +319,19 @@ html[data-theme='light'] .shinpo-select-option.is-highlighted,
 .theme-light .shinpo-select-option:hover,
 .theme-light .shinpo-select-option.is-highlighted {
   background-color: #F1EAFF;
-  color: #7932E6;
+  color: #2847B8;
 }
 
 .shinpo-select-option.is-selected {
-  background-color: rgba(151, 87, 250, 0.22);
-  color: var(--primary-violet, #9757FA);
+  background-color: rgba(49, 86, 216, 0.22);
+  color: var(--primary-violet, #3156D8);
   font-weight: 600;
 }
 
 html[data-theme='light'] .shinpo-select-option.is-selected,
 .theme-light .shinpo-select-option.is-selected {
   background-color: #EDE4FF;
-  color: #7932E6;
+  color: #2847B8;
 }
 
 .shinpo-select-option.is-disabled {
@@ -360,14 +360,14 @@ html[data-theme='light'] .shinpo-select-option.is-selected,
 }
 
 .shinpo-select-check-icon {
-  color: var(--primary-violet, #9757FA);
+  color: var(--primary-violet, #3156D8);
   flex-shrink: 0;
   margin-left: 8px;
 }
 
 html[data-theme='light'] .shinpo-select-check-icon,
 .theme-light .shinpo-select-check-icon {
-  color: #7932E6;
+  color: #2847B8;
 }
 
 .shinpo-select-empty {
@@ -407,28 +407,28 @@ html[data-theme='light'] .shinpo-datepicker-trigger,
 }
 
 .shinpo-datepicker-trigger:hover:not(:disabled) {
-  border-color: rgba(151, 87, 250, 0.45);
+  border-color: rgba(49, 86, 216, 0.45);
   background-color: var(--surface-hover, #262730);
 }
 
 html[data-theme='light'] .shinpo-datepicker-trigger:hover:not(:disabled),
 .theme-light .shinpo-datepicker-trigger:hover:not(:disabled) {
-  border-color: rgba(121, 50, 230, 0.45);
+  border-color: rgba(40, 71, 184, 0.45);
   background-color: #F8FAFC;
 }
 
 .shinpo-datepicker-trigger:focus-visible,
 .shinpo-datepicker-trigger.is-open {
-  border-color: var(--primary-violet, #9757FA);
-  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+  border-color: var(--primary-violet, #3156D8);
+  box-shadow: 0 0 0 3px rgba(49, 86, 216, 0.22);
 }
 
 html[data-theme='light'] .shinpo-datepicker-trigger:focus-visible,
 html[data-theme='light'] .shinpo-datepicker-trigger.is-open,
 .theme-light .shinpo-datepicker-trigger:focus-visible,
 .theme-light .shinpo-datepicker-trigger.is-open {
-  border-color: var(--primary-violet, #7932E6);
-  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+  border-color: var(--primary-violet, #2847B8);
+  box-shadow: 0 0 0 3px rgba(40, 71, 184, 0.18);
 }
 
 .shinpo-calendar-panel {
@@ -464,16 +464,16 @@ html[data-theme='light'] .shinpo-calendar-nav-btn,
 }
 
 .shinpo-calendar-nav-btn:hover {
-  background-color: rgba(151, 87, 250, 0.14);
-  border-color: var(--primary-violet, #9757FA);
+  background-color: rgba(49, 86, 216, 0.14);
+  border-color: var(--primary-violet, #3156D8);
   color: #FFFFFF;
 }
 
 html[data-theme='light'] .shinpo-calendar-nav-btn:hover,
 .theme-light .shinpo-calendar-nav-btn:hover {
   background-color: #F1EAFF;
-  border-color: #7932E6;
-  color: #7932E6;
+  border-color: #2847B8;
+  color: #2847B8;
 }
 
 .shinpo-calendar-title {
@@ -528,31 +528,31 @@ html[data-theme='light'] .shinpo-calendar-day-btn,
 }
 
 .shinpo-calendar-day-btn:hover:not(:disabled) {
-  background-color: rgba(151, 87, 250, 0.16);
+  background-color: rgba(49, 86, 216, 0.16);
   color: #FFFFFF;
 }
 
 html[data-theme='light'] .shinpo-calendar-day-btn:hover:not(:disabled),
 .theme-light .shinpo-calendar-day-btn:hover:not(:disabled) {
   background-color: #F1EAFF;
-  color: #7932E6;
+  color: #2847B8;
 }
 
 .shinpo-calendar-day-btn.is-today {
-  border-color: var(--primary-cyan, #1BC9DE);
+  border-color: var(--primary-cyan, #19D3C5);
   font-weight: 700;
 }
 
 html[data-theme='light'] .shinpo-calendar-day-btn.is-today,
 .theme-light .shinpo-calendar-day-btn.is-today {
-  border-color: var(--primary-cyan, #008CA3);
+  border-color: var(--primary-cyan, #0F9F9A);
 }
 
 .shinpo-calendar-day-btn.is-selected {
-  background: linear-gradient(135deg, var(--primary-violet, #9757FA) 0%, var(--primary-blue, #4D77F9) 100%) !important;
+  background: linear-gradient(135deg, var(--primary-violet, #3156D8) 0%, var(--primary-blue, #3B82F6) 100%) !important;
   color: #FFFFFF !important;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(151, 87, 250, 0.35);
+  box-shadow: 0 2px 8px rgba(49, 86, 216, 0.35);
 }
 
 .shinpo-calendar-day-btn.is-outside-month {
@@ -627,18 +627,18 @@ html[data-theme='light'] .shinpo-timepicker-unit-btn,
 }
 
 .shinpo-timepicker-unit-btn:hover {
-  background-color: rgba(151, 87, 250, 0.14);
+  background-color: rgba(49, 86, 216, 0.14);
 }
 
 .shinpo-timepicker-unit-btn.is-selected {
-  background-color: var(--primary-violet, #9757FA) !important;
+  background-color: var(--primary-violet, #3156D8) !important;
   color: #FFFFFF !important;
   font-weight: 700;
 }
 
 html[data-theme='light'] .shinpo-timepicker-unit-btn.is-selected,
 .theme-light .shinpo-timepicker-unit-btn.is-selected {
-  background-color: #7932E6 !important;
+  background-color: #2847B8 !important;
 }
 
 /* ==========================================================================
@@ -839,14 +839,14 @@ html[data-theme='light'] .shinpo-dialog-footer,
 
 /* Variants */
 .shinpo-btn.variant-primary {
-  background: linear-gradient(135deg, var(--primary-violet, #9757FA) 0%, var(--primary-blue, #4D77F9) 100%);
+  background: linear-gradient(135deg, var(--primary-violet, #3156D8) 0%, var(--primary-blue, #3B82F6) 100%);
   color: #FFFFFF;
-  box-shadow: 0 2px 12px rgba(151, 87, 250, 0.32);
+  box-shadow: 0 2px 12px rgba(49, 86, 216, 0.32);
 }
 
 .shinpo-btn.variant-primary:hover:not(:disabled) {
   opacity: 0.94;
-  box-shadow: 0 4px 18px rgba(151, 87, 250, 0.45);
+  box-shadow: 0 4px 18px rgba(49, 86, 216, 0.45);
   transform: translateY(-1px);
 }
 
@@ -944,15 +944,15 @@ html[data-theme='light'] .shinpo-textarea,
 
 .shinpo-input:focus,
 .shinpo-textarea:focus {
-  border-color: var(--primary-violet, #9757FA);
-  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.22);
+  border-color: var(--primary-violet, #3156D8);
+  box-shadow: 0 0 0 3px rgba(49, 86, 216, 0.22);
 }
 
 html[data-theme='light'] .shinpo-input:focus,
 html[data-theme='light'] .shinpo-textarea:focus,
 .theme-light .shinpo-input:focus,
 .theme-light .shinpo-textarea:focus {
-  border-color: var(--primary-violet, #7932E6);
-  box-shadow: 0 0 0 3px rgba(121, 50, 230, 0.18);
+  border-color: var(--primary-violet, #2847B8);
+  box-shadow: 0 0 0 3px rgba(40, 71, 184, 0.18);
 }
 

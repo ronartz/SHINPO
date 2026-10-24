@@ -4,6 +4,7 @@ export type AppView =
   | 'Focus Engine'
   | 'Schedule'
   | 'Analytics'
+  | 'Rewards'
   | 'Task Manager'
   | 'AI Assistant'
 
@@ -65,6 +66,7 @@ export const NAVIGATION_ITEMS: readonly NavItemConfig[] = [
   { id: 'Schedule', icon: 'schedule', label: 'Calendar', tut: 'nav-schedule', hasBadge: true },
   { id: 'Task Manager', icon: 'shield', label: 'Focus Protection', tut: 'nav-tasks' },
   { id: 'Analytics', icon: 'analytics', label: 'Analytics', tut: 'nav-analytics' },
+  { id: 'Rewards', icon: 'rewards', label: 'Rewards & Progress', tut: 'nav-rewards' },
   { id: 'AI Assistant', icon: 'sparkle', label: 'EONPAI Guide', tut: 'nav-ai' },
 ] as const
 
@@ -82,6 +84,8 @@ export function getViewHeaderTitle(view: AppView): string {
       return 'Focus Protection Sentinel'
     case 'Analytics':
       return 'Performance Analytics'
+    case 'Rewards':
+      return 'Rewards & Progress'
     case 'Dashboard':
       return 'Execution Cockpit'
     default:

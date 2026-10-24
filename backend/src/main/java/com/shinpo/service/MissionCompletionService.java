@@ -97,13 +97,8 @@ public class MissionCompletionService {
             goal.setStatus("COMPLETED");
             goalRepository.save(goal);
 
-            ProgressEvent goalProgressEvent = new ProgressEvent(
-                    user,
-                    null,
-                    "GOAL_COMPLETED",
-                    GOAL_COMPLETION_PROGRESS
-            );
-            progressEventRepository.save(goalProgressEvent);
+            progressEventRepository.insertGoalCompletionReward(
+                    user.getId(), goal.getId(), GOAL_COMPLETION_PROGRESS);
         }
 
         return new MissionCompletionResponse(

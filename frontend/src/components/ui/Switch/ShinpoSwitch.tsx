@@ -70,12 +70,12 @@ export const ShinpoSwitch: React.FC<ShinpoSwitchProps> = ({
           height: 22,
           borderRadius: 12,
           backgroundColor: checked
-            ? 'var(--primary-violet, #9757FA)'
+            ? 'var(--primary-violet, #3156D8)'
             : 'var(--surface-subtle, #24252D)',
           border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.14))',
           position: 'relative',
           transition: 'background-color 0.16s ease',
-          boxShadow: checked ? '0 2px 8px rgba(151, 87, 250, 0.35)' : 'none',
+          boxShadow: checked ? '0 2px 8px rgba(49, 86, 216, 0.35)' : 'none',
           flexShrink: 0,
         }}
       >

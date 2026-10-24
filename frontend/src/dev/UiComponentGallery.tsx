@@ -353,7 +353,7 @@ export const UiComponentGallery: React.FC = () => {
               gap: 8,
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary-cyan, #1BC9DE)' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary-cyan, #19D3C5)' }}>
               Viewport Edge Boundary Protection:
             </span>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

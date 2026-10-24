@@ -9,8 +9,10 @@ import {
   completeFocusSession,
   createFocusSession,
   deleteFocusSession,
+  getFocusSession,
   getFocusSessions,
   pauseFocusSession,
+  returnToFocus,
   resumeFocusSession,
   startFocusSession,
   updateFocusSession,
@@ -110,9 +112,7 @@ import { FloatingToasts } from './components/dialogs/FloatingToasts'
 import { SettingsModal } from './components/dialogs/SettingsModal'
 import type { SettingsSection } from './components/dialogs/SettingsModal'
 import { CelebrationModal } from './components/dialogs/CelebrationModal'
-import { AchievementsModal } from './components/dialogs/AchievementsModal'
 import {
-  playCelebrationChime,
   spawnCelebrationSparkles,
   type CelebrationPayload,
 } from './utils/progressionEngine'
@@ -154,6 +154,7 @@ const GoalsView = lazy(() => import('./views/GoalsView').then(({ GoalsView }) =>
 const OverviewView = lazy(() => import('./views/OverviewView').then(({ OverviewView }) => ({ default: OverviewView })))
 const EonpaiView = lazy(() => import('./views/EonpaiView').then(({ EonpaiView }) => ({ default: EonpaiView })))
 const FocusView = lazy(() => import('./views/FocusView').then(({ FocusView }) => ({ default: FocusView })))
+const RewardsView = lazy(() => import('./views/RewardsView').then(({ RewardsView }) => ({ default: RewardsView })))
 const AuroraDashboardView = lazy(() => import('./v2/dashboard/ThemedAuroraDashboardView')
   .then(({ ThemedAuroraDashboardView }) => ({ default: ThemedAuroraDashboardView })))
 
@@ -249,12 +250,28 @@ export function App() {
   const [sessions, setSessions] = useState<FocusSession[]>([])
   const scheduledCount = sessions.filter((s) => s.status === 'SCHEDULED' || Boolean(s.scheduledAt && s.status !== 'COMPLETED')).length
   const [selectedDuration, setSelectedDuration] = useState(30)
+  const [pomodoroEnabled, setPomodoroEnabled] = useState(false)
+  const [pomodoroFocusCycles, setPomodoroFocusCycles] = useState(4)
+  const [pomodoroShortBreakMinutes, setPomodoroShortBreakMinutes] = useState(5)
+  const [pomodoroLongBreakMinutes, setPomodoroLongBreakMinutes] = useState(15)
+  const [pomodoroGraceMinutes, setPomodoroGraceMinutes] = useState(10)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
   const [activeTab, setActiveTab] = useState<AppView>(() => {
     const tab = new URLSearchParams(window.location.search).get('tab')
     return tab && isAppView(tab) ? tab : 'Dashboard'
   })
+  const appMainRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    const main = appMainRef.current
+    if (!main || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const transition = main.animate(
+      [{ opacity: 0.88 }, { opacity: 1 }],
+      { duration: 160, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+    )
+    return () => transition.cancel()
+  }, [activeTab])
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return new URLSearchParams(window.location.search).get('theme') === 'light' ? false : true
   })
@@ -284,23 +301,6 @@ export function App() {
     }
     return true
   })
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false)
-  const isSidebarVisuallyExpanded = sidebarExpanded || isSidebarHovered
-
-  useEffect(() => {
-    let prevWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
-    const handleResize = () => {
-      const currentWidth = window.innerWidth
-      if (prevWidth > 1000 && currentWidth <= 1000) {
-        setSidebarExpanded(false)
-      } else if (prevWidth <= 1000 && currentWidth > 1000) {
-        setSidebarExpanded(true)
-      }
-      prevWidth = currentWidth
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
   const [selectedPomodoroPlan, setSelectedPomodoroPlan] = useState<string | null>(null)
   const [liveAlerts, setLiveAlerts] = useState<LiveAlertItem[]>([])
   const [toastAlerts, setToastAlerts] = useState<LiveAlertItem[]>([])
@@ -408,7 +408,7 @@ export function App() {
   >([
     {
       role: 'assistant',
-      text: 'Good day. I am EONPAI, your personal execution companion native to SHINPO.\n\nI can plan your day, break down goals, guide you through interactive tutorials, explain Sentinel blocks, and file sanitized bug reports. What would you like to work on?',
+      text: 'Good day. I am EONPAI, your personal execution companion in SHINPO.\n\nI can plan your day, turn goals into tasks, guide you through the product, explain focus protection, and file sanitized bug reports. What would you like to work on?',
       suggestionType: 'GREETING',
     },
   ])
@@ -435,7 +435,6 @@ export function App() {
   // Rewards & Progression State
   const [userProgress, setUserProgress] = useState<ProgressResponse | null>(null)
   const [celebrationPayload, setCelebrationPayload] = useState<CelebrationPayload | null>(null)
-  const [isAchievementsModalOpen, setIsAchievementsModalOpen] = useState(false)
 
   // Interactive Guided Tour State & Scoped Storage Helpers
   const [isTutorialActive, setIsTutorialActive] = useState(false)
@@ -514,7 +513,7 @@ export function App() {
   const [bookDate, setBookDate] = useState(() => localCalendarDate())
   const [bookTime, setBookTime] = useState('09:00')
   const [bookDuration, setBookDuration] = useState(25)
-  const [bookPlanName, setBookPlanName] = useState<string | null>('Classic Pomodoro')
+  const [bookPlanName, setBookPlanName] = useState<string | null>(null)
   const [editingScheduleSession, setEditingScheduleSession] = useState<FocusSession | null>(null)
   const [markTaskCompleted, setMarkTaskCompleted] = useState<boolean>(true)
 
@@ -683,6 +682,7 @@ export function App() {
   }, [activeTaskMenu])
 
   const recentToastsTracker = useRef<Map<string, number>>(new Map())
+  const seenAlertKeys = useRef<Set<string>>(new Set())
 
   const shouldSuppressToast = useCallback((key: string, cooldownMs = 2800): boolean => {
     const now = Date.now()
@@ -936,15 +936,24 @@ export function App() {
     }
   }, [authRestored, currentUser])
 
-  const addLiveAlert = useCallback((alert: LiveAlertItem) => {
+  const addLiveAlert = useCallback((alert: LiveAlertItem, showToast = true) => {
     const safeTimestamp = toSafeIsoString(alert.timestamp)
     const normalizedAlert = {
       ...alert,
       timestamp: safeTimestamp,
     }
-    setLiveAlerts((prev) => [normalizedAlert, ...prev].slice(0, 50))
+    const eventKey = `${normalizedAlert.id}:${normalizedAlert.type}:${normalizedAlert.title}:${normalizedAlert.timestamp}`
+    if (seenAlertKeys.current.has(eventKey)) return
+    seenAlertKeys.current.add(eventKey)
+    if (seenAlertKeys.current.size > 200) {
+      seenAlertKeys.current = new Set(Array.from(seenAlertKeys.current).slice(-100))
+    }
+    setLiveAlerts((prev) => {
+      return [normalizedAlert, ...prev].slice(0, 50)
+    })
     setUnreadAlertCount((prev) => prev + 1)
 
+    if (!showToast) return
     const dedupKey = `${alert.type}:${alert.title}`
     if (shouldSuppressToast(dedupKey, 2800)) {
       return
@@ -1103,10 +1112,10 @@ export function App() {
         badge: `${sessLabel} • ${durLabel}`,
         description:
           event.status === 'ACTIVE'
-            ? 'Focus protection active.'
+            ? 'Focus timer active. Native protection status is shown separately.'
             : event.debriefNotes || `Focus session transitioned to ${event.status}.`,
         timestamp: event.timestamp || new Date().toISOString(),
-      })
+      }, event.status !== 'SCHEDULED')
     })
 
     return () => {
@@ -1289,6 +1298,10 @@ export function App() {
 
   const handleSelectTab = useCallback((tab: AppView) => {
     setActiveTab(tab)
+    if (tab === 'Dashboard') {
+      // The active-session card already confirms this event; keep its toast off the schedule.
+      setToastAlerts((prev) => prev.filter((alert) => alert.title !== 'Focus Session Started'))
+    }
   }, [])
 
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
@@ -1395,12 +1408,10 @@ export function App() {
       })
       setGoals((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
       if (updated.status === 'COMPLETED' && editingGoal.status !== 'COMPLETED') {
-        const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
         pushToast({
-          title: isMinimal ? 'Goal Completed' : 'Strategic Goal Completed! +50 XP',
-          description: isMinimal ? 'Strategic outcome achieved' : 'Major milestone completed and recorded in progression ledger.',
+          title: 'Goal Completed',
+          description: 'Strategic outcome achieved.',
           type: 'reward',
-          badge: '+50 XP',
           timestamp: new Date().toISOString(),
         })
       }
@@ -1608,7 +1619,6 @@ export function App() {
         prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
       )
 
-      playCelebrationChime('accomplishment')
       spawnCelebrationSparkles()
 
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
@@ -1626,7 +1636,6 @@ export function App() {
       const newLevel = updatedProg?.level || oldLevel
 
       if (newLevel > oldLevel) {
-        playCelebrationChime('level_up')
         setCelebrationPayload({
           id: `lvl-${Date.now()}`,
           type: 'LEVEL_UP',
@@ -1866,6 +1875,26 @@ export function App() {
     }
   }, [activeSession?.status, activeTab, pendingWarning?.decisionDeadline, activeGraceWarning?.graceExpiresAt])
 
+  useEffect(() => {
+    if (!activeSession?.pomodoroEnabled || activeSession.status !== 'ACTIVE') return
+    let cancelled = false
+    let timeout: number
+    const refreshPhase = async () => {
+      try {
+        const updated = await getFocusSession(activeSession.id)
+        if (!cancelled) {
+        setSessions((prev) => prev.map((session) => session.id === updated.id ? updated : session))
+        }
+      } catch {
+        // Preserve the last persisted phase during temporary API loss.
+      } finally {
+        if (!cancelled) timeout = window.setTimeout(refreshPhase, 2500)
+      }
+    }
+    void refreshPhase()
+    return () => { cancelled = true; window.clearTimeout(timeout) }
+  }, [activeSession?.id, activeSession?.pomodoroEnabled, activeSession?.status])
+
   // Poll for Sentinel warnings during active focus session or while warnings/grace windows exist
   useEffect(() => {
     if (!currentUser) return
@@ -2070,7 +2099,6 @@ export function App() {
       .then((prog) => {
         if (!prog) return
         setUserProgress(prog)
-        playCelebrationChime('level_up')
         spawnCelebrationSparkles()
         setCelebrationPayload({
           id: `onboarding-${Date.now()}`,
@@ -2136,14 +2164,19 @@ export function App() {
         name: selectedPomodoroPlan ?? `${selectedDuration}m Focus Session`,
         intention: sessionIntention.trim() || undefined,
         durationMinutes: selectedDuration,
+        pomodoroEnabled,
+        pomodoroFocusCycles,
+        pomodoroShortBreakMinutes,
+        pomodoroLongBreakMinutes,
+        pomodoroGraceMinutes,
       })
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
       setSessionIntention('')
       pushToast({
         type: 'focus',
-        title: 'Session Started',
-        description: `Focus protection active for "${started.name}".`,
+        title: 'Focus Session Started',
+        description: `Focus timer started for "${started.name}". Protection status is shown separately.`,
         timestamp: new Date().toISOString(),
       })
     } catch (e: unknown) {
@@ -2190,7 +2223,7 @@ export function App() {
       setActiveTab('Focus Engine')
       pushToast({
         type: 'focus',
-        title: 'Session Started',
+        title: 'Focus Session Started',
         description: `Working on next action: "${started.name}".`,
         timestamp: new Date().toISOString(),
       })
@@ -2237,8 +2270,8 @@ export function App() {
       setActiveTab('Focus Engine')
       pushToast({
         type: 'focus',
-        title: 'Session Started',
-        description: `Focus protection active for "${started.name}".`,
+        title: 'Focus Session Started',
+        description: `Focus timer started for "${started.name}". Protection status is shown separately.`,
         timestamp: new Date().toISOString(),
       })
     } catch (e: unknown) {
@@ -2274,6 +2307,15 @@ export function App() {
     }
   }
 
+  const handleReturnToFocus = async (id: number) => {
+    try {
+      const updated = await returnToFocus(id)
+      setSessions((prev) => prev.map((session) => session.id === id ? updated : session))
+    } catch (error) {
+      console.error('Could not return to Focus:', error)
+    }
+  }
+
   const handleCompleteSubmit = async (e: FormEvent, debriefWithAi: boolean = false) => {
     e.preventDefault()
     if (!currentUser || !completingSessionId || isCompletingSession) return
@@ -2298,12 +2340,13 @@ export function App() {
       setReflectionNotes('')
       setCompleteSessionError(null)
       const sessionDuration = res.durationMinutes || 25
-      const activeMinutes = Math.min(Math.floor((res.activeSeconds || 0) / 60), sessionDuration)
+      const measuredFocusSeconds = res.pomodoroEnabled ? res.focusActiveSeconds ?? res.activeSeconds ?? 0 : res.activeSeconds ?? 0
+      const measuredMinutes = Math.floor(measuredFocusSeconds / 60)
+      const activeMinutes = res.pomodoroEnabled ? measuredMinutes : Math.min(measuredMinutes, sessionDuration)
       const earnedXp = activeMinutes >= 45 ? 25 : activeMinutes >= 15 ? 15 : 0
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
 
       if (earnedXp > 0) {
-        playCelebrationChime('accomplishment')
         spawnCelebrationSparkles()
       }
 
@@ -2323,7 +2366,6 @@ export function App() {
       const newLevel = updatedProg?.level || oldLevel
 
       if (newLevel > oldLevel) {
-        playCelebrationChime('level_up')
         setCelebrationPayload({
           id: `lvl-${Date.now()}`,
           type: 'LEVEL_UP',
@@ -2381,7 +2423,7 @@ export function App() {
       return
     }
     if (opt.code === 'DECONSTRUCT_TASK') {
-      handleAiSend('Deconstruct my current mission into atomic 15-minute milestones')
+      handleAiSend('Break my current task into clear 15-minute steps')
       return
     }
     if (opt.code === 'REST_AND_RECENTER') {
@@ -2533,7 +2575,7 @@ export function App() {
         ...prev,
         {
           role: 'assistant',
-          text: 'I am here with you. Local AI is initializing, but our core execution engine is online. What would you like to focus on right now?',
+          text: "I couldn't complete that request. Your message is still visible in this chat; please try again.",
           suggestionType: 'COACH',
         },
       ])
@@ -2558,7 +2600,7 @@ export function App() {
     const targetDate = defaultDate || selectedScheduleDate || todayStr
     setBookDate(targetDate)
     setBookDuration(presetDuration || 25)
-    setBookPlanName(presetPlan || 'Classic Pomodoro')
+    setBookPlanName(presetPlan ?? null)
     setBookMissionId(null)
     setBookName('')
     setBookIntention('')
@@ -2763,18 +2805,27 @@ export function App() {
           </div>
 
           <form className="auth-form" onSubmit={handleAuthSubmit}>
-            {authError && <div className="auth-error-banner">{authError}</div>}
+            {authError && (
+              <div id="auth-error" className="auth-error-banner" role="alert">
+                {authError}
+              </div>
+            )}
 
             <div className="auth-field-group">
-              <label className="auth-label">
+              <label className="auth-label" htmlFor="auth-identifier">
                 {authMode === 'LOGIN' ? 'Username or Email' : 'Username'}
               </label>
               <input
+                id="auth-identifier"
                 className="auth-input"
                 type="text"
                 placeholder={authMode === 'LOGIN' ? 'alex / user@shinpo.app' : 'e.g. Alex'}
                 value={authIdentifier}
                 onChange={(e) => setAuthIdentifier(e.target.value)}
+                maxLength={authMode === 'LOGIN' ? 254 : 64}
+                autoComplete={authMode === 'LOGIN' ? 'username' : 'username'}
+                aria-invalid={Boolean(authError)}
+                aria-describedby={authError ? 'auth-error' : undefined}
                 required
                 autoFocus
               />
@@ -2782,26 +2833,36 @@ export function App() {
 
             {authMode === 'REGISTER' && (
               <div className="auth-field-group">
-                <label className="auth-label">Email Address</label>
+                <label className="auth-label" htmlFor="auth-email">Email Address</label>
                 <input
+                  id="auth-email"
                   className="auth-input"
                   type="email"
                   placeholder="alex@shinpo.app"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
+                  maxLength={254}
+                  autoComplete="email"
+                  aria-invalid={Boolean(authError)}
+                  aria-describedby={authError ? 'auth-error' : undefined}
                   required
                 />
               </div>
             )}
 
             <div className="auth-field-group">
-              <label className="auth-label">Password</label>
+              <label className="auth-label" htmlFor="auth-password">Password</label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
+                  id="auth-password"
                   className="auth-input"
                   type={showAuthPassword ? 'text' : 'password'}
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
+                  maxLength={128}
+                  autoComplete={authMode === 'LOGIN' ? 'current-password' : 'new-password'}
+                  aria-invalid={Boolean(authError)}
+                  aria-describedby={authError ? 'auth-error' : undefined}
                   required
                   style={{ width: '100%', paddingRight: '40px' }}
                 />
@@ -2955,7 +3016,7 @@ export function App() {
             topSearchQuery={topSearchQuery}
             setTopSearchQuery={setTopSearchQuery}
             isDarkMode={isDarkMode}
-            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
+            onOpenAchievements={() => handleSelectTab('Rewards')}
           />
         ) : (
           <OverviewView
@@ -2996,7 +3057,7 @@ export function App() {
             handleResume={handleResume}
             setCompletingSessionId={setCompletingSessionId}
             nextActionMission={nextActionMission}
-            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
+            onOpenAchievements={() => handleSelectTab('Rewards')}
           />
         )
       )}
@@ -3019,6 +3080,17 @@ export function App() {
             setIsCustomDuration={setIsCustomDuration}
             selectedPomodoroPlan={selectedPomodoroPlan}
             setSelectedPomodoroPlan={setSelectedPomodoroPlan}
+            pomodoroEnabled={pomodoroEnabled}
+            setPomodoroEnabled={setPomodoroEnabled}
+            pomodoroFocusCycles={pomodoroFocusCycles}
+            setPomodoroFocusCycles={setPomodoroFocusCycles}
+            pomodoroShortBreakMinutes={pomodoroShortBreakMinutes}
+            setPomodoroShortBreakMinutes={setPomodoroShortBreakMinutes}
+            pomodoroLongBreakMinutes={pomodoroLongBreakMinutes}
+            setPomodoroLongBreakMinutes={setPomodoroLongBreakMinutes}
+            pomodoroGraceMinutes={pomodoroGraceMinutes}
+            setPomodoroGraceMinutes={setPomodoroGraceMinutes}
+            handleReturnToFocus={handleReturnToFocus}
             handleStartSession={handleStartSession}
             handlePause={handlePause}
             handleResume={handleResume}
@@ -3047,8 +3119,11 @@ export function App() {
         {/* Tab 3: Goals & Tasks */}
         {activeTab === 'Goals & Missions' && (
           <GoalsView
+            key={currentUser?.id ?? 'signed-out'}
+            userId={currentUser?.id ?? null}
             goals={goals}
             missions={missions}
+            activeSession={activeSession}
             aiDecompResult={aiDecompResult}
             setAiDecompResult={setAiDecompResult}
             decomposingGoalId={decomposingGoalId}
@@ -3135,6 +3210,17 @@ export function App() {
           />
         )}
 
+        {activeTab === 'Rewards' && (
+          <RewardsView
+            progress={userProgress}
+            analytics={analyticsData}
+            goals={goals}
+            missions={missions}
+            sessions={sessions}
+            onboardingVerified={Boolean(getTutorialStorageItem('shinpo_onboarding_completed', currentUser?.id))}
+          />
+        )}
+
         {/* Tab 4: Other Views Fallback */}
         {activeTab !== 'Dashboard' &&
           activeTab !== 'Focus Engine' &&
@@ -3155,7 +3241,7 @@ export function App() {
 
   return (
     <>
-      <div className={`app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''}`}>
+      <div className={`app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''} ${activeTab === 'Focus Engine' && (activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED') ? 'focus-immersed' : ''}`}>
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />
         )}
@@ -3164,7 +3250,6 @@ export function App() {
         <Sidebar
           sidebarExpanded={sidebarExpanded}
           onToggleExpanded={handleToggleSidebar}
-          onHoverChange={setIsSidebarHovered}
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
           scheduledCount={scheduledCount}
@@ -3175,13 +3260,15 @@ export function App() {
           activeSession={activeSession}
           graceSecondsLeft={graceSecondsLeft}
           sentinelStatus={sentinelStatus}
+          userProgress={userProgress}
         />
 
         {/* Main Content Area */}
-        <main className={`app-main ${isSidebarVisuallyExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
+        <main ref={appMainRef} className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
           {/* Top Bar */}
           <TopBar
             activeTab={activeTab}
+            onSelectTab={handleSelectTab}
             topSearchQuery={topSearchQuery}
             onSearchChange={setTopSearchQuery}
             unreadAlertCount={unreadAlertCount}
@@ -3194,7 +3281,6 @@ export function App() {
             onOpenSettings={handleOpenSettings}
             currentUser={currentUser}
             userProgress={userProgress}
-            onOpenAchievements={() => setIsAchievementsModalOpen(true)}
             onLogout={handleLogout}
             onToggleV2Preview={handleToggleV2Preview}
             isV2Preview={isV2Preview}
@@ -3208,6 +3294,11 @@ export function App() {
 
         </main>
       </div>
+
+      <FloatingToasts
+        toastAlerts={toastAlerts}
+        onDismiss={(id) => setToastAlerts((prev) => prev.filter((item) => item.id !== id))}
+      />
 
       {/* Real Functional Settings Modal (8 Working Areas) */}
       <SettingsModal
@@ -3408,12 +3499,6 @@ export function App() {
         }}
       />
 
-      {/* Real-Time Floating Toasts */}
-      <FloatingToasts
-        toastAlerts={toastAlerts}
-        onDismiss={(id) => setToastAlerts((prev) => prev.filter((item) => item.id !== id))}
-      />
-
       {/* Universal Duolingo-Inspired Celebration Moment */}
       <CelebrationModal
         payload={celebrationPayload}
@@ -3421,23 +3506,11 @@ export function App() {
         onNextAction={() => {
           const tab = celebrationPayload?.nextActionTab
           if (tab === 'Progression') {
-            setIsAchievementsModalOpen(true)
+            handleSelectTab('Rewards')
           } else if (tab && isAppView(tab)) {
             setActiveTab(tab)
           }
         }}
-      />
-
-      {/* Universal Progression & Achievements Profile Modal */}
-      <AchievementsModal
-        isOpen={isAchievementsModalOpen}
-        onClose={() => setIsAchievementsModalOpen(false)}
-        userProgress={userProgress}
-        analyticsData={analyticsData}
-        missions={missions}
-        goals={goals}
-        sessions={sessions}
-        isOnboardingVerified={Boolean(getTutorialStorageItem('shinpo_onboarding_completed', currentUser?.id))}
       />
 
       {/* In-App Confirmation Dialog */}

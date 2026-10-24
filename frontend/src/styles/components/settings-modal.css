@@ -14,8 +14,8 @@
 .theme-light .settings-modal-box,
 html[data-theme='light'] .settings-modal-box {
   background: #FFFFFF !important;
-  border: 1px solid rgba(77, 119, 249, 0.16) !important;
-  box-shadow: 0 20px 50px rgba(77, 119, 249, 0.12) !important;
+  border: 1px solid rgba(59, 130, 246, 0.16) !important;
+  box-shadow: 0 20px 50px rgba(59, 130, 246, 0.12) !important;
   color: #17213A !important;
 }
 
@@ -28,7 +28,7 @@ html[data-theme='light'] .settings-modal-box {
 .theme-light .settings-modal-header,
 html[data-theme='light'] .settings-modal-header {
   background: #F8FAFD !important;
-  border-bottom: 1px solid rgba(77, 119, 249, 0.12) !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.12) !important;
 }
 
 .settings-modal-header h2 {
@@ -65,7 +65,7 @@ html[data-theme='light'] .settings-modal-header span {
 .theme-light .settings-nav-sidebar,
 html[data-theme='light'] .settings-nav-sidebar {
   background: #F1F4FA !important;
-  border-right: 1px solid rgba(77, 119, 249, 0.12) !important;
+  border-right: 1px solid rgba(59, 130, 246, 0.12) !important;
 }
 
 /* Nav Tab Buttons */
@@ -98,22 +98,22 @@ html[data-theme='light'] .settings-tab-btn {
 
 .theme-light .settings-tab-btn:hover,
 html[data-theme='light'] .settings-tab-btn:hover {
-  background: rgba(77, 119, 249, 0.06) !important;
+  background: rgba(59, 130, 246, 0.06) !important;
   color: #17213A !important;
 }
 
 .settings-tab-btn.is-active {
-  background: rgba(77, 119, 249, 0.16) !important;
-  border-color: rgba(77, 119, 249, 0.35) !important;
+  background: rgba(59, 130, 246, 0.16) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
   color: #6E90FB !important;
   font-weight: 700 !important;
 }
 
 .theme-light .settings-tab-btn.is-active,
 html[data-theme='light'] .settings-tab-btn.is-active {
-  background: rgba(77, 119, 249, 0.12) !important;
-  border-color: rgba(77, 119, 249, 0.3) !important;
-  color: #2B58E6 !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #2563EB !important;
 }
 
 /* Right Content Panel */
@@ -166,7 +166,7 @@ html[data-theme='light'] .settings-section-desc {
 .theme-light .settings-group-card,
 html[data-theme='light'] .settings-group-card {
   background: #F8FAFD !important;
-  border: 1px solid rgba(77, 119, 249, 0.14) !important;
+  border: 1px solid rgba(59, 130, 246, 0.14) !important;
 }
 
 .settings-group-card label {
@@ -228,27 +228,27 @@ html[data-theme='light'] .settings-pill-btn {
 }
 
 .settings-pill-btn:hover {
-  border-color: #4D77F9;
+  border-color: #3B82F6;
   color: var(--text-primary, #F5F7FF);
 }
 
 .theme-light .settings-pill-btn:hover,
 html[data-theme='light'] .settings-pill-btn:hover {
-  border-color: #2B58E6 !important;
+  border-color: #2563EB !important;
   color: #17213A !important;
 }
 
 .settings-pill-btn.is-active {
-  border: 2px solid #4D77F9 !important;
-  background: rgba(77, 119, 249, 0.14) !important;
+  border: 2px solid #3B82F6 !important;
+  background: rgba(59, 130, 246, 0.14) !important;
   color: #F5F7FF !important;
   font-weight: 700 !important;
 }
 
 .theme-light .settings-pill-btn.is-active,
 html[data-theme='light'] .settings-pill-btn.is-active {
-  border: 2px solid #2B58E6 !important;
-  background: rgba(77, 119, 249, 0.10) !important;
+  border: 2px solid #2563EB !important;
+  background: rgba(59, 130, 246, 0.10) !important;
   color: #17213A !important;
 }
 
@@ -261,14 +261,14 @@ html[data-theme='light'] .settings-pill-btn.is-active {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
-  background: rgba(77, 119, 249, 0.2);
-  color: #4D77F9;
+  background: rgba(59, 130, 246, 0.2);
+  color: #3B82F6;
 }
 
 .theme-light .settings-pill-indicator,
 html[data-theme='light'] .settings-pill-indicator {
-  background: rgba(77, 119, 249, 0.15) !important;
-  color: #2B58E6 !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #2563EB !important;
 }
 
 /* Settings Form Controls */
@@ -293,13 +293,13 @@ html[data-theme='light'] .settings-input {
 }
 
 .settings-input:focus {
-  border-color: #4D77F9 !important;
-  outline: 2px solid rgba(77, 119, 249, 0.25) !important;
+  border-color: #3B82F6 !important;
+  outline: 2px solid rgba(59, 130, 246, 0.25) !important;
 }
 
 .theme-light .settings-input:focus,
 html[data-theme='light'] .settings-input:focus {
-  border-color: #2B58E6 !important;
+  border-color: #2563EB !important;
   outline: 2px solid rgba(43, 88, 230, 0.2) !important;
 }
 
@@ -320,18 +320,18 @@ html[data-theme='light'] .settings-mode-card {
 }
 
 .settings-mode-card:hover {
-  border-color: rgba(77, 119, 249, 0.4);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .settings-mode-card.is-active {
-  border: 2px solid #4D77F9 !important;
-  background: rgba(77, 119, 249, 0.12) !important;
+  border: 2px solid #3B82F6 !important;
+  background: rgba(59, 130, 246, 0.12) !important;
 }
 
 .theme-light .settings-mode-card.is-active,
 html[data-theme='light'] .settings-mode-card.is-active {
-  border: 2px solid #2B58E6 !important;
-  background: rgba(77, 119, 249, 0.08) !important;
+  border: 2px solid #2563EB !important;
+  background: rgba(59, 130, 246, 0.08) !important;
 }
 
 .settings-mode-name {
@@ -346,11 +346,11 @@ html[data-theme='light'] .settings-mode-name {
 }
 
 .settings-mode-card.is-active .settings-mode-name {
-  color: #4D77F9 !important;
+  color: #3B82F6 !important;
 }
 
 .theme-light .settings-mode-card.is-active .settings-mode-name {
-  color: #2B58E6 !important;
+  color: #2563EB !important;
 }
 
 /* Code & Registration Boxes */

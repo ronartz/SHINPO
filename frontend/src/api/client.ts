@@ -178,7 +178,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     throw new ApiError({
-      message: err instanceof Error ? err.message : 'Network connection failed',
+      message: 'Unable to reach SHINPO. Check your connection and try again.',
       status: 0,
       code: 'NETWORK_ERROR',
     })
@@ -218,4 +218,3 @@ export const apiClient = {
 }
 
 export default apiClient
-

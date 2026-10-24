@@ -27,9 +27,9 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
   tiltVariant = 'lift',
 }) => {
   const iconGradients = {
-    purple: 'linear-gradient(135deg, rgba(151, 87, 250, 0.20) 0%, rgba(151, 87, 250, 0.06) 100%)',
-    blue: 'linear-gradient(135deg, rgba(77, 119, 249, 0.20) 0%, rgba(77, 119, 249, 0.06) 100%)',
-    cyan: 'linear-gradient(135deg, rgba(27, 201, 222, 0.20) 0%, rgba(27, 201, 222, 0.06) 100%)',
+    purple: 'linear-gradient(135deg, rgba(49, 86, 216, 0.20) 0%, rgba(49, 86, 216, 0.06) 100%)',
+    blue: 'linear-gradient(135deg, rgba(59, 130, 246, 0.20) 0%, rgba(59, 130, 246, 0.06) 100%)',
+    cyan: 'linear-gradient(135deg, rgba(25, 211, 197, 0.20) 0%, rgba(25, 211, 197, 0.06) 100%)',
     emerald: 'linear-gradient(135deg, rgba(16, 185, 129, 0.20) 0%, rgba(16, 185, 129, 0.06) 100%)',
     coral: 'linear-gradient(135deg, rgba(255, 77, 94, 0.20) 0%, rgba(255, 77, 94, 0.06) 100%)',
   }
@@ -37,7 +37,7 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
   const iconColors = {
     purple: '#A86EFB',
     blue: '#6E90FB',
-    cyan: '#1BC9DE',
+    cyan: '#19D3C5',
     emerald: '#10B981',
     coral: '#FF4D5E',
   }

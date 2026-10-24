@@ -5,6 +5,85 @@ import '../src/lib/policy-engine.js'
 
 const { evaluateUrl, DECISIONS } = globalThis.ShinpoPolicy
 
+test('normalizePolicy preserves the server phase and deadline metadata', () => {
+  const now = Date.now()
+  const policy = globalThis.ShinpoPolicy.normalizePolicy({
+    sessionId: 10,
+    status: 'ACTIVE',
+    currentPhase: 'GRACE',
+    phaseRemainingSeconds: 120,
+    phaseDeadlineAt: now + 120_000,
+    leaseExpiresAt: now + 60_000,
+    resources: [],
+  }, now)
+
+  assert.equal(policy.currentPhase, 'GRACE')
+  assert.equal(policy.phaseRemainingSeconds, 120)
+  assert.equal(policy.phaseDeadlineAtMs, now + 120_000)
+})
+
+test('normalizePolicy rejects an active lease with no recognized server phase', () => {
+  const now = Date.now()
+  const policy = globalThis.ShinpoPolicy.normalizePolicy({
+    sessionId: 11,
+    status: 'ACTIVE',
+    leaseExpiresAt: now + 60_000,
+    resources: [],
+  }, now)
+
+  assert.equal(policy.currentPhase, 'UNKNOWN')
+  assert.equal(policy.active, false)
+})
+
+test('break-only approvals do not leak into Focus and expire at the server deadline', () => {
+  const now = Date.now()
+  const policy = {
+    status: 'ACTIVE',
+    currentPhase: 'GRACE',
+    mode: 'GUIDED',
+    sessionId: 12,
+    policyVersion: 3,
+    phaseDeadlineAt: now + 60_000,
+    leaseExpiresAt: now + 120_000,
+    resources: [{
+      id: 'break-site', resourceType: 'WEBSITE', matchType: 'DOMAIN', disposition: 'APPROVED',
+      breakOnly: true, destination: 'game.example', canonicalDestination: 'game.example', enabled: true,
+    }],
+    adapterSettings: {},
+  }
+
+  assert.equal(evaluateUrl(policy, 'https://game.example', now).decision, DECISIONS.ALLOW)
+  assert.equal(evaluateUrl(policy, 'https://unlisted.example', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(policy, 'https://game.example', now + 60_001).decision, DECISIONS.RESTRICT)
+
+  const focusPolicy = { ...policy, currentPhase: 'FOCUS', phaseDeadlineAt: null }
+  assert.equal(evaluateUrl(focusPolicy, 'https://game.example', now).decision, DECISIONS.RESTRICT)
+
+  const restrictedPolicy = {
+    ...policy,
+    resources: [{ ...policy.resources[0], disposition: 'BLOCKED', breakOnly: false }],
+  }
+  assert.equal(evaluateUrl(restrictedPolicy, 'https://game.example', now + 60_001).decision, DECISIONS.WARN)
+})
+
+test('expired policy retains only explicit restrictions and reports other destinations uncertain', () => {
+  const { degradedPolicy } = globalThis.ShinpoPolicy
+  const degraded = degradedPolicy({
+    sessionId: '33', taskTitle: 'Study block', policyVersion: 8,
+    resources: [
+      { disposition: 'BLOCKED', resourceType: 'WEBSITE', matchType: 'DOMAIN', value: 'social.example' },
+      { disposition: 'APPROVED', breakOnly: true, resourceType: 'WEBSITE', matchType: 'DOMAIN', value: 'game.example' },
+      { disposition: 'APPROVED', breakOnly: false, resourceType: 'WEBSITE', matchType: 'DOMAIN', value: 'docs.example' },
+    ],
+  }, 'Server unavailable')
+
+  assert.equal(degraded.active, false)
+  assert.equal(degraded.degraded, true)
+  assert.equal(evaluateUrl(degraded, 'https://social.example').decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(degraded, 'https://game.example').decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(degraded, 'https://docs.example').decision, DECISIONS.UNCERTAIN)
+})
+
 test('evaluateUrl returns INACTIVE when policy is INACTIVE', () => {
   const policy = {
     status: 'INACTIVE',
@@ -20,6 +99,7 @@ test('evaluateUrl allows explicitly approved YouTube video and blocks unapproved
   const now = Date.now()
   const policy = {
     status: 'ACTIVE',
+    currentPhase: 'FOCUS',
     mode: 'PROTECTED',
     sessionId: 10,
     policyVersion: 1,
@@ -62,6 +142,7 @@ test('evaluateUrl respects active 5-minute temporary exception', () => {
   const now = Date.now()
   const policy = {
     status: 'ACTIVE',
+    currentPhase: 'FOCUS',
     mode: 'PROTECTED',
     sessionId: 10,
     policyVersion: 2,
@@ -94,6 +175,7 @@ test('evaluateUrl in GUIDED mode allows approved docs, warns on blocked sites, a
   const now = Date.now()
   const policy = {
     status: 'ACTIVE',
+    currentPhase: 'FOCUS',
     mode: 'GUIDED',
     sessionId: 10,
     policyVersion: 1,

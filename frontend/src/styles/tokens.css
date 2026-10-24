@@ -1,6 +1,6 @@
 /* ==========================================================================
    SHINPO (進歩) — PREMIUM PRODUCT UI DESIGN SYSTEM (SLICE 7.4)
-   Warm-Light & Refined-Dark Palettes, 8pt Grid Geometry, Restrained Coral
+   Cobalt, Turquoise & Deep Blue Palettes, 8pt Grid Geometry
    ========================================================================== */
 
 :root {
@@ -29,49 +29,49 @@
 html[data-theme='dark'],
 .theme-dark {
   color-scheme: dark;
-  /* 1. OPAQUE & CANVAS SURFACES (Refined Near-Charcoal) */
-  --bg: #121316;
+  /* 1. OPAQUE & CANVAS SURFACES (Deep blue ink) */
+  --bg: oklch(16% 0.035 255);
   --bg-gradient: none;
-  --surface: #18191E;
-  --surface-opaque: #18191E;
-  --surface-card: #1D1E24;
-  --surface-subtle: #24252D;
-  --surface-elevated: #282A33;
-  --surface-hover: #262730;
-  --surface-active: #2D2F39;
-  --surface-execution: #18191E;
-  --surface-execution-text: #F0F1F3;
-  --surface-muted: #131A2A;
-  --text-primary: #F5F7FF;
-  --text-secondary: #94A3B8;
-  --text-muted: #94A3B8;
+  --surface: oklch(19% 0.04 255);
+  --surface-opaque: oklch(19% 0.04 255);
+  --surface-card: oklch(22% 0.045 255);
+  --surface-subtle: oklch(26% 0.05 255);
+  --surface-elevated: oklch(29% 0.055 255);
+  --surface-hover: oklch(28% 0.055 255);
+  --surface-active: oklch(32% 0.06 255);
+  --surface-execution: oklch(19% 0.04 255);
+  --surface-execution-text: oklch(97% 0.015 245);
+  --surface-muted: oklch(22% 0.045 190);
+  --text-primary: oklch(97% 0.015 245);
+  --text-secondary: oklch(76% 0.035 235);
+  --text-muted: oklch(70% 0.035 235);
 
   /* 2. SEMI-OPAQUE SURFACES & SIDEBAR (Refined Dark Theme) */
   --surface-semi-opaque: #18191E;
-  --sidebar-bg: #121316;
-  --sidebar-border: 1px solid rgba(255, 255, 255, 0.08);
+  --sidebar-bg: oklch(13% 0.04 255);
+  --sidebar-border: 1px solid color-mix(in srgb, var(--brand-coral) 16%, transparent);
   --sidebar-logo-wordmark: #FFFFFF;
-  --sidebar-logo-kanji: #9757FA;
-  --sidebar-logo-tagline: #A0A5B2;
+  --sidebar-logo-kanji: oklch(68% 0.17 265);
+  --sidebar-logo-tagline: oklch(68% 0.022 70);
   --sidebar-toggle-bg: rgba(255, 255, 255, 0.06);
   --sidebar-toggle-border: 1px solid rgba(255, 255, 255, 0.12);
   --sidebar-toggle-color: #D1D5DB;
   --sidebar-toggle-hover-bg: rgba(255, 255, 255, 0.14);
   --sidebar-toggle-hover-color: #FFFFFF;
-  --sidebar-section-header: #CBD5E1;
-  --sidebar-btn-color: #E2E8F0;
+  --sidebar-section-header: oklch(76% 0.025 70);
+  --sidebar-btn-color: oklch(88% 0.018 75);
   --sidebar-btn-hover-bg: rgba(255, 255, 255, 0.08);
   --sidebar-btn-hover-color: #FFFFFF;
-  --sidebar-btn-active-bg: rgba(151, 87, 250, 0.14);
-  --sidebar-btn-active-color: #FFFFFF;
-  --sidebar-btn-active-border: rgba(151, 87, 250, 0.35);
+  --sidebar-btn-active-bg: color-mix(in srgb, var(--brand-coral) 14%, transparent);
+  --sidebar-btn-active-color: oklch(96% 0.012 75);
+  --sidebar-btn-active-border: color-mix(in srgb, var(--brand-coral) 40%, transparent);
   --sidebar-btn-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.20);
-  --sidebar-btn-active-icon: #9757FA;
-  --sidebar-active-arrow-bg: rgba(151, 87, 250, 0.22);
-  --sidebar-active-arrow-color: #9757FA;
+  --sidebar-btn-active-icon: oklch(68% 0.17 265);
+  --sidebar-active-arrow-bg: color-mix(in srgb, var(--brand-coral) 24%, transparent);
+  --sidebar-active-arrow-color: oklch(76% 0.15 265);
   --sidebar-quote-bg: rgba(255, 255, 255, 0.03);
   --sidebar-quote-border: 1px solid rgba(255, 255, 255, 0.08);
-  --sidebar-quote-tag: #9757FA;
+  --sidebar-quote-tag: var(--accent-cyan);
   --sidebar-quote-text: #F1F5F9;
   --sidebar-quote-btn: #9DA2AE;
   --sidebar-quote-btn-hover: #FFFFFF;
@@ -112,55 +112,55 @@ html[data-theme='dark'],
   --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* 5. CINEMATIC AURORA BRAND IDENTITY — RESTRAINED PROFESSIONAL APPLICATION */
-  /* Aurora Violet (#9757FA) - Primary Brand Accent */
-  --primary-violet: #9757FA;
-  --accent-violet: #9757FA;
-  --primary-coral: #9757FA; /* Aliased for 100% component compatibility */
-  --accent-coral: #9757FA;
-  --brand-coral: #9757FA;
-  --brand-coral-hover: #AB75FC;
-  --brand-coral-deep: #813BF5;
-  --coral-light: #AB75FC;
-  --coral-deep: #813BF5;
-  --brand-coral-subtle: rgba(151, 87, 250, 0.14);
-  --brand-coral-border: rgba(151, 87, 250, 0.32);
+  /* 5. COBALT BRAND IDENTITY */
+  /* Cobalt - primary action and wayfinding accent */
+  --primary-violet: oklch(60% 0.18 265);
+  --accent-violet: oklch(60% 0.18 265);
+  --primary-coral: oklch(60% 0.18 265); /* Aliased for component compatibility */
+  --accent-coral: oklch(60% 0.18 265);
+  --brand-coral: oklch(60% 0.18 265);
+  --brand-coral-hover: oklch(68% 0.17 265);
+  --brand-coral-deep: oklch(48% 0.18 265);
+  --coral-light: oklch(68% 0.17 265);
+  --coral-deep: oklch(48% 0.18 265);
+  --brand-coral-subtle: color-mix(in srgb, var(--brand-coral) 14%, transparent);
+  --brand-coral-border: color-mix(in srgb, var(--brand-coral) 34%, transparent);
   --brand-coral-glow: none;
-  --brand-coral-gradient: linear-gradient(135deg, #9757FA 0%, #813BF5 100%);
+  --brand-coral-gradient: linear-gradient(135deg, oklch(60% 0.18 265), oklch(65% 0.15 180));
 
-  /* Electric Blue (#4D77F9) - Secondary Brand Accent */
-  --primary-blue: #4D77F9;
-  --accent-blue: #4D77F9;
-  --accent-blue-hover: #688CFA;
-  --accent-blue-subtle: rgba(77, 119, 249, 0.14);
-  --accent-blue-border: rgba(77, 119, 249, 0.32);
+  /* Deep ink blue - secondary navigation and information accent */
+  --primary-blue: oklch(66% 0.18 255);
+  --accent-blue: oklch(66% 0.18 255);
+  --accent-blue-hover: oklch(74% 0.16 255);
+  --accent-blue-subtle: color-mix(in srgb, var(--accent-blue) 14%, transparent);
+  --accent-blue-border: color-mix(in srgb, var(--accent-blue) 32%, transparent);
   --accent-blue-glow: none;
-  --accent-blue-gradient: linear-gradient(135deg, #4D77F9 0%, #3560EB 100%);
-  --blue-gradient: linear-gradient(135deg, #4D77F9 0%, #3560EB 100%);
+  --accent-blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2457D6 100%);
+  --blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2457D6 100%);
 
-  /* Glacial Cyan (#1BC9DE) - Highlight Accent */
-  --primary-cyan: #1BC9DE;
-  --accent-cyan: #1BC9DE;
-  --accent-cyan-hover: #3CD6E8;
-  --accent-cyan-subtle: rgba(27, 201, 222, 0.14);
-  --accent-cyan-border: rgba(27, 201, 222, 0.32);
+  /* Muted teal - secondary highlight */
+  --primary-cyan: oklch(74% 0.14 180);
+  --accent-cyan: oklch(74% 0.14 180);
+  --accent-cyan-hover: oklch(82% 0.12 180);
+  --accent-cyan-subtle: color-mix(in srgb, var(--accent-cyan) 14%, transparent);
+  --accent-cyan-border: color-mix(in srgb, var(--accent-cyan) 32%, transparent);
   --accent-cyan-glow: none;
-  --accent-cyan-gradient: linear-gradient(135deg, #1BC9DE 0%, #15B0C2 100%);
+  --accent-cyan-gradient: linear-gradient(135deg, #19D3C5 0%, #0F9F9A 100%);
 
   /* Functional Green Accent (Tasks, Success, AI Confirm) */
-  --primary-green: #10B981;
-  --primary-green-hover: #34D399;
-  --primary-green-subtle: rgba(16, 185, 129, 0.12);
-  --primary-green-border: rgba(16, 185, 129, 0.32);
+  --primary-green: oklch(73% 0.10 125);
+  --primary-green-hover: oklch(80% 0.09 125);
+  --primary-green-subtle: color-mix(in srgb, var(--primary-green) 12%, transparent);
+  --primary-green-border: color-mix(in srgb, var(--primary-green) 32%, transparent);
   --primary-green-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
 
   /* 6. SUPPORTING FUNCTIONAL PALETTE */
-  --accent-green: #34D399;
-  --accent-emerald: #34D399;
-  --accent-emerald-bg: rgba(52, 211, 153, 0.14);
-  --accent-green-subtle: rgba(52, 211, 153, 0.14);
-  --accent-green-border: rgba(52, 211, 153, 0.35);
-  --accent-lime: #34D399;
+  --accent-green: oklch(78% 0.09 125);
+  --accent-emerald: oklch(78% 0.09 125);
+  --accent-emerald-bg: color-mix(in srgb, var(--accent-emerald) 14%, transparent);
+  --accent-green-subtle: color-mix(in srgb, var(--accent-green) 14%, transparent);
+  --accent-green-border: color-mix(in srgb, var(--accent-green) 35%, transparent);
+  --accent-lime: oklch(78% 0.09 125);
   --accent-lime-gradient: linear-gradient(135deg, #34D399 0%, #10B981 100%);
 
   --accent-orange: #FB923C;
@@ -168,10 +168,10 @@ html[data-theme='dark'],
   --accent-orange-border: rgba(251, 146, 60, 0.35);
   --accent-orange-gradient: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
 
-  --accent-purple: #9757FA;
-  --accent-purple-subtle: rgba(151, 87, 250, 0.14);
-  --accent-purple-border: rgba(151, 87, 250, 0.35);
-  --accent-purple-gradient: linear-gradient(135deg, #9757FA 0%, #7631E0 100%);
+  --accent-purple: var(--brand-coral);
+  --accent-purple-subtle: var(--brand-coral-subtle);
+  --accent-purple-border: var(--brand-coral-border);
+  --accent-purple-gradient: var(--brand-coral-gradient);
 
   --accent-pink: #FF5C9A;
   --accent-pink-subtle: rgba(255, 92, 154, 0.14);
@@ -179,8 +179,8 @@ html[data-theme='dark'],
   --accent-yellow-subtle: rgba(251, 191, 36, 0.14);
   --accent-yellow-border: rgba(251, 191, 36, 0.35);
   --accent-amber: #FBBF24;
-  --accent-terracotta: #9757FA;
-  --accent-terracotta-bg: rgba(151, 87, 250, 0.14);
+  --accent-terracotta: var(--brand-coral);
+  --accent-terracotta-bg: color-mix(in srgb, var(--accent-terracotta) 14%, transparent);
 
   /* Red (Reserved strictly for Danger / Destructive / Failed / Emergency Stop) */
   --brand-red: #F87171;
@@ -192,9 +192,9 @@ html[data-theme='dark'],
   --accent-red-glow: none;
   --accent-red-gradient: linear-gradient(135deg, #F87171 0%, #EF4444 100%);
 
-  --accent-gradient: linear-gradient(135deg, #9757FA 0%, #813BF5 100%);
-  --shinpo-gradient: linear-gradient(135deg, #9757FA 0%, #813BF5 100%);
-  --aurora-gradient: linear-gradient(135deg, #9757FA 0%, #813BF5 100%);
+  --accent-gradient: var(--brand-coral-gradient);
+  --shinpo-gradient: var(--brand-coral-gradient);
+  --aurora-gradient: var(--brand-coral-gradient);
 
   /* Geometry Tokens (Restrained 8pt Grid) */
   --radius-xl: 16px;
@@ -209,7 +209,7 @@ html[data-theme='dark'],
   --shadow-glow: none;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
-  --border-accent: rgba(151, 87, 250, 0.35);
+  --border-accent: color-mix(in srgb, var(--brand-coral) 34%, transparent);
 
   --transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: 0.10s ease;
@@ -229,53 +229,53 @@ html[data-theme='dark'],
 html[data-theme='light'],
 .theme-light {
   color-scheme: light;
-  /* 1. OPAQUE & CANVAS SURFACES (Dribbble/SellBoard Warm Canvas & Crisp White Surfaces) */
-  --bg: #F7F6F3;
+  /* 1. OPAQUE & CANVAS SURFACES (Cool paper and deep blue ink) */
+  --bg: oklch(96% 0.018 250);
   --bg-gradient: none;
-  --surface: #FFFFFF;
-  --surface-opaque: #FFFFFF;
-  --surface-card: #FFFFFF;
-  --surface-subtle: #EFECE6;
-  --surface-elevated: #FFFFFF;
-  --surface-hover: #F2EFEB;
-  --surface-active: #E9E5DE;
-  --surface-execution: #FFFFFF;
-  --surface-execution-text: #242424;
-  --surface-muted: #F1F4FA;
-  --text-primary: #18191B;
-  --text-secondary: #484C56;
-  --text-muted: #4B5563;
+  --surface: oklch(99% 0.006 250);
+  --surface-opaque: oklch(99% 0.006 250);
+  --surface-card: oklch(99% 0.006 250);
+  --surface-subtle: oklch(93% 0.022 250);
+  --surface-elevated: oklch(100% 0 0);
+  --surface-hover: oklch(94% 0.022 75);
+  --surface-active: oklch(90% 0.028 75);
+  --surface-execution: oklch(100% 0 0);
+  --surface-execution-text: oklch(24% 0.018 45);
+  --surface-muted: oklch(95% 0.018 180);
+  --text-primary: oklch(24% 0.04 255);
+  --text-secondary: oklch(40% 0.05 255);
+  --text-muted: oklch(43% 0.045 255);
 
-  /* 2. SEMI-OPAQUE SURFACES & SIDEBAR (Refined Warm Light #F3F1ED) */
-  --surface-semi-opaque: rgba(255, 255, 255, 0.95);
-  --sidebar-bg: #F3F1ED;
-  --sidebar-border: 1px solid #E5E2DC;
-  --sidebar-logo-wordmark: #18191B;
-  --sidebar-logo-kanji: #7932E6;
-  --sidebar-logo-tagline: #646976;
+  /* 2. SEMI-OPAQUE SURFACES & SIDEBAR */
+  --surface-semi-opaque: color-mix(in srgb, var(--surface) 95%, transparent);
+  --sidebar-bg: oklch(94% 0.025 250);
+  --sidebar-border: 1px solid oklch(87% 0.026 250);
+  --sidebar-logo-wordmark: oklch(24% 0.04 255);
+  --sidebar-logo-kanji: oklch(48% 0.18 265);
+  --sidebar-logo-tagline: oklch(48% 0.045 255);
   --sidebar-toggle-bg: rgba(0, 0, 0, 0.04);
   --sidebar-toggle-border: 1px solid rgba(0, 0, 0, 0.09);
   --sidebar-toggle-color: #484C56;
   --sidebar-toggle-hover-bg: rgba(0, 0, 0, 0.08);
   --sidebar-toggle-hover-color: #18191B;
-  --sidebar-section-header: #646976;
-  --sidebar-btn-color: #383C45;
+  --sidebar-section-header: oklch(48% 0.022 45);
+  --sidebar-btn-color: oklch(34% 0.022 45);
   --sidebar-btn-hover-bg: rgba(0, 0, 0, 0.05);
   --sidebar-btn-hover-color: #18191B;
-  --sidebar-btn-active-bg: #F5F0FF;
-  --sidebar-btn-active-color: #7932E6;
-  --sidebar-btn-active-border: rgba(121, 50, 230, 0.30);
-  --sidebar-btn-active-shadow: 0 2px 10px rgba(121, 50, 230, 0.14);
-  --sidebar-btn-active-icon: #7932E6;
-  --sidebar-active-arrow-bg: #7932E6;
+  --sidebar-btn-active-bg: color-mix(in srgb, var(--brand-coral) 13%, var(--sidebar-bg));
+  --sidebar-btn-active-color: oklch(48% 0.18 265);
+  --sidebar-btn-active-border: color-mix(in srgb, var(--brand-coral) 34%, transparent);
+  --sidebar-btn-active-shadow: 0 2px 10px color-mix(in srgb, var(--brand-coral) 14%, transparent);
+  --sidebar-btn-active-icon: oklch(48% 0.18 265);
+  --sidebar-active-arrow-bg: oklch(48% 0.18 265);
   --sidebar-active-arrow-color: #FFFFFF;
   --sidebar-quote-bg: rgba(0, 0, 0, 0.03);
   --sidebar-quote-border: 1px solid rgba(0, 0, 0, 0.06);
-  --sidebar-quote-tag: #7932E6;
-  --sidebar-quote-text: #18191B;
-  --sidebar-quote-btn: #646976;
-  --sidebar-quote-btn-hover: #18191B;
-  --sidebar-footer-border: 1px solid #E5E2DC;
+  --sidebar-quote-tag: oklch(52% 0.14 180);
+  --sidebar-quote-text: oklch(24% 0.018 45);
+  --sidebar-quote-btn: oklch(48% 0.022 45);
+  --sidebar-quote-btn-hover: oklch(24% 0.018 45);
+  --sidebar-footer-border: 1px solid oklch(87% 0.026 75);
   --sidebar-status-bg: rgba(0, 0, 0, 0.03);
   --sidebar-status-border: 1px solid rgba(0, 0, 0, 0.06);
   --sidebar-status-title: #18191B;
@@ -312,40 +312,39 @@ html[data-theme='light'],
   --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* 5. CINEMATIC AURORA BRAND IDENTITY (LIGHT MODE ALTERNATIVES - WCAG AA >= 4.5:1) */
-  /* Aurora Violet Alternative (#7932E6) */
-  --primary-violet: #7932E6;
-  --accent-violet: #7932E6;
-  --primary-coral: #7932E6; /* Aliased for 100% component compatibility */
-  --accent-coral: #7932E6;
-  --brand-coral: #7932E6;
-  --brand-coral-hover: #6825D4;
-  --brand-coral-deep: #5E1BBF;
-  --coral-light: #8E4DF0;
-  --coral-deep: #5E1BBF;
-  --brand-coral-subtle: #F5F0FF;
-  --brand-coral-border: rgba(121, 50, 230, 0.25);
+  /* 5. COBALT BRAND IDENTITY (light-mode contrast values) */
+  --primary-violet: oklch(48% 0.18 265);
+  --accent-violet: oklch(48% 0.18 265);
+  --primary-coral: oklch(48% 0.18 265); /* Aliased for component compatibility */
+  --accent-coral: oklch(48% 0.18 265);
+  --brand-coral: oklch(48% 0.18 265);
+  --brand-coral-hover: oklch(40% 0.18 265);
+  --brand-coral-deep: oklch(36% 0.17 265);
+  --coral-light: oklch(56% 0.17 265);
+  --coral-deep: oklch(36% 0.17 265);
+  --brand-coral-subtle: color-mix(in srgb, var(--brand-coral) 11%, transparent);
+  --brand-coral-border: color-mix(in srgb, var(--brand-coral) 28%, transparent);
   --brand-coral-glow: none;
-  --brand-coral-gradient: linear-gradient(135deg, #7932E6 0%, #6825D4 100%);
+  --brand-coral-gradient: linear-gradient(135deg, oklch(48% 0.18 265), oklch(50% 0.14 180));
 
-  /* Electric Blue Alternative (#2B58E6) */
-  --primary-blue: #2B58E6;
-  --accent-blue: #2B58E6;
-  --accent-blue-hover: #1F48CE;
-  --accent-blue-subtle: #EFF4FF;
-  --accent-blue-border: rgba(43, 88, 230, 0.25);
+  /* Deep ink blue */
+  --primary-blue: oklch(52% 0.18 255);
+  --accent-blue: oklch(52% 0.18 255);
+  --accent-blue-hover: oklch(44% 0.18 255);
+  --accent-blue-subtle: color-mix(in srgb, var(--accent-blue) 10%, transparent);
+  --accent-blue-border: color-mix(in srgb, var(--accent-blue) 25%, transparent);
   --accent-blue-glow: none;
-  --accent-blue-gradient: linear-gradient(135deg, #2B58E6 0%, #214AC7 100%);
-  --blue-gradient: linear-gradient(135deg, #2B58E6 0%, #214AC7 100%);
+  --accent-blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
 
-  /* Glacial Cyan Alternative (#008CA3) */
-  --primary-cyan: #008CA3;
-  --accent-cyan: #008CA3;
-  --accent-cyan-hover: #00768A;
-  --accent-cyan-subtle: #ECFEFF;
-  --accent-cyan-border: rgba(0, 140, 163, 0.25);
+  /* Muted teal */
+  --primary-cyan: oklch(52% 0.14 180);
+  --accent-cyan: oklch(52% 0.14 180);
+  --accent-cyan-hover: oklch(44% 0.14 180);
+  --accent-cyan-subtle: color-mix(in srgb, var(--accent-cyan) 10%, transparent);
+  --accent-cyan-border: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
   --accent-cyan-glow: none;
-  --accent-cyan-gradient: linear-gradient(135deg, #008CA3 0%, #00778B 100%);
+  --accent-cyan-gradient: linear-gradient(135deg, #0F9F9A 0%, #087F83 100%);
 
   /* Functional Green Accent (Tasks, Success, AI Confirm) */
   --primary-green: #059669;
@@ -368,17 +367,17 @@ html[data-theme='light'],
   --accent-orange-border: rgba(194, 65, 12, 0.25);
   --accent-orange-gradient: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
 
-  --accent-purple: #7932E6;
-  --accent-purple-subtle: #F5F0FF;
-  --accent-purple-border: rgba(121, 50, 230, 0.25);
-  --accent-purple-gradient: linear-gradient(135deg, #7932E6 0%, #6825D4 100%);
+  --accent-purple: var(--brand-coral);
+  --accent-purple-subtle: var(--brand-coral-subtle);
+  --accent-purple-border: var(--brand-coral-border);
+  --accent-purple-gradient: var(--brand-coral-gradient);
 
   --accent-pink: #BE185D;
   --accent-yellow: #B45309;
   --accent-yellow-border: rgba(180, 83, 9, 0.25);
   --accent-amber: #B45309;
-  --accent-terracotta: #7932E6;
-  --accent-terracotta-bg: #F5F0FF;
+  --accent-terracotta: var(--brand-coral);
+  --accent-terracotta-bg: color-mix(in srgb, var(--accent-terracotta) 10%, transparent);
 
   /* Red (Reserved strictly for Danger / Destructive / Failed / Emergency Stop) */
   --brand-red: #B91C1C;
@@ -388,9 +387,9 @@ html[data-theme='light'],
   --accent-red-subtle: rgba(185, 28, 28, 0.08);
   --accent-red-gradient: linear-gradient(135deg, #B91C1C 0%, #991B1B 100%);
 
-  --accent-gradient: linear-gradient(135deg, #7932E6 0%, #6825D4 100%);
-  --shinpo-gradient: linear-gradient(135deg, #7932E6 0%, #6825D4 100%);
-  --aurora-gradient: linear-gradient(135deg, #7932E6 0%, #6825D4 100%);
+  --accent-gradient: var(--brand-coral-gradient);
+  --shinpo-gradient: var(--brand-coral-gradient);
+  --aurora-gradient: var(--brand-coral-gradient);
 
   /* Geometry Tokens (Restrained 8pt Grid) */
   --radius-xl: 16px;
@@ -402,13 +401,13 @@ html[data-theme='light'],
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-glow: none;
-  --border: #E9E7E3;
-  --border-strong: #DBD8D3;
-  --border-accent: rgba(121, 50, 230, 0.25);
+  --border: oklch(88% 0.022 250);
+  --border-strong: oklch(82% 0.028 250);
+  --border-accent: color-mix(in srgb, var(--brand-coral) 28%, transparent);
 
   --radar-circle: rgba(0, 0, 0, 0.05);
-  --bar-empty-bg: #EFECE6;
-  --bar-empty-border: #E2DFD8;
+  --bar-empty-bg: oklch(92% 0.026 250);
+  --bar-empty-border: oklch(86% 0.028 250);
   --promo-bg: #FFFFFF;
   --promo-text: #242424;
   --promo-sub: #747474;

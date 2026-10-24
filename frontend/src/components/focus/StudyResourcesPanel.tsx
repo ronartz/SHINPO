@@ -173,7 +173,7 @@ function ResourceRow({
         <div className="study-resource-title-line">
           <strong title={title}>{title}</strong>
           <span className={`study-resource-disposition ${resource.disposition.toLowerCase()}`}>
-            {resource.disposition === 'APPROVED' ? 'Approved' : 'Restricted'}
+            {resource.breakOnly ? 'Break only' : resource.disposition === 'APPROVED' ? 'Approved' : 'Restricted'}
           </span>
         </div>
         <div className="study-resource-meta">
@@ -242,6 +242,7 @@ export function StudyResourcesPanel({
   const [resourceType, setResourceType] = useState<StudyResourceType>('WEBSITE')
   const [matchType, setMatchType] = useState<StudyResourceMatchType>('EXACT')
   const [disposition, setDisposition] = useState<StudyResourceDisposition>('APPROVED')
+  const [breakOnly, setBreakOnly] = useState(false)
   const [scope, setScope] = useState<ResourceScope>(missionId ? 'TASK' : 'SESSION')
   const [duration, setDuration] = useState<DurationOption>('NONE')
   const [displayName, setDisplayName] = useState('')
@@ -273,6 +274,7 @@ export function StudyResourcesPanel({
       resourceType,
       matchType,
       disposition,
+      breakOnly: scope === 'SESSION' && disposition === 'APPROVED' && breakOnly,
       destination,
       displayName,
       durationMinutes: duration === 'NONE' ? null : Number(duration),
@@ -287,6 +289,7 @@ export function StudyResourcesPanel({
       await addResource(buildStudyResourceRequest(draft))
       setDisplayName('')
       setDestination('')
+      setBreakOnly(false)
       setFormError(null)
       setShowAddForm(false)
     } catch (err: unknown) {
@@ -437,7 +440,10 @@ export function StudyResourcesPanel({
                   label="Focus action"
                   value={disposition}
                   options={DISPOSITION_OPTIONS}
-                  onChange={setDisposition}
+                  onChange={(value) => {
+                    setDisposition(value)
+                    if (value !== 'APPROVED') setBreakOnly(false)
+                  }}
                 />
                 <ShinpoSelect<StudyResourceMatchType>
                   label="Coverage"
@@ -453,7 +459,10 @@ export function StudyResourcesPanel({
                     label="Save to"
                     value={scope}
                     options={scopeOptions}
-                    onChange={setScope}
+                    onChange={(value) => {
+                      setScope(value)
+                      if (value !== 'SESSION') setBreakOnly(false)
+                    }}
                     disabled={resourceType === 'DESKTOP_PROCESS'}
                   />
                 )}
@@ -484,6 +493,12 @@ export function StudyResourcesPanel({
                   autoFocus
                 />
               </div>
+              {sessionId && scope === 'SESSION' && disposition === 'APPROVED' && (
+                <label className="study-break-only-toggle">
+                  <input type="checkbox" checked={breakOnly} onChange={(event) => setBreakOnly(event.target.checked)} />
+                  <span>Allow only during scheduled breaks</span>
+                </label>
+              )}
               {formError && (
                 <div className="study-resource-error" role="alert" style={{ marginTop: 8, marginBottom: 4 }}>
                   <span>{formError}</span>

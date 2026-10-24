@@ -185,7 +185,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
               ? '0 1px 3px rgba(0, 0, 0, 0.25)'
               : '0 1px 2px rgba(0, 0, 0, 0.08)',
             '&:hover': {
-              backgroundColor: mode === 'dark' ? '#AB75FC' : '#6825D4',
+              backgroundColor: mode === 'dark' ? '#AB75FC' : '#1E3694',
               boxShadow: mode === 'dark'
                 ? '0 2px 6px rgba(0, 0, 0, 0.30)'
                 : '0 2px 5px rgba(0, 0, 0, 0.12)',
@@ -197,7 +197,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             color: c.textPrimary,
             '&:hover': {
               borderColor: c.accentPurple,
-              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.08)' : 'rgba(121, 50, 230, 0.06)',
+              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.08)' : 'rgba(40, 71, 184, 0.06)',
             },
           },
         },
@@ -260,10 +260,10 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             color: c.textPrimary,
             transition: 'background-color 150ms ease',
             '&:hover': {
-              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.12)' : 'rgba(121, 50, 230, 0.08)',
+              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.12)' : 'rgba(40, 71, 184, 0.08)',
             },
             '&.Mui-selected': {
-              backgroundColor: mode === 'dark' ? 'rgba(151, 87, 250, 0.2)' : 'rgba(121, 50, 230, 0.12)',
+              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.2)' : 'rgba(40, 71, 184, 0.12)',
               fontWeight: 700,
             },
           },

@@ -16,6 +16,7 @@
 
 .auth-card {
   width: 100%;
+  min-width: 0;
   max-width: 440px;
   background: var(--surface-card);
   border: 1px solid var(--border-strong);
@@ -125,8 +126,8 @@
 }
 
 .auth-input:focus {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px var(--accent-purple-border);
+  border-color: var(--brand-coral);
+  box-shadow: 0 0 0 3px var(--brand-coral-border);
 }
 
 .auth-error-banner {
@@ -138,6 +139,7 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .auth-submit-btn {

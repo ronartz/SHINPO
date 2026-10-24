@@ -36,6 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        SecurityContextHolder.clearContext();
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token)) {

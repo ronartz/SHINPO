@@ -9,6 +9,7 @@ import com.shinpo.dto.FocusSessionResponse;
 import com.shinpo.dto.GoalResponse;
 import com.shinpo.dto.MissionCompletionResponse;
 import com.shinpo.dto.MissionResponse;
+import com.shinpo.dto.UpdateGoalRequest;
 import com.shinpo.dto.OnboardingDtos.OnboardingResponse;
 import com.shinpo.dto.ProgressResponse;
 import com.shinpo.entity.FocusSession;
@@ -98,6 +99,27 @@ class RewardLifecycleTests {
 
         // XP remains identical (no duplication)
         assertThat(progressService.getUserProgress(userA.getId()).totalProgress()).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("A goal awards its completion XP once, even when reopened and completed again")
+    void goalCompletionRewardIsIdempotentAcrossReopening() {
+        LocalDate today = LocalDate.now();
+        GoalResponse goal = goalService.createGoal(userA.getId(),
+                new CreateGoalRequest(userA.getId(), "Repeat-safe goal", "", today, today.plusDays(7)));
+
+        goalService.updateGoal(goal.id(), userA.getId(),
+                new UpdateGoalRequest(goal.title(), goal.description(), goal.startDate(), goal.targetDate(), "COMPLETED"));
+        goalService.updateGoal(goal.id(), userA.getId(),
+                new UpdateGoalRequest(goal.title(), goal.description(), goal.startDate(), goal.targetDate(), "ACTIVE"));
+        goalService.updateGoal(goal.id(), userA.getId(),
+                new UpdateGoalRequest(goal.title(), goal.description(), goal.startDate(), goal.targetDate(), "COMPLETED"));
+
+        assertThat(progressService.getUserProgress(userA.getId()).totalProgress()).isEqualTo(50);
+        assertThat(progressEventRepository.findAll().stream()
+                .filter(event -> goal.id().equals(event.getGoal() == null ? null : event.getGoal().getId()))
+                .filter(event -> "GOAL_COMPLETED".equals(event.getEventType())))
+                .hasSize(1);
     }
 
     @Test
