@@ -50,6 +50,9 @@ public class FocusSession {
     @Column(name = "pomodoro_long_break_minutes", nullable = false)
     private Integer pomodoroLongBreakMinutes = 15;
 
+    @Column(name = "pomodoro_grace_minutes", nullable = false)
+    private Integer pomodoroGraceMinutes = 10;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "current_phase", nullable = false, length = 20)
     private SessionIntervalType currentPhase = SessionIntervalType.FOCUS;
@@ -173,7 +176,7 @@ public class FocusSession {
 
     public long calculateRemainingSeconds(Instant currentInstant) {
         if (pomodoroEnabled) {
-            if (currentPhase == SessionIntervalType.COMPLETE) return 0L;
+            if (currentPhase == SessionIntervalType.COMPLETE || currentPhase == SessionIntervalType.RETURN_REQUIRED) return 0L;
             long phaseBudget = (long) currentPhaseDurationMinutes() * 60L;
             long elapsed = phaseElapsedSeconds == null ? 0L : phaseElapsedSeconds;
             if (phaseStartedAt != null && status == FocusSessionStatus.ACTIVE) {
@@ -189,6 +192,8 @@ public class FocusSession {
     public int currentPhaseDurationMinutes() {
         if (currentPhase == SessionIntervalType.SHORT_BREAK) return pomodoroShortBreakMinutes;
         if (currentPhase == SessionIntervalType.LONG_BREAK) return pomodoroLongBreakMinutes;
+        if (currentPhase == SessionIntervalType.GRACE) return pomodoroGraceMinutes;
+        if (currentPhase == SessionIntervalType.RETURN_REQUIRED || currentPhase == SessionIntervalType.COMPLETE) return 0;
         return durationMinutes;
     }
 
@@ -200,6 +205,8 @@ public class FocusSession {
     public void setPomodoroShortBreakMinutes(Integer value) { this.pomodoroShortBreakMinutes = value == null ? 5 : value; }
     public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
     public void setPomodoroLongBreakMinutes(Integer value) { this.pomodoroLongBreakMinutes = value == null ? 15 : value; }
+    public Integer getPomodoroGraceMinutes() { return pomodoroGraceMinutes == null ? 10 : pomodoroGraceMinutes; }
+    public void setPomodoroGraceMinutes(Integer value) { this.pomodoroGraceMinutes = value == null ? 10 : value; }
     public SessionIntervalType getCurrentPhase() { return currentPhase; }
     public void setCurrentPhase(SessionIntervalType currentPhase) { this.currentPhase = currentPhase; }
     public Integer getCompletedFocusCycles() { return completedFocusCycles == null ? 0 : completedFocusCycles; }

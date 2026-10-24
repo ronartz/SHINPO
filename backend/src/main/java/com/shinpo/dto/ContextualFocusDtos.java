@@ -18,7 +18,8 @@ public final class ContextualFocusDtos {
             @NotNull ContextualResourceDisposition disposition,
             @NotBlank @Size(max = 4096) String destination,
             @Size(max = 200) String displayName,
-            Instant expiresAt
+            Instant expiresAt,
+            boolean breakOnly
     ) {}
 
     public record ResourceResponse(
@@ -35,6 +36,7 @@ public final class ContextualFocusDtos {
             String displayName,
             Instant expiresAt,
             boolean enabled,
+            boolean breakOnly,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -53,6 +55,7 @@ public final class ContextualFocusDtos {
                     resource.getDisplayName(),
                     resource.getExpiresAt(),
                     resource.isEnabled(),
+                    resource.isBreakOnly(),
                     resource.getCreatedAt(),
                     resource.getUpdatedAt()
             );
@@ -116,6 +119,9 @@ public final class ContextualFocusDtos {
             long policyVersion,
             Long sessionId,
             FocusSessionStatus status,
+            SessionIntervalType currentPhase,
+            long phaseRemainingSeconds,
+            Instant phaseDeadlineAt,
             ContextualFocusMode mode,
             Long taskId,
             String taskTitle,

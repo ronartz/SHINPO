@@ -2,8 +2,10 @@
 
 **Project:** SHINPO (進歩) — Personal Execution OS  
 **Repository:** `ronartz/SHINPO`  
-**Target:** Standalone Windows/Linux Private Beta  
-**Governing Specification:** `docs/product/SHINPO_V1_ACCEPTANCE.md`  
+**Historical evidence ledger:** Do not use prior entries alone to claim current-source release qualification.
+**Current Release Scope:** Windows/Linux desktop + Chrome/Chromium/Edge/Firefox Browser Companion + native host + Sentinel Shield. Android/iOS excluded.
+**Current Governing Specification:** [`../product/SHINPO_PRODUCT_SPEC_V2.md`](../product/SHINPO_PRODUCT_SPEC_V2.md)
+**V1 Baseline:** `docs/product/SHINPO_V1_ACCEPTANCE.md` (retained for non-conflicting behavior)
 **Status Standard:** `NOT STARTED` | `INCOMPLETE` | `IMPLEMENTED` | `VERIFIED` | `BLOCKED`
 
 > **Initial visual review — 2026-10-24:** Reviewed `/home/eonx/Downloads/Video-44281.mp4` at its dashboard, dialog, timer, task board, contextual drawer, calendar/agenda, analytics, and appearance states. The transferable visual language and SHINPO feature boundary are recorded in [`fernly-reference-analysis.md`](fernly-reference-analysis.md); no collaboration features or assets were copied. The initial frontend build passed and Chromium rendered the unauthenticated frontend at `/tmp/shinpo-current-login.png`; API/PostgreSQL were offline at that point, so authenticated flows were not part of that capture. Windows remains **NOT TESTED**; no release-ready claim.

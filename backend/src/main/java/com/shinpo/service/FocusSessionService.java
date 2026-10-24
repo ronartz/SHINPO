@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -47,6 +48,7 @@ public class FocusSessionService {
     private final WebSocketEventService webSocketEventService;
     private final MissionCompletionService missionCompletionService;
     private final ProgressEventRepository progressEventRepository;
+    private final Clock clock;
 
     public FocusSessionService(
             FocusSessionRepository focusSessionRepository,
@@ -56,7 +58,7 @@ public class FocusSessionService {
             SessionPlanRepository sessionPlanRepository,
             WebSocketEventService webSocketEventService
     ) {
-        this(focusSessionRepository, userRepository, goalRepository, missionRepository, sessionPlanRepository, webSocketEventService, null, null);
+        this(focusSessionRepository, userRepository, goalRepository, missionRepository, sessionPlanRepository, webSocketEventService, null, null, Clock.systemUTC());
     }
 
     @Autowired
@@ -68,7 +70,8 @@ public class FocusSessionService {
             SessionPlanRepository sessionPlanRepository,
             WebSocketEventService webSocketEventService,
             @Lazy MissionCompletionService missionCompletionService,
-            @Autowired(required = false) ProgressEventRepository progressEventRepository
+            @Autowired(required = false) ProgressEventRepository progressEventRepository,
+            Clock clock
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
@@ -78,6 +81,7 @@ public class FocusSessionService {
         this.webSocketEventService = webSocketEventService;
         this.missionCompletionService = missionCompletionService;
         this.progressEventRepository = progressEventRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -149,6 +153,7 @@ public class FocusSessionService {
         session.setPomodoroFocusCycles(request.getPomodoroFocusCycles());
         session.setPomodoroShortBreakMinutes(request.getPomodoroShortBreakMinutes());
         session.setPomodoroLongBreakMinutes(request.getPomodoroLongBreakMinutes());
+        session.setPomodoroGraceMinutes(request.getPomodoroGraceMinutes());
         session.setScheduledAt(request.getScheduledAt());
         session.setStatus(FocusSessionStatus.SCHEDULED);
         session.setAccumulatedPausedSeconds(0L);
@@ -170,7 +175,7 @@ public class FocusSessionService {
         List<FocusSession> sessions = focusSessionRepository
                 .findAllByUser_IdOrderByCreatedAtDesc(userId);
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         for (FocusSession session : sessions) {
             FocusSession locked = getSessionEntity(session.getId(), userId);
             advancePomodoro(locked, now);
@@ -190,7 +195,7 @@ public class FocusSessionService {
         Instant start = date.atStartOfDay(zoneId).toInstant();
         Instant end = date.plusDays(1).atStartOfDay(zoneId).toInstant();
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         for (FocusSession session : sessions) {
             FocusSession locked = getSessionEntity(session.getId(), userId);
             advancePomodoro(locked, now);
@@ -212,7 +217,7 @@ public class FocusSessionService {
         Instant start = startDate.atStartOfDay(zoneId).toInstant();
         Instant end = endDate.plusDays(1).atStartOfDay(zoneId).toInstant();
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         for (FocusSession session : sessions) {
             FocusSession locked = getSessionEntity(session.getId(), userId);
             advancePomodoro(locked, now);
@@ -229,8 +234,9 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse getSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
-        advancePomodoro(session, Instant.now());
-        checkAndApplyExpiration(session, Instant.now());
+        Instant now = clock.instant();
+        advancePomodoro(session, now);
+        checkAndApplyExpiration(session, now);
         return FocusSessionResponse.from(session);
     }
 
@@ -301,7 +307,7 @@ public class FocusSessionService {
         }
 
         session.setStatus(FocusSessionStatus.ACTIVE);
-        session.setStartedAt(Instant.now());
+        session.setStartedAt(Instant.now(clock));
         session.setPhaseStartedAt(session.isPomodoroEnabled() ? session.getStartedAt() : null);
         session.setPausedAt(null);
         session.incrementContextPolicyRevision();
@@ -315,7 +321,7 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse pauseSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.ACTIVE) {
@@ -351,7 +357,7 @@ public class FocusSessionService {
             );
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         if (session.getPausedAt() != null) {
             long pauseDurationSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
             session.setAccumulatedPausedSeconds(
@@ -361,7 +367,9 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setPausedAt(null);
-        if (session.isPomodoroEnabled()) session.setPhaseStartedAt(now);
+        if (session.isPomodoroEnabled() && session.getCurrentPhase() != SessionIntervalType.RETURN_REQUIRED) {
+            session.setPhaseStartedAt(now);
+        }
         session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
@@ -378,13 +386,16 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse completeSession(Long sessionId, Long userId, CompleteFocusSessionRequest request) {
         FocusSession session = getSessionEntity(sessionId, userId);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.ACTIVE && session.getStatus() != FocusSessionStatus.PAUSED) {
             throw new IllegalStateException(
                     "Focus session can only be completed from ACTIVE or PAUSED"
             );
+        }
+        if (session.getCurrentPhase() == SessionIntervalType.RETURN_REQUIRED) {
+            throw new IllegalStateException("Return to Focus before completing this session");
         }
 
         if (session.getStatus() == FocusSessionStatus.PAUSED && session.getPausedAt() != null) {
@@ -454,7 +465,7 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse cancelSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.SCHEDULED
@@ -516,7 +527,7 @@ public class FocusSessionService {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void sweepExpiredSessions() {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         List<FocusSession> candidates = focusSessionRepository.findAllByStatusIn(
                 List.of(FocusSessionStatus.SCHEDULED, FocusSessionStatus.ACTIVE, FocusSessionStatus.PAUSED)
         );
@@ -530,7 +541,7 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse skipBreak(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         advancePomodoro(session, now);
         if (!session.isPomodoroEnabled() || session.getStatus() != FocusSessionStatus.ACTIVE
                 || (session.getCurrentPhase() != SessionIntervalType.SHORT_BREAK && session.getCurrentPhase() != SessionIntervalType.LONG_BREAK)) {
@@ -539,9 +550,36 @@ public class FocusSessionService {
         session.setBreakActiveSeconds(session.getBreakActiveSeconds() + currentPhaseElapsed(session, now));
         session.setPhaseElapsedSeconds(0L);
         session.setPhaseStartedAt(now);
-        session.setCurrentPhase(session.getCurrentPhase() == SessionIntervalType.LONG_BREAK
-                ? SessionIntervalType.COMPLETE : SessionIntervalType.FOCUS);
-        if (session.getCurrentPhase() == SessionIntervalType.COMPLETE) session.setPhaseStartedAt(null);
+        boolean finalBreak = session.getCurrentPhase() == SessionIntervalType.LONG_BREAK;
+        session.setCurrentPhase(SessionIntervalType.FOCUS);
+        if (finalBreak) session.setCompletedFocusCycles(0);
+        session.incrementContextPolicyRevision();
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+        return FocusSessionResponse.from(saved);
+    }
+
+    @Transactional
+    public FocusSessionResponse returnToFocus(Long sessionId, Long userId) {
+        FocusSession session = getSessionEntity(sessionId, userId);
+        Instant now = clock.instant();
+        advancePomodoro(session, now);
+        SessionIntervalType phase = session.getCurrentPhase();
+        if (session.getStatus() != FocusSessionStatus.ACTIVE
+                || (phase != SessionIntervalType.SHORT_BREAK && phase != SessionIntervalType.LONG_BREAK
+                && phase != SessionIntervalType.GRACE && phase != SessionIntervalType.RETURN_REQUIRED)) {
+            throw new IllegalStateException("Return to Focus is only available during a break, grace, or return-required phase");
+        }
+        if (session.getPhaseStartedAt() != null) {
+            session.setBreakActiveSeconds(session.getBreakActiveSeconds() + currentPhaseElapsed(session, now));
+        }
+        session.setCurrentPhase(SessionIntervalType.FOCUS);
+        if (phase != SessionIntervalType.SHORT_BREAK) {
+            session.setCompletedFocusCycles(0);
+        }
+        session.setPhaseElapsedSeconds(0L);
+        session.setPhaseStartedAt(now);
+        session.incrementContextPolicyRevision();
         FocusSession saved = focusSessionRepository.save(session);
         webSocketEventService.broadcastFocusSession(userId, saved);
         return FocusSessionResponse.from(saved);
@@ -549,8 +587,10 @@ public class FocusSessionService {
 
     private void advancePomodoro(FocusSession session, Instant now) {
         if (!session.isPomodoroEnabled() || session.getStatus() != FocusSessionStatus.ACTIVE) return;
-        int guard = session.getPomodoroFocusCycles() * 2 + 2;
-        while (guard-- > 0 && session.getPhaseStartedAt() != null && session.getCurrentPhase() != SessionIntervalType.COMPLETE) {
+        int guard = session.getPomodoroFocusCycles() * 3 + 3;
+        while (guard-- > 0 && session.getPhaseStartedAt() != null
+                && session.getCurrentPhase() != SessionIntervalType.COMPLETE
+                && session.getCurrentPhase() != SessionIntervalType.RETURN_REQUIRED) {
             long phaseBudget = (long) session.currentPhaseDurationMinutes() * 60L;
             long carried = session.getPhaseElapsedSeconds();
             long elapsed = carried + Math.max(0L, Duration.between(session.getPhaseStartedAt(), now).toSeconds());
@@ -562,16 +602,20 @@ public class FocusSessionService {
                 session.setCompletedFocusCycles(session.getCompletedFocusCycles() + 1);
                 session.setCurrentPhase(session.getCompletedFocusCycles() >= session.getPomodoroFocusCycles()
                         ? SessionIntervalType.LONG_BREAK : SessionIntervalType.SHORT_BREAK);
+            } else if (session.getCurrentPhase() == SessionIntervalType.LONG_BREAK) {
+                session.setBreakActiveSeconds(session.getBreakActiveSeconds() + completedPhaseSeconds);
+                session.setCurrentPhase(SessionIntervalType.GRACE);
+            } else if (session.getCurrentPhase() == SessionIntervalType.GRACE) {
+                session.setBreakActiveSeconds(session.getBreakActiveSeconds() + completedPhaseSeconds);
+                session.setCurrentPhase(SessionIntervalType.RETURN_REQUIRED);
             } else {
                 session.setBreakActiveSeconds(session.getBreakActiveSeconds() + completedPhaseSeconds);
-                if (session.getCurrentPhase() == SessionIntervalType.LONG_BREAK) {
-                    session.setCurrentPhase(SessionIntervalType.COMPLETE);
-                } else {
-                    session.setCurrentPhase(SessionIntervalType.FOCUS);
-                }
+                session.setCurrentPhase(SessionIntervalType.FOCUS);
             }
             session.setPhaseElapsedSeconds(0L);
-            session.setPhaseStartedAt(session.getCurrentPhase() == SessionIntervalType.COMPLETE ? null : boundary);
+            session.setPhaseStartedAt(session.getCurrentPhase() == SessionIntervalType.RETURN_REQUIRED
+                    || session.getCurrentPhase() == SessionIntervalType.COMPLETE ? null : boundary);
+            session.incrementContextPolicyRevision();
         }
     }
 

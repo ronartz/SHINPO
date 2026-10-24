@@ -8,6 +8,11 @@ import com.shinpo.entity.Mission;
 import com.shinpo.entity.SentinelPolicyRule;
 import com.shinpo.entity.SentinelQuarantineRecord;
 import com.shinpo.entity.SentinelTamperEvent;
+import com.shinpo.entity.ContextualFocusResource;
+import com.shinpo.entity.ContextualResourceDisposition;
+import com.shinpo.entity.ContextualResourceType;
+import com.shinpo.entity.SessionIntervalType;
+import com.shinpo.repository.ContextualFocusResourceRepository;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.SentinelPolicyRuleRepository;
@@ -84,6 +89,8 @@ public class SentinelEnforcementService {
     private volatile Instant lastGlobalSweep = Instant.now();
 
     private final boolean serverProcessScanningEnabled;
+    private final ContextualFocusResourceRepository contextualResourceRepository;
+    private final FocusSessionService focusSessionService;
 
     public SentinelEnforcementService(
             FocusSessionRepository focusSessionRepository,
@@ -98,7 +105,26 @@ public class SentinelEnforcementService {
             SentinelWarningService warningService
     ) {
         this(focusSessionRepository, quarantineRepository, policyRuleRepository, tamperEventRepository,
-                userRepository, passwordEncoder, transactionManager, webSocketEventService, exceptionService, warningService, false);
+                userRepository, passwordEncoder, transactionManager, webSocketEventService, exceptionService, warningService, false,
+                null, null);
+    }
+
+    public SentinelEnforcementService(
+            FocusSessionRepository focusSessionRepository,
+            SentinelQuarantineRepository quarantineRepository,
+            SentinelPolicyRuleRepository policyRuleRepository,
+            SentinelTamperEventRepository tamperEventRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            PlatformTransactionManager transactionManager,
+            WebSocketEventService webSocketEventService,
+            FocusSessionEnforcementExceptionService exceptionService,
+            SentinelWarningService warningService,
+            @Value("${shinpo.sentinel.server-process-scanning.enabled:false}") boolean serverProcessScanningEnabled
+    ) {
+        this(focusSessionRepository, quarantineRepository, policyRuleRepository, tamperEventRepository, userRepository,
+                passwordEncoder, transactionManager, webSocketEventService, exceptionService, warningService,
+                serverProcessScanningEnabled, null, null);
     }
 
     @Autowired
@@ -113,7 +139,9 @@ public class SentinelEnforcementService {
             WebSocketEventService webSocketEventService,
             FocusSessionEnforcementExceptionService exceptionService,
             SentinelWarningService warningService,
-            @Value("${shinpo.sentinel.server-process-scanning.enabled:false}") boolean serverProcessScanningEnabled
+            @Value("${shinpo.sentinel.server-process-scanning.enabled:false}") boolean serverProcessScanningEnabled,
+            ContextualFocusResourceRepository contextualResourceRepository,
+            FocusSessionService focusSessionService
     ) {
         this.focusSessionRepository = focusSessionRepository;
         this.quarantineRepository = quarantineRepository;
@@ -127,6 +155,8 @@ public class SentinelEnforcementService {
         this.exceptionService = exceptionService;
         this.warningService = warningService;
         this.serverProcessScanningEnabled = serverProcessScanningEnabled;
+        this.contextualResourceRepository = contextualResourceRepository;
+        this.focusSessionService = focusSessionService;
     }
 
     public boolean isServerProcessScanningEnabled() {
@@ -348,6 +378,13 @@ public class SentinelEnforcementService {
                     now
             );
         }
+        activeSession = refreshPhase(activeSession, userId);
+        if (activeSession.getStatus() != FocusSessionStatus.ACTIVE) activeSession = null;
+        if (activeSession == null) {
+            long totalProcs = ProcessHandle.allProcesses().count();
+            return new SentinelSweepResponse((int) totalProcs, 0, List.of(), List.of(),
+                    "Sentinel sweep clean: No active focus sprint. 0 restrictions active across " + totalProcs + " processes.", now);
+        }
 
         Set<String> blockedPatterns = new HashSet<>(DEFAULT_DISTRACTIONS);
         Set<String> allowedPatterns = new HashSet<>();
@@ -364,6 +401,7 @@ public class SentinelEnforcementService {
                 allowedPatterns.add(pat);
             }
         }
+        applyBreakOnlyProcessPolicy(userId, activeSession, blockedPatterns, allowedPatterns, now);
 
         List<Long> interceptedPids = new ArrayList<>();
         List<String> interceptedNames = new ArrayList<>();
@@ -886,6 +924,10 @@ public class SentinelEnforcementService {
         }
         List<FocusSession> activeSessions = focusSessionRepository.findAllByUser_IdAndStatus(userId, FocusSessionStatus.ACTIVE);
         FocusSession activeSession = activeSessions.isEmpty() ? null : activeSessions.get(0);
+        if (activeSession != null) {
+            activeSession = refreshPhase(activeSession, userId);
+            if (activeSession.getStatus() != FocusSessionStatus.ACTIVE) activeSession = null;
+        }
 
         Mission currentMission = activeSession != null ? activeSession.getMission() : null;
         Long currentMissionId = currentMission != null ? currentMission.getId() : null;
@@ -916,6 +958,7 @@ public class SentinelEnforcementService {
                 allowedPatterns.add(pat);
             }
         }
+        applyBreakOnlyProcessPolicy(userId, activeSession, blockedPatterns, allowedPatterns, Instant.now());
 
         List<ActiveWarningItem> activeWarnings = activeSession != null
                 ? warningService.getActiveWarningsForSession(activeSession.getId())
@@ -941,5 +984,48 @@ public class SentinelEnforcementService {
                 activeWarnings,
                 activeGraceWindows
         );
+    }
+
+    private FocusSession refreshPhase(FocusSession session, Long userId) {
+        if (focusSessionService != null && session != null) {
+            focusSessionService.getSession(session.getId(), userId);
+            return focusSessionRepository.findByIdAndUser_Id(session.getId(), userId).orElse(session);
+        }
+        return session;
+    }
+
+    private void applyBreakOnlyProcessPolicy(
+            Long userId,
+            FocusSession session,
+            Set<String> blocked,
+            Set<String> allowed,
+            Instant now
+    ) {
+        if (session == null || contextualResourceRepository == null) return;
+        List<ContextualFocusResource> resources = new ArrayList<>(
+                contextualResourceRepository.findAllByUser_IdAndFocusSession_IdOrderByCreatedAtDesc(userId, session.getId()));
+        if (session.getMission() != null) {
+            resources.addAll(contextualResourceRepository.findAllByUser_IdAndMission_IdOrderByCreatedAtDesc(
+                    userId, session.getMission().getId()));
+        }
+        boolean breakPhase = session.getCurrentPhase() == SessionIntervalType.SHORT_BREAK
+                || session.getCurrentPhase() == SessionIntervalType.LONG_BREAK
+                || session.getCurrentPhase() == SessionIntervalType.GRACE;
+        for (ContextualFocusResource resource : resources) {
+            if (!resource.isBreakOnly() || resource.getResourceType() != ContextualResourceType.DESKTOP_PROCESS
+                    || resource.getProcessException() == null) continue;
+            String pattern = resource.getProcessException().getActivityPattern().trim().toLowerCase();
+            allowed.removeIf(pattern::contains);
+            boolean activeApproval = resource.isEnabled()
+                    && (resource.getExpiresAt() == null || resource.getExpiresAt().isAfter(now))
+                    && resource.getDisposition() == ContextualResourceDisposition.APPROVED;
+            if (!activeApproval) continue;
+            if (breakPhase) {
+                blocked.remove(pattern);
+                allowed.add(pattern);
+            } else {
+                blocked.add(pattern);
+            }
+        }
     }
 }

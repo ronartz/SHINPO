@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,30 +25,36 @@ public class ContextualFocusPolicyService {
     private final ContextualFocusResourceRepository resourceRepository;
     private final ContextualPolicyAuditEventRepository auditRepository;
     private final FocusSessionRepository focusSessionRepository;
+    private final FocusSessionService focusSessionService;
     private final MissionRepository missionRepository;
     private final FocusSessionEnforcementExceptionRepository processExceptionRepository;
     private final UrlCanonicalizationService canonicalizationService;
     private final BrowserCompanionConnectionService companionConnectionService;
     private final SentinelEnforcementService sentinelEnforcementService;
+    private final Clock clock;
 
     public ContextualFocusPolicyService(
             ContextualFocusResourceRepository resourceRepository,
             ContextualPolicyAuditEventRepository auditRepository,
             FocusSessionRepository focusSessionRepository,
+            FocusSessionService focusSessionService,
             MissionRepository missionRepository,
             FocusSessionEnforcementExceptionRepository processExceptionRepository,
             UrlCanonicalizationService canonicalizationService,
             BrowserCompanionConnectionService companionConnectionService,
-            SentinelEnforcementService sentinelEnforcementService
+            SentinelEnforcementService sentinelEnforcementService,
+            Clock clock
     ) {
         this.resourceRepository = resourceRepository;
         this.auditRepository = auditRepository;
         this.focusSessionRepository = focusSessionRepository;
+        this.focusSessionService = focusSessionService;
         this.missionRepository = missionRepository;
         this.processExceptionRepository = processExceptionRepository;
         this.canonicalizationService = canonicalizationService;
         this.companionConnectionService = companionConnectionService;
         this.sentinelEnforcementService = sentinelEnforcementService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -91,7 +98,7 @@ public class ContextualFocusPolicyService {
         } else {
             throw badRequest("Either focusSessionId or missionId must resolve to a valid entity");
         }
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         boolean duplicate = directResources.stream().anyMatch(existing ->
                 existing.isEnabled()
                         && existing.getResourceType() == request.resourceType()
@@ -115,6 +122,7 @@ public class ContextualFocusPolicyService {
         resource.setCanonicalDestination(canonical);
         resource.setDisplayName(trimToNull(request.displayName()));
         resource.setExpiresAt(request.expiresAt());
+        resource.setBreakOnly(request.breakOnly());
 
         if (request.resourceType() == ContextualResourceType.DESKTOP_PROCESS) {
             if (session == null) {
@@ -235,7 +243,7 @@ public class ContextualFocusPolicyService {
             throw badRequest("Destination is required");
         }
         FocusSession session = ownedSession(sessionId, userId);
-        return evaluateAt(session, request.destination(), Instant.now());
+        return evaluateAt(session, request.destination(), clock.instant());
     }
 
     /** Visible for deterministic expiry/precedence tests without changing the system clock. */
@@ -249,19 +257,25 @@ public class ContextualFocusPolicyService {
         return evaluateAt(ownedSession(sessionId, userId), destination, now);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PolicySnapshotResponse getActivePolicy(Long userId) {
         FocusSession session = focusSessionRepository
                 .findFirstByUser_IdAndStatusOrderByCreatedAtDesc(userId, FocusSessionStatus.ACTIVE)
                 .orElseGet(() -> focusSessionRepository
                         .findFirstByUser_IdAndStatusOrderByCreatedAtDesc(userId, FocusSessionStatus.PAUSED)
                         .orElse(null));
-        return session == null ? inactiveSnapshot(Instant.now()) : snapshot(session, Instant.now());
+        if (session != null && session.getStatus() == FocusSessionStatus.ACTIVE) {
+            focusSessionService.getSession(session.getId(), userId);
+            session = focusSessionRepository.findByIdAndUser_Id(session.getId(), userId).orElseThrow();
+        }
+        return session == null ? inactiveSnapshot(clock.instant()) : snapshot(session, clock.instant());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PolicySnapshotResponse getPolicy(Long userId, Long sessionId) {
-        return snapshot(ownedSession(sessionId, userId), Instant.now());
+        ownedSession(sessionId, userId);
+        focusSessionService.getSession(sessionId, userId);
+        return snapshot(ownedSession(sessionId, userId), clock.instant());
     }
 
     @Transactional
@@ -296,14 +310,15 @@ public class ContextualFocusPolicyService {
                 ContextualResourceDisposition.APPROVED,
                 request.destination(),
                 "Temporary exception",
-                Instant.now().plus(Duration.ofMinutes(request.durationMinutes()))
+                clock.instant().plus(Duration.ofMinutes(request.durationMinutes())),
+                false
         ));
-        return snapshot(session, Instant.now());
+        return snapshot(session, clock.instant());
     }
 
     @Transactional(readOnly = true)
     public List<ResourceResponse> listRestrictions(Long userId, Long sessionId) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         return listResources(userId, null, sessionId).stream()
                 .filter(resource -> resource.disposition() == ContextualResourceDisposition.BLOCKED)
                 .filter(resource -> resource.enabled())
@@ -395,7 +410,23 @@ public class ContextualFocusPolicyService {
             );
         }
 
-        List<ContextualFocusResource> matches = applicableResources(session, now).stream()
+        boolean breakPhase = isBreakPermissionPhase(session.getCurrentPhase());
+        List<ContextualFocusResource> applicable = applicableResources(session, now);
+        if (!breakPhase && applicable.stream()
+                .filter(ContextualFocusResource::isBreakOnly)
+                .anyMatch(resource -> canonicalizationService.matches(resource, descriptor))) {
+            return response(
+                    session,
+                    ContextualPolicyDecision.RESTRICT,
+                    "This resource is only permitted during the configured break",
+                    descriptor.canonicalUrl(),
+                    null,
+                    leaseExpiresAt
+            );
+        }
+        List<ContextualFocusResource> matches = applicable.stream()
+                .filter(resource -> resource.getDisposition() == ContextualResourceDisposition.BLOCKED
+                        || (breakPhase ? resource.isBreakOnly() : !resource.isBreakOnly()))
                 .filter(resource -> canonicalizationService.matches(resource, descriptor))
                 .sorted(rulePrecedence())
                 .toList();
@@ -414,7 +445,9 @@ public class ContextualFocusPolicyService {
                         leaseExpiresAt
                 );
             }
-            ContextualPolicyDecision blockedDecision = session.getStudyMode() == ContextualFocusMode.GUIDED
+            ContextualPolicyDecision blockedDecision = isBreakPermissionPhase(session.getCurrentPhase())
+                    ? ContextualPolicyDecision.RESTRICT
+                    : session.getStudyMode() == ContextualFocusMode.GUIDED
                     ? ContextualPolicyDecision.WARN
                     : ContextualPolicyDecision.RESTRICT;
             return response(
@@ -423,6 +456,17 @@ public class ContextualFocusPolicyService {
                     "This destination matches an explicit Focus restriction",
                     descriptor.canonicalUrl(),
                     winner.getId(),
+                    leaseExpiresAt
+            );
+        }
+
+        if (isBreakPermissionPhase(session.getCurrentPhase())) {
+            return response(
+                    session,
+                    ContextualPolicyDecision.RESTRICT,
+                    "This destination is not on the approved break-resource list",
+                    descriptor.canonicalUrl(),
+                    null,
                     leaseExpiresAt
             );
         }
@@ -491,6 +535,9 @@ public class ContextualFocusPolicyService {
                     session.getContextPolicyRevision(),
                     session.getId(),
                     session.getStatus(),
+                    session.getCurrentPhase(),
+                    session.calculateRemainingSeconds(now),
+                    null,
                     session.getStudyMode(),
                     session.getMission() != null ? session.getMission().getId() : null,
                     session.getMission() != null ? session.getMission().getTitle() : session.getName(),
@@ -518,6 +565,10 @@ public class ContextualFocusPolicyService {
                 session.getContextPolicyRevision(),
                 session.getId(),
                 session.getStatus(),
+                session.getCurrentPhase(),
+                session.calculateRemainingSeconds(now),
+                session.getStatus() == FocusSessionStatus.ACTIVE
+                        ? now.plusSeconds(session.calculateRemainingSeconds(now)) : null,
                 session.getStudyMode(),
                 session.getMission() != null ? session.getMission().getId() : null,
                 session.getMission() != null ? session.getMission().getTitle() : session.getName(),
@@ -536,6 +587,9 @@ public class ContextualFocusPolicyService {
                 null,
                 null,
                 null,
+                0L,
+                null,
+                null,
                 null,
                 null,
                 now,
@@ -545,6 +599,12 @@ public class ContextualFocusPolicyService {
                 List.of(),
                 null
         );
+    }
+
+    private boolean isBreakPermissionPhase(SessionIntervalType phase) {
+        return phase == SessionIntervalType.SHORT_BREAK
+                || phase == SessionIntervalType.LONG_BREAK
+                || phase == SessionIntervalType.GRACE;
     }
 
     private List<ContextualFocusResource> applicableResources(FocusSession session, Instant now) {
@@ -575,8 +635,11 @@ public class ContextualFocusPolicyService {
         if (request.resourceType() == null || request.matchType() == null || request.disposition() == null) {
             throw badRequest("resourceType, matchType, and disposition are required");
         }
-        if (request.expiresAt() != null && !request.expiresAt().isAfter(Instant.now())) {
+        if (request.expiresAt() != null && !request.expiresAt().isAfter(clock.instant())) {
             throw badRequest("expiresAt must be in the future");
+        }
+        if (request.breakOnly() && (session == null || request.disposition() != ContextualResourceDisposition.APPROVED)) {
+            throw badRequest("Break-only resources must be approved and scoped to a Focus session");
         }
         if (request.resourceType() == ContextualResourceType.TEMPORARY_SITE) {
             if (session == null

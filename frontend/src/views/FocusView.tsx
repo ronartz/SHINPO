@@ -31,7 +31,7 @@ export interface FocusViewProps {
   setCompletingSessionId: (id: number | null) => void
   handleDeleteSession: (id: number) => void
   handleCancelSession?: (id: number) => void
-  handleSkipBreak: (id: number) => void
+  handleReturnToFocus: (id: number) => void
   pomodoroEnabled: boolean
   setPomodoroEnabled: (enabled: boolean) => void
   pomodoroFocusCycles: number
@@ -40,6 +40,8 @@ export interface FocusViewProps {
   setPomodoroShortBreakMinutes: (minutes: number) => void
   pomodoroLongBreakMinutes: number
   setPomodoroLongBreakMinutes: (minutes: number) => void
+  pomodoroGraceMinutes: number
+  setPomodoroGraceMinutes: (minutes: number) => void
 }
 
 import { trackRender } from '../utils/renderTracker'
@@ -86,7 +88,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
   setCompletingSessionId,
   handleDeleteSession,
   handleCancelSession,
-  handleSkipBreak,
+  handleReturnToFocus,
   pomodoroEnabled,
   setPomodoroEnabled,
   pomodoroFocusCycles,
@@ -95,16 +97,21 @@ export const FocusView: React.FC<FocusViewProps> = ({
   setPomodoroShortBreakMinutes,
   pomodoroLongBreakMinutes,
   setPomodoroLongBreakMinutes,
+  pomodoroGraceMinutes,
+  setPomodoroGraceMinutes,
 }) => {
   trackRender('FocusView')
 
   const isFocusEngaged = activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED'
   const currentPhase = activeSession?.currentPhase ?? 'FOCUS'
-  const isBreak = currentPhase === 'SHORT_BREAK' || currentPhase === 'LONG_BREAK'
+  const isBreak = currentPhase === 'SHORT_BREAK' || currentPhase === 'LONG_BREAK' || currentPhase === 'GRACE'
+  const isReturnRequired = currentPhase === 'RETURN_REQUIRED'
   const isPaused = activeSession?.status === 'PAUSED'
   const isSequenceComplete = currentPhase === 'COMPLETE'
   const isTimerExpired = timerSeconds === 0 && (!activeSession?.pomodoroEnabled || isSequenceComplete)
-  const phaseDurationMinutes = currentPhase === 'SHORT_BREAK'
+  const phaseDurationMinutes = currentPhase === 'GRACE'
+    ? activeSession?.pomodoroGraceMinutes ?? pomodoroGraceMinutes
+    : currentPhase === 'SHORT_BREAK'
     ? activeSession?.pomodoroShortBreakMinutes ?? pomodoroShortBreakMinutes
     : currentPhase === 'LONG_BREAK'
       ? activeSession?.pomodoroLongBreakMinutes ?? pomodoroLongBreakMinutes
@@ -145,7 +152,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 ? 'Warning'
                 : activeGraceWarning
                 ? `Grace (${formatTimerDigits(graceSecondsLeft)})`
-                : isSequenceComplete ? 'Reflection ready' : isPaused ? `Paused · ${isBreak ? currentPhase === 'LONG_BREAK' ? 'long break' : 'short break' : 'focus'}` : isBreak ? (currentPhase === 'LONG_BREAK' ? 'Long break' : 'Short break') : activeSession
+                : isReturnRequired ? 'Return to Focus'
+                : isSequenceComplete ? 'Reflection ready' : isPaused ? `Paused · ${isBreak ? currentPhase === 'GRACE' ? 'grace' : currentPhase === 'LONG_BREAK' ? 'long break' : 'short break' : 'focus'}` : isBreak ? (currentPhase === 'GRACE' ? timerSeconds <= 120 ? `Grace · return soon (${formatTimerDigits(timerSeconds)})` : `Grace (${formatTimerDigits(timerSeconds)})` : currentPhase === 'LONG_BREAK' ? 'Long break' : 'Short break') : activeSession
                 ? (isTimerExpired ? 'Complete' : activeSession.status === 'ACTIVE' ? 'Active' : activeSession.status === 'PAUSED' ? 'Paused' : activeSession.status)
                 : 'Ready'}
             </span>
@@ -183,7 +191,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
             <span className="focus-progress-accessible" role="progressbar" aria-label="Focus session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(focusProgress * 100)} />
             <div className="focus-time-core">
               <span className="focus-stage-state" aria-live="polite">
-                {isSequenceComplete ? 'Your cycle is complete' : isPaused ? 'Paused · resume when ready' : isBreak ? 'Step away and reset' : activeSession?.pomodoroEnabled && timerSeconds === 0 ? 'Moving to the next phase…' : activeSession?.status === 'ACTIVE' ? 'Deep work in progress' : 'Make room for focused work'}
+                {isReturnRequired ? 'Your break and grace period have ended' : isSequenceComplete ? 'Your cycle is complete' : isPaused ? 'Paused · resume when ready' : isBreak ? 'Step away and reset' : activeSession?.pomodoroEnabled && timerSeconds === 0 ? 'Moving to the next phase…' : activeSession?.status === 'ACTIVE' ? 'Deep work in progress' : 'Make room for focused work'}
               </span>
               {isSequenceComplete ? (
                 <div className="timer-ended-banner"><Icon name="check" size={16} /><span className="timer-ended-text">Pomodoro complete · reflect</span></div>
@@ -233,20 +241,20 @@ export const FocusView: React.FC<FocusViewProps> = ({
               <button
                 className="btn-timer secondary"
                 onClick={() => handlePause(activeSession.id)}
-                disabled={isSequenceComplete}
+                disabled={isSequenceComplete || isReturnRequired}
               >
                 <Icon name="pause" size={16} />
                 <span>Pause Session</span>
               </button>
-              {isBreak && <button className="btn-timer primary" onClick={() => handleSkipBreak(activeSession.id)}>Skip break · focus next</button>}
-              <button
+              {(isBreak || isReturnRequired) && <button className="btn-timer primary" onClick={() => handleReturnToFocus(activeSession.id)}>Return to Focus</button>}
+              {!isReturnRequired && <button
                 className="btn-timer primary"
                 onClick={() => setCompletingSessionId(activeSession.id)}
                 data-tutorial="debrief-controls"
               >
                 <Icon name="check" size={16} />
                 <span>Finish and reflect</span>
-              </button>
+              </button>}
               {handleCancelSession && (
                 <button
                   className="btn-timer warning"
@@ -304,12 +312,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
         {activeSession ? (
           <div className="focus-session-live-context">
-            <span className="focus-context-label">{isBreak ? 'RECOVERY IS PART OF THE WORK' : 'ONE THING AT A TIME'}</span>
+            <span className="focus-context-label">{isReturnRequired ? 'RETURN REQUIRED' : isBreak ? 'RECOVERY IS PART OF THE WORK' : 'ONE THING AT A TIME'}</span>
             <strong>{activeSession.name}</strong>
-            <p>{isBreak ? 'Leave the screen, stretch, and return when the break ends.' : activeSession.intention || 'Keep your attention on this session. You can pause whenever you need to.'}</p>
+            <p>{isReturnRequired ? 'Your break and grace period have ended. Return to Focus to resume this session.' : isBreak ? 'Leave the screen, stretch, and return when the break ends.' : activeSession.intention || 'Keep your attention on this session. You can pause whenever you need to.'}</p>
             <div className="focus-context-stat">
-              <span>{isBreak ? 'Break time remaining' : 'Active focus recorded'}</span>
-              <b>{formatTimerDigits(isBreak ? timerSeconds : activeSession.focusActiveSeconds ?? activeSession.activeSeconds)}{isBreak ? ' break' : ' focused'}</b>
+              <span>{isReturnRequired ? 'Return required' : isBreak ? currentPhase === 'GRACE' ? 'Grace time remaining' : 'Break time remaining' : 'Active focus recorded'}</span>
+              <b>{isReturnRequired ? 'Now' : `${formatTimerDigits(isBreak ? timerSeconds : activeSession.focusActiveSeconds ?? activeSession.activeSeconds)}${isBreak ? ' remaining' : ' focused'}`}</b>
             </div>
           </div>
         ) : (
@@ -350,8 +358,9 @@ export const FocusView: React.FC<FocusViewProps> = ({
             <label>Cycles<input type="number" min={1} max={12} value={pomodoroFocusCycles} onChange={(event) => setPomodoroFocusCycles(Math.max(1, Math.min(12, Number(event.target.value) || 1)))} /></label>
             <label>Short break<input type="number" min={1} max={60} value={pomodoroShortBreakMinutes} onChange={(event) => setPomodoroShortBreakMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
             <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
+            <label>Grace<input type="number" min={1} max={60} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
           </div>}
-          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min focus × {pomodoroFocusCycles} cycles · {pomodoroShortBreakMinutes} min short breaks · {pomodoroLongBreakMinutes} min final break</p>}
+          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min focus × {pomodoroFocusCycles} cycles · {pomodoroShortBreakMinutes} min short breaks · {pomodoroLongBreakMinutes} min final break + {pomodoroGraceMinutes} min grace</p>}
         </section>
 
         {isCustomDuration && (

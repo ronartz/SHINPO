@@ -296,6 +296,20 @@
   gap: 12px;
 }
 
+.study-break-only-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.study-break-only-toggle input {
+  accent-color: var(--accent-violet, #8b5cf6);
+}
+
 .study-destination-field {
   grid-column: 1 / -1;
 }

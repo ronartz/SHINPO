@@ -6,13 +6,13 @@ import { Icon } from './components/common/Icon'
 
 import {
   cancelFocusSession,
-  skipFocusBreak,
   completeFocusSession,
   createFocusSession,
   deleteFocusSession,
   getFocusSession,
   getFocusSessions,
   pauseFocusSession,
+  returnToFocus,
   resumeFocusSession,
   startFocusSession,
   updateFocusSession,
@@ -254,6 +254,7 @@ export function App() {
   const [pomodoroFocusCycles, setPomodoroFocusCycles] = useState(4)
   const [pomodoroShortBreakMinutes, setPomodoroShortBreakMinutes] = useState(5)
   const [pomodoroLongBreakMinutes, setPomodoroLongBreakMinutes] = useState(15)
+  const [pomodoroGraceMinutes, setPomodoroGraceMinutes] = useState(10)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
   const [activeTab, setActiveTab] = useState<AppView>(() => {
@@ -2167,6 +2168,7 @@ export function App() {
         pomodoroFocusCycles,
         pomodoroShortBreakMinutes,
         pomodoroLongBreakMinutes,
+        pomodoroGraceMinutes,
       })
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
@@ -2305,12 +2307,12 @@ export function App() {
     }
   }
 
-  const handleSkipBreak = async (id: number) => {
+  const handleReturnToFocus = async (id: number) => {
     try {
-      const updated = await skipFocusBreak(id)
+      const updated = await returnToFocus(id)
       setSessions((prev) => prev.map((session) => session.id === id ? updated : session))
     } catch (error) {
-      console.error('Could not skip focus break:', error)
+      console.error('Could not return to Focus:', error)
     }
   }
 
@@ -3086,7 +3088,9 @@ export function App() {
             setPomodoroShortBreakMinutes={setPomodoroShortBreakMinutes}
             pomodoroLongBreakMinutes={pomodoroLongBreakMinutes}
             setPomodoroLongBreakMinutes={setPomodoroLongBreakMinutes}
-            handleSkipBreak={handleSkipBreak}
+            pomodoroGraceMinutes={pomodoroGraceMinutes}
+            setPomodoroGraceMinutes={setPomodoroGraceMinutes}
+            handleReturnToFocus={handleReturnToFocus}
             handleStartSession={handleStartSession}
             handlePause={handlePause}
             handleResume={handleResume}

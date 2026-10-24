@@ -31,6 +31,7 @@ class ContextualFocusPolicyServiceTests {
     @Autowired private FocusSessionEnforcementExceptionRepository processExceptionRepository;
     @Autowired private SentinelPolicyRuleRepository sentinelPolicyRuleRepository;
     @Autowired private ContextualEnforcementDecisionService processDecisionService;
+    @Autowired private SentinelEnforcementService sentinelEnforcementService;
     @Autowired private FocusSessionRepository sessionRepository;
     @Autowired private GoalRepository goalRepository;
     @Autowired private MissionRepository missionRepository;
@@ -258,11 +259,45 @@ class ContextualFocusPolicyServiceTests {
         assertEquals(activeSession1.getId(), snapshot.sessionId());
         assertEquals(task1.getId(), snapshot.taskId());
         assertEquals(task1.getTitle(), snapshot.taskTitle());
+        assertEquals(SessionIntervalType.FOCUS, snapshot.currentPhase());
+        assertTrue(snapshot.phaseRemainingSeconds() <= 45L * 60L);
+        assertNotNull(snapshot.phaseDeadlineAt());
         assertTrue(snapshot.policyVersion() > initialRevision);
         assertEquals(60L, snapshot.leaseSeconds());
         assertEquals(Duration.ofSeconds(60), Duration.between(snapshot.issuedAt(), snapshot.leaseExpiresAt()));
         assertTrue(snapshot.resources().stream().anyMatch(resource -> resource.id().equals(approved.id())));
         assertEquals("https://docs.spring.io/spring-security/reference/", snapshot.returnUrl());
+    }
+
+    @Test
+    @DisplayName("Break and grace policy allows approved resources and restricts unlisted sites")
+    void breakPolicyRequiresExplicitlyApprovedResources() {
+        activeSession1.setCurrentPhase(SessionIntervalType.LONG_BREAK);
+        sessionRepository.saveAndFlush(activeSession1);
+        createSessionResource(ContextualResourceType.WEBSITE, ContextualResourceMatchType.DOMAIN,
+                ContextualResourceDisposition.APPROVED, "https://game.example", null);
+        policyService.createResource(user1.getId(), new CreateResourceRequest(
+                null, activeSession1.getId(), ContextualResourceType.WEBSITE,
+                ContextualResourceMatchType.DOMAIN, ContextualResourceDisposition.APPROVED,
+                "https://break-game.example", null, null, true
+        ));
+
+        assertEquals(ContextualPolicyDecision.RESTRICT, policyService.evaluate(user1.getId(), activeSession1.getId(),
+                new EvaluateResourceRequest("https://game.example/play", null)).decision());
+        assertEquals(ContextualPolicyDecision.ALLOW, policyService.evaluate(user1.getId(), activeSession1.getId(),
+                new EvaluateResourceRequest("https://break-game.example/play", null)).decision());
+        assertEquals(ContextualPolicyDecision.RESTRICT, policyService.evaluate(user1.getId(), activeSession1.getId(),
+                new EvaluateResourceRequest("https://unlisted.example", null)).decision());
+
+        activeSession1.setCurrentPhase(SessionIntervalType.GRACE);
+        sessionRepository.saveAndFlush(activeSession1);
+        assertEquals(ContextualPolicyDecision.ALLOW, policyService.evaluate(user1.getId(), activeSession1.getId(),
+                new EvaluateResourceRequest("https://break-game.example/play", null)).decision());
+
+        activeSession1.setCurrentPhase(SessionIntervalType.RETURN_REQUIRED);
+        sessionRepository.saveAndFlush(activeSession1);
+        assertEquals(ContextualPolicyDecision.RESTRICT, policyService.evaluate(user1.getId(), activeSession1.getId(),
+                new EvaluateResourceRequest("https://break-game.example/play", null)).decision());
     }
 
     @Test
@@ -291,6 +326,63 @@ class ContextualFocusPolicyServiceTests {
                 ContextualEnforcementDecisionService.PolicyDecision.ENFORCE,
                 processDecisionService.evaluateProcess(user1.getId(), "discord")
         );
+    }
+
+    @Test
+    @DisplayName("Break-only desktop applications are allowed only in break phases")
+    void breakOnlyDesktopProcessFollowsPersistedSessionPhase() {
+        ResourceResponse resource = policyService.createResource(user1.getId(), new CreateResourceRequest(
+                null, activeSession1.getId(), ContextualResourceType.DESKTOP_PROCESS,
+                ContextualResourceMatchType.PROCESS, ContextualResourceDisposition.APPROVED,
+                "test-game", null, null, true
+        ));
+        sentinelPolicyRuleRepository.save(new SentinelPolicyRule(user1, "test-game", "BLOCKED"));
+
+        assertEquals(ContextualEnforcementDecisionService.PolicyDecision.ENFORCE,
+                processDecisionService.evaluateProcess(user1.getId(), "test-game", activeSession1));
+        activeSession1.setCurrentPhase(SessionIntervalType.SHORT_BREAK);
+        assertEquals(ContextualEnforcementDecisionService.PolicyDecision.ALLOW,
+                processDecisionService.evaluateProcess(user1.getId(), "test-game", activeSession1));
+        activeSession1.setCurrentPhase(SessionIntervalType.GRACE);
+        assertEquals(ContextualEnforcementDecisionService.PolicyDecision.ALLOW,
+                processDecisionService.evaluateProcess(user1.getId(), "test-game", activeSession1));
+        activeSession1.setCurrentPhase(SessionIntervalType.RETURN_REQUIRED);
+        assertEquals(ContextualEnforcementDecisionService.PolicyDecision.ENFORCE,
+                processDecisionService.evaluateProcess(user1.getId(), "test-game", activeSession1));
+
+        policyService.deleteResource(user1.getId(), resource.id());
+        assertEquals(ContextualEnforcementDecisionService.PolicyDecision.ENFORCE,
+                processDecisionService.evaluateProcess(user1.getId(), "test-game", activeSession1));
+    }
+
+    @Test
+    @DisplayName("Native Shield sync advertises break-only apps only in Break and Grace")
+    void nativeShieldSyncUsesBreakPhaseAllowlist() {
+        policyService.createResource(user1.getId(), new CreateResourceRequest(
+                null, activeSession1.getId(), ContextualResourceType.DESKTOP_PROCESS,
+                ContextualResourceMatchType.PROCESS, ContextualResourceDisposition.APPROVED,
+                "test-game", null, null, true
+        ));
+        sentinelPolicyRuleRepository.save(new SentinelPolicyRule(user1, "test-game", "BLOCKED"));
+        sentinelPolicyRuleRepository.save(new SentinelPolicyRule(user1, "test", "ALLOWED"));
+
+        var focusSync = sentinelEnforcementService.getDaemonSyncState(user1.getId());
+        assertTrue(focusSync.blockedPatterns().contains("test-game"));
+        assertFalse(focusSync.allowedPatterns().contains("test-game"));
+        assertFalse(focusSync.allowedPatterns().contains("test"));
+
+        activeSession1.setCurrentPhase(SessionIntervalType.SHORT_BREAK);
+        sessionRepository.saveAndFlush(activeSession1);
+        var breakSync = sentinelEnforcementService.getDaemonSyncState(user1.getId());
+        assertFalse(breakSync.blockedPatterns().contains("test-game"));
+        assertTrue(breakSync.allowedPatterns().contains("test-game"));
+        assertFalse(breakSync.allowedPatterns().contains("test"));
+
+        activeSession1.setCurrentPhase(SessionIntervalType.RETURN_REQUIRED);
+        sessionRepository.saveAndFlush(activeSession1);
+        var cutoffSync = sentinelEnforcementService.getDaemonSyncState(user1.getId());
+        assertTrue(cutoffSync.blockedPatterns().contains("test-game"));
+        assertFalse(cutoffSync.allowedPatterns().contains("test-game"));
     }
 
     @Test
@@ -355,7 +447,7 @@ class ContextualFocusPolicyServiceTests {
             String destination
     ) {
         return policyService.createResource(user1.getId(), new CreateResourceRequest(
-                task1.getId(), null, type, matchType, disposition, destination, null, null
+                task1.getId(), null, type, matchType, disposition, destination, null, null, false
         ));
     }
 
@@ -374,7 +466,8 @@ class ContextualFocusPolicyServiceTests {
                 disposition,
                 destination,
                 null,
-                expiresAt
+                expiresAt,
+                false
         ));
     }
 

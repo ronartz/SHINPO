@@ -19,6 +19,7 @@
   })
   const SYNC_ALARM = 'shinpo-policy-sync'
   const LEASE_ALARM = 'shinpo-policy-lease-expiry'
+  const PHASE_ALARM = 'shinpo-phase-deadline'
   const MAX_INTERVENTIONS = 32
   const DEFAULT_REVIEW_URL = 'http://127.0.0.1:5173/focus'
 
@@ -57,9 +58,11 @@
     state.reviewUrl = safeReviewUrl(stored[STORAGE_KEYS.REVIEW_URL]) || DEFAULT_REVIEW_URL
 
     const cached = policyEngine.normalizePolicy(stored[STORAGE_KEYS.CACHED_POLICY])
-    state.policy = cached.active && state.pairingToken
+    state.policy = state.pairingToken && (cached.active || cached.degraded)
       ? cached
-      : policyEngine.inactivePolicy(cached.inactiveReason || 'No valid cached policy')
+      : state.pairingToken && cached.sessionId && cached.status === 'ACTIVE' && cached.leaseExpiresAtMs <= Date.now()
+        ? policyEngine.degradedPolicy(cached, 'The cached Focus policy lease expired; only explicit restrictions remain')
+        : policyEngine.inactivePolicy(cached.inactiveReason || 'No valid cached policy')
     state.ready = true
 
     await configureAlarms()
@@ -70,12 +73,21 @@
   async function configureAlarms() {
     await apiCall('alarms', 'create', SYNC_ALARM, { periodInMinutes: 0.5 })
     await scheduleLeaseAlarm()
+    await schedulePhaseAlarm()
   }
 
   async function scheduleLeaseAlarm() {
     await apiCall('alarms', 'clear', LEASE_ALARM)
     if (state.policy.active && state.policy.leaseExpiresAtMs > Date.now()) {
       await apiCall('alarms', 'create', LEASE_ALARM, { when: state.policy.leaseExpiresAtMs + 25 })
+    }
+  }
+
+  async function schedulePhaseAlarm() {
+    await apiCall('alarms', 'clear', PHASE_ALARM)
+    if (state.policy.active && state.policy.phaseDeadlineAtMs > Date.now()
+      && ['SHORT_BREAK', 'LONG_BREAK', 'BREAK', 'GRACE'].includes(state.policy.currentPhase)) {
+      await apiCall('alarms', 'create', PHASE_ALARM, { when: state.policy.phaseDeadlineAtMs + 25 })
     }
   }
 
@@ -92,6 +104,9 @@
       synchronizePolicy().catch((error) => markDisconnected(error))
     } else if (alarm.name === LEASE_ALARM) {
       retireExpiredPolicy().catch((error) => console.warn('[SHINPO] lease cleanup failed', error))
+    } else if (alarm.name === PHASE_ALARM) {
+      enforceOpenTabs().catch(() => undefined)
+        .finally(() => synchronizePolicy().catch((error) => markDisconnected(error)))
     }
   })
 
@@ -343,6 +358,7 @@
       if (safeReviewUrl(payload.reviewUrl)) state.reviewUrl = safeReviewUrl(payload.reviewUrl)
       await persistPolicy()
       await scheduleLeaseAlarm()
+      await schedulePhaseAlarm()
       await updateAction()
 
       if (!incoming.active && previousSessionId) await releaseInterventionTabs()
@@ -372,6 +388,7 @@
     state.policy = incoming
     await persistPolicy()
     await scheduleLeaseAlarm()
+    await schedulePhaseAlarm()
     const verification = policyEngine.evaluateUrl(state.policy, intervention.destination)
     if (verification.decision !== policyEngine.DECISIONS.ALLOW) {
       throw codedError('EXCEPTION_NOT_APPLIED', 'The temporary exception was not applied to this resource')
@@ -432,6 +449,7 @@
     await storageRemove('local', [STORAGE_KEYS.PAIRING_TOKEN, STORAGE_KEYS.CACHED_POLICY])
     await releaseInterventionTabs()
     await scheduleLeaseAlarm()
+    await schedulePhaseAlarm()
     await updateAction()
     return publicStatus()
   }
@@ -439,11 +457,12 @@
   async function retireExpiredPolicy() {
     if (state.policy.active && state.policy.leaseExpiresAtMs > Date.now()) return
     const hadSession = Boolean(state.policy.sessionId)
-    state.policy = policyEngine.inactivePolicy('The Focus policy lease expired')
+    state.policy = policyEngine.degradedPolicy(state.policy, 'The Focus policy lease expired; only cached explicit restrictions remain')
     await persistPolicy()
     await scheduleLeaseAlarm()
+    await schedulePhaseAlarm()
     await updateAction()
-    if (hadSession) await releaseInterventionTabs()
+    if (hadSession) await enforceOpenTabs()
   }
 
   async function releaseInterventionTabs() {
@@ -543,9 +562,14 @@
       monitoringEnabled: state.monitoringEnabled,
       policy: {
         active: state.policy.active,
+        degraded: state.policy.degraded === true,
         sessionId: state.policy.sessionId,
         taskTitle: state.policy.taskTitle,
         mode: state.policy.mode,
+        sessionStatus: state.policy.status,
+        currentPhase: policyEngine.effectivePhase(state.policy, Date.now()),
+        phaseRemainingSeconds: state.policy.phaseRemainingSeconds,
+        phaseDeadlineAtMs: state.policy.phaseDeadlineAtMs,
         policyVersion: state.policy.policyVersion,
         remainingLeaseSeconds,
         inactiveReason: state.policy.inactiveReason,

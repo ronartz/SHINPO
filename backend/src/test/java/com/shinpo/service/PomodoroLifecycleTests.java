@@ -62,7 +62,7 @@ class PomodoroLifecycleTests {
     private Long startedId;
 
     @Test
-    void advancesPersistedFocusAndBreakPhasesAndCompletesOnlyAfterLongBreak() {
+    void advancesPersistedFocusBreakGraceAndReturnPhases() {
         FocusSessionResponse started = startTwoCycleSession();
         startedId = started.getId();
         assertEquals(SessionIntervalType.FOCUS, started.getCurrentPhase());
@@ -93,10 +93,19 @@ class PomodoroLifecycleTests {
         assertEquals(120, longBreak.getFocusActiveSeconds());
 
         ageCurrentPhase(61);
-        FocusSessionResponse reflectionReady = service.getSession(startedId, user.getId());
-        assertEquals(SessionIntervalType.COMPLETE, reflectionReady.getCurrentPhase());
-        assertEquals(120, reflectionReady.getBreakActiveSeconds());
-        assertEquals(FocusSessionStatus.ACTIVE, reflectionReady.getStatus());
+        FocusSessionResponse grace = service.getSession(startedId, user.getId());
+        assertEquals(SessionIntervalType.GRACE, grace.getCurrentPhase());
+        assertTrue(grace.getBreakActiveSeconds() >= 120 && grace.getBreakActiveSeconds() <= 122);
+        assertEquals(FocusSessionStatus.ACTIVE, grace.getStatus());
+
+        ageCurrentPhase(10 * 60 + 1);
+        FocusSessionResponse returnRequired = service.getSession(startedId, user.getId());
+        assertEquals(SessionIntervalType.RETURN_REQUIRED, returnRequired.getCurrentPhase());
+        assertTrue(returnRequired.getBreakActiveSeconds() >= 120 + 10 * 60
+                && returnRequired.getBreakActiveSeconds() <= 122 + 10 * 60);
+        FocusSessionResponse returned = service.returnToFocus(startedId, user.getId());
+        assertEquals(SessionIntervalType.FOCUS, returned.getCurrentPhase());
+        assertEquals(0, returned.getCompletedFocusCycles());
 
         FocusSessionResponse completed = service.completeSession(startedId, user.getId());
         assertEquals(FocusSessionStatus.COMPLETED, completed.getStatus());
@@ -117,6 +126,17 @@ class PomodoroLifecycleTests {
         FocusSessionResponse nextFocus = service.skipBreak(startedId, user.getId());
         assertEquals(SessionIntervalType.FOCUS, nextFocus.getCurrentPhase());
         assertEquals(10, nextFocus.getBreakActiveSeconds());
+        assertEquals(1, nextFocus.getCompletedFocusCycles());
+
+        FocusSession entityAfterShortReturn = sessions.findById(startedId).orElseThrow();
+        entityAfterShortReturn.setCurrentPhase(SessionIntervalType.LONG_BREAK);
+        entityAfterShortReturn.setCompletedFocusCycles(2);
+        entityAfterShortReturn.setPhaseStartedAt(Instant.now().minusSeconds(10));
+        sessions.saveAndFlush(entityAfterShortReturn);
+        FocusSessionResponse returnedFromFinalBreak = service.skipBreak(startedId, user.getId());
+        assertEquals(SessionIntervalType.FOCUS, returnedFromFinalBreak.getCurrentPhase());
+        assertEquals(0, returnedFromFinalBreak.getCompletedFocusCycles());
+        assertEquals(20, returnedFromFinalBreak.getBreakActiveSeconds());
 
         CreateFocusSessionRequest continuous = new CreateFocusSessionRequest();
         continuous.setUserId(user.getId());

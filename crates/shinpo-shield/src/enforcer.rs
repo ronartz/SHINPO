@@ -274,10 +274,8 @@ impl ShieldEnforcer {
             let interceptor = self.interceptor.as_ref();
             let system = &mut self.sys;
             let mut request_and_verify = |force: bool| {
-                if interceptor.terminate_process(pid, force).is_err() {
-                    if let Some(process) = system.process(pid_obj) {
-                        let _ = process.kill();
-                    }
+                if force || interceptor.terminate_process(pid, false).is_err() {
+                    return false;
                 }
 
                 verify_target_exit(|| {
@@ -313,11 +311,11 @@ impl ShieldEnforcer {
                     os_name
                 ),
                 _ if !confirmed && mode == "CONTAINMENT" => format!(
-                    "Native Shield ({}): process remained alive after graceful and forced termination requests",
+                    "Native Shield ({}): graceful close was unsuccessful; process remains running",
                     os_name
                 ),
                 _ if !confirmed => format!(
-                    "Native Shield ({}): process remained alive after forced termination request",
+                    "Native Shield ({}): graceful close was unsuccessful; process remains running",
                     os_name
                 ),
                 _ => format!("Native Shield ({}): permission denied", os_name),
@@ -365,19 +363,12 @@ impl ShieldEnforcer {
         } else if mode == "CONTAINMENT" {
             if request_and_verify(false) {
                 ("CONTAINED", true, false)
-            } else if request_and_verify(true) {
-                ("CONTAINED", true, true)
             } else {
-                ("CONTAINMENT_FAILED", false, true)
+                ("CONTAINMENT_FAILED", false, false)
             }
         } else {
-            // STRICT mode: attempt graceful first, escalate to forced only if needed
-            if request_and_verify(false) {
-                ("TERMINATED", true, false)
-            } else {
-                let confirmed = request_and_verify(true);
-                (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, true)
-            }
+            let confirmed = request_and_verify(false);
+            (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, false)
         }
     }
 
@@ -683,35 +674,31 @@ mod tests {
     }
 
     #[test]
-    fn test_successful_force_request_is_reported_only_after_exit_confirmation() {
+    fn test_failed_graceful_request_does_not_escalate_to_force() {
         let mut calls = Vec::new();
         let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
             calls.push(force);
-            if !force {
-                false
-            } else {
-                verify_target_exit(|| false)
-            }
+            !force && verify_target_exit(|| true)
         });
 
-        assert_eq!(calls, vec![false, true]);
-        assert_eq!(action, "TERMINATED");
-        assert!(confirmed);
-        assert!(escalated);
+        assert_eq!(calls, vec![false]);
+        assert_eq!(action, "TERMINATE_ATTEMPTED");
+        assert!(!confirmed);
+        assert!(!escalated);
     }
 
     #[test]
-    fn test_successful_force_request_with_live_process_is_not_confirmed() {
+    fn test_graceful_request_with_live_process_is_not_confirmed() {
         let mut calls = Vec::new();
         let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
             calls.push(force);
             false
         });
 
-        assert_eq!(calls, vec![false, true]);
+        assert_eq!(calls, vec![false]);
         assert_eq!(action, "TERMINATE_ATTEMPTED");
         assert!(!confirmed);
-        assert!(escalated);
+        assert!(!escalated);
     }
 
     #[test]
@@ -730,32 +717,32 @@ mod tests {
     }
 
     #[test]
-    fn test_containment_escalates_and_confirms_forced_exit() {
+    fn test_containment_never_escalates_to_force() {
         let mut requested_forces = Vec::new();
-        let mut verification_results = [false, true].into_iter();
+        let mut verification_results = [false].into_iter();
         let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
             requested_forces.push(force);
             verification_results.next().unwrap()
         });
 
-        assert_eq!(requested_forces, vec![false, true]);
-        assert_eq!(action, "CONTAINED");
-        assert!(confirmed);
-        assert!(escalated);
+        assert_eq!(requested_forces, vec![false]);
+        assert_eq!(action, "CONTAINMENT_FAILED");
+        assert!(!confirmed);
+        assert!(!escalated);
     }
 
     #[test]
-    fn test_containment_still_alive_after_escalation_is_not_confirmed() {
+    fn test_containment_still_alive_after_graceful_request_is_not_confirmed() {
         let mut requested_forces = Vec::new();
         let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
             requested_forces.push(force);
             false
         });
 
-        assert_eq!(requested_forces, vec![false, true]);
+        assert_eq!(requested_forces, vec![false]);
         assert_eq!(action, "CONTAINMENT_FAILED");
         assert!(!confirmed);
-        assert!(escalated);
+        assert!(!escalated);
     }
 
     #[test]

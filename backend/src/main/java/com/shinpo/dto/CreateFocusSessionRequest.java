@@ -34,6 +34,7 @@ public class CreateFocusSessionRequest {
     @Min(1) @Max(12) private Integer pomodoroFocusCycles = 4;
     @Min(1) @Max(60) private Integer pomodoroShortBreakMinutes = 5;
     @Min(1) @Max(120) private Integer pomodoroLongBreakMinutes = 15;
+    @Min(1) @Max(60) private Integer pomodoroGraceMinutes = 10;
 
     public Long getUserId() {
         return userId;
@@ -107,4 +108,6 @@ public class CreateFocusSessionRequest {
     public void setPomodoroShortBreakMinutes(Integer value) { this.pomodoroShortBreakMinutes = value; }
     public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
     public void setPomodoroLongBreakMinutes(Integer value) { this.pomodoroLongBreakMinutes = value; }
+    public Integer getPomodoroGraceMinutes() { return pomodoroGraceMinutes; }
+    public void setPomodoroGraceMinutes(Integer value) { this.pomodoroGraceMinutes = value; }
 }

@@ -41,6 +41,7 @@ public class FocusSessionResponse {
     private Integer pomodoroFocusCycles;
     private Integer pomodoroShortBreakMinutes;
     private Integer pomodoroLongBreakMinutes;
+    private Integer pomodoroGraceMinutes;
     private Integer completedFocusCycles;
     private SessionIntervalType currentPhase;
     private Long focusActiveSeconds;
@@ -62,6 +63,7 @@ public class FocusSessionResponse {
         response.pomodoroFocusCycles = session.getPomodoroFocusCycles();
         response.pomodoroShortBreakMinutes = session.getPomodoroShortBreakMinutes();
         response.pomodoroLongBreakMinutes = session.getPomodoroLongBreakMinutes();
+        response.pomodoroGraceMinutes = session.getPomodoroGraceMinutes();
         response.completedFocusCycles = session.getCompletedFocusCycles();
         response.currentPhase = session.getCurrentPhase();
         response.focusActiveSeconds = session.calculateActiveSeconds(now);
@@ -190,6 +192,7 @@ public class FocusSessionResponse {
     public Integer getPomodoroFocusCycles() { return pomodoroFocusCycles; }
     public Integer getPomodoroShortBreakMinutes() { return pomodoroShortBreakMinutes; }
     public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
+    public Integer getPomodoroGraceMinutes() { return pomodoroGraceMinutes; }
     public Integer getCompletedFocusCycles() { return completedFocusCycles; }
     public SessionIntervalType getCurrentPhase() { return currentPhase; }
     public Long getFocusActiveSeconds() { return focusActiveSeconds; }

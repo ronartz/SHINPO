@@ -11,6 +11,7 @@ import com.shinpo.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,6 +36,24 @@ public class SentinelWarningService {
     private final FocusSessionRepository focusSessionRepository;
     private final UserRepository userRepository;
     private final ContextualEnforcementDecisionService contextualDecisionService;
+    private final FocusSessionService focusSessionService;
+
+    @Autowired
+    public SentinelWarningService(
+            SentinelEnforcementWarningRepository warningRepository,
+            SentinelGraceWindowRepository graceWindowRepository,
+            FocusSessionRepository focusSessionRepository,
+            UserRepository userRepository,
+            ContextualEnforcementDecisionService contextualDecisionService,
+            FocusSessionService focusSessionService
+    ) {
+        this.warningRepository = warningRepository;
+        this.graceWindowRepository = graceWindowRepository;
+        this.focusSessionRepository = focusSessionRepository;
+        this.userRepository = userRepository;
+        this.contextualDecisionService = contextualDecisionService;
+        this.focusSessionService = focusSessionService;
+    }
 
     public SentinelWarningService(
             SentinelEnforcementWarningRepository warningRepository,
@@ -48,6 +67,7 @@ public class SentinelWarningService {
         this.focusSessionRepository = focusSessionRepository;
         this.userRepository = userRepository;
         this.contextualDecisionService = contextualDecisionService;
+        this.focusSessionService = null;
     }
 
     @Transactional
@@ -377,10 +397,17 @@ public class SentinelWarningService {
             return new CandidateProcessResponse("ALLOW", null, null, null, "No active focus session");
         }
         FocusSession session = activeSessions.get(0);
+        if (focusSessionService != null) {
+            focusSessionService.getSession(session.getId(), userId);
+            session = focusSessionRepository.findByIdAndUser_Id(session.getId(), userId).orElse(session);
+        }
+        if (session.getStatus() != FocusSessionStatus.ACTIVE) {
+            return new CandidateProcessResponse("ALLOW", null, null, null, "No active focus session");
+        }
 
         // 2. Contextual policy check (protected processes, session exceptions, user allowed/blocked rules)
         ContextualEnforcementDecisionService.PolicyDecision policyDecision =
-                contextualDecisionService.evaluateProcess(userId, canonical);
+                contextualDecisionService.evaluateProcess(userId, canonical, session);
         if (policyDecision == ContextualEnforcementDecisionService.PolicyDecision.ALLOW) {
             return new CandidateProcessResponse("ALLOW", null, null, null, "Process permitted by contextual policy");
         }

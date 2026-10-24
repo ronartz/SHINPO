@@ -30,6 +30,7 @@ function resource(overrides: Partial<StudyResource> = {}): StudyResource {
     resourceType: 'WEBSITE',
     matchType: 'EXACT',
     disposition: 'APPROVED',
+    breakOnly: false,
     destination: 'https://docs.spring.io/security',
     canonicalDestination: 'https://docs.spring.io/security',
     displayName: 'Spring Security',
@@ -107,6 +108,27 @@ test('temporary resource request uses the selected scope and produces a bounded 
   assert.equal(request.missionId, undefined)
   assert.equal(request.displayName, 'Temporary API reference')
   assert.equal(request.expiresAt, '2026-10-16T10:05:00.000Z')
+})
+
+test('break-only permissions are session scoped and remain distinct from study approvals', () => {
+  const request = buildStudyResourceRequest({
+    focusSessionId: 21,
+    resourceType: 'WEBSITE',
+    matchType: 'DOMAIN',
+    disposition: 'APPROVED',
+    breakOnly: true,
+    destination: 'game.example',
+  })
+  assert.equal(request.breakOnly, true)
+  assert.match(validateStudyResourceDraft({ ...baseDraft, breakOnly: true }) ?? '', /scoped to a Focus session/)
+  assert.match(validateStudyResourceDraft({
+    focusSessionId: 21,
+    resourceType: 'WEBSITE',
+    matchType: 'DOMAIN',
+    disposition: 'BLOCKED',
+    breakOnly: true,
+    destination: 'game.example',
+  }) ?? '', /must be approved/)
 })
 
 test('coverage normalization never upgrades absent status to connected', () => {
