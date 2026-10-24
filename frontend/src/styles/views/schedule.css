@@ -632,7 +632,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
 .schedule-btn-book:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .schedule-flexible-row { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 14px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-subtle); }
 .schedule-flexible-row > span { padding-top: 8px; color: var(--text-3); font-size: 12px; font-weight: 700; }
-.schedule-calendar-scroll { height: auto; max-height: none; overflow: auto; overscroll-behavior: auto; border: 1px solid var(--border-subtle); border-radius: 12px; scrollbar-width: thin; scrollbar-color: var(--accent-violet) var(--surface-subtle); }
+.schedule-calendar-scroll { max-height: min(68vh, 640px); overflow: auto; overscroll-behavior: auto; border: 1px solid var(--border-subtle); border-radius: 12px; scrollbar-width: thin; scrollbar-color: var(--accent-violet) var(--surface-subtle); }
 .schedule-week-grid { min-width: 650px; display: grid; grid-template-columns: 72px repeat(7, minmax(84px, 1fr)); grid-template-rows: 64px var(--schedule-grid-height); position: relative; }
 .schedule-grid-corner,
 .schedule-grid-day-heading { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--surface-card) 94%, var(--accent-blue)); border-bottom: 1px solid var(--border-subtle); }

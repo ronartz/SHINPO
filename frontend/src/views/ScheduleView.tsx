@@ -81,14 +81,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const weekSummary = summarizeSchedule(allWeekSessions)
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
-  const eventStarts = timedSessions.map(session => {
-    const date = new Date(session.scheduledAt || session.startedAt!)
-    return date.getHours() + date.getMinutes() / 60
-  })
-  const startHour = timedSessions.length ? Math.max(0, Math.floor(Math.min(8, ...eventStarts))) : 8
-  const latestEventEnd = timedSessions.length ? Math.max(...timedSessions.map((session, index) => eventStarts[index] + session.durationMinutes / 60)) : 18
-  const endHour = Math.min(28, Math.max(startHour + 1, Math.ceil(Math.max(18, latestEventEnd))))
-  const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
+  const startHour = 0
+  const hours = Array.from({ length: 24 }, (_, index) => index)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const dayLayouts = new Map(weekDays.map((day) => {
