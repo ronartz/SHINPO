@@ -85,16 +85,16 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
           alignItems: 'center',
           gap: 1.2,
           background: isDarkMode ? 'rgba(25, 37, 65, 0.55)' : '#FFFFFF',
-          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
           borderRadius: '12px',
           px: 1.8,
           py: 0.6,
           width: { sm: 260, md: 380, lg: 440 },
-          boxShadow: isDarkMode ? 'none' : '0 2px 6px rgba(77, 119, 249, 0.05)',
+          boxShadow: isDarkMode ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.05)',
           transition: 'border-color 0.2s, box-shadow 0.2s',
           '&:focus-within': {
-            borderColor: '#4D77F9',
-            boxShadow: '0 0 0 3px rgba(77, 119, 249, 0.18)',
+            borderColor: '#3B82F6',
+            boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.18)',
           },
         }}
         role="search"
@@ -149,7 +149,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
               color: 'text.primary',
               width: 36,
@@ -187,7 +187,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
               color: 'text.primary',
               width: 36,
@@ -214,7 +214,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
               color: 'text.primary',
               width: 36,
@@ -250,12 +250,12 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
               py: 0.4,
               borderRadius: '10px',
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
               height: 36,
               cursor: onOpenSettings ? 'pointer' : 'default',
               transition: 'all 0.15s ease',
               '&:hover': onOpenSettings ? {
-                borderColor: '#4D77F9',
+                borderColor: '#3B82F6',
                 background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
               } : undefined,
             }}
@@ -266,7 +266,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 width: 24,
                 height: 24,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #9757FA 0%, #4D77F9 100%)',
+                background: 'linear-gradient(135deg, #3156D8 0%, #3B82F6 100%)',
                 color: '#FFFFFF',
                 fontWeight: 800,
                 fontSize: 12,
@@ -321,7 +321,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(77, 119, 249, 0.16)'}`,
+              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
               background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
               color: 'text.secondary',
               width: 36,

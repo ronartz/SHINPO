@@ -176,8 +176,8 @@ html[data-theme='dark'] .fp-dark-pill {
 }
 
 .fp-active-actions .btn-timer.primary {
-  background: var(--brand-coral-gradient, linear-gradient(135deg, #9757FA 0%, #4D77F9 100%));
-  box-shadow: 0 4px 14px rgba(151, 87, 250, 0.35);
+  background: var(--brand-coral-gradient, linear-gradient(135deg, #3156D8 0%, #3B82F6 100%));
+  box-shadow: 0 4px 14px rgba(49, 86, 216, 0.35);
 }
 
 .fp-active-actions .btn-timer.danger {
@@ -279,13 +279,13 @@ html[data-theme='dark'] .fp-preset-pill.active {
   gap: 6px;
   padding: 8px 18px;
   border-radius: 9999px;
-  background: var(--brand-coral-gradient, linear-gradient(135deg, #9757FA 0%, #4D77F9 100%));
+  background: var(--brand-coral-gradient, linear-gradient(135deg, #3156D8 0%, #3B82F6 100%));
   color: #FFFFFF;
   border: none;
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(151, 87, 250, 0.35);
+  box-shadow: 0 4px 14px rgba(49, 86, 216, 0.35);
   transition: transform 0.15s ease;
   white-space: nowrap;
 }
@@ -601,8 +601,8 @@ html[data-theme='light'] .fp-event-pill.completed-pill,
 }
 
 .fp-item-avatar.core {
-  background: rgba(151, 87, 250, 0.15);
-  color: #9757FA;
+  background: rgba(49, 86, 216, 0.15);
+  color: #3156D8;
 }
 
 .fp-item-avatar.arch {

@@ -94,7 +94,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </button>
         </div>
         <p className="modal-sub">
-          Define an actionable task and link it to an active goal.
+          Add one clear next step and link it to a goal.
         </p>
 
         <form onSubmit={onSubmit}>
@@ -106,12 +106,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="create-task-goal" className="shinpo-field-label" style={{ marginBottom: 6 }}>
-              Associated Goal
+              Goal
             </label>
             {goals.length === 0 ? (
               <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(255, 77, 94, 0.1)', border: '1px solid rgba(255, 77, 94, 0.3)' }}>
                 <p style={{ fontSize: 13.5, color: 'var(--brand-coral, #FF4D5E)', margin: 0, fontWeight: 600 }}>
-                  No goals available. Please create a goal first.
+                  Create a goal before adding a task.
                 </p>
               </div>
             ) : (
@@ -127,7 +127,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="create-task-title-input" className="shinpo-field-label" style={{ marginBottom: 6 }}>
-              Task Title
+              Task name
             </label>
             <input
               id="create-task-title-input"
@@ -136,6 +136,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               placeholder="e.g. Refactor API endpoint, Write test suite..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
               required
               autoFocus
             />
@@ -143,7 +144,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
           <div style={{ marginBottom: 20 }}>
             <label className="shinpo-field-label" style={{ marginBottom: 8 }}>
-              Estimated Duration ({isCustom ? `${isCustomValid ? parsedCustom : 'Custom'} min` : `${duration} min`})
+              Focus time ({isCustom ? `${isCustomValid ? parsedCustom : 'Custom'} min` : `${duration} min`})
             </label>
 
             {/* 10-Option Duration Selector Grid (5x2) */}
@@ -181,6 +182,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
+                    id="create-task-duration"
                     type="number"
                     min={MIN_DURATION}
                     max={MAX_DURATION}
@@ -196,6 +198,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     }}
                     aria-label="Custom duration in minutes"
                     aria-invalid={!isCustomValid}
+                    aria-describedby="create-task-duration-help"
                   />
                   <span
                     style={{
@@ -214,11 +217,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 </div>
                 {!isCustomValid ? (
                   <span style={{ fontSize: 12, color: 'var(--brand-coral, #FF4D5E)', fontWeight: 600 }}>
-                    Please enter a duration between {MIN_DURATION} and {MAX_DURATION} minutes.
+                    <span id="create-task-duration-help">
+                      Please enter a duration between {MIN_DURATION} and {MAX_DURATION} minutes.
+                    </span>
                   </span>
                 ) : (
-                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    Sensible boundary: {MIN_DURATION}m to {MAX_DURATION}m (up to 8 hours).
+                  <span id="create-task-duration-help" style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    Choose between {MIN_DURATION} and {MAX_DURATION} minutes (up to 8 hours).
                   </span>
                 )}
               </div>
@@ -248,4 +253,3 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     </div>
   )
 }
-

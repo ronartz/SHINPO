@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Goal, Mission } from '../api/goalsAndMissions'
+import type { FocusSession } from '../api/focusSessions'
 import type { GoalDecomposition, ProposedMission } from '../api/ai'
 import { Icon } from '../components/common/Icon'
 import { StudyResourcesPanel } from '../components/focus'
 
 export interface GoalsViewProps {
+  userId: number | null
   goals: Goal[]
   missions: Mission[]
+  activeSession?: FocusSession | null
   aiDecompResult: GoalDecomposition | null
   setAiDecompResult: (res: GoalDecomposition | null) => void
   decomposingGoalId: number | null
@@ -30,8 +33,10 @@ export interface GoalsViewProps {
 }
 
 import { trackRender } from '../utils/renderTracker'
+import { isMissionInFocusSession } from '../utils/scheduleHelpers'
 import { ShinpoSelect } from '../components/ui'
 import type { SelectOption } from '../components/ui/Select/types'
+import { getTaskViewPreference, saveTaskViewPreference, type TaskViewMode } from '../utils/taskViewPreference'
 
 export type TaskStatusFilter = 'ALL' | 'IN_PROGRESS' | 'READY' | 'COMPLETED'
 export type TaskSortOption = 'default' | 'date' | 'duration-asc' | 'duration-desc' | 'title'
@@ -45,8 +50,10 @@ const TASK_SORT_OPTIONS: SelectOption<TaskSortOption>[] = [
 ]
 
 export const GoalsView: React.FC<GoalsViewProps> = ({
+  userId,
   goals,
   missions,
+  activeSession,
   aiDecompResult,
   setAiDecompResult,
   decomposingGoalId,
@@ -90,7 +97,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   }
 
   // Primary Default View is LIST (as requested in Section 2)
-  const [taskViewMode, setTaskViewMode] = useState<'board' | 'list'>('list')
+  const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>(() => getTaskViewPreference(userId))
+  useEffect(() => saveTaskViewPreference(userId, taskViewMode), [userId, taskViewMode])
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<TaskSortOption>('default')
 
@@ -139,12 +147,12 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
 
   // Real Counts
   const inProgressMissions = useMemo(
-    () => missions.filter((m) => m.status === 'IN_PROGRESS'),
-    [missions]
+    () => missions.filter((m) => m.status === 'IN_PROGRESS' || isMissionInFocusSession(m, activeSession)),
+    [missions, activeSession]
   )
   const readyMissions = useMemo(
-    () => missions.filter((m) => m.status === 'PENDING' || (!m.status && m.status !== 'COMPLETED')),
-    [missions]
+    () => missions.filter((m) => m.status !== 'COMPLETED' && m.status !== 'IN_PROGRESS' && !isMissionInFocusSession(m, activeSession)),
+    [missions, activeSession]
   )
   const completedMissions = useMemo(
     () => missions.filter((m) => m.status === 'COMPLETED'),
@@ -160,9 +168,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   const filteredMissions = useMemo(() => {
     let result = missions.filter((m) => {
       if (activeStatusFilter === 'IN_PROGRESS') {
-        if (m.status !== 'IN_PROGRESS') return false
+        if (m.status !== 'IN_PROGRESS' && !isMissionInFocusSession(m, activeSession)) return false
       } else if (activeStatusFilter === 'READY') {
-        if (m.status === 'COMPLETED' || m.status === 'IN_PROGRESS') return false
+        if (m.status === 'COMPLETED' || m.status === 'IN_PROGRESS' || isMissionInFocusSession(m, activeSession)) return false
       } else if (activeStatusFilter === 'COMPLETED') {
         if (m.status !== 'COMPLETED') return false
       }
@@ -194,7 +202,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
     }
 
     return result
-  }, [missions, activeStatusFilter, searchQuery, sortBy, goals])
+  }, [missions, activeStatusFilter, searchQuery, sortBy, goals, activeSession])
 
   // Board Mode Lane Filter & Sort (Does NOT hide cards based on old List status filter)
   const filterAndSortBoardLane = useCallback(
@@ -326,7 +334,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   const renderTaskRow = (m: Mission) => {
     const parentGoal = goals.find((g) => g.id === m.goalId)
     const isDone = m.status === 'COMPLETED'
-    const isInProgress = m.status === 'IN_PROGRESS'
+    const isInProgress = m.status === 'IN_PROGRESS' || isMissionInFocusSession(m, activeSession)
 
     return (
       <div key={m.id} className={`mission-list-row ${isDone ? 'is-completed' : ''}`}>
@@ -555,11 +563,11 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           const g = goals[0]
           const goalMissions = missions.filter((m) => m.goalId === g.id)
           const goalCompletedCount = goalMissions.filter((m) => m.status === 'COMPLETED').length
-          const goalInProgCount = goalMissions.filter((m) => m.status === 'IN_PROGRESS').length
-          const goalReadyCount = goalMissions.filter((m) => m.status === 'PENDING' || (!m.status && m.status !== 'COMPLETED')).length
+          const goalInProgCount = goalMissions.filter((m) => m.status === 'IN_PROGRESS' || isMissionInFocusSession(m, activeSession)).length
+          const goalReadyCount = goalMissions.filter((m) => m.status !== 'COMPLETED' && m.status !== 'IN_PROGRESS' && !isMissionInFocusSession(m, activeSession)).length
           const progressPct = goalMissions.length > 0 ? Math.round((goalCompletedCount / goalMissions.length) * 100) : 0
           const pendingMinutes = goalMissions.reduce((acc, m) => acc + (m.status !== 'COMPLETED' ? (m.estimatedMinutes || 25) : 0), 0)
-          const nextAction = goalMissions.find((m) => m.status === 'IN_PROGRESS') || goalMissions.find((m) => m.status !== 'COMPLETED')
+          const nextAction = goalMissions.find((m) => m.status === 'IN_PROGRESS' || isMissionInFocusSession(m, activeSession)) || goalMissions.find((m) => m.status !== 'COMPLETED')
 
           return (
             <div key={g.id} className="goal-single-summary-card">
@@ -766,7 +774,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           <Icon name="goals" size={28} />
           <p className="empty-title">No Active Goals</p>
           <p className="empty-desc">
-            Create your primary objectives, then let EONPAI break them down into actionable execution tasks.
+            Create an outcome you care about, then turn it into clear next steps.
           </p>
           <button type="button" className="btn-timer primary" onClick={() => setIsCreatingGoal(true)}>
             <Icon name="plus" size={14} />
@@ -825,7 +833,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                     onClick={handleConfirmClearAllTasks}
                   >
                     <Icon name="trash" size={13} />
-                    <span>Clear All Tasks</span>
+                    <span>Delete all tasks</span>
                   </button>
                 </div>
               )}
@@ -971,8 +979,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                   <div className="empty-icon-circle">
                     <Icon name="clock" size={16} />
                   </div>
-                  <span className="empty-title">No active focus session</span>
-                  <span className="empty-subtitle">Select a ready task to begin your focus sprint.</span>
+                  <span className="empty-title">Nothing in progress</span>
+                  <span className="empty-subtitle">Choose a ready task to start focusing.</span>
                 </div>
               )}
             </div>
@@ -995,8 +1003,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                   <div className="empty-icon-circle">
                     <Icon name="target" size={16} />
                   </div>
-                  <span className="empty-title">No tasks queued</span>
-                  <span className="empty-subtitle">Create a task to build your execution plan.</span>
+                  <span className="empty-title">No tasks ready</span>
+                  <span className="empty-subtitle">Add a task to decide what to work on next.</span>
                 </div>
               )}
             </div>
@@ -1020,7 +1028,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                     <Icon name="check-circle" size={16} />
                   </div>
                   <span className="empty-title">No completed tasks yet</span>
-                  <span className="empty-subtitle">Finished tasks from your focus sessions will appear here.</span>
+                  <span className="empty-subtitle">Tasks you finish will appear here.</span>
                 </div>
               )}
             </div>

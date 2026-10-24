@@ -38,19 +38,27 @@ textarea {
 
 input,
 textarea {
-  caret-color: var(--primary-violet, #9757FA);
+  caret-color: var(--primary-violet, #3156D8);
 }
 
 .theme-light input,
 .theme-light textarea,
 html[data-theme='light'] input,
 html[data-theme='light'] textarea {
-  caret-color: var(--primary-violet, #7932E6);
+  caret-color: var(--primary-violet, #2847B8);
 }
 
 button {
   color: inherit;
   cursor: pointer;
+}
+
+button {
+  transition: transform var(--motion-hover, 150ms) var(--ease-kinetic, cubic-bezier(0.2, 0.85, 0.25, 1));
+}
+
+button:not(:disabled):active {
+  transform: scale(0.985);
 }
 
 button:disabled {
@@ -59,24 +67,34 @@ button:disabled {
 }
 
 :focus-visible {
-  outline: 2px solid var(--primary-violet, #9757FA);
+  outline: 2px solid var(--primary-violet, #3156D8);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled) {
+    transition-duration: 0.01ms !important;
+  }
+
+  button:not(:disabled):active {
+    transform: none;
+  }
 }
 
 .theme-light :focus-visible,
 html[data-theme='light'] :focus-visible {
-  outline-color: var(--primary-violet, #7932E6);
+  outline-color: var(--primary-violet, #2847B8);
 }
 
 ::selection {
   color: #ffffff;
-  background: rgba(151, 87, 250, 0.4);
+  background: rgba(49, 86, 216, 0.4);
 }
 
 .theme-light ::selection,
 html[data-theme='light'] ::selection {
   color: #17213A;
-  background: rgba(121, 50, 230, 0.22);
+  background: rgba(40, 71, 184, 0.22);
 }
 
 * {

@@ -59,12 +59,12 @@
 .aurora-viewport.theme-light .aurora-card-interactive:hover,
 .aurora-viewport.theme-light .aurora-card-interactive:focus-visible {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-  border-color: rgba(121, 50, 230, 0.22);
+  border-color: rgba(40, 71, 184, 0.22);
 }
 
 /* Keyboard accessibility outline */
 .aurora-card-interactive:focus-visible {
-  outline: 2px solid #4D77F9;
+  outline: 2px solid #3B82F6;
   outline-offset: 2px;
 }
 
@@ -113,7 +113,6 @@
 }
 
 .aurora-viewport.theme-dark .aurora-glass,
-.app-shell.theme-aurora:not(.theme-light) .icon-sidebar,
 .app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar {
   background: color-mix(in srgb, var(--surface, #18191E) 92%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
@@ -123,7 +122,6 @@
 }
 
 .aurora-viewport.theme-light .aurora-glass,
-.app-shell.theme-aurora.theme-light .icon-sidebar,
 .app-shell.theme-aurora.theme-light .cockpit-top-bar {
   background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
@@ -135,9 +133,9 @@
 /* Aurora Navigation Button Styling on Classic Sidebar */
 .app-shell.theme-aurora .icon-sidebar .sidebar-btn {
   color: var(--text-secondary, #B0B5C2);
-  border-radius: 10px;
+  border-radius: 11px;
   font-weight: 600;
-  transition: all 150ms ease;
+  transition: color 150ms ease, background 170ms ease, transform 150ms ease;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn {
@@ -145,27 +143,27 @@
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(162, 111, 255, 0.12);
   color: #FFFFFF;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn:hover {
-  background: rgba(121, 50, 230, 0.05);
+  background: #f3edff;
   color: var(--text-primary, #18191B);
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn.active {
-  background: rgba(151, 87, 250, 0.14);
+  background: transparent;
   color: #FFFFFF;
-  border: 1px solid rgba(151, 87, 250, 0.35);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid transparent;
+  box-shadow: none;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn.active {
-  background: #F5F0FF;
-  color: #7932E6;
-  border: 1px solid rgba(121, 50, 230, 0.30);
-  box-shadow: 0 1px 4px rgba(121, 50, 230, 0.10);
+  background: transparent;
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  box-shadow: none;
 }
 
 /* Aurora Search Input Pill */
@@ -180,8 +178,8 @@
 }
 
 .app-shell.theme-aurora:not(.theme-light) .top-search-command:focus-within {
-  border-color: #9757FA;
-  box-shadow: 0 0 0 2px rgba(151, 87, 250, 0.25);
+  border-color: #3156D8;
+  box-shadow: 0 0 0 2px rgba(49, 86, 216, 0.25);
 }
 
 /* Aurora Sidebar Quote */
@@ -237,7 +235,7 @@
 
 .aurora-btn-primary,
 button.aurora-btn-primary {
-  background: var(--primary-violet, #9757FA) !important;
+  background: var(--primary-violet, #3156D8) !important;
   color: #FFFFFF !important;
   border: none !important;
   border-radius: 10px;
@@ -266,14 +264,14 @@ button.aurora-btn-primary:hover {
 .theme-light .aurora-btn-primary,
 .aurora-viewport.theme-light button.aurora-btn-primary,
 .theme-light button.aurora-btn-primary {
-  background: var(--primary-violet, #7932E6) !important;
+  background: var(--primary-violet, #2847B8) !important;
 }
 
 .aurora-viewport.theme-light .aurora-btn-primary:hover,
 .theme-light .aurora-btn-primary:hover,
 .aurora-viewport.theme-light button.aurora-btn-primary:hover,
 .theme-light button.aurora-btn-primary:hover {
-  background: var(--brand-coral-hover, #6825D4) !important;
+  background: var(--brand-coral-hover, #1E3694) !important;
 }
 
 .aurora-btn-secondary,
@@ -375,21 +373,21 @@ button.aurora-btn-secondary {
 
 
 .aurora-badge.purple {
-  background: rgba(151, 87, 250, 0.16);
+  background: rgba(49, 86, 216, 0.16);
   color: #A86EFB;
-  border: 1px solid rgba(151, 87, 250, 0.35);
+  border: 1px solid rgba(49, 86, 216, 0.35);
 }
 
 .aurora-badge.blue {
-  background: rgba(77, 119, 249, 0.16);
+  background: rgba(59, 130, 246, 0.16);
   color: #6E90FB;
-  border: 1px solid rgba(77, 119, 249, 0.35);
+  border: 1px solid rgba(59, 130, 246, 0.35);
 }
 
 .aurora-badge.cyan {
-  background: rgba(27, 201, 222, 0.16);
+  background: rgba(25, 211, 197, 0.16);
   color: #30D2E4;
-  border: 1px solid rgba(27, 201, 222, 0.35);
+  border: 1px solid rgba(25, 211, 197, 0.35);
 }
 
 .aurora-badge.emerald {
@@ -461,9 +459,9 @@ button.aurora-btn-secondary {
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip.active {
-  background: rgba(151, 87, 250, 0.15);
+  background: rgba(49, 86, 216, 0.15);
   color: #C084FC;
-  border-color: rgba(151, 87, 250, 0.4);
+  border-color: rgba(49, 86, 216, 0.4);
   box-shadow: none;
 }
 
@@ -481,8 +479,8 @@ button.aurora-btn-secondary {
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip.active {
   background: #F3E8FF;
-  color: #7932E6;
-  border-color: rgba(121, 50, 230, 0.3);
+  color: #2847B8;
+  border-color: rgba(40, 71, 184, 0.3);
   box-shadow: none;
 }
 
@@ -494,21 +492,21 @@ button.aurora-btn-secondary {
 }
 
 .app-shell.shinpo-glass-ui :is(input, textarea, select, .shinpo-select-trigger, .shinpo-datepicker-trigger):focus-visible {
-  outline: 2px solid rgba(151, 87, 250, 0.72);
+  outline: 2px solid rgba(49, 86, 216, 0.72);
   outline-offset: 2px;
 }
 
 .auth-fullscreen-container.theme-dark,
 body.shinpo-glass-ui.theme-dark .auth-fullscreen-container {
   background-color: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 28%, rgba(151, 87, 250, 0.15), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(77, 119, 249, 0.1), transparent 42%);
+  background-image: radial-gradient(ellipse at 50% 28%, rgba(49, 86, 216, 0.15), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(59, 130, 246, 0.1), transparent 42%);
   background-size: 160% 160%;
 }
 
 .auth-fullscreen-container.theme-light,
 body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   background-color: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 28%, rgba(121, 50, 230, 0.1), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(43, 88, 230, 0.08), transparent 42%);
+  background-image: radial-gradient(ellipse at 50% 28%, rgba(40, 71, 184, 0.1), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(43, 88, 230, 0.08), transparent 42%);
   background-size: 160% 160%;
 }
 
@@ -554,8 +552,8 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
 .aurora-viewport textarea:focus,
 .aurora-viewport select:focus {
   outline: none;
-  border-color: rgba(151, 87, 250, 0.72);
-  box-shadow: 0 0 0 3px rgba(151, 87, 250, 0.16);
+  border-color: rgba(49, 86, 216, 0.72);
+  box-shadow: 0 0 0 3px rgba(49, 86, 216, 0.16);
 }
 
 @media (max-width: 720px) {

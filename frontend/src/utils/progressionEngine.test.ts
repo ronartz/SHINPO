@@ -4,7 +4,6 @@ import {
   computeDailyObjectives,
   deriveAchievements,
   getLocalDateString,
-  playCelebrationChime,
   spawnCelebrationSparkles,
 } from './progressionEngine.ts'
 import type { Mission, Goal } from '../api/goalsAndMissions'
@@ -167,14 +166,8 @@ test('deriveAchievements truthfully reports unlocked milestones from backend sta
   assert.equal(onboarding?.unlocked, true)
 })
 
-test('playCelebrationChime and spawnCelebrationSparkles execute safely in non-browser or test environments', () => {
-  // Should never throw even without DOM or WebAudio
-  assert.doesNotThrow(() => {
-    playCelebrationChime('accomplishment')
-    playCelebrationChime('level_up')
-    playCelebrationChime('subtle')
-    spawnCelebrationSparkles()
-  })
+test('celebration visuals execute safely in non-browser or test environments', () => {
+  assert.doesNotThrow(() => spawnCelebrationSparkles())
 })
 
 test('getLocalDateString returns valid YYYY-MM-DD pattern', () => {

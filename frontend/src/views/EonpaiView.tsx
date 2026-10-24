@@ -9,11 +9,13 @@ import type {
   DailyPlan,
   RecoveryOption,
   AiActionDto,
+  AiProviderStatus,
 } from '../api/ai'
 import {
   confirmAiAction,
   rejectAiAction,
   getPendingAiActions,
+  getAiProviderStatus,
 } from '../api/ai'
 import { Icon } from '../components/common/Icon'
 import { MarkdownRenderer } from '../components/common'
@@ -253,6 +255,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [pendingActions, setPendingActions] = useState<AiActionDto[]>([])
+  const [aiProviderStatus, setAiProviderStatus] = useState<AiProviderStatus | null>(null)
+  const [aiProviderStatusLoaded, setAiProviderStatusLoaded] = useState(false)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<Record<string, { status: string; message: string }>>({})
 
@@ -262,6 +266,21 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   const autoFollowEnabledRef = useRef(true)
   const lastScrollTopRef = useRef(0)
 
+  useEffect(() => {
+    let isCurrent = true
+    getAiProviderStatus()
+      .then((status) => {
+        if (isCurrent) setAiProviderStatus(status)
+      })
+      .catch(() => {
+        if (isCurrent) setAiProviderStatus(null)
+      })
+      .finally(() => {
+        if (isCurrent) setAiProviderStatusLoaded(true)
+      })
+    return () => { isCurrent = false }
+  }, [])
+
   const loadPendingActions = useCallback(async () => {
     try {
       const list = await getPendingAiActions()
@@ -270,6 +289,26 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       // Ignore background error
     }
   }, [])
+
+  const providerLabel = aiProviderStatus?.provider === 'gemini'
+    ? 'Cloud'
+    : aiProviderStatus?.provider === 'ollama'
+      ? 'Local'
+      : aiProviderStatus?.provider
+  const providerStatusLabel = !aiProviderStatusLoaded
+    ? 'Checking AI…'
+    : !aiProviderStatus
+      ? 'Status unavailable'
+      : !aiProviderStatus.enabled
+        ? 'AI disabled'
+        : aiProviderStatus.available
+          ? `${providerLabel} · ${aiProviderStatus.model}`
+          : `${providerLabel || 'AI'} unavailable`
+  const providerStatusTone = aiProviderStatus?.enabled && aiProviderStatus.available
+    ? 'connected'
+    : aiProviderStatusLoaded && aiProviderStatus
+      ? 'offline'
+      : 'unknown'
 
   useEffect(() => {
     let isCancelled = false
@@ -553,9 +592,9 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               <span className="eonpai-session-title">Executive Session</span>
               <span className="eonpai-subtitle">Personal execution assistant</span>
             </div>
-            <div className="eonpai-status-badge" title="AI Provider: Ollama (qwen3:4b)">
-              <span className="eonpai-status-dot connected" />
-              <span className="eonpai-status-text">Local · qwen3:4b</span>
+            <div className="eonpai-status-badge" title={aiProviderStatus?.message || 'AI provider status has not been reported'}>
+              <span className={`eonpai-status-dot ${providerStatusTone}`} aria-hidden="true" />
+              <span className="eonpai-status-text" aria-live="polite">{providerStatusLabel}</span>
             </div>
           </div>
           <button
@@ -578,7 +617,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
           role="region"
           aria-label="Message Feed"
         >
-          <div className="eonpai-chat-content-wrap" ref={aiContentRef}>
+          <div className={`eonpai-chat-content-wrap${chatMessages.length === 1 && chatMessages[0]?.role === 'assistant' && pendingActions.length === 0 ? ' is-welcome' : ''}`} ref={aiContentRef}>
             {/* Pending Controlled Actions Queue Banner */}
             {pendingActions.length > 0 && (
               <div className="eonpai-pending-banner">
@@ -865,7 +904,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                               onClick={() =>
                                 handleCommitChatSuggestion(msg.suggestionId ?? 0, index, m)
                               }
-                              title="Add task to backlog"
+                              title="Add task to task list"
                             >
                               <Icon name="plus" size={12} />
                               <span>Add</span>

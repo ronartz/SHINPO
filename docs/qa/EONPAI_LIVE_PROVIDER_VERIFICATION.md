@@ -19,7 +19,7 @@ During independent verification, three critical findings were uncovered and reso
 
 ---
 
-## 2. Gemini Live Model & Free Tier Analysis
+## 2. Gemini model and provider-account cost
 
 Sourced directly from current official Google Gemini API documentation:
 
@@ -29,7 +29,7 @@ Sourced directly from current official Google Gemini API documentation:
 | **Operational Status** | **Shutdown June 1, 2026** | **Active Stable Flash Model** (Latest update July 2026) |
 | **Input Context Window** | 1,048,576 tokens | 1,048,576 tokens |
 | **Max Output Tokens** | 8,192 tokens | 65,536 tokens |
-| **Free Tier Cost** | Free of charge | **Free of charge** |
+| **Cost / quota** | Varies by provider account and model terms | Varies by provider account, model terms, and billing/quota configuration |
 | **Recommended Headers** | `x-goog-api-key` | `x-goog-api-key` |
 | **Pricing / Quota** | Deprecated | Standard free tier available in Google AI Studio |
 
@@ -81,6 +81,7 @@ cd backend && ./mvnw test -Dtest=GeminiProviderTests
 ```
 
 **Results:**
+- `defaultModelUsesConfiguredCloudModel`: **PASS**
 - `isAvailable_NoApiKey_ReturnsFalse`: **PASS**
 - `isAvailable_ValidProbe_ReturnsTrue`: **PASS** (Verifies probe sends `x-goog-api-key` header to `/models?pageSize=1`)
 - `isAvailable_ProbeFails_ReturnsFalse`: **PASS**
@@ -89,12 +90,12 @@ cd backend && ./mvnw test -Dtest=GeminiProviderTests
 - `generate_RateLimitOrError`: **PASS** (Handles HTTP 429 gracefully with user-friendly rate limit message)
 - `metadata`: **PASS** (Provider="gemini", Model="gemini-3.6-flash")
 
-**Total:** 7 tests run, 7 passed, 0 failures.
+**Total:** 8 tests run, 8 passed, 0 failures.
 
 ---
 
 ## 5. Verification Verdict
 
-### **LOCALLY TESTED & API-CONTRACT VERIFIED**
-The Gemini provider is hardened against secret leakage, updated to the active `gemini-3.6-flash` model, and fully covered by automated regression tests. Live network calls require injecting a valid `GEMINI_API_KEY` into the backend environment.
+### **LOCALLY TESTED & API-CONTRACT VERIFIED — NOT LIVE-PROVIDER ACCEPTED**
+The Gemini provider sends its key in the `x-goog-api-key` header and is covered by mocked API-contract tests. Provider charges and quotas depend on the user's Google account and current terms; configure billing limits there. Live generation requires a valid server-side `GEMINI_API_KEY` and remains unverified in production.
 

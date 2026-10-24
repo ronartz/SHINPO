@@ -94,18 +94,18 @@ export const durationPresets = [15, 30, 60, 90]
 
 export const pomodoroPlans: PomodoroPlan[] = [
   {
-    name: 'Classic Pomodoro',
+    name: '55-Minute Focus',
     totalMinutes: 55,
-    schedule: '25m Focus • 5m Rest • 25m Focus',
+    schedule: 'One continuous focus session',
   },
   {
-    name: 'Deep Work Sprint',
+    name: '60-Minute Focus',
     totalMinutes: 60,
-    schedule: '50m Focus • 10m Rest',
+    schedule: 'One continuous focus session',
   },
   {
-    name: 'Extended Flow',
+    name: '90-Minute Focus',
     totalMinutes: 90,
-    schedule: '45m Focus • 15m Rest • 30m Focus',
+    schedule: 'One continuous focus session',
   },
 ]

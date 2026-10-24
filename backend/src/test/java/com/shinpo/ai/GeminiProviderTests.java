@@ -50,6 +50,14 @@ class GeminiProviderTests {
     }
 
     @Test
+    @DisplayName("default model matches the configured cloud production model")
+    void defaultModelUsesConfiguredCloudModel() {
+        AiProperties defaults = new AiProperties();
+        assertEquals("gemini-3.6-flash", defaults.getGemini().getModel());
+        assertEquals("gemini-3.6-flash", new GeminiProvider(defaults, objectMapper).getModelName());
+    }
+
+    @Test
     @DisplayName("isAvailable() returns true when API models endpoint responds 200 with x-goog-api-key header")
     void isAvailable_ValidProbe_ReturnsTrue() {
         mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1"))

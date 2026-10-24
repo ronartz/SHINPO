@@ -25,7 +25,7 @@ import java.util.*;
  * Configuration via application properties:
  *   shinpo.ai.provider=gemini
  *   shinpo.ai.gemini.api-key=${SHINPO_GEMINI_API_KEY}
- *   shinpo.ai.gemini.model=gemini-2.5-flash  (default)
+ *   shinpo.ai.gemini.model=gemini-3.6-flash  (default)
  */
 @Component
 @ConditionalOnProperty(name = "shinpo.ai.gemini.api-key", matchIfMissing = false)
@@ -34,7 +34,7 @@ public class GeminiProvider implements AIProvider {
     private static final Logger log = LoggerFactory.getLogger(GeminiProvider.class);
 
     private static final String GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final String DEFAULT_MODEL = "gemini-3.6-flash";
     private static final int MAX_OUTPUT_TOKENS = 1024;
 
     private final AiProperties aiProperties;

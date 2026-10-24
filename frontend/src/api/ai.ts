@@ -184,6 +184,15 @@ export type AiChatResponse = {
   conversationId?: string
 }
 
+export type AiProviderStatus = {
+  enabled: boolean
+  available: boolean
+  provider: string
+  model: string
+  status: string
+  message: string
+}
+
 import { authHeaders, getAuthenticatedUserId } from './auth.ts'
 import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
 
@@ -424,4 +433,11 @@ export async function getRecentAiActions(): Promise<AiActionDto[]> {
     headers: authHeaders(),
   })
   return parseResponse<AiActionDto[]>(res)
+}
+
+export async function getAiProviderStatus(): Promise<AiProviderStatus> {
+  const res = await fetchWithoutRedirects(`${API_BASE}/status`, {
+    headers: authHeaders(),
+  })
+  return parseResponse<AiProviderStatus>(res)
 }

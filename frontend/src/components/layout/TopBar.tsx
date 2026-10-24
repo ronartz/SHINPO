@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { AppView } from '../../types/navigation'
-import { getViewHeaderTitle } from '../../types/navigation'
+import { getViewHeaderTitle, NAVIGATION_ITEMS } from '../../types/navigation'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
 import type { ProgressResponse } from '../../api/progress'
@@ -8,6 +8,7 @@ import type { SettingsSection } from '../dialogs/SettingsModal'
 
 export interface TopBarProps {
   activeTab: AppView
+  onSelectTab: (tab: AppView) => void
   topSearchQuery: string
   onSearchChange: (query: string) => void
   searchInputRef?: React.RefObject<HTMLInputElement | null>
@@ -18,10 +19,9 @@ export interface TopBarProps {
   onToggleTheme: () => void
   onRefreshData: () => void
   isRefreshing?: boolean
-  onOpenSettings?: (section?: SettingsSection) => void
+  onOpenSettings: (section?: SettingsSection) => void
   currentUser: AuthUser | null
-  userProgress?: ProgressResponse | null
-  onOpenAchievements?: () => void
+  userProgress: ProgressResponse | null
   onLogout: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
@@ -31,6 +31,7 @@ import { trackRender } from '../../utils/renderTracker'
 
 export const TopBar: React.FC<TopBarProps> = React.memo(({
   activeTab,
+  onSelectTab,
   topSearchQuery,
   onSearchChange,
   searchInputRef,
@@ -44,15 +45,60 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   onOpenSettings,
   currentUser,
   userProgress,
-  onOpenAchievements,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview,
 }) => {
   trackRender('TopBar')
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
+  const mobileNavigationControlRef = useRef<HTMLDivElement>(null)
+  useEffect(() => setMobileNavigationOpen(false), [activeTab])
+  useEffect(() => {
+    if (!mobileNavigationOpen) return
+    mobileNavigationControlRef.current?.querySelector<HTMLElement>(`[data-mobile-nav-tab="${activeTab}"]`)?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMobileNavigationOpen(false)
+      mobileNavigationControlRef.current?.querySelector<HTMLButtonElement>('.mobile-nav-toggle')?.focus()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [activeTab, mobileNavigationOpen])
+
   return (
     <header className="cockpit-top-bar" role="banner">
       <div className="page-header-info">
+        <div className="mobile-nav-control" ref={mobileNavigationControlRef} onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMobileNavigationOpen(false)
+        }}>
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={mobileNavigationOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={mobileNavigationOpen}
+            aria-controls="mobile-navigation-panel"
+            onClick={() => setMobileNavigationOpen((open) => !open)}
+          >
+            <Icon name={mobileNavigationOpen ? 'close' : 'menu'} size={17} />
+          </button>
+          {mobileNavigationOpen && (
+            <nav id="mobile-navigation-panel" className="mobile-navigation-panel" aria-label="Main navigation">
+              {NAVIGATION_ITEMS.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={`mobile-navigation-item${activeTab === item.id ? ' active' : ''}`}
+                  data-mobile-nav-tab={item.id}
+                  aria-current={activeTab === item.id ? 'page' : undefined}
+                  onClick={() => onSelectTab(item.id)}
+                >
+                  <Icon name={item.icon} size={17} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
+        </div>
         <h1 className="top-brand-title">
           {getViewHeaderTitle(activeTab)}
         </h1>
@@ -102,45 +148,34 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
         >
           <Icon name="refresh" size={16} />
         </button>
-        {onOpenSettings && (
-          <button
-            className="action-btn-circle"
-            onClick={() => onOpenSettings('appearance')}
-            title="Settings"
-            aria-label="Settings"
-            data-tutorial="topbar-settings-btn"
-          >
-            <Icon name="settings" size={17} />
-          </button>
-        )}
+        <button
+          className="action-btn-circle"
+          onClick={() => onOpenSettings('appearance')}
+          title="Settings"
+          aria-label="Settings"
+          data-tutorial="topbar-settings-btn"
+        >
+          <Icon name="settings" size={17} />
+        </button>
         {currentUser && (
-          <div
+          <button
+            type="button"
             className="profile-badge-card"
             data-tutorial="profile-badge-card"
-            onClick={() => onOpenSettings ? onOpenSettings('account') : undefined}
-            style={{ cursor: onOpenSettings ? 'pointer' : 'default' }}
-            title={`Signed in as ${currentUser.username} (${currentUser.email})${onOpenSettings ? ' • Click for Account Settings' : ''}`}
+            onClick={() => onOpenSettings('account')}
+            title={`Account settings for ${currentUser.username}`}
+            aria-label={`Account settings for ${currentUser.username}`}
           >
-            <div className="profile-avatar-circle">
+            <span className="profile-avatar-circle" aria-hidden="true">
               {currentUser.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="profile-text-wrap">
+            </span>
+            <span className="profile-text-wrap">
               <span className="profile-username">{currentUser.username}</span>
-              <span
-                className="profile-role"
-                onClick={(e) => {
-                  if (onOpenAchievements) {
-                    e.stopPropagation()
-                    onOpenAchievements()
-                  }
-                }}
-                style={{ cursor: onOpenAchievements ? 'pointer' : 'default' }}
-                title={onOpenAchievements ? 'Click to view progression & achievements' : undefined}
-              >
-                {userProgress ? `Lvl ${userProgress.level} • ${userProgress.totalProgress} XP` : 'Personal Workspace'}
+              <span className="profile-role">
+                {userProgress ? `Lvl ${userProgress.level} • ${userProgress.totalProgress} XP` : 'Account settings'}
               </span>
-            </div>
-          </div>
+            </span>
+          </button>
         )}
         <button
           className="action-btn-circle"

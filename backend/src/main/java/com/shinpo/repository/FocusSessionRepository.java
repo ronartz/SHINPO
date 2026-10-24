@@ -5,6 +5,8 @@ import com.shinpo.entity.FocusSessionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,6 +22,10 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, Long
     Optional<FocusSession> findFirstByUser_IdOrderByCreatedAtDesc(Long userId);
 
     Optional<FocusSession> findByIdAndUser_Id(Long id, Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM FocusSession s WHERE s.id = :id AND s.user.id = :userId")
+    Optional<FocusSession> findByIdAndUser_IdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
 
     List<FocusSession> findAllByUser_IdAndStatus(Long userId, FocusSessionStatus status);
 

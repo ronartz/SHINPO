@@ -96,7 +96,7 @@ export const SessionSummaryModal: React.FC<SessionSummaryModalProps> = ({
                 checked={markTaskCompleted ?? true}
                 onChange={(e) => setMarkTaskCompleted?.(e.target.checked)}
                 disabled={isSubmitting}
-                style={{ width: 16, height: 16, cursor: isSubmitting ? 'not-allowed' : 'pointer', accentColor: 'var(--primary-coral, #9757FA)' }}
+                style={{ width: 16, height: 16, cursor: isSubmitting ? 'not-allowed' : 'pointer', accentColor: 'var(--primary-coral, #3156D8)' }}
               />
               <label htmlFor="mark-task-completed-check" style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', flex: 1, userSelect: 'none' }}>
                 Mark connected task <strong style={{ color: 'var(--accent-coral, #F97316)' }}>"{linkedTaskTitle}"</strong> as completed

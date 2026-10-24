@@ -584,10 +584,10 @@
 }
 
 .btn-timer.debrief-ai-btn {
-  background: linear-gradient(135deg, #9757FA 0%, #7932E6 100%);
+  background: linear-gradient(135deg, #3156D8 0%, #2847B8 100%);
   color: #FFFFFF;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 4px 16px rgba(151, 87, 250, 0.35);
+  box-shadow: 0 4px 16px rgba(49, 86, 216, 0.35);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -598,7 +598,7 @@
 
 .btn-timer.debrief-ai-btn:hover:not(:disabled) {
   filter: brightness(1.08);
-  box-shadow: 0 6px 22px rgba(151, 87, 250, 0.48);
+  box-shadow: 0 6px 22px rgba(49, 86, 216, 0.48);
   transform: translateY(-1px);
 }
 
@@ -623,6 +623,8 @@
   padding: 24px 16px;
   overflow-y: auto;
   box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal-box {
@@ -719,7 +721,7 @@ html[data-theme='light'] .modal-box,
 }
 
 .create-task-duration-button[aria-pressed='true'] {
-  outline: 2px solid var(--primary-coral, #9757FA);
+  outline: 2px solid var(--primary-coral, #3156D8);
   outline-offset: 0;
 }
 
@@ -831,6 +833,10 @@ html[data-theme='light'] .modal-box,
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   outline: none;
   position: relative;
+  min-width: 0;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .shinpo-star-btn:hover:not(:disabled) {
@@ -838,8 +844,8 @@ html[data-theme='light'] .modal-box,
 }
 
 .shinpo-star-btn:focus-visible {
-  border-color: var(--primary-coral, #9757FA);
-  box-shadow: 0 0 0 2px var(--brand-coral-subtle, rgba(151, 87, 250, 0.25));
+  border-color: var(--primary-coral, #3156D8);
+  box-shadow: 0 0 0 2px var(--brand-coral-subtle, rgba(49, 86, 216, 0.25));
 }
 
 .shinpo-star-btn:disabled {
@@ -940,7 +946,7 @@ html[data-theme='light'] .shinpo-star-label-badge.has-rating,
 }
 
 .modal-field:focus {
-  border-color: var(--primary-coral, #9757FA);
+  border-color: var(--primary-coral, #3156D8);
   box-shadow: 0 0 0 2px var(--brand-coral-subtle);
 }
 
@@ -989,7 +995,7 @@ html[data-theme='light'] .modal-field,
 html[data-theme='light'] .modal-field:focus,
 .theme-light .modal-field:focus {
   background-color: #FFFFFF;
-  border-color: var(--primary-coral, #7932E6);
+  border-color: var(--primary-coral, #2847B8);
 }
 
 html[data-theme='light'] select.modal-field,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import type { FocusSession, FocusSessionStatus } from '../api/focusSessions'
 import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
@@ -9,7 +9,6 @@ import {
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
-import { focusAtmosphere, type AtmosphereSound } from '../utils/focusAtmosphere'
 
 export interface FocusViewProps {
   activeSession?: FocusSession | null
@@ -32,6 +31,15 @@ export interface FocusViewProps {
   setCompletingSessionId: (id: number | null) => void
   handleDeleteSession: (id: number) => void
   handleCancelSession?: (id: number) => void
+  handleSkipBreak: (id: number) => void
+  pomodoroEnabled: boolean
+  setPomodoroEnabled: (enabled: boolean) => void
+  pomodoroFocusCycles: number
+  setPomodoroFocusCycles: (cycles: number) => void
+  pomodoroShortBreakMinutes: number
+  setPomodoroShortBreakMinutes: (minutes: number) => void
+  pomodoroLongBreakMinutes: number
+  setPomodoroLongBreakMinutes: (minutes: number) => void
 }
 
 import { trackRender } from '../utils/renderTracker'
@@ -78,86 +86,43 @@ export const FocusView: React.FC<FocusViewProps> = ({
   setCompletingSessionId,
   handleDeleteSession,
   handleCancelSession,
+  handleSkipBreak,
+  pomodoroEnabled,
+  setPomodoroEnabled,
+  pomodoroFocusCycles,
+  setPomodoroFocusCycles,
+  pomodoroShortBreakMinutes,
+  setPomodoroShortBreakMinutes,
+  pomodoroLongBreakMinutes,
+  setPomodoroLongBreakMinutes,
 }) => {
   trackRender('FocusView')
 
-  const [atmosphereSound, setAtmosphereSound] = useState<AtmosphereSound>(() => {
-    try {
-      return (localStorage.getItem('shinpo_focus_atmosphere') as AtmosphereSound) || 'quiet'
-    } catch {
-      return 'quiet'
-    }
-  })
-  const [atmosphereVolume, setAtmosphereVolume] = useState<number>(() => {
-    try {
-      const v = localStorage.getItem('shinpo_focus_atmosphere_volume')
-      return v !== null ? Number(v) : 0.5
-    } catch {
-      return 0.5
-    }
-  })
-  const [isAtmospherePlaying, setIsAtmospherePlaying] = useState<boolean>(false)
+  const isFocusEngaged = activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED'
+  const currentPhase = activeSession?.currentPhase ?? 'FOCUS'
+  const isBreak = currentPhase === 'SHORT_BREAK' || currentPhase === 'LONG_BREAK'
+  const isPaused = activeSession?.status === 'PAUSED'
+  const isSequenceComplete = currentPhase === 'COMPLETE'
+  const isTimerExpired = timerSeconds === 0 && (!activeSession?.pomodoroEnabled || isSequenceComplete)
+  const phaseDurationMinutes = currentPhase === 'SHORT_BREAK'
+    ? activeSession?.pomodoroShortBreakMinutes ?? pomodoroShortBreakMinutes
+    : currentPhase === 'LONG_BREAK'
+      ? activeSession?.pomodoroLongBreakMinutes ?? pomodoroLongBreakMinutes
+      : activeSession?.durationMinutes ?? selectedDuration
+  const focusDurationSeconds = Math.max(1, phaseDurationMinutes * 60)
+  const focusProgress = isFocusEngaged
+    ? Math.max(0, Math.min(1, 1 - timerSeconds / focusDurationSeconds))
+    : 0
+  const orbitLength = 2 * Math.PI * 148
 
-  // Sync atmosphere audio state with focus session lifecycle
-  useEffect(() => {
-    let mounted = true
-    if (activeSession?.status === 'ACTIVE' && atmosphereSound !== 'quiet') {
-      focusAtmosphere.setSound(atmosphereSound, true).then(() => {
-        if (mounted) setIsAtmospherePlaying(true)
-      }).catch(() => {})
-    } else {
-      focusAtmosphere.stop()
-      queueMicrotask(() => {
-        if (mounted) setIsAtmospherePlaying(false)
-      })
-    }
-    return () => {
-      mounted = false
-      focusAtmosphere.stop()
-    }
-  }, [activeSession?.status, atmosphereSound])
-
-  const handleSelectAtmosphere = (sound: AtmosphereSound) => {
-    setAtmosphereSound(sound)
-    try {
-      localStorage.setItem('shinpo_focus_atmosphere', sound)
-    } catch {
-      // storage unavailable
-    }
-    const shouldPlay = sound !== 'quiet' && (activeSession?.status === 'ACTIVE' || !isAtmospherePlaying)
-    focusAtmosphere.setSound(sound, shouldPlay).then(() => {
-      setIsAtmospherePlaying(sound !== 'quiet' && shouldPlay)
-    }).catch(() => {})
-  }
-
-  const handleToggleAtmospherePlay = () => {
-    if (isAtmospherePlaying) {
-      focusAtmosphere.stop()
-      setIsAtmospherePlaying(false)
-    } else if (atmosphereSound !== 'quiet') {
-      focusAtmosphere.play().then(() => {
-        setIsAtmospherePlaying(true)
-      }).catch(() => {})
-    } else {
-      // If quiet, select gentle rain by default
-      handleSelectAtmosphere('gentle-rain')
-    }
-  }
-
-  const handleAtmosphereVolumeChange = (vol: number) => {
-    setAtmosphereVolume(vol)
-    focusAtmosphere.setVolume(vol)
-    try {
-      localStorage.setItem('shinpo_focus_atmosphere_volume', String(vol))
-    } catch {
-      // storage unavailable
-    }
-  }
   return (
-    <div className="focus-workspace-container">
+    <div className="focus-workspace-container" data-focus-mode={isPaused ? 'paused' : isBreak ? 'break' : activeSession?.status === 'ACTIVE' ? 'active' : 'ready'}>
       <div className="focus-hero-split">
         {/* Running Timer HUD */}
-        <div className="bento-card card-timer-hud">
+        <div
+          className="bento-card card-timer-hud"
+          data-focus-state={isPaused ? 'paused' : isBreak ? 'break' : isSequenceComplete || isTimerExpired ? 'complete' : activeSession?.status === 'ACTIVE' ? 'active' : 'ready'}
+        >
         <div className="card-header-row">
           <div className="card-title-group">
             <span className="card-title">Focus Engine</span>
@@ -166,6 +131,10 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 ? 'red'
                 : activeGraceWarning
                 ? 'yellow'
+                : isPaused
+                ? 'amber'
+                : isBreak
+                ? 'blue'
                 : activeSession?.status === 'ACTIVE'
                 ? 'green'
                 : activeSession?.status === 'PAUSED'
@@ -176,8 +145,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 ? 'Warning'
                 : activeGraceWarning
                 ? `Grace (${formatTimerDigits(graceSecondsLeft)})`
-                : activeSession
-                ? (activeSession.status === 'ACTIVE' && timerSeconds === 0 ? 'Complete' : activeSession.status === 'ACTIVE' ? 'Active' : activeSession.status === 'PAUSED' ? 'Paused' : activeSession.status)
+                : isSequenceComplete ? 'Reflection ready' : isPaused ? `Paused · ${isBreak ? currentPhase === 'LONG_BREAK' ? 'long break' : 'short break' : 'focus'}` : isBreak ? (currentPhase === 'LONG_BREAK' ? 'Long break' : 'Short break') : activeSession
+                ? (isTimerExpired ? 'Complete' : activeSession.status === 'ACTIVE' ? 'Active' : activeSession.status === 'PAUSED' ? 'Paused' : activeSession.status)
                 : 'Ready'}
             </span>
           </div>
@@ -191,10 +160,10 @@ export const FocusView: React.FC<FocusViewProps> = ({
               <Icon name="clock" size={16} />
               <div>
                 <div className="grace-banner-title">
-                  Grace Active: <strong>{activeGraceWarning.processName}</strong>
+                  Focus protection paused for <strong>{activeGraceWarning.processName}</strong>
                 </div>
                 <div className="grace-banner-subtitle">
-                  Focus protection deferred. App will close when timer reaches 0.
+                  The app will close when the countdown ends.
                 </div>
               </div>
             </div>
@@ -205,53 +174,50 @@ export const FocusView: React.FC<FocusViewProps> = ({
         )}
 
         <div className="timer-hud-center">
-          {activeSession?.status === 'ACTIVE' && timerSeconds === 0 ? (
-            <div className="timer-ended-banner">
-              <Icon name="check" size={16} />
-              <span className="timer-ended-text">Session Complete — Debrief</span>
-            </div>
-          ) : (
-            <div
-              className={`timer-digits-display${activeSession?.status === 'PAUSED' ? ' timer-paused' : ''}`}
-            >
-              {formatTimerDigits(timerSeconds)}
-            </div>
-          )}
-
-          {activeSession?.status === 'PAUSED' && (
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <span className="badge-tag" style={{ background: 'rgba(255,180,0,0.15)', color: 'var(--accent-yellow, #F59E0B)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12 }}>
-                PAUSED — Time frozen
+          <div className="focus-time-orbit">
+            <svg className="focus-orbit-art" viewBox="0 0 320 320" aria-hidden="true">
+              <circle className="focus-orbit-track" cx="160" cy="160" r="148" />
+              <circle className="focus-orbit-progress" cx="160" cy="160" r="148" style={{ strokeDasharray: orbitLength, strokeDashoffset: orbitLength * (1 - focusProgress) }} />
+              <circle className="focus-orbit-marker" cx="160" cy="12" r="3" />
+            </svg>
+            <span className="focus-progress-accessible" role="progressbar" aria-label="Focus session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(focusProgress * 100)} />
+            <div className="focus-time-core">
+              <span className="focus-stage-state" aria-live="polite">
+                {isSequenceComplete ? 'Your cycle is complete' : isPaused ? 'Paused · resume when ready' : isBreak ? 'Step away and reset' : activeSession?.pomodoroEnabled && timerSeconds === 0 ? 'Moving to the next phase…' : activeSession?.status === 'ACTIVE' ? 'Deep work in progress' : 'Make room for focused work'}
+              </span>
+              {isSequenceComplete ? (
+                <div className="timer-ended-banner"><Icon name="check" size={16} /><span className="timer-ended-text">Pomodoro complete · reflect</span></div>
+              ) : activeSession?.status === 'ACTIVE' && isTimerExpired && !isBreak ? (
+                <div className="timer-ended-banner">
+                  <Icon name="check" size={16} />
+                  <span className="timer-ended-text">Session Complete — Debrief</span>
+                </div>
+              ) : (
+                <div
+                  className={`timer-digits-display${activeSession?.status === 'PAUSED' ? ' timer-paused' : ''}`}
+                  role="timer"
+                  aria-label={`${formatTimerDigits(timerSeconds)} remaining`}
+                >
+                  {formatTimerDigits(timerSeconds)}
+                </div>
+              )}
+              <span className="focus-stage-task">
+                {activeSession?.name || (sessionIntention.trim() || 'Choose one meaningful next step')}
               </span>
             </div>
+          </div>
+
+          {activeSession?.status === 'PAUSED' && (
+            <span className="focus-paused-note">Paused · {formatTimerDigits(timerSeconds)} remaining</span>
           )}
 
-          {(activeSession?.intention || sessionIntention) && (
+          {(activeSession?.intention || sessionIntention) && !isFocusEngaged && (
             <div style={{ textAlign: 'center', marginTop: 10 }}>
               <span className="active-intention-tag">
                 {activeSession?.intention || sessionIntention}
               </span>
             </div>
           )}
-        </div>
-
-        <div className="timer-progress-track">
-          <div
-            className="timer-progress-fill"
-            style={{
-              transform: `scaleX(${
-                activeSession
-                  ? Math.max(
-                      0,
-                      Math.min(
-                        1,
-                        1 - timerSeconds / ((activeSession.durationMinutes || 25) * 60),
-                      ),
-                    )
-                  : 0
-              })`,
-            }}
-          />
         </div>
 
         <div className="timer-action-buttons">
@@ -267,17 +233,19 @@ export const FocusView: React.FC<FocusViewProps> = ({
               <button
                 className="btn-timer secondary"
                 onClick={() => handlePause(activeSession.id)}
+                disabled={isSequenceComplete}
               >
                 <Icon name="pause" size={16} />
                 <span>Pause Session</span>
               </button>
+              {isBreak && <button className="btn-timer primary" onClick={() => handleSkipBreak(activeSession.id)}>Skip break · focus next</button>}
               <button
                 className="btn-timer primary"
                 onClick={() => setCompletingSessionId(activeSession.id)}
                 data-tutorial="debrief-controls"
               >
                 <Icon name="check" size={16} />
-                <span>Complete & Summarize</span>
+                <span>Finish and reflect</span>
               </button>
               {handleCancelSession && (
                 <button
@@ -306,7 +274,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 onClick={() => setCompletingSessionId(activeSession.id)}
               >
                 <Icon name="check" size={16} />
-                <span>End & Summarize</span>
+                <span>Finish and reflect</span>
               </button>
               {handleCancelSession && (
                 <button
@@ -322,91 +290,30 @@ export const FocusView: React.FC<FocusViewProps> = ({
           )}
         </div>
 
-        {/* Endel-Inspired Calm Focus Atmosphere */}
-        <div className="focus-atmosphere-widget" aria-label="Focus Atmosphere Soundscapes">
-          <div className="focus-atmosphere-header">
-            <div className="focus-atmosphere-title">
-              <Icon name="sparkle" size={16} />
-              <span>Focus Atmosphere</span>
-              {isAtmospherePlaying && <span className="focus-atmosphere-badge">Playing</span>}
-            </div>
-            <button
-              type="button"
-              className="atmosphere-chip"
-              onClick={handleToggleAtmospherePlay}
-              title={isAtmospherePlaying ? 'Mute atmosphere audio' : 'Play atmosphere audio'}
-              style={{ padding: '3px 8px', fontSize: 11 }}
-            >
-              <Icon name={isAtmospherePlaying ? 'pause' : 'play'} size={12} />
-              <span>{isAtmospherePlaying ? 'Mute' : 'Play'}</span>
-            </button>
-          </div>
-
-          <div className="focus-atmosphere-chips" role="group" aria-label="Atmosphere Sound Choices">
-            <button
-              type="button"
-              className={`atmosphere-chip ${atmosphereSound === 'quiet' ? 'active' : ''}`}
-              onClick={() => handleSelectAtmosphere('quiet')}
-            >
-              Quiet
-            </button>
-            <button
-              type="button"
-              className={`atmosphere-chip ${atmosphereSound === 'gentle-rain' ? 'active' : ''}`}
-              onClick={() => handleSelectAtmosphere('gentle-rain')}
-            >
-              🌧️ Rain
-            </button>
-            <button
-              type="button"
-              className={`atmosphere-chip ${atmosphereSound === 'brown-noise' ? 'active' : ''}`}
-              onClick={() => handleSelectAtmosphere('brown-noise')}
-            >
-              🌊 Brown Noise
-            </button>
-            <button
-              type="button"
-              className={`atmosphere-chip ${atmosphereSound === 'ambient-stream' ? 'active' : ''}`}
-              onClick={() => handleSelectAtmosphere('ambient-stream')}
-            >
-              🎵 Stream
-            </button>
-            <button
-              type="button"
-              className={`atmosphere-chip ${atmosphereSound === 'pink-noise' ? 'active' : ''}`}
-              onClick={() => handleSelectAtmosphere('pink-noise')}
-            >
-              💨 Pink Noise
-            </button>
-          </div>
-
-          <div className="focus-atmosphere-controls">
-            <Icon name="bell" size={14} />
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={atmosphereVolume}
-              onChange={(e) => handleAtmosphereVolumeChange(Number(e.target.value))}
-              className="atmosphere-vol-slider"
-              aria-label="Atmosphere Volume"
-            />
-            <span className="atmosphere-vol-label">{Math.round(atmosphereVolume * 100)}%</span>
-          </div>
-        </div>
       </div>
 
       {/* Session Creator & Pomodoro Plans */}
       <div className="bento-card card-session-creator">
         <div className="card-header-row">
           <div className="card-title-group">
-            <span className="card-title">Session Configuration</span>
-            <span className="badge-tag">Duration & Presets</span>
+            <span className="card-title">{activeSession ? 'Current Session' : 'Session Configuration'}</span>
+            <span className="badge-tag">{activeSession ? `${currentPhase.replace('_', ' ').toLowerCase()} · ${activeSession.completedFocusCycles ?? 0}/${activeSession.pomodoroFocusCycles ?? 1} cycles` : 'Duration & Presets'}</span>
           </div>
-          <Icon name="target" size={20} />
+          <Icon name={activeSession ? 'clock' : 'target'} size={20} />
         </div>
 
+        {activeSession ? (
+          <div className="focus-session-live-context">
+            <span className="focus-context-label">{isBreak ? 'RECOVERY IS PART OF THE WORK' : 'ONE THING AT A TIME'}</span>
+            <strong>{activeSession.name}</strong>
+            <p>{isBreak ? 'Leave the screen, stretch, and return when the break ends.' : activeSession.intention || 'Keep your attention on this session. You can pause whenever you need to.'}</p>
+            <div className="focus-context-stat">
+              <span>{isBreak ? 'Break time remaining' : 'Active focus recorded'}</span>
+              <b>{formatTimerDigits(isBreak ? timerSeconds : activeSession.focusActiveSeconds ?? activeSession.activeSeconds)}{isBreak ? ' break' : ' focused'}</b>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="preset-chip-row">
           {durationPresets.map((mins) => (
             <button
@@ -433,6 +340,19 @@ export const FocusView: React.FC<FocusViewProps> = ({
             Custom
           </button>
         </div>
+
+        <section className="pomodoro-config" aria-label="Pomodoro cycle configuration">
+          <label className="pomodoro-toggle">
+            <input type="checkbox" checked={pomodoroEnabled} onChange={(event) => { setPomodoroEnabled(event.target.checked); setSelectedPomodoroPlan(null) }} />
+            <span>Run focus and break cycles</span>
+          </label>
+          {pomodoroEnabled && <div className="pomodoro-config-fields">
+            <label>Cycles<input type="number" min={1} max={12} value={pomodoroFocusCycles} onChange={(event) => setPomodoroFocusCycles(Math.max(1, Math.min(12, Number(event.target.value) || 1)))} /></label>
+            <label>Short break<input type="number" min={1} max={60} value={pomodoroShortBreakMinutes} onChange={(event) => setPomodoroShortBreakMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
+            <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
+          </div>}
+          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min focus × {pomodoroFocusCycles} cycles · {pomodoroShortBreakMinutes} min short breaks · {pomodoroLongBreakMinutes} min final break</p>}
+        </section>
 
         {isCustomDuration && (
           <div className="custom-duration-card">
@@ -493,6 +413,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
               onClick={() => {
                 setSelectedPomodoroPlan(plan.name)
                 setSelectedDuration(plan.totalMinutes)
+                setPomodoroEnabled(false)
               }}
             >
               <div>
@@ -503,6 +424,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
             </div>
           ))}
         </div>
+          </>
+        )}
       </div>
       </div>
 

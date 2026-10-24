@@ -1,6 +1,6 @@
 /**
  * SHINPO Progression & Rewards Engine
- * Universal reward coordination, daily objectives, achievements, audio chimes, and microinteractions.
+ * Universal reward coordination, daily objectives, achievements, and microinteractions.
  * Server-authoritative: Visual celebration only triggers after backend confirmation.
  */
 
@@ -235,84 +235,6 @@ export function deriveAchievements(
 }
 
 /**
- * Audio feedback state & singleton context for reward chimes.
- */
-let audioCtx: AudioContext | null = null
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null
-  const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-  if (!AudioContextClass) return null
-  if (!audioCtx || audioCtx.state === 'closed') {
-    audioCtx = new AudioContextClass()
-  }
-  return audioCtx
-}
-
-/**
- * Play a crystal-clear, harmonic multi-tone chime (Duolingo-inspired, SHINPO-original triad).
- * Zero asset files, zero bandwidth, zero latency.
- */
-export function playCelebrationChime(type: 'accomplishment' | 'level_up' | 'subtle' = 'accomplishment'): void {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const soundPref = localStorage.getItem('shinpo_celebration_sound')
-      if (soundPref === 'muted') return
-
-      const effectPref = localStorage.getItem('shinpo_celebration_effects')
-      if (effectPref === 'minimal' && type !== 'level_up') return
-    }
-
-    const ctx = getAudioContext()
-    if (!ctx) return
-
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
-
-    const now = ctx.currentTime
-
-    // Define harmonic pitches (C5 major triad: C5, E5, G5, or elevated C6 for level-up)
-    const chords =
-      type === 'level_up'
-        ? [523.25, 659.25, 783.99, 1046.5] // C5, E5, G5, C6 (flourish)
-        : type === 'accomplishment'
-        ? [523.25, 659.25, 783.99] // C5, E5, G5
-        : [587.33, 880.0] // D5, A5 (crisp subtle check)
-
-    const noteDuration = type === 'level_up' ? 0.35 : 0.22
-    const totalDuration = type === 'level_up' ? 1.4 : 0.8
-
-    const masterGain = ctx.createGain()
-    masterGain.gain.setValueAtTime(0.001, now)
-    masterGain.gain.exponentialRampToValueAtTime(0.12, now + 0.04)
-    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + totalDuration)
-    masterGain.connect(ctx.destination)
-
-    chords.forEach((freq, idx) => {
-      const osc = ctx.createOscillator()
-      const noteGain = ctx.createGain()
-
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, now)
-
-      const noteStart = now + idx * 0.08
-      noteGain.gain.setValueAtTime(0.001, noteStart)
-      noteGain.gain.exponentialRampToValueAtTime(0.8 / (idx + 1), noteStart + 0.02)
-      noteGain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration)
-
-      osc.connect(noteGain)
-      noteGain.connect(masterGain)
-
-      osc.start(noteStart)
-      osc.stop(noteStart + noteDuration)
-    })
-  } catch {
-    // Graceful fallback: audio failure never impacts application workflow
-  }
-}
-
-/**
  * Spawns elegant celebration particle sparkles in a non-intrusive viewport container.
  * Automatically respects `prefers-reduced-motion` and `shinpo_celebration_effects === 'minimal'`.
  */
@@ -383,4 +305,3 @@ export function spawnCelebrationSparkles(sourceRect?: DOMRect | null): void {
     }
   }, 950)
 }
-

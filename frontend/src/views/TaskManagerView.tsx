@@ -130,7 +130,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       if (st) setSentinelStatus(st)
       void loadDeviceProcesses?.()
     } catch (err: unknown) {
-      setTmToast(err instanceof Error ? err.message : 'Sentinel sweep failed')
+      setTmToast(err instanceof Error ? err.message : 'Focus protection check failed')
       setTimeout(() => setTmToast(null), 4000)
     } finally {
       setSentinelSweeping(false)
@@ -140,7 +140,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   const handleToggleSentinelMode = async () => {
     if (!sentinelStatus) return
     if (sentinelStatus.isPolicyLocked) {
-      setTmToast('Focus Protection Locked: Protection mode cannot be changed during an active session. Use Emergency Override.')
+      setTmToast('Focus protection is locked during an active session. Use Emergency Override to change it.')
       setShowOverrideModal(true)
       setTimeout(() => setTmToast(null), 4500)
       return
@@ -203,7 +203,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       return
     }
     if (overrideReason.trim().length < 15) {
-      setOverrideError('Justification must be at least 15 characters to satisfy audit requirements')
+      setOverrideError('Explain why you need this change in at least 15 characters.')
       return
     }
     setOverrideLoading(true)
@@ -239,7 +239,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         {/* CPU Metric Card */}
         <div className="tm-metric-card">
           <div className="tm-metric-top">
-            <span className="tm-metric-label">BACKEND CPU LOAD</span>
+            <span className="tm-metric-label">SYSTEM CPU</span>
             <div className="tm-metric-icon">
               <Icon name="focus" size={16} />
             </div>
@@ -265,7 +265,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         {/* Memory Metric Card */}
         <div className="tm-metric-card">
           <div className="tm-metric-top">
-            <span className="tm-metric-label">BACKEND MEMORY</span>
+            <span className="tm-metric-label">SYSTEM MEMORY</span>
             <div className="tm-metric-icon">
               <Icon name="apps" size={16} />
             </div>
@@ -310,7 +310,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         {/* Process Count Metric Card */}
         <div className="tm-metric-card">
           <div className="tm-metric-top">
-            <span className="tm-metric-label">ACTIVE PROCESSES</span>
+            <span className="tm-metric-label">RUNNING APPS</span>
             <div className="tm-metric-icon">
               <Icon name="schedule" size={16} />
             </div>
@@ -691,7 +691,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   }}
                 >
                   <Icon name="check-circle" size={15} />
-                  <span>No distraction applications intercepted recently. Focus workspace is clear.</span>
+                  <span>No distracting apps were blocked recently. Your focus workspace is clear.</span>
                 </div>
               ) : (
                 <div className="sentinel-activity-timeline">
@@ -922,12 +922,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         <div className="quick-modal-overlay" onClick={() => setShowAddRuleModal(false)}>
           <div className="quick-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 'min(520px, calc(100vw - 32px))' }}>
             <div className="quick-modal-header">
-              <h3 className="quick-modal-title">Block Application</h3>
+              <h3 className="quick-modal-title">Block an app</h3>
               <button type="button" className="quick-modal-close" onClick={() => setShowAddRuleModal(false)}>×</button>
             </div>
             <form onSubmit={handleAddSentinelRule} className="quick-modal-body">
               <div className="quick-form-group">
-                <label className="quick-form-label">PROCESS NAME OR EXECUTABLE PATTERN</label>
+                <label className="quick-form-label">APP NAME OR FILE PATTERN</label>
                 <input
                   type="text"
                   className="quick-form-input"
@@ -1036,7 +1036,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               </div>
 
               <div className="quick-form-group">
-                <label className="quick-form-label">ACCOUNT PASSWORD</label>
+                <label className="quick-form-label">ACCOUNT password</label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
                     type={showOverridePassword ? 'text' : 'password'}

@@ -330,7 +330,7 @@ class Slice63BackendReliabilityTests {
         ReflectionTestUtils.setField(session, "id", 301L);
         session.setStatus(FocusSessionStatus.SCHEDULED);
 
-        when(focusSessionRepository.findByIdAndUser_Id(301L, USER_ID)).thenReturn(Optional.of(session));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(301L, USER_ID)).thenReturn(Optional.of(session));
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // 1. SCHEDULED -> ACTIVE
@@ -363,7 +363,7 @@ class Slice63BackendReliabilityTests {
         session.setStartedAt(BASE_NOW.minusSeconds(1200)); // 20 minutes ago
         session.setAccumulatedPausedSeconds(0L);
 
-        when(focusSessionRepository.findByIdAndUser_Id(302L, USER_ID)).thenReturn(Optional.of(session));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(302L, USER_ID)).thenReturn(Optional.of(session));
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(inv -> inv.getArgument(0));
 
         FocusSessionResponse cancelResp = focusSessionService.cancelSession(302L, USER_ID);
@@ -384,7 +384,7 @@ class Slice63BackendReliabilityTests {
         session.setPausedAt(BASE_NOW.minusSeconds(300));    // Paused 5 mins ago
         session.setAccumulatedPausedSeconds(0L);
 
-        when(focusSessionRepository.findByIdAndUser_Id(303L, USER_ID)).thenReturn(Optional.of(session));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(303L, USER_ID)).thenReturn(Optional.of(session));
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(inv -> inv.getArgument(0));
 
         FocusSessionResponse cancelResp = focusSessionService.cancelSession(303L, USER_ID);
@@ -406,7 +406,7 @@ class Slice63BackendReliabilityTests {
         ReflectionTestUtils.setField(completedSession, "id", 304L);
         completedSession.setStatus(FocusSessionStatus.COMPLETED);
 
-        when(focusSessionRepository.findByIdAndUser_Id(304L, USER_ID)).thenReturn(Optional.of(completedSession));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(304L, USER_ID)).thenReturn(Optional.of(completedSession));
 
         // COMPLETED -> ACTIVE must fail
         assertThrows(IllegalStateException.class, () -> focusSessionService.startSession(304L, USER_ID));
@@ -417,7 +417,7 @@ class Slice63BackendReliabilityTests {
         FocusSession cancelledSession = createSession(testUser, "Cancelled", 30, BASE_NOW);
         ReflectionTestUtils.setField(cancelledSession, "id", 305L);
         cancelledSession.setStatus(FocusSessionStatus.CANCELLED);
-        when(focusSessionRepository.findByIdAndUser_Id(305L, USER_ID)).thenReturn(Optional.of(cancelledSession));
+        when(focusSessionRepository.findByIdAndUser_IdForUpdate(305L, USER_ID)).thenReturn(Optional.of(cancelledSession));
 
         // CANCELLED -> ACTIVE must fail
         assertThrows(IllegalStateException.class, () -> focusSessionService.startSession(305L, USER_ID));

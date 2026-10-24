@@ -8,7 +8,7 @@
 // 3. Goal Creation & Editing
 // 4. Task Creation Linked to Goal & Board/List Toggles
 // 5. Calendar Scheduling
-// 6. Focus Engine (Start, Soundscape, Pause, Resume, Complete, Reflection)
+// 6. Focus Engine (Start, Pause, Resume, Complete, Reflection)
 // 7. Contextual Study Resources (Whitelist CRUD)
 // 8. Focus Protection (Sentinel modes, Process safety)
 // 9. EONPAI Cognitive Guide (Prompting, Planning, Response rendering)

@@ -49,6 +49,16 @@ export function getTodayScheduleSessions(
   }), activeSession)
 }
 
+export function isMissionInFocusSession(
+  mission: { id: number; title: string },
+  session?: FocusSession | null,
+): boolean {
+  if (!session) return false
+  if (session.missionId !== null) return session.missionId === mission.id
+  return mission.title.toLowerCase() === session.name.toLowerCase()
+    || Boolean(session.intention && mission.title.toLowerCase() === session.intention.toLowerCase())
+}
+
 export function getSessionSecondaryInfo(s: FocusSession): string {
   // 1. If active
   if (s.status === 'ACTIVE') {

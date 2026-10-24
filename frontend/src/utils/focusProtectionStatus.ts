@@ -157,12 +157,12 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     if (shieldConnected) {
       return {
         statusKey: 'ACTIVE_DEFENSE',
-        badgeText: isAuditOnly ? 'Active Monitoring' : 'Active Defense',
+        badgeText: isAuditOnly ? 'Native Monitoring' : 'Native Defense',
         badgeVariant: 'active',
         headline: activeSessionName ? `Protecting: "${activeSessionName}"` : 'Active Focus Session Protected',
         description: isAuditOnly
           ? 'Focus session active in Monitoring Only mode. Workstation activity is logged; no applications will be terminated.'
-          : 'Native Shield daemon is actively defending workstation against distraction applications.',
+          : 'Native Shield daemon is enforcing workstation application policies. Browser protection is reported separately.',
         shieldConnected: true,
         mode,
         isPolicyLocked,
@@ -187,7 +187,7 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     if (rawStatus === 'STANDBY') {
       return {
         statusKey: 'STANDBY',
-        badgeText: isAuditOnly ? 'Monitoring Standby' : 'Standby',
+        badgeText: isAuditOnly ? 'Native Monitoring' : 'Native Shield Standby',
         badgeVariant: 'standby',
         headline: 'Standby (Upcoming Sprint)',
         description: isAuditOnly
@@ -201,12 +201,12 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
     }
     return {
       statusKey: 'READY',
-      badgeText: isAuditOnly ? 'Monitoring Only' : 'Ready',
+      badgeText: isAuditOnly ? 'Native Monitoring' : 'Native Shield Ready',
       badgeVariant: isAuditOnly ? 'standby' : 'ready',
       headline: isAuditOnly ? 'Monitoring Only (Passive)' : 'Ready (Passive Standby)',
       description: isAuditOnly
         ? 'No active focus session. Workstation is in passive telemetry monitoring mode; applications will not be terminated.'
-        : 'No active focus session. Workstation monitored in passive telemetry standby.',
+        : 'No active focus session. Native Shield is in passive workstation standby; browser protection is reported separately.',
       shieldConnected: true,
       mode,
       isPolicyLocked,

@@ -103,10 +103,6 @@ The application executes a continuous, unbroken execution loop:
   - Precision countdown using server-anchored timestamps (`startedAt`, `accumulatedPausedSeconds`).
   - Resilient to background-tab throttling without cumulative drift.
   - Freeze countdown cleanly during `PAUSED` state.
-- **Endel-Inspired Focus Atmosphere (Soundscapes):**
-  - Procedural soundscapes synthesized client-side via Web Audio API (`AudioContext`).
-  - Sound options: Quiet (Off), Gentle Rain (resonant bandpass with slow LFO), Brown Noise (deep 1/f² rumble), Ambient Stream (dual harmonic sine drone), Pink Noise (balanced 1/f).
-  - 100% offline-safe, ₹0 cost, zero network asset latency, and auto-syncs with focus session start/pause/complete.
 - **Session Reflection & Debrief:**
   - Post-session reflection modal: 1–5 star rating, accomplishment summary, and reflection notes.
   - Optional auto-completion of linked mission/task.
@@ -203,7 +199,7 @@ The onboarding award is not issued for tutorial clicks, reported booleans, local
 - **Operation Momentum Universal Rewards & Progression Layer:**
   - Centralized feedback coordinator (`progressionEngine.ts`) wired to real backend completions (tasks, focus sprints, goals, level tiers, onboarding).
   - Duolingo-inspired celebration modal (`CelebrationModal.tsx`) with animated XP burst, tier announcement, and contextual next-action prompts ("Arm Next Sprint", "Debrief with EONPAI", "View Progression").
-  - Procedural Web Audio API harmonic triad chime (`playCelebrationChime`): zero network assets, zero latency, offline-safe, with user toggle in Settings.
+  - Visual-only celebration feedback: zero network assets, with reduced-motion and user preference safeguards.
   - Daily Execution Flow card (`DailyObjectivesCard.tsx`): 3 daily targets (1 task, 1 sprint >=15m, 25m deep work) computed directly from real-time database state.
   - Healthy consistency streak tracking with quiet mode preference in Settings (`shinpo_streak_display`).
   - Comprehensive progression profile dialog (`AchievementsModal.tsx`): accessible via TopBar Level Badge, displaying tier progress, daily objectives, 8 milestone achievements, and recent XP ledger.
@@ -273,4 +269,3 @@ The requested video was not present in the workspace, so this pass used the writ
 | Full recording, zoom levels, tutorial, overlays, cross-screen data | Cannot independently reproduce from this workspace | Recording and authenticated runtime evidence unavailable | No speculative changes made | Existing QA scripts/screenshots only | NOT VERIFIED |
 
 The recovery changes preserve live task/session data and do not introduce fixtures or hardcoded metrics.
-

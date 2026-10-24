@@ -65,7 +65,7 @@
   background: rgba(22, 26, 36, 0.98);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: all 0.2s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -89,7 +89,7 @@
 .shinpo-toast-item.toast-reward {
   background: rgba(22, 28, 48, 0.98);
   border: 1px solid rgba(110, 144, 251, 0.6);
-  box-shadow: 0 16px 40px rgba(77, 119, 249, 0.25), inset 0 1px 0 rgba(110, 144, 251, 0.3);
+  box-shadow: 0 16px 40px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(110, 144, 251, 0.3);
 }
 
 .theme-light .shinpo-toast-item.toast-reward,
@@ -100,14 +100,14 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 }
 
 .shinpo-toast-item.toast-reward .shinpo-toast-icon {
-  background: linear-gradient(135deg, rgba(77, 119, 249, 0.25), rgba(151, 87, 250, 0.25));
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(49, 86, 216, 0.25));
   border: 1px solid rgba(110, 144, 251, 0.4);
   color: #6E90FB;
 }
 
 .theme-light .shinpo-toast-item.toast-reward .shinpo-toast-icon {
   background: rgba(43, 88, 230, 0.1) !important;
-  color: #2B58E6 !important;
+  color: #2563EB !important;
 }
 
 .shinpo-toast-icon {
@@ -155,11 +155,17 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 }
 
 .shinpo-toast-title {
+  min-width: 0;
   font-size: 15px;
   font-weight: 700;
   color: var(--text, #F3F4F6);
   letter-spacing: -0.01em;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .shinpo-toast-badge {
@@ -197,6 +203,10 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
   line-height: 1.45;
   word-break: break-word;
   margin-top: 2px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .shinpo-toast-time {

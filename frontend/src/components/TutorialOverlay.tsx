@@ -42,9 +42,12 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   const [coachmarkPos, setCoachmarkPos] = useState<{ top: number; left: number }>({ top: 120, left: 100 })
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false)
   const coachmarkRef = useRef<HTMLDivElement>(null)
+  const lastRecordedStep = useRef(stepIndex)
 
-  // Persist only which informational step is being viewed; this is never reward evidence.
+  // The start endpoint persists the initial step; only navigation needs a progress write.
   useEffect(() => {
+    if (lastRecordedStep.current === stepIndex) return
+    lastRecordedStep.current = stepIndex
     recordOnboardingStep(stepIndex).catch(() => {})
   }, [stepIndex])
 
@@ -285,6 +288,16 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div
+          className="coachmark-progress"
+          role="progressbar"
+          aria-label="Walkthrough progress"
+          aria-valuemin={1}
+          aria-valuemax={totalSteps}
+          aria-valuenow={stepIndex + 1}
+        >
+          <span style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }} />
+        </div>
         <div className="coachmark-header">
           <div className="coachmark-identity">
             <span className="coachmark-eonpai-avatar">
@@ -309,11 +322,14 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
 
         <div className="coachmark-body">
           <h4 id="coachmark-title" className="coachmark-title">{step.title}</h4>
+          <p className="coachmark-value-line">
+            Build your first reliable execution loop.
+          </p>
           <blockquote className="coachmark-dialogue">
             &ldquo;{step.eonpaiDialogue}&rdquo;
           </blockquote>
           <p className="coachmark-instruction">
-            <span className="instruction-arrow">→</span> {step.instruction}
+            <span className="instruction-arrow">→</span> <strong>Try it now:</strong> {step.instruction}
           </p>
 
           {/* Why It Matters Callout */}
@@ -359,7 +375,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
               className="btn-coachmark primary"
               onClick={onNext}
             >
-              {stepIndex === totalSteps - 1 ? 'Finish Tour' : 'Next Step →'}
+              {stepIndex === totalSteps - 1 ? 'Finish & View Progress' : 'Continue →'}
             </button>
           </div>
         </div>

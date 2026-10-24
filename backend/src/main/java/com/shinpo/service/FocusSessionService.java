@@ -10,6 +10,7 @@ import com.shinpo.entity.Goal;
 import com.shinpo.entity.Mission;
 import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.SessionPlan;
+import com.shinpo.entity.SessionIntervalType;
 import com.shinpo.entity.User;
 import com.shinpo.repository.FocusSessionRepository;
 import com.shinpo.repository.GoalRepository;
@@ -144,6 +145,10 @@ public class FocusSessionService {
         session.setName(request.getName());
         session.setIntention(request.getIntention());
         session.setDurationMinutes(request.getDurationMinutes());
+        session.setPomodoroEnabled(request.isPomodoroEnabled());
+        session.setPomodoroFocusCycles(request.getPomodoroFocusCycles());
+        session.setPomodoroShortBreakMinutes(request.getPomodoroShortBreakMinutes());
+        session.setPomodoroLongBreakMinutes(request.getPomodoroLongBreakMinutes());
         session.setScheduledAt(request.getScheduledAt());
         session.setStatus(FocusSessionStatus.SCHEDULED);
         session.setAccumulatedPausedSeconds(0L);
@@ -167,7 +172,9 @@ public class FocusSessionService {
 
         Instant now = Instant.now();
         for (FocusSession session : sessions) {
-            checkAndApplyExpiration(session, now);
+            FocusSession locked = getSessionEntity(session.getId(), userId);
+            advancePomodoro(locked, now);
+            checkAndApplyExpiration(locked, now);
         }
 
         return sessions.stream()
@@ -185,7 +192,9 @@ public class FocusSessionService {
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
         Instant now = Instant.now();
         for (FocusSession session : sessions) {
-            checkAndApplyExpiration(session, now);
+            FocusSession locked = getSessionEntity(session.getId(), userId);
+            advancePomodoro(locked, now);
+            checkAndApplyExpiration(locked, now);
         }
         return sessions.stream().map(FocusSessionResponse::from).toList();
     }
@@ -205,7 +214,9 @@ public class FocusSessionService {
         List<FocusSession> sessions = focusSessionRepository.findSessionsForUserBetween(userId, start, end);
         Instant now = Instant.now();
         for (FocusSession session : sessions) {
-            checkAndApplyExpiration(session, now);
+            FocusSession locked = getSessionEntity(session.getId(), userId);
+            advancePomodoro(locked, now);
+            checkAndApplyExpiration(locked, now);
         }
         return sessions.stream().map(FocusSessionResponse::from).toList();
     }
@@ -218,6 +229,7 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse getSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
+        advancePomodoro(session, Instant.now());
         checkAndApplyExpiration(session, Instant.now());
         return FocusSessionResponse.from(session);
     }
@@ -290,6 +302,7 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setStartedAt(Instant.now());
+        session.setPhaseStartedAt(session.isPomodoroEnabled() ? session.getStartedAt() : null);
         session.setPausedAt(null);
         session.incrementContextPolicyRevision();
 
@@ -302,15 +315,24 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse pauseSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
+        Instant now = Instant.now();
+        advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.ACTIVE) {
             throw new IllegalStateException(
                     "Focus session can only be paused from ACTIVE"
             );
         }
+        if (session.getCurrentPhase() == SessionIntervalType.COMPLETE) {
+            throw new IllegalStateException("Pomodoro sequence is complete; finish the reflection instead");
+        }
 
         session.setStatus(FocusSessionStatus.PAUSED);
-        session.setPausedAt(Instant.now());
+        session.setPausedAt(now);
+        if (session.isPomodoroEnabled()) {
+            session.setPhaseElapsedSeconds(currentPhaseElapsed(session, now));
+            session.setPhaseStartedAt(null);
+        }
         session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
@@ -339,6 +361,7 @@ public class FocusSessionService {
 
         session.setStatus(FocusSessionStatus.ACTIVE);
         session.setPausedAt(null);
+        if (session.isPomodoroEnabled()) session.setPhaseStartedAt(now);
         session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
@@ -355,6 +378,8 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse completeSession(Long sessionId, Long userId, CompleteFocusSessionRequest request) {
         FocusSession session = getSessionEntity(sessionId, userId);
+        Instant now = Instant.now();
+        advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.ACTIVE && session.getStatus() != FocusSessionStatus.PAUSED) {
             throw new IllegalStateException(
@@ -362,7 +387,6 @@ public class FocusSessionService {
             );
         }
 
-        Instant now = Instant.now();
         if (session.getStatus() == FocusSessionStatus.PAUSED && session.getPausedAt() != null) {
             long finalPauseSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
             session.setAccumulatedPausedSeconds(
@@ -371,10 +395,18 @@ public class FocusSessionService {
             session.setPausedAt(null);
         }
 
-        long activeMinutes = Math.min(
-                session.calculateActiveSeconds(now) / 60L,
-                session.getDurationMinutes() != null ? session.getDurationMinutes() : 0
-        );
+        if (session.isPomodoroEnabled()) {
+            long elapsed = currentPhaseElapsed(session, now);
+            if (session.getCurrentPhase() == SessionIntervalType.FOCUS) session.setFocusActiveSeconds(session.getFocusActiveSeconds() + elapsed);
+            else if (session.getCurrentPhase() == SessionIntervalType.SHORT_BREAK || session.getCurrentPhase() == SessionIntervalType.LONG_BREAK) session.setBreakActiveSeconds(session.getBreakActiveSeconds() + elapsed);
+            session.setPhaseElapsedSeconds(0L);
+            session.setPhaseStartedAt(null);
+        }
+
+        long rewardableSeconds = session.isPomodoroEnabled()
+                ? session.getFocusActiveSeconds()
+                : Math.min(session.calculateActiveSeconds(now), (long) (session.getDurationMinutes() != null ? session.getDurationMinutes() : 0) * 60L);
+        long activeMinutes = rewardableSeconds / 60L;
 
         session.setStatus(FocusSessionStatus.COMPLETED);
         session.setEndedAt(now);
@@ -383,8 +415,7 @@ public class FocusSessionService {
         if (progressEventRepository != null && activeMinutes >= 15) {
             int earnedProgress = activeMinutes >= 45 ? 25 : 15;
             ProgressEvent progressEvent = new ProgressEvent(
-                    session.getUser(),
-                    null,
+                    session.getUser(), session, session.getGoal(),
                     "FOCUS_SESSION_COMPLETED",
                     earnedProgress
             );
@@ -400,7 +431,7 @@ public class FocusSessionService {
                 Mission mission = session.getMission();
                 if (!"COMPLETED".equalsIgnoreCase(mission.getStatus()) && missionCompletionService != null) {
                     try {
-                        long activeSeconds = session.calculateActiveSeconds(now);
+                        long activeSeconds = rewardableSeconds;
                         int actualMins = (int) Math.max(1, activeSeconds / 60);
                         missionCompletionService.completeMission(
                                 mission.getId(),
@@ -423,6 +454,8 @@ public class FocusSessionService {
     @Transactional
     public FocusSessionResponse cancelSession(Long sessionId, Long userId) {
         FocusSession session = getSessionEntity(sessionId, userId);
+        Instant now = Instant.now();
+        advancePomodoro(session, now);
 
         if (session.getStatus() != FocusSessionStatus.SCHEDULED
                 && session.getStatus() != FocusSessionStatus.ACTIVE
@@ -432,7 +465,6 @@ public class FocusSessionService {
             );
         }
 
-        Instant now = Instant.now();
         if (session.getStatus() == FocusSessionStatus.PAUSED && session.getPausedAt() != null) {
             long finalPauseSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
             session.setAccumulatedPausedSeconds(
@@ -440,9 +472,17 @@ public class FocusSessionService {
             );
         }
 
+        if (session.isPomodoroEnabled()) {
+            long elapsed = currentPhaseElapsed(session, now);
+            if (session.getCurrentPhase() == SessionIntervalType.FOCUS) session.setFocusActiveSeconds(session.getFocusActiveSeconds() + elapsed);
+            else if (session.getCurrentPhase() == SessionIntervalType.SHORT_BREAK || session.getCurrentPhase() == SessionIntervalType.LONG_BREAK) session.setBreakActiveSeconds(session.getBreakActiveSeconds() + elapsed);
+            session.setPhaseElapsedSeconds(0L);
+        }
+
         session.setStatus(FocusSessionStatus.CANCELLED);
         session.setEndedAt(now);
         session.setPausedAt(null);
+        session.setPhaseStartedAt(null);
         session.incrementContextPolicyRevision();
 
         FocusSession saved = focusSessionRepository.save(session);
@@ -481,15 +521,79 @@ public class FocusSessionService {
                 List.of(FocusSessionStatus.SCHEDULED, FocusSessionStatus.ACTIVE, FocusSessionStatus.PAUSED)
         );
         for (FocusSession session : candidates) {
-            checkAndApplyExpiration(session, now);
+            FocusSession locked = getSessionEntity(session.getId(), session.getUser().getId());
+            advancePomodoro(locked, now);
+            checkAndApplyExpiration(locked, now);
         }
+    }
+
+    @Transactional
+    public FocusSessionResponse skipBreak(Long sessionId, Long userId) {
+        FocusSession session = getSessionEntity(sessionId, userId);
+        Instant now = Instant.now();
+        advancePomodoro(session, now);
+        if (!session.isPomodoroEnabled() || session.getStatus() != FocusSessionStatus.ACTIVE
+                || (session.getCurrentPhase() != SessionIntervalType.SHORT_BREAK && session.getCurrentPhase() != SessionIntervalType.LONG_BREAK)) {
+            throw new IllegalStateException("Only an active Pomodoro break can be skipped");
+        }
+        session.setBreakActiveSeconds(session.getBreakActiveSeconds() + currentPhaseElapsed(session, now));
+        session.setPhaseElapsedSeconds(0L);
+        session.setPhaseStartedAt(now);
+        session.setCurrentPhase(session.getCurrentPhase() == SessionIntervalType.LONG_BREAK
+                ? SessionIntervalType.COMPLETE : SessionIntervalType.FOCUS);
+        if (session.getCurrentPhase() == SessionIntervalType.COMPLETE) session.setPhaseStartedAt(null);
+        FocusSession saved = focusSessionRepository.save(session);
+        webSocketEventService.broadcastFocusSession(userId, saved);
+        return FocusSessionResponse.from(saved);
+    }
+
+    private void advancePomodoro(FocusSession session, Instant now) {
+        if (!session.isPomodoroEnabled() || session.getStatus() != FocusSessionStatus.ACTIVE) return;
+        int guard = session.getPomodoroFocusCycles() * 2 + 2;
+        while (guard-- > 0 && session.getPhaseStartedAt() != null && session.getCurrentPhase() != SessionIntervalType.COMPLETE) {
+            long phaseBudget = (long) session.currentPhaseDurationMinutes() * 60L;
+            long carried = session.getPhaseElapsedSeconds();
+            long elapsed = carried + Math.max(0L, Duration.between(session.getPhaseStartedAt(), now).toSeconds());
+            if (elapsed < phaseBudget) break;
+            Instant boundary = session.getPhaseStartedAt().plusSeconds(Math.max(0L, phaseBudget - carried));
+            long completedPhaseSeconds = Math.max(0L, phaseBudget - carried);
+            if (session.getCurrentPhase() == SessionIntervalType.FOCUS) {
+                session.setFocusActiveSeconds(session.getFocusActiveSeconds() + completedPhaseSeconds);
+                session.setCompletedFocusCycles(session.getCompletedFocusCycles() + 1);
+                session.setCurrentPhase(session.getCompletedFocusCycles() >= session.getPomodoroFocusCycles()
+                        ? SessionIntervalType.LONG_BREAK : SessionIntervalType.SHORT_BREAK);
+            } else {
+                session.setBreakActiveSeconds(session.getBreakActiveSeconds() + completedPhaseSeconds);
+                if (session.getCurrentPhase() == SessionIntervalType.LONG_BREAK) {
+                    session.setCurrentPhase(SessionIntervalType.COMPLETE);
+                } else {
+                    session.setCurrentPhase(SessionIntervalType.FOCUS);
+                }
+            }
+            session.setPhaseElapsedSeconds(0L);
+            session.setPhaseStartedAt(session.getCurrentPhase() == SessionIntervalType.COMPLETE ? null : boundary);
+        }
+    }
+
+    private long currentPhaseElapsed(FocusSession session, Instant now) {
+        long elapsed = session.getPhaseElapsedSeconds();
+        if (session.getPhaseStartedAt() != null && session.getStatus() == FocusSessionStatus.ACTIVE) {
+            elapsed += Math.max(0L, Duration.between(session.getPhaseStartedAt(), now).toSeconds());
+        }
+        return elapsed;
     }
 
     public boolean checkAndApplyExpiration(FocusSession session, Instant now) {
         if (session.getStatus() == FocusSessionStatus.SCHEDULED) {
             if (session.getScheduledAt() != null) {
+                long plannedMinutes = session.getDurationMinutes();
+                if (session.isPomodoroEnabled()) {
+                    plannedMinutes = (long) session.getDurationMinutes() * session.getPomodoroFocusCycles()
+                            + (long) session.getPomodoroShortBreakMinutes() * Math.max(0, session.getPomodoroFocusCycles() - 1)
+                            + session.getPomodoroLongBreakMinutes();
+                }
                 Instant expirationThreshold = session.getScheduledAt()
-                        .plus(Duration.ofMinutes(session.getDurationMinutes()));
+                        .plus(Duration.ofMinutes(plannedMinutes));
                 if (now.isAfter(expirationThreshold)) {
                     log.info("SESSION_EXPIRED: Scheduled focus session {} exceeded execution window.", session.getId());
                     session.setStatus(FocusSessionStatus.EXPIRED);
@@ -500,7 +604,8 @@ public class FocusSessionService {
                 }
             }
         } else if (session.getStatus() == FocusSessionStatus.ACTIVE) {
-            long budgetSeconds = (long) session.getDurationMinutes() * 60L;
+            long budgetSeconds = (long) session.getDurationMinutes() * 60L
+                    * (session.isPomodoroEnabled() ? session.getPomodoroFocusCycles() : 1L);
             long activeSeconds = session.calculateActiveSeconds(now);
             if (activeSeconds > budgetSeconds * 2) {
                 log.info("SESSION_EXPIRED: Active focus session {} abandoned beyond duration limit.", session.getId());
@@ -515,7 +620,8 @@ public class FocusSessionService {
             // (i.e., the user clearly forgot about them).
             if (session.getPausedAt() != null) {
                 long pausedForSeconds = Duration.between(session.getPausedAt(), now).toSeconds();
-                long abandonThresholdSeconds = (long) session.getDurationMinutes() * 60L * 4L;
+                long abandonThresholdSeconds = (long) session.getDurationMinutes() * 60L
+                        * (session.isPomodoroEnabled() ? session.getPomodoroFocusCycles() : 1L) * 4L;
                 if (pausedForSeconds > abandonThresholdSeconds) {
                     log.info("SESSION_EXPIRED: Paused focus session {} abandoned — paused for {}s.", session.getId(), pausedForSeconds);
                     // Accumulate the pause time up to the threshold so activeSeconds is still sane
@@ -536,7 +642,7 @@ public class FocusSessionService {
 
     private FocusSession getSessionEntity(Long sessionId, Long userId) {
         return focusSessionRepository
-                .findByIdAndUser_Id(sessionId, userId)
+                .findByIdAndUser_IdForUpdate(sessionId, userId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Focus session not found: " + sessionId

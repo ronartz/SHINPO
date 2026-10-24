@@ -28,17 +28,17 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-goal-title">
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Create Goal</h3>
+        <h3 id="create-goal-title" className="modal-title">Create Goal</h3>
         <p className="modal-sub">
-          Set a high-level goal. You can break it down into tasks later with EONPAI.
+          Set an outcome you want to achieve. You can turn it into smaller tasks later.
         </p>
 
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="create-goal-title" className="shinpo-field-label" style={{ marginBottom: 6 }}>
-              Goal Title
+              Goal name
             </label>
             <input
               id="create-goal-title"
@@ -46,6 +46,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
               placeholder="e.g. Master Distributed Systems, Finish Q3 Milestone..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
               className="modal-field"
               required
               autoFocus
@@ -58,9 +59,10 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
             </label>
             <textarea
               id="create-goal-desc"
-              placeholder="Description or target outcome..."
+              placeholder="What does success look like?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              maxLength={2000}
               className="modal-field"
               rows={3}
             />
@@ -68,7 +70,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
 
           <div style={{ marginBottom: 20 }}>
             <ShinpoDatePicker
-              label="Target Date"
+              label="Target date"
               value={targetDate}
               onChange={setTargetDate}
             />
@@ -92,4 +94,3 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
     </div>
   )
 }
-

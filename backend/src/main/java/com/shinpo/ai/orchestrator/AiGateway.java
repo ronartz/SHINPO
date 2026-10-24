@@ -296,7 +296,9 @@ public class AiGateway {
         Map<String, Object> safeContext = contextEngine.toSafeContextMap(intelContext);
 
         AIProvider provider = getActiveProvider();
-        if (aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
+        // Let the provider perform the request and report failure; a separate health probe
+        // on every chat adds latency and can reject a working generation endpoint.
+        if (aiProperties.isEnabled() && provider != null) {
             String silenceDirective = intelContext.isSilenceModeActive()
                     ? "SILENCE MODE ACTIVE: User is in an active focus sprint. Keep replies extremely calm, brief, and directly relevant to the user's specific request. Do NOT introduce new tasks, planning rabbit holes, or conversational tangents. Preserve flow state.\n"
                     : "";
@@ -851,18 +853,10 @@ public class AiGateway {
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
 
-        AIProvider provider = getActiveProvider();
-        boolean isOffline = provider != null && !provider.isAvailable();
-
         StringBuilder sb = new StringBuilder();
-        if (isOffline) {
-            sb.append("**Local AI Model Offline**\n\n")
-              .append("The local language model (Ollama) is currently offline or unreachable. ")
-              .append("EONPAI is operating in deterministic rule-based assistant mode.\n\n");
-        } else {
-            sb.append("**EONPAI Execution Assistant**\n\n")
-              .append("I can assist with your workflow, goal decomposition, and focus management.\n\n");
-        }
+        sb.append("**EONPAI Execution Assistant**\n\n")
+          .append("I can assist with your workflow, goal decomposition, and focus management.\n\n")
+          .append("I’m using SHINPO’s built-in guidance right now; generated AI may be temporarily unavailable.\n\n");
 
         sb.append("Here is how I can assist you directly:\n")
           .append("• **Focus Planning**: Request a structured daily focus itinerary based on your active goals.\n")
@@ -870,7 +864,7 @@ public class AiGateway {
           .append("• **Goal Decomposition**: Break broad strategic objectives into actionable 25–45 minute tasks.\n")
           .append("• **Sentinel Protection**: Inspect active application shields or study resource access rules.\n")
           .append("• **Issue Reporting**: File a verified defect report with non-sensitive runtime diagnostics.\n\n")
-          .append("To enable full generative conversational responses, ensure your local Ollama daemon is running with an installed model (`ollama run qwen2.5:3b` or `llama3.2`).");
+          .append("Connect a cloud AI provider in the server configuration to enable generated conversational responses.");
 
         String reply = sb.toString();
         logSuggestion(userId, "COACH", rawMsg, reply);

@@ -16,6 +16,12 @@ echo "  Targets: Standalone AppImage, Debian (.deb), Native Binaries"
 echo "  Architecture: Tauri v2 + React 19 + Native Rust Shield & Companion"
 echo "======================================================================"
 
+SERVER_URL="${VITE_SHINPO_SERVER_URL:-}"
+if [[ ! "${SERVER_URL}" =~ ^https://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ || "${SERVER_URL}" == *"@"* || "${SERVER_URL}" == https://localhost* || "${SERVER_URL}" == https://127.* || "${SERVER_URL}" == https://\[::1\]* ]]; then
+    echo "ERROR: Set VITE_SHINPO_SERVER_URL to the deployed remote HTTPS server before packaging." >&2
+    exit 1
+fi
+
 mkdir -p "${RELEASE_DIR}"
 
 # 1. Build React Frontend

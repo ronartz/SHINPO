@@ -237,6 +237,8 @@ try {
   assert(overlap && overlap.status === 'SCHEDULED', 'Overlapping booking did not persist')
   const weeklySummary = await evaluate("document.querySelector('.schedule-week-summary')?.innerText")
   assert(weeklySummary?.includes('1h 55m') && weeklySummary.includes('across 2 sessions') && weeklySummary.includes('of 2 planned'), `Cancelled history inflated the current weekly plan: ${weeklySummary}`)
+  const toastTextLayout = await evaluate("(() => [...document.querySelectorAll('.shinpo-toast-title, .shinpo-toast-desc')].map(e => getComputedStyle(e).webkitLineClamp))()")
+  assert(toastTextLayout.length > 0 && toastTextLayout.every(lines => lines === '2'), `Long toast text is not visually clamped: ${JSON.stringify(toastTextLayout)}`)
   await screenshot('02_calendar_overlapping_late_sessions.png')
   const laneRects = await evaluate(`(() => [...document.querySelectorAll('.schedule-grid-event')].filter(e=>[${JSON.stringify(editedName)},${JSON.stringify(overlapName)}].some(n=>e.getAttribute('aria-label')?.includes(n))).map(e=>{const r=e.getBoundingClientRect(); return {name:e.getAttribute('aria-label'),x:r.x,width:r.width,top:r.top,height:r.height}}))()`)
   assert.equal(laneRects.length, 2, 'Both overlapping late-night events should be rendered')

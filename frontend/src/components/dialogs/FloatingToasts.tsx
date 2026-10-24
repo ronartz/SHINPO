@@ -1,5 +1,4 @@
 import React from 'react'
-import { createPortal } from 'react-dom'
 import type { LiveAlertItem } from '../../types/telemetry'
 import { Icon } from '../common/Icon'
 import { formatSafeTimeString } from '../../api/eventNormalizer'
@@ -13,10 +12,10 @@ export const FloatingToasts: React.FC<FloatingToastsProps> = ({
   toastAlerts,
   onDismiss,
 }) => {
-  if (typeof document === 'undefined' || toastAlerts.length === 0) return null
+  if (toastAlerts.length === 0) return null
 
-  return createPortal(
-    <div className="shinpo-toast-container" aria-live="polite">
+  return (
+    <div className="shinpo-toast-container" aria-live="polite" aria-relevant="additions">
       {toastAlerts.map((alert) => {
         const cleanBadge =
           alert.badge && !alert.badge.toLowerCase().includes('undefined')
@@ -61,13 +60,13 @@ export const FloatingToasts: React.FC<FloatingToastsProps> = ({
               className="shinpo-toast-dismiss"
               onClick={() => onDismiss(alert.id)}
               title="Dismiss"
+              aria-label={`Dismiss ${alert.title}`}
             >
               <Icon name="close" size={14} />
             </button>
           </div>
         )
       })}
-    </div>,
-    document.body,
+    </div>
   )
 }

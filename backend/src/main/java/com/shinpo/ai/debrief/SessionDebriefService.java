@@ -109,7 +109,7 @@ public class SessionDebriefService {
         }
 
         AIProvider provider = providerRegistry != null ? providerRegistry.getActiveProvider() : null;
-        if (aiProperties != null && aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
+        if (aiProperties != null && aiProperties.isEnabled() && provider != null) {
             try {
                 String systemPrompt = """
                         You are EONPAI, Strategic Execution Companion for SHINPO.

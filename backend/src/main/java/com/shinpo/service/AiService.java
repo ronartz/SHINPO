@@ -734,7 +734,7 @@ public class AiService {
         String status = fullyReady ? "CONNECTED" : (available ? "MODEL_MISSING" : "OFFLINE");
         String message;
         if (fullyReady) {
-            String origin = "gemini".equalsIgnoreCase(provider.getProviderName()) ? "Cloud (Free Tier)" : "Local";
+            String origin = "gemini".equalsIgnoreCase(provider.getProviderName()) ? "Cloud" : "Local";
             message = origin + " · " + provider.getModelName();
         } else if (available) {
             message = "Model '" + provider.getModelName() + "' missing. Run 'ollama pull " + provider.getModelName() + "'";

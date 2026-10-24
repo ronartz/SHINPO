@@ -125,8 +125,8 @@ html[data-theme='light'] .badge-tag.blue,
 html[data-theme='light'] .badge-tag.coral,
 .theme-light .badge-tag.coral {
   background: var(--brand-violet-subtle, #F5F0FF);
-  color: var(--primary-coral, #7932E6);
-  border-color: var(--brand-violet-border, rgba(121, 50, 230, 0.3));
+  color: var(--primary-coral, #2847B8);
+  border-color: var(--brand-violet-border, rgba(40, 71, 184, 0.3));
 }
 
 /* ==========================================================================
@@ -142,6 +142,26 @@ html[data-theme='light'] .badge-tag.coral,
   max-width: 1600px;
   margin: 0 auto;
 }
+
+@keyframes dashboardSectionReveal {
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+.shinpo-dashboard > .dashboard-header-bar,
+.shinpo-dashboard > .dashboard-metrics-grid,
+.shinpo-dashboard > .daily-objectives-card,
+.shinpo-dashboard > .dashboard-insight-grid,
+.shinpo-dashboard > .dashboard-cockpit-grid,
+.shinpo-dashboard > .flight-deck-board-panel {
+  animation: dashboardSectionReveal var(--motion-page, 380ms) var(--ease-kinetic, cubic-bezier(0.2, 0.85, 0.25, 1)) both;
+}
+
+.shinpo-dashboard > .dashboard-metrics-grid { animation-delay: 36ms; }
+.shinpo-dashboard > .daily-objectives-card { animation-delay: 72ms; }
+.shinpo-dashboard > .dashboard-insight-grid { animation-delay: 108ms; }
+.shinpo-dashboard > .dashboard-cockpit-grid { animation-delay: 144ms; }
+.shinpo-dashboard > .flight-deck-board-panel { animation-delay: 180ms; }
 
 /* 1. Header Bar */
 .dashboard-header-bar {
@@ -318,14 +338,14 @@ html[data-theme='light'] .badge-tag.coral,
 html[data-theme='light'] .dashboard-live-clock,
 .theme-light .dashboard-live-clock {
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(77, 119, 249, 0.18);
-  box-shadow: 0 4px 16px rgba(77, 119, 249, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 html[data-theme='light'] .dashboard-live-clock:hover,
 .theme-light .dashboard-live-clock:hover {
-  border-color: rgba(77, 119, 249, 0.45);
-  box-shadow: 0 6px 20px rgba(77, 119, 249, 0.14);
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.14);
 }
 
 
@@ -388,6 +408,12 @@ html[data-theme='light'] .capsule-time-digits,
   color: var(--primary-coral);
 }
 
+.sentinel-badge-pill.degraded,
+.sentinel-badge-pill.offline {
+  color: var(--accent-yellow, #f59e0b);
+  border-color: color-mix(in srgb, var(--accent-yellow, #f59e0b) 35%, var(--border));
+}
+
 .sentinel-mini-dot {
   width: 7px;
   height: 7px;
@@ -399,6 +425,11 @@ html[data-theme='light'] .capsule-time-digits,
 .sentinel-badge-pill.active-defense .sentinel-mini-dot {
   background: var(--primary-coral);
   box-shadow: none;
+}
+
+.sentinel-badge-pill.degraded .sentinel-mini-dot,
+.sentinel-badge-pill.offline .sentinel-mini-dot {
+  background: var(--accent-yellow, #f59e0b);
 }
 
 .btn-header-action {
@@ -473,10 +504,191 @@ html[data-theme='light'] .capsule-time-digits,
   justify-content: space-between;
   gap: 10px;
   cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, box-shadow 0.18s ease;
   position: relative;
   overflow: hidden;
 }
+
+.dashboard-metric-card:focus-visible {
+  outline: 2px solid var(--accent-purple, #3156D8);
+  outline-offset: 3px;
+}
+
+.dashboard-insight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.dashboard-insight-card {
+  min-width: 0;
+  min-height: 224px;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-insight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-insight-header h2 {
+  margin: 3px 0 2px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.dashboard-insight-header p,
+.dashboard-insight-empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dashboard-insight-eyebrow {
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.dashboard-insight-total {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.dashboard-insight-total strong {
+  color: var(--text);
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.dashboard-insight-total span { color: var(--text-3); font-size: 11px; }
+
+.dashboard-activity-chart {
+  height: 116px;
+  min-height: 116px;
+  position: relative;
+  margin: 9px 0 2px;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 37px, var(--border-subtle) 38px, transparent 39px);
+}
+
+.dashboard-chart-bars {
+  position: absolute;
+  inset: 0 2px;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.dashboard-chart-day {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dashboard-chart-bar-track {
+  width: min(34px, 62%);
+  height: 92px;
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 7px 7px 2px 2px;
+  background: transparent;
+}
+
+.dashboard-chart-bar {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  border-radius: 7px 7px 1px 1px;
+  background: linear-gradient(180deg, var(--accent-violet), var(--accent-blue));
+  transition: height 300ms cubic-bezier(.2,.8,.2,1), filter 160ms ease;
+}
+
+.dashboard-chart-day:hover .dashboard-chart-bar { filter: brightness(1.12); }
+.dashboard-chart-day.is-today .dashboard-chart-bar { background: linear-gradient(180deg, var(--accent-blue), var(--accent-violet)); }
+
+.dashboard-chart-day-label {
+  margin-top: 5px;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dashboard-goal-progress-list { display: grid; gap: 14px; margin: 17px 0 12px; }
+.dashboard-goal-progress-item { min-width: 0; display: grid; gap: 7px; }
+.dashboard-goal-progress-copy { min-width: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dashboard-goal-progress-copy strong { min-width: 0; overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-goal-progress-copy span { flex: 0 0 auto; color: var(--text-3); font-size: 10px; }
+.dashboard-goal-progress-track { height: 6px; overflow: hidden; border-radius: 999px; background: var(--surface-subtle); }
+.dashboard-goal-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-violet), var(--accent-blue)); transition: width 350ms ease; }
+
+.dashboard-insight-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  color: var(--accent-violet);
+}
+
+.dashboard-insight-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  padding: 7px 0 0;
+  border: 0;
+  background: none;
+  color: var(--accent-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dashboard-insight-link:hover { color: var(--accent-violet); }
+.dashboard-insight-empty { margin: auto 0; padding: 18px 0; }
+
+@media (max-width: 900px) {
+  .dashboard-insight-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-insight-card { min-height: 208px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-chart-bar,
+  .dashboard-goal-progress-track > span { transition: none; }
+}
+
+.dashboard-metric-card:nth-child(1) { animation: dashboardSectionReveal 380ms var(--ease-kinetic) 52ms both; }
+.dashboard-metric-card:nth-child(2) { animation: dashboardSectionReveal 380ms var(--ease-kinetic) 84ms both; }
+.dashboard-metric-card:nth-child(3) { animation: dashboardSectionReveal 380ms var(--ease-kinetic) 116ms both; }
+.dashboard-metric-card:nth-child(4) { animation: dashboardSectionReveal 380ms var(--ease-kinetic) 148ms both; }
 
 .dashboard-metric-card:hover {
   transform: translateY(-2px);
@@ -569,10 +781,23 @@ html[data-theme='light'] .capsule-time-digits,
 
 .metric-progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #C084FC 0%, #A855F7 100%);
+  background: linear-gradient(90deg, var(--brand-coral), var(--accent-cyan));
   border-radius: 999px;
   transform-origin: left;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width var(--motion-panel, 320ms) var(--ease-kinetic, cubic-bezier(0.2, 0.85, 0.25, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-dashboard > .dashboard-header-bar,
+  .shinpo-dashboard > .dashboard-metrics-grid,
+  .shinpo-dashboard > .daily-objectives-card,
+  .shinpo-dashboard > .dashboard-cockpit-grid,
+  .shinpo-dashboard > .flight-deck-board-panel,
+  .dashboard-metric-card,
+  .metric-progress-fill {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule (2-Column Balanced Layout) */
@@ -685,6 +910,102 @@ html[data-theme='light'] .capsule-time-digits,
   font-size: 13px;
   font-weight: 700;
   color: var(--text-2);
+}
+
+.priority-hero-card {
+  isolation: isolate;
+  border-color: color-mix(in srgb, var(--brand-coral) 28%, var(--border));
+  box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in srgb, var(--brand-coral) 18%, transparent);
+}
+
+.priority-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--brand-coral) 15%, transparent), transparent 34%),
+    linear-gradient(115deg, transparent 0 58%, color-mix(in srgb, var(--accent-cyan) 5%, transparent));
+}
+
+.priority-hero-card.is-live {
+  border-color: color-mix(in srgb, var(--brand-coral) 52%, var(--border));
+  box-shadow: var(--shadow-card), 0 12px 34px color-mix(in srgb, var(--brand-coral) 12%, transparent);
+}
+
+.priority-hero-card.is-live::before {
+  animation: priorityHeroPulse 6s var(--ease-kinetic) infinite alternate;
+}
+
+.priority-hero-card.is-ready .priority-status-pill {
+  letter-spacing: 0.08em;
+}
+
+.priority-status-pill {
+  position: relative;
+  z-index: 1;
+}
+
+.priority-timer {
+  font-size: clamp(42px, 5vw, 68px) !important;
+  font-weight: 900 !important;
+  color: var(--brand-coral) !important;
+  text-shadow: 0 4px 20px color-mix(in srgb, var(--brand-coral) 18%, transparent);
+}
+
+.priority-session-name,
+.priority-session-intention {
+  overflow-wrap: anywhere;
+}
+
+.priority-session-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.priority-session-intention {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.priority-hero-card .aurora-btn-primary,
+.priority-hero-card .aurora-btn-secondary {
+  min-height: 38px;
+  white-space: normal;
+}
+
+@media (min-width: 1440px) {
+  .shinpo-dashboard {
+    gap: 24px;
+  }
+
+  .daily-objectives-list {
+    gap: 16px;
+  }
+
+  .priority-hero-card {
+    padding: 24px 28px;
+  }
+
+  .priority-timer {
+    font-size: clamp(54px, 4.2vw, 76px) !important;
+  }
+}
+
+@keyframes priorityHeroPulse {
+  from { opacity: 0.72; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .priority-hero-card.is-live::before {
+    animation: none;
+  }
 }
 
 .hero-session-info {
@@ -1110,7 +1431,7 @@ html[data-theme='light'] .duration-pill.paused {
 .sidecar-footer-action {
   background: transparent;
   border: none;
-  color: var(--primary-coral, #9757FA);
+  color: var(--primary-coral, #3156D8);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1227,7 +1548,7 @@ html[data-theme='light'] .duration-pill.paused {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 20px !important;
   width: 100% !important;
-  align-items: stretch !important;
+  align-items: start !important;
 }
 
 .flight-deck-board-panel,
@@ -1281,8 +1602,8 @@ html[data-theme='light'] .duration-pill.paused {
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 410px;
+  height: auto;
+  min-height: 0;
   box-sizing: border-box;
   box-shadow: var(--shadow-sm);
   transition: border-color 0.15s ease;
@@ -1352,7 +1673,7 @@ html[data-theme='light'] .duration-pill.paused {
   flex-direction: column;
   gap: 10px;
   flex-wrap: nowrap;
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 /* Flight Deck Task Card - Generous Spacing, Comfortable Typography */
@@ -1383,6 +1704,25 @@ html[data-theme='light'] .duration-pill.paused {
 
 .flight-deck-card.is-completed {
   opacity: 0.85;
+}
+
+@keyframes flightDeckCompletion {
+  0% {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 28%, transparent);
+  }
+  55% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-green) 12%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.flight-deck-card.is-completed {
+  animation: flightDeckCompletion 0.42s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 .card-top-row {
@@ -1567,7 +1907,7 @@ html[data-theme='light'] .duration-pill.paused {
   border-radius: 8px;
   border: 1px dashed var(--border-strong, rgba(255, 255, 255, 0.16));
   background: var(--surface-subtle, rgba(255, 255, 255, 0.03));
-  color: var(--primary-coral, #9757FA);
+  color: var(--primary-coral, #3156D8);
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
@@ -1581,7 +1921,7 @@ html[data-theme='light'] .duration-pill.paused {
 
 .board-view-remaining-btn:hover {
   background: var(--surface-card, rgba(255, 255, 255, 0.07));
-  border-color: var(--primary-coral, #9757FA);
+  border-color: var(--primary-coral, #3156D8);
   border-style: solid;
   transform: translateY(-1px);
 }
@@ -1590,13 +1930,13 @@ html[data-theme='light'] .board-view-remaining-btn,
 .theme-light .board-view-remaining-btn {
   background: #F8FAFC;
   border-color: #CBD5E1;
-  color: #7932E6;
+  color: #2847B8;
 }
 
 html[data-theme='light'] .board-view-remaining-btn:hover,
 .theme-light .board-view-remaining-btn:hover {
   background: #F1F5F9;
-  border-color: #7932E6;
+  border-color: #2847B8;
 }
 
 /* Empty Column States */
@@ -1610,8 +1950,9 @@ html[data-theme='light'] .board-view-remaining-btn:hover,
   border: 1.5px dashed var(--border);
   border-radius: 12px;
   gap: 8px;
-  margin: auto 0;
-  flex: 1;
+  margin: 0;
+  flex: 0 1 auto;
+  min-height: 100px;
   box-sizing: border-box;
 }
 
@@ -1702,12 +2043,12 @@ html[data-theme='light'] .card-quick-arm-btn,
 .theme-light .card-quick-arm-btn {
   background: #FFFFFF;
   border-color: #E2E8F0;
-  color: var(--primary-violet, #7932E6);
+  color: var(--primary-violet, #2847B8);
 }
 
 html[data-theme='light'] .card-quick-arm-btn:hover,
 .theme-light .card-quick-arm-btn:hover {
-  background: var(--brand-coral-gradient, linear-gradient(135deg, #7932E6 0%, #2B58E6 100%));
+  background: var(--brand-coral-gradient, linear-gradient(135deg, #2847B8 0%, #2563EB 100%));
   color: #FFFFFF;
   border-color: transparent;
 }
@@ -1777,4 +2118,3 @@ html[data-theme='light'] .schedule-session-sub,
 .theme-light .schedule-session-sub {
   color: #64748B;
 }
-

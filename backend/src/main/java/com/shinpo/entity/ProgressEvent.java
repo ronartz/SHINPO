@@ -20,6 +20,14 @@ public class ProgressEvent {
     @JoinColumn(name = "mission_completion_id")
     private MissionCompletion missionCompletion;
 
+    @ManyToOne
+    @JoinColumn(name = "goal_id")
+    private Goal goal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "focus_session_id")
+    private FocusSession focusSession;
+
     @Column(name = "event_type", nullable = false, length = 30)
     private String eventType;
 
@@ -49,6 +57,12 @@ public class ProgressEvent {
         this(user, null, eventType, amount);
     }
 
+    public ProgressEvent(User user, FocusSession focusSession, Goal goal, String eventType, Integer amount) {
+        this(user, null, eventType, amount);
+        this.focusSession = focusSession;
+        this.goal = goal;
+    }
+
     public Long getId() {
         return id;
     }
@@ -60,6 +74,12 @@ public class ProgressEvent {
     public MissionCompletion getMissionCompletion() {
         return missionCompletion;
     }
+
+    public Goal getGoal() {
+        return goal;
+    }
+
+    public FocusSession getFocusSession() { return focusSession; }
 
     public String getEventType() {
         return eventType;

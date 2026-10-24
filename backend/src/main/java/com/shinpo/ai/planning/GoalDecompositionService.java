@@ -56,7 +56,7 @@ public class GoalDecompositionService {
         Map<String, Object> goalCtx = toolRegistry != null ? toolRegistry.getCurrentGoal(userId, goalId) : Map.of();
 
         AIProvider provider = providerRegistry != null ? providerRegistry.getActiveProvider() : null;
-        if (aiProperties != null && aiProperties.isEnabled() && provider != null && provider.isAvailable()) {
+        if (aiProperties != null && aiProperties.isEnabled() && provider != null) {
             String systemPrompt = """
                     You are EONPAI, Strategic Architect for SHINPO.
                     Partition the user's high-level goal into 3 to 4 sequential, concrete focus sprint missions.

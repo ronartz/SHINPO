@@ -131,6 +131,14 @@ public class FocusSessionController {
         return ResponseEntity.ok(focusSessionService.cancelSession(sessionId, principal.getUserId()));
     }
 
+    @PostMapping("/{sessionId}/skip-break")
+    public ResponseEntity<FocusSessionResponse> skipBreak(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(focusSessionService.skipBreak(sessionId, principal.getUserId()));
+    }
+
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<Void> deleteSession(
             @PathVariable Long sessionId,

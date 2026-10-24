@@ -111,6 +111,8 @@ class CloudDeploymentDecouplingTests {
         assertTrue(origins.contains("https://beta.shinpo.app"));
         assertTrue(origins.contains("tauri://localhost"), "Must retain Tauri default origin");
         assertTrue(origins.contains("https://tauri.localhost"), "Must retain Tauri HTTPS origin");
+        assertEquals(3, corsConfig.checkHeaders(List.of("Authorization", "Content-Type", "X-Timezone")).size(),
+                "Authenticated timezone-aware API requests must pass CORS preflight");
     }
 
     @Test

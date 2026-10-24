@@ -22,6 +22,14 @@ export type FocusSession = {
   name: string
   intention: string | null
   durationMinutes: number
+  pomodoroEnabled?: boolean
+  pomodoroFocusCycles?: number
+  pomodoroShortBreakMinutes?: number
+  pomodoroLongBreakMinutes?: number
+  completedFocusCycles?: number
+  currentPhase?: 'FOCUS' | 'SHORT_BREAK' | 'LONG_BREAK' | 'COMPLETE'
+  focusActiveSeconds?: number
+  breakActiveSeconds?: number
   status: FocusSessionStatus
   scheduledAt: string | null
   startedAt: string | null
@@ -65,6 +73,10 @@ export type CreateFocusSessionRequest = {
   intention?: string
   durationMinutes: number
   scheduledAt?: string
+  pomodoroEnabled?: boolean
+  pomodoroFocusCycles?: number
+  pomodoroShortBreakMinutes?: number
+  pomodoroLongBreakMinutes?: number
 }
 
 import { getAuthenticatedUserId } from './auth'
@@ -153,6 +165,10 @@ export async function cancelFocusSession(
   _userId?: number,
 ): Promise<FocusSession> {
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/cancel`)
+}
+
+export async function skipFocusBreak(id: number): Promise<FocusSession> {
+  return apiClient.post<FocusSession>(`/focus-sessions/${id}/skip-break`)
 }
 
 export async function deleteFocusSession(

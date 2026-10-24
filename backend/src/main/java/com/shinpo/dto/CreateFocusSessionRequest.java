@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
 
 import java.time.Instant;
 
@@ -28,6 +29,11 @@ public class CreateFocusSessionRequest {
     private Integer durationMinutes;
 
     private Instant scheduledAt;
+
+    private boolean pomodoroEnabled;
+    @Min(1) @Max(12) private Integer pomodoroFocusCycles = 4;
+    @Min(1) @Max(60) private Integer pomodoroShortBreakMinutes = 5;
+    @Min(1) @Max(120) private Integer pomodoroLongBreakMinutes = 15;
 
     public Long getUserId() {
         return userId;
@@ -92,4 +98,13 @@ public class CreateFocusSessionRequest {
     public void setScheduledAt(Instant scheduledAt) {
         this.scheduledAt = scheduledAt;
     }
+
+    public boolean isPomodoroEnabled() { return pomodoroEnabled; }
+    public void setPomodoroEnabled(boolean value) { this.pomodoroEnabled = value; }
+    public Integer getPomodoroFocusCycles() { return pomodoroFocusCycles; }
+    public void setPomodoroFocusCycles(Integer value) { this.pomodoroFocusCycles = value; }
+    public Integer getPomodoroShortBreakMinutes() { return pomodoroShortBreakMinutes; }
+    public void setPomodoroShortBreakMinutes(Integer value) { this.pomodoroShortBreakMinutes = value; }
+    public Integer getPomodoroLongBreakMinutes() { return pomodoroLongBreakMinutes; }
+    public void setPomodoroLongBreakMinutes(Integer value) { this.pomodoroLongBreakMinutes = value; }
 }
