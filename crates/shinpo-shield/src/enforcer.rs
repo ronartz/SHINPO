@@ -3,7 +3,9 @@ use std::time::{Duration, Instant};
 
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
-use crate::client::{CandidateProcessResponse, RecordQuarantineRequest, SentinelDaemonSyncResponse};
+use crate::client::{
+    CandidateProcessResponse, RecordQuarantineRequest, SentinelDaemonSyncResponse,
+};
 use crate::platform::{create_platform_interceptor, PlatformInterceptor};
 
 pub struct InterceptedProcess {
@@ -34,14 +36,37 @@ impl ShieldEnforcer {
     pub fn with_interceptor(interceptor: Box<dyn PlatformInterceptor>) -> Self {
         let mut protected = HashSet::new();
         for name in [
-            "systemd", "init", "kernel", "kthreadd",
-            "dbus-daemon", "dbus-broker", "dbus-broker-launch", "dbus",
-            "systemd-journald", "systemd-udevd", "systemd-logind",
-            "xorg", "xwayland", "wayland", "sway", "mutter", "kwin", "kwin_wayland", "plasma", "plasmashell", "gnome-shell",
-            "pipewire", "wireplumber", "pulseaudio",
-            "sshd", "login",
-            "shinpo", "shinpo-shield", "shinpo-desktop",
-            "postgres", "postgresql",
+            "systemd",
+            "init",
+            "kernel",
+            "kthreadd",
+            "dbus-daemon",
+            "dbus-broker",
+            "dbus-broker-launch",
+            "dbus",
+            "systemd-journald",
+            "systemd-udevd",
+            "systemd-logind",
+            "xorg",
+            "xwayland",
+            "wayland",
+            "sway",
+            "mutter",
+            "kwin",
+            "kwin_wayland",
+            "plasma",
+            "plasmashell",
+            "gnome-shell",
+            "pipewire",
+            "wireplumber",
+            "pulseaudio",
+            "sshd",
+            "login",
+            "shinpo",
+            "shinpo-shield",
+            "shinpo-desktop",
+            "postgres",
+            "postgresql",
         ] {
             protected.insert(name.to_string());
         }
@@ -132,7 +157,8 @@ impl ShieldEnforcer {
         }
 
         // Assemble whitelist & protected sets
-        let allowed: HashSet<String> = sync_state.allowed_patterns
+        let allowed: HashSet<String> = sync_state
+            .allowed_patterns
             .iter()
             .map(|s| s.to_lowercase().trim().to_string())
             .filter(|s| !s.is_empty())
@@ -148,11 +174,14 @@ impl ShieldEnforcer {
 
         let mode = Self::effective_enforcement_mode(sync_state, dry_run);
 
-        let process_snapshot: Vec<(Pid, String, String)> = self.sys.processes()
+        let process_snapshot: Vec<(Pid, String, String)> = self
+            .sys
+            .processes()
             .iter()
             .map(|(pid, process)| {
                 let process_name = process.name().to_string_lossy().to_string();
-                let raw_cmd = process.cmd()
+                let raw_cmd = process
+                    .cmd()
                     .iter()
                     .map(|part| part.to_string_lossy().to_string())
                     .collect::<Vec<_>>()
@@ -171,7 +200,13 @@ impl ShieldEnforcer {
 
             let proc_name = process_name.to_lowercase();
 
-            if !Self::is_distraction_process(&proc_name, &raw_cmd, &active_blacklist, &allowed, &protected) {
+            if !Self::is_distraction_process(
+                &proc_name,
+                &raw_cmd,
+                &active_blacklist,
+                &allowed,
+                &protected,
+            ) {
                 continue;
             }
 
@@ -189,7 +224,11 @@ impl ShieldEnforcer {
 
             // 3. Warning/grace absent from sync: candidate evaluation handshake
             if let Some(ref mut evaluator) = candidate_evaluator {
-                let cmd_opt = if raw_cmd.is_empty() { None } else { Some(raw_cmd.as_str()) };
+                let cmd_opt = if raw_cmd.is_empty() {
+                    None
+                } else {
+                    Some(raw_cmd.as_str())
+                };
                 match evaluator(&proc_name, cmd_opt, pid) {
                     Ok(resp) => {
                         match resp.decision.as_str() {
@@ -245,10 +284,15 @@ impl ShieldEnforcer {
                     intercepted.push(InterceptedProcess {
                         pid,
                         name: process_name,
-                        cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
+                        cmdline: if raw_cmd.is_empty() {
+                            None
+                        } else {
+                            Some(raw_cmd)
+                        },
                         policy_action: "USER_CLOSED".to_string(),
                         enforcement_mode: mode.to_string(),
-                        reason: "Process exited naturally prior to enforcement execution".to_string(),
+                        reason: "Process exited naturally prior to enforcement execution"
+                            .to_string(),
                     });
                     continue;
                 }
@@ -259,7 +303,11 @@ impl ShieldEnforcer {
                 intercepted.push(InterceptedProcess {
                     pid,
                     name: process_name.clone(),
-                    cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
+                    cmdline: if raw_cmd.is_empty() {
+                        None
+                    } else {
+                        Some(raw_cmd)
+                    },
                     policy_action: "REVALIDATION_FAILED".to_string(),
                     enforcement_mode: mode.to_string(),
                     reason: format!(
@@ -288,7 +336,8 @@ impl ShieldEnforcer {
 
             let os_name = self.interceptor.os_name();
             let (action, confirmed, escalated) =
-                Self::enforcement_outcome(mode, &mut request_and_verify);
+                // Current policy data contains process patterns, not verified enrolled identities.
+                Self::enforcement_outcome(mode, false, &mut request_and_verify);
             let mut reason = match action {
                 "WARNED" => format!(
                     "Native Shield ({}) audit: distraction active during focus sprint (dry-run)",
@@ -328,7 +377,11 @@ impl ShieldEnforcer {
             intercepted.push(InterceptedProcess {
                 pid,
                 name: process_name,
-                cmdline: if raw_cmd.is_empty() { None } else { Some(raw_cmd) },
+                cmdline: if raw_cmd.is_empty() {
+                    None
+                } else {
+                    Some(raw_cmd)
+                },
                 policy_action: action.to_string(),
                 enforcement_mode: mode.to_string(),
                 reason,
@@ -337,7 +390,8 @@ impl ShieldEnforcer {
 
         // Clean stale debounce entries
         if self.debounce_map.len() > 500 {
-            self.debounce_map.retain(|_, time| now.duration_since(*time) < Duration::from_secs(300));
+            self.debounce_map
+                .retain(|_, time| now.duration_since(*time) < Duration::from_secs(300));
         }
 
         intercepted
@@ -354,11 +408,15 @@ impl ShieldEnforcer {
         }
     }
 
-    fn enforcement_outcome<F>(mode: &str, mut request_and_verify: F) -> (&'static str, bool, bool)
+    fn enforcement_outcome<F>(
+        mode: &str,
+        enrollment_identity_verified: bool,
+        mut request_and_verify: F,
+    ) -> (&'static str, bool, bool)
     where
         F: FnMut(bool) -> bool,
     {
-        if mode == "AUDIT_ONLY" {
+        if !enrollment_identity_verified || mode == "AUDIT_ONLY" {
             ("WARNED", false, false)
         } else if mode == "CONTAINMENT" {
             if request_and_verify(false) {
@@ -368,7 +426,15 @@ impl ShieldEnforcer {
             }
         } else {
             let confirmed = request_and_verify(false);
-            (if confirmed { "TERMINATED" } else { "TERMINATE_ATTEMPTED" }, confirmed, false)
+            (
+                if confirmed {
+                    "TERMINATED"
+                } else {
+                    "TERMINATE_ATTEMPTED"
+                },
+                confirmed,
+                false,
+            )
         }
     }
 
@@ -399,7 +465,10 @@ impl ShieldEnforcer {
         ) {
             return false;
         }
-        if protected.iter().any(|prot| proc_lower.contains(prot) || proc_lower.starts_with(prot)) {
+        if protected
+            .iter()
+            .any(|prot| proc_lower.contains(prot) || proc_lower.starts_with(prot))
+        {
             return false;
         }
 
@@ -497,12 +566,26 @@ pub fn parse_iso8601_to_epoch_secs(s: &str) -> Option<u64> {
 
     let mut days = 0u64;
     for y in 1970..year {
-        days += if (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0) { 366 } else { 365 };
+        days += if (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0) {
+            366
+        } else {
+            365
+        };
     }
     let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
     let month_days = [
-        31, if leap { 29 } else { 28 }, 31, 30, 31, 30,
-        31, 31, 30, 31, 30, 31
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     for m in 1..month {
         days += month_days[(m - 1) as usize];
@@ -519,7 +602,10 @@ pub fn is_in_active_grace(
 ) -> bool {
     sync_state.active_grace_windows.iter().any(|g| {
         let g_name = g.process_name.to_lowercase();
-        if canonical_name == g_name || canonical_name.contains(&g_name) || g_name.contains(canonical_name) {
+        if canonical_name == g_name
+            || canonical_name.contains(&g_name)
+            || g_name.contains(canonical_name)
+        {
             if let Some(exp) = parse_iso8601_to_epoch_secs(&g.expires_at) {
                 return ref_time < exp;
             }
@@ -535,7 +621,10 @@ pub fn is_in_active_warning(
 ) -> bool {
     sync_state.active_warnings.iter().any(|w| {
         let w_name = w.process_name.to_lowercase();
-        if canonical_name == w_name || canonical_name.contains(&w_name) || w_name.contains(canonical_name) {
+        if canonical_name == w_name
+            || canonical_name.contains(&w_name)
+            || w_name.contains(canonical_name)
+        {
             if let Some(deadline) = parse_iso8601_to_epoch_secs(&w.decision_deadline) {
                 return ref_time < deadline;
             }
@@ -556,20 +645,40 @@ mod tests {
     #[test]
     fn test_distraction_detection_positive() {
         let enforcer = ShieldEnforcer::new();
-        let blacklist = vec!["discord".to_string(), "steam".to_string(), "obs".to_string()];
+        let blacklist = vec![
+            "discord".to_string(),
+            "steam".to_string(),
+            "obs".to_string(),
+        ];
         let allowed = HashSet::new();
 
         assert!(ShieldEnforcer::is_distraction_process(
-            "discord", "/usr/bin/discord", &blacklist, &allowed, &enforcer.protected_system_names
+            "discord",
+            "/usr/bin/discord",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "steam", "/usr/bin/steam", &blacklist, &allowed, &enforcer.protected_system_names
+            "steam",
+            "/usr/bin/steam",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "obs", "/usr/bin/obs", &blacklist, &allowed, &enforcer.protected_system_names
+            "obs",
+            "/usr/bin/obs",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "obs-studio", "/usr/bin/obs-studio", &blacklist, &allowed, &enforcer.protected_system_names
+            "obs-studio",
+            "/usr/bin/obs-studio",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
@@ -617,7 +726,10 @@ mod tests {
             active_grace_windows: Vec::new(),
         };
 
-        assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "AUDIT_ONLY");
+        assert_eq!(
+            ShieldEnforcer::effective_enforcement_mode(&sync, false),
+            "AUDIT_ONLY"
+        );
     }
 
     #[test]
@@ -640,10 +752,12 @@ mod tests {
             active_grace_windows: Vec::new(),
         };
 
-        assert_eq!(ShieldEnforcer::effective_enforcement_mode(&sync, false), "STRICT");
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |_force| {
-            true
-        });
+        assert_eq!(
+            ShieldEnforcer::effective_enforcement_mode(&sync, false),
+            "STRICT"
+        );
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("STRICT", true, |_force| true);
         assert_eq!(action, "TERMINATED");
         assert!(confirmed);
         assert!(!escalated);
@@ -652,8 +766,19 @@ mod tests {
     #[test]
     fn test_audit_only_warns_without_requesting_or_verifying_termination() {
         let (action, confirmed, escalated) =
-            ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", |_| panic!("must not enforce"));
+            ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", true, |_| panic!("must not enforce"));
 
+        assert_eq!(action, "WARNED");
+        assert!(!confirmed);
+        assert!(!escalated);
+    }
+
+    #[test]
+    fn unverified_enrollment_identity_never_requests_process_termination() {
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("STRICT", false, |_| {
+                panic!("unverified process must not be terminated")
+            });
         assert_eq!(action, "WARNED");
         assert!(!confirmed);
         assert!(!escalated);
@@ -662,10 +787,11 @@ mod tests {
     #[test]
     fn test_strict_stops_after_verified_graceful_exit() {
         let mut calls = Vec::new();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            calls.push(force);
-            true
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("STRICT", true, |force| {
+                calls.push(force);
+                true
+            });
 
         assert_eq!(calls, vec![false]);
         assert_eq!(action, "TERMINATED");
@@ -676,10 +802,11 @@ mod tests {
     #[test]
     fn test_failed_graceful_request_does_not_escalate_to_force() {
         let mut calls = Vec::new();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            calls.push(force);
-            !force && verify_target_exit(|| true)
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("STRICT", true, |force| {
+                calls.push(force);
+                !force && verify_target_exit(|| true)
+            });
 
         assert_eq!(calls, vec![false]);
         assert_eq!(action, "TERMINATE_ATTEMPTED");
@@ -690,10 +817,11 @@ mod tests {
     #[test]
     fn test_graceful_request_with_live_process_is_not_confirmed() {
         let mut calls = Vec::new();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("STRICT", |force| {
-            calls.push(force);
-            false
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("STRICT", true, |force| {
+                calls.push(force);
+                false
+            });
 
         assert_eq!(calls, vec![false]);
         assert_eq!(action, "TERMINATE_ATTEMPTED");
@@ -705,10 +833,11 @@ mod tests {
     fn test_containment_stops_after_verified_graceful_exit() {
         let mut requests = Vec::new();
         let mut results = [true].into_iter();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
-            requests.push(force);
-            results.next().unwrap()
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("CONTAINMENT", true, |force| {
+                requests.push(force);
+                results.next().unwrap()
+            });
 
         assert_eq!(requests, vec![false]);
         assert_eq!(action, "CONTAINED");
@@ -720,10 +849,11 @@ mod tests {
     fn test_containment_never_escalates_to_force() {
         let mut requested_forces = Vec::new();
         let mut verification_results = [false].into_iter();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
-            requested_forces.push(force);
-            verification_results.next().unwrap()
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("CONTAINMENT", true, |force| {
+                requested_forces.push(force);
+                verification_results.next().unwrap()
+            });
 
         assert_eq!(requested_forces, vec![false]);
         assert_eq!(action, "CONTAINMENT_FAILED");
@@ -734,10 +864,11 @@ mod tests {
     #[test]
     fn test_containment_still_alive_after_graceful_request_is_not_confirmed() {
         let mut requested_forces = Vec::new();
-        let (action, confirmed, escalated) = ShieldEnforcer::enforcement_outcome("CONTAINMENT", |force| {
-            requested_forces.push(force);
-            false
-        });
+        let (action, confirmed, escalated) =
+            ShieldEnforcer::enforcement_outcome("CONTAINMENT", true, |force| {
+                requested_forces.push(force);
+                false
+            });
 
         assert_eq!(requested_forces, vec![false]);
         assert_eq!(action, "CONTAINMENT_FAILED");
@@ -777,7 +908,9 @@ mod tests {
             "telegram-desktop",
             "vlc",
         ] {
-            assert!(!config.fallback_blacklist.contains(&process_name.to_string()));
+            assert!(!config
+                .fallback_blacklist
+                .contains(&process_name.to_string()));
             assert!(!ShieldEnforcer::is_distraction_process(
                 process_name,
                 &format!("/usr/bin/{process_name}"),
@@ -813,48 +946,93 @@ mod tests {
 
         // "observer" or "jobs" should NEVER match "obs"
         assert!(!ShieldEnforcer::is_distraction_process(
-            "observer", "/usr/bin/observer", &blacklist, &allowed, &enforcer.protected_system_names
+            "observer",
+            "/usr/bin/observer",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "jobs_worker", "/usr/bin/jobs_worker", &blacklist, &allowed, &enforcer.protected_system_names
+            "jobs_worker",
+            "/usr/bin/jobs_worker",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
     #[test]
     fn test_protected_process_immunity() {
         let enforcer = ShieldEnforcer::new();
-        let blacklist = vec!["systemd".to_string(), "postgres".to_string(), "shinpo".to_string(), "wireplumber".to_string()];
+        let blacklist = vec![
+            "systemd".to_string(),
+            "postgres".to_string(),
+            "shinpo".to_string(),
+            "wireplumber".to_string(),
+        ];
         let allowed = HashSet::new();
 
         // Critical system infrastructure, db, and shinpo are protected even if blacklisted
         assert!(!ShieldEnforcer::is_distraction_process(
-            "systemd", "/usr/lib/systemd/systemd", &blacklist, &allowed, &enforcer.protected_system_names
+            "systemd",
+            "/usr/lib/systemd/systemd",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "postgres", "/usr/bin/postgres", &blacklist, &allowed, &enforcer.protected_system_names
+            "postgres",
+            "/usr/bin/postgres",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "wireplumber", "/usr/bin/wireplumber", &blacklist, &allowed, &enforcer.protected_system_names
+            "wireplumber",
+            "/usr/bin/wireplumber",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "shinpo_backend", "shinpo -Ddev", &blacklist, &allowed, &enforcer.protected_system_names
+            "shinpo_backend",
+            "shinpo -Ddev",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
     #[test]
     fn test_ordinary_browser_is_blockable() {
         let enforcer = ShieldEnforcer::new();
-        let blacklist = vec!["chrome".to_string(), "firefox".to_string(), "brave".to_string()];
+        let blacklist = vec![
+            "chrome".to_string(),
+            "firefox".to_string(),
+            "brave".to_string(),
+        ];
         let allowed = HashSet::new();
 
         assert!(ShieldEnforcer::is_distraction_process(
-            "chrome", "/opt/google/chrome/chrome", &blacklist, &allowed, &enforcer.protected_system_names
+            "chrome",
+            "/opt/google/chrome/chrome",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "firefox", "/usr/bin/firefox", &blacklist, &allowed, &enforcer.protected_system_names
+            "firefox",
+            "/usr/bin/firefox",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "brave", "/usr/bin/brave-browser", &blacklist, &allowed, &enforcer.protected_system_names
+            "brave",
+            "/usr/bin/brave-browser",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
@@ -865,10 +1043,18 @@ mod tests {
         let allowed = HashSet::new();
 
         assert!(ShieldEnforcer::is_distraction_process(
-            "code", "/usr/share/code/code", &blacklist, &allowed, &enforcer.protected_system_names
+            "code",
+            "/usr/share/code/code",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(ShieldEnforcer::is_distraction_process(
-            "idea", "/opt/intellij/bin/idea.sh", &blacklist, &allowed, &enforcer.protected_system_names
+            "idea",
+            "/opt/intellij/bin/idea.sh",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
@@ -880,15 +1066,27 @@ mod tests {
 
         // A node process is not protected merely because its arguments mention shinpo.
         assert!(ShieldEnforcer::is_distraction_process(
-            "node", "node /home/user/Projects/SHINPO/frontend/node_modules/vite/bin/vite.js", &blacklist, &allowed, &enforcer.protected_system_names
+            "node",
+            "node /home/user/Projects/SHINPO/frontend/node_modules/vite/bin/vite.js",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         // A Java process is not protected merely because its arguments mention shinpo.
         assert!(ShieldEnforcer::is_distraction_process(
-            "java", "java -jar /opt/shinpo/shinpo-backend.jar", &blacklist, &allowed, &enforcer.protected_system_names
+            "java",
+            "java -jar /opt/shinpo/shinpo-backend.jar",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         // Ordinary node script without shinpo is blockable!
         assert!(ShieldEnforcer::is_distraction_process(
-            "node", "node /home/user/other-project/server.js", &blacklist, &allowed, &enforcer.protected_system_names
+            "node",
+            "node /home/user/other-project/server.js",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
@@ -901,28 +1099,52 @@ mod tests {
 
         // Discord is blocked
         assert!(ShieldEnforcer::is_distraction_process(
-            "discord", "/usr/bin/discord", &blacklist, &allowed, &enforcer.protected_system_names
+            "discord",
+            "/usr/bin/discord",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         // Slack is whitelisted, so it is allowed!
         assert!(!ShieldEnforcer::is_distraction_process(
-            "slack", "/usr/bin/slack", &blacklist, &allowed, &enforcer.protected_system_names
+            "slack",
+            "/usr/bin/slack",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
     #[test]
     fn test_jvm_internal_threads_ignored() {
         let enforcer = ShieldEnforcer::new();
-        let blacklist = vec!["thread".to_string(), "catalina".to_string(), "service".to_string()];
+        let blacklist = vec![
+            "thread".to_string(),
+            "catalina".to_string(),
+            "service".to_string(),
+        ];
         let allowed = HashSet::new();
 
         assert!(!ShieldEnforcer::is_distraction_process(
-            "gc thread#0", "", &blacklist, &allowed, &enforcer.protected_system_names
+            "gc thread#0",
+            "",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "http-nio-8080-exec-1", "", &blacklist, &allowed, &enforcer.protected_system_names
+            "http-nio-8080-exec-1",
+            "",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
         assert!(!ShieldEnforcer::is_distraction_process(
-            "catalina-utility-1", "", &blacklist, &allowed, &enforcer.protected_system_names
+            "catalina-utility-1",
+            "",
+            &blacklist,
+            &allowed,
+            &enforcer.protected_system_names
         ));
     }
 
@@ -960,14 +1182,12 @@ mod tests {
             server_time: Some("2026-10-02T12:00:00Z".to_string()),
             current_mission_id: None,
             current_goal_id: None,
-            active_warnings: vec![
-                crate::client::ActiveWarningItem {
-                    warning_id: "00000000-0000-0000-0000-000000000001".to_string(),
-                    process_name: "discord".to_string(),
-                    decision_deadline: "2026-10-02T12:01:00Z".to_string(),
-                    status: "ISSUED".to_string(),
-                }
-            ],
+            active_warnings: vec![crate::client::ActiveWarningItem {
+                warning_id: "00000000-0000-0000-0000-000000000001".to_string(),
+                process_name: "discord".to_string(),
+                decision_deadline: "2026-10-02T12:01:00Z".to_string(),
+                status: "ISSUED".to_string(),
+            }],
             active_grace_windows: Vec::new(),
         };
 
@@ -999,13 +1219,11 @@ mod tests {
             current_mission_id: None,
             current_goal_id: None,
             active_warnings: Vec::new(),
-            active_grace_windows: vec![
-                crate::client::ActiveGraceWindowItem {
-                    warning_id: "00000000-0000-0000-0000-000000000002".to_string(),
-                    process_name: "discord".to_string(),
-                    expires_at: "2026-10-02T12:15:00Z".to_string(),
-                }
-            ],
+            active_grace_windows: vec![crate::client::ActiveGraceWindowItem {
+                warning_id: "00000000-0000-0000-0000-000000000002".to_string(),
+                process_name: "discord".to_string(),
+                expires_at: "2026-10-02T12:15:00Z".to_string(),
+            }],
         };
 
         let ref_time = parse_iso8601_to_epoch_secs("2026-10-02T12:05:00Z").unwrap();
@@ -1029,11 +1247,13 @@ mod tests {
     fn test_candidate_evaluator_defer_and_terminate_branches() {
         // Test that evaluator returning DEFER_WARNING / DEFER_GRACE does not proceed to termination,
         // and ENFORCE_TERMINATE enables termination outcome.
-        let (action, confirmed, _) = ShieldEnforcer::enforcement_outcome("STRICT", |_force| true);
+        let (action, confirmed, _) =
+            ShieldEnforcer::enforcement_outcome("STRICT", true, |_force| true);
         assert_eq!(action, "TERMINATED");
         assert!(confirmed);
 
-        let (action_audit, _, _) = ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", |_force| false);
+        let (action_audit, _, _) =
+            ShieldEnforcer::enforcement_outcome("AUDIT_ONLY", true, |_force| false);
         assert_eq!(action_audit, "WARNED");
     }
 
@@ -1102,13 +1322,11 @@ mod tests {
             current_mission_id: None,
             current_goal_id: None,
             active_warnings: Vec::new(),
-            active_grace_windows: vec![
-                crate::client::ActiveGraceWindowItem {
-                    warning_id: "00000000-0000-0000-0000-000000000003".to_string(),
-                    process_name: "slack".to_string(),
-                    expires_at: "2026-10-02T12:10:00Z".to_string(),
-                }
-            ],
+            active_grace_windows: vec![crate::client::ActiveGraceWindowItem {
+                warning_id: "00000000-0000-0000-0000-000000000003".to_string(),
+                process_name: "slack".to_string(),
+                expires_at: "2026-10-02T12:10:00Z".to_string(),
+            }],
         };
 
         // Before expiry: is_in_active_grace returns true (deferral)

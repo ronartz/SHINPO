@@ -1,7 +1,9 @@
+use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use tauri::Manager;
 
 use shinpo_shield::client::SentinelClient;
 use shinpo_shield::config::ShieldConfig;
@@ -15,6 +17,52 @@ static LAST_SESSION_ID: Mutex<Option<i64>> = Mutex::new(None);
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 const CREDENTIAL_SERVICE: &str = "com.shinpo.app";
 const REFRESH_TOKEN_ACCOUNT: &str = "refresh_token";
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserCompanionLocalStatus {
+    paired: bool,
+    state: &'static str,
+    detail: &'static str,
+}
+
+#[tauri::command]
+fn browser_companion_pairing_code(
+    state: tauri::State<'_, native_vault::VaultManager>,
+) -> Result<String, String> {
+    let paths = shinpo_browser_host::config::HostPaths::default();
+    shinpo_browser_host::initialize_installation(&paths)
+        .map_err(|_| "Could not initialize the Browser Companion host".to_string())?;
+    shinpo_browser_host::clear_credentials(&paths)
+        .map_err(|_| "Could not switch Browser Companion to local-only credentials".to_string())?;
+    let code = shinpo_browser_host::rotate_pairing(&paths)
+        .map_err(|_| "Could not create a pairing challenge".to_string())?;
+    native_vault::local_sync_browser_policy(state)?;
+    Ok(code)
+}
+
+#[tauri::command]
+fn browser_companion_local_status() -> BrowserCompanionLocalStatus {
+    let paths = shinpo_browser_host::config::HostPaths::default();
+    let paired = shinpo_browser_host::config::HostConfig::load(&paths)
+        .ok()
+        .is_some_and(|config| config.browser_token_hash.is_some());
+    BrowserCompanionLocalStatus {
+        paired,
+        state: if paired { "PAIRED" } else { "UNPAIRED" },
+        detail: if paired {
+            "Pairing is saved locally. Open the extension to verify its live connection."
+        } else {
+            "Pair the installed extension using a short-lived code from SHINPO."
+        },
+    }
+}
+
+#[tauri::command]
+fn browser_companion_revoke() -> Result<(), String> {
+    shinpo_browser_host::disconnect_installation(&shinpo_browser_host::config::HostPaths::default())
+        .map_err(|_| "Could not revoke the Browser Companion pairing".to_string())
+}
 
 fn refresh_token_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(CREDENTIAL_SERVICE, REFRESH_TOKEN_ACCOUNT)
@@ -87,7 +135,14 @@ fn get_shield_status() -> Result<ShieldStatusDto, String> {
 }
 
 #[tauri::command]
-fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Result<String, String> {
+fn start_shield_service(
+    state: tauri::State<'_, native_vault::VaultManager>,
+    api_url: Option<String>,
+    token: Option<String>,
+) -> Result<String, String> {
+    if !state.is_unlocked()? {
+        return Err("Unlock the local vault before starting Sentinel".to_string());
+    }
     let url = shinpo_shield::config::validate_backend_url(
         &api_url.unwrap_or_else(|| "http://localhost:8080".to_string()),
     )?;
@@ -174,6 +229,10 @@ fn start_shield_service(api_url: Option<String>, token: Option<String>) -> Resul
     Ok("Shield enforcement thread launched".to_string())
 }
 
+pub(crate) fn halt_shield_for_vault_lock() {
+    SHIELD_ACTIVE.store(false, Ordering::SeqCst);
+}
+
 #[tauri::command]
 fn stop_shield_service() -> Result<String, String> {
     SHIELD_ACTIVE.store(false, Ordering::SeqCst);
@@ -185,6 +244,8 @@ fn stop_shield_service() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            let vault_dir = app.path().app_data_dir()?.join("vaults");
+            app.manage(native_vault::VaultManager::new(vault_dir));
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -196,6 +257,42 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            native_vault::create_local_account,
+            native_vault::unlock_local_account,
+            native_vault::recover_local_account,
+            native_vault::lock_local_account,
+            native_vault::local_vault_status,
+            native_vault::local_get_goals,
+            native_vault::local_create_goal,
+            native_vault::local_update_goal,
+            native_vault::local_delete_goal,
+            native_vault::local_delete_all_goals,
+            native_vault::local_get_tasks,
+            native_vault::local_create_task,
+            native_vault::local_update_task,
+            native_vault::local_complete_task,
+            native_vault::local_delete_task,
+            native_vault::local_delete_all_tasks,
+            native_vault::local_get_progress,
+            native_vault::local_claim_onboarding_reward,
+            native_vault::local_create_focus_session,
+            native_vault::local_get_focus_sessions,
+            native_vault::local_get_focus_sessions_by_date,
+            native_vault::local_update_focus_session,
+            native_vault::local_start_focus_session,
+            native_vault::local_pause_focus_session,
+            native_vault::local_resume_focus_session,
+            native_vault::local_complete_focus_session,
+            native_vault::local_cancel_focus_session,
+            native_vault::local_delete_focus_session,
+            native_vault::local_get_study_resources,
+            native_vault::local_create_study_resource,
+            native_vault::local_delete_study_resource,
+            native_vault::local_sync_browser_policy,
+            native_vault::local_set_browser_focus_mode,
+            browser_companion_pairing_code,
+            browser_companion_local_status,
+            browser_companion_revoke,
             start_shield_service,
             stop_shield_service,
             get_shield_status,
@@ -206,3 +303,5 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
 }
+
+mod native_vault;
