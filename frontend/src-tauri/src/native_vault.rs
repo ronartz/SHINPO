@@ -6530,6 +6530,9 @@ mod tests {
         let manager = VaultManager::new(root.clone());
         let created = create_account(&manager, "recovery_throttle", "a-long-qa-password").unwrap();
         manager.unlocked.lock().unwrap().take();
+        let mut metadata = manager.metadata("recovery_throttle").unwrap();
+        metadata.failed_unlock_attempts = 4;
+        write_metadata(&root.join("recovery_throttle/vault.json"), &metadata).unwrap();
 
         assert!(recover_account(
             &manager,
@@ -6539,7 +6542,7 @@ mod tests {
         )
         .is_err());
         let mut metadata = manager.metadata("recovery_throttle").unwrap();
-        assert_eq!(metadata.failed_unlock_attempts, 1);
+        assert_eq!(metadata.failed_unlock_attempts, 5);
         assert!(metadata.unlock_blocked_until.unwrap() > unix_now_seconds());
 
         let restarted = VaultManager::new(root.clone());
