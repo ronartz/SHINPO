@@ -147,7 +147,11 @@ pub fn run_native_loop<R: Read, W: Write>(
     while let Some(request) = framing::read_message(reader, MAX_NATIVE_MESSAGE_BYTES)? {
         let response = match serde_json::from_slice::<NativeRequest>(&request) {
             Ok(parsed) => service.handle(parsed),
-            Err(error) => error_response(None, "INVALID_JSON", &format!("Invalid native message: {error}")),
+            Err(error) => error_response(
+                None,
+                "INVALID_JSON",
+                &format!("Invalid native message: {error}"),
+            ),
         };
         let encoded = serde_json::to_vec(&response)?;
         framing::write_message(writer, &encoded, MAX_NATIVE_MESSAGE_BYTES)?;
@@ -165,7 +169,11 @@ impl NativeHostService {
     pub fn load(paths: HostPaths) -> Result<Self, HostError> {
         let config = HostConfig::load(&paths)?;
         let policy_store = PolicyStore::new(paths.clone());
-        Ok(Self { paths, config, policy_store })
+        Ok(Self {
+            paths,
+            config,
+            policy_store,
+        })
     }
 
     pub fn handle(&mut self, request: NativeRequest) -> NativeResponse {
@@ -185,10 +193,13 @@ impl NativeHostService {
                 "protocolVersion": PROTOCOL_VERSION,
             })),
             "pair" => {
-                self.authenticate(request.auth.as_deref())?;
+                let pairing_code = request.auth.as_deref().ok_or(HostError::Authentication)?;
+                let browser_token = self.config.consume_pairing(pairing_code, now_ms())?;
+                self.config.save(&self.paths)?;
                 Ok(json!({
                     "paired": true,
                     "installationId": self.config.installation_id,
+                    "sessionToken": browser_token,
                 }))
             }
             "get_policy" => {
@@ -203,13 +214,20 @@ impl NativeHostService {
                 self.authenticate(request.auth.as_deref())?;
                 self.status()
             }
+            "unpair" => {
+                self.authenticate(request.auth.as_deref())?;
+                self.config.browser_token_hash = None;
+                self.config.save(&self.paths)?;
+                self.policy_store.clear()?;
+                Ok(json!({ "paired": false }))
+            }
             _ => Err(HostError::InvalidRequest("unsupported message type".into())),
         }
     }
 
     fn authenticate(&self, supplied: Option<&str>) -> Result<(), HostError> {
         match supplied {
-            Some(token) if self.config.verify_pairing(token) => Ok(()),
+            Some(token) if self.config.verify_browser_token(token) => Ok(()),
             _ => Err(HostError::Authentication),
         }
     }
@@ -232,7 +250,9 @@ impl NativeHostService {
                         now,
                     )?;
                     connection_source = "backend";
-                    client.send_heartbeat(&self.policy_store.load_valid(now)?).ok();
+                    client
+                        .send_heartbeat(&self.policy_store.load_valid(now)?)
+                        .ok();
                 }
                 Err(error) => {
                     connection_state = "DEGRADED";
@@ -242,7 +262,8 @@ impl NativeHostService {
         }
 
         let policy = self.policy_store.load_valid(now)?;
-        if policy.get("status").and_then(Value::as_str) == Some("INACTIVE") && last_error.is_some() {
+        if policy.get("status").and_then(Value::as_str) == Some("INACTIVE") && last_error.is_some()
+        {
             connection_state = "DISCONNECTED";
         }
         Ok(json!({
@@ -260,20 +281,37 @@ impl NativeHostService {
         let session_id = required_scalar(&payload, "sessionId")?;
         let destination = required_string(&payload, "destination", 8192)?;
         validate_http_destination(&destination)?;
-        let duration = payload.get("durationMinutes").and_then(Value::as_u64).unwrap_or(5);
+        let duration = payload
+            .get("durationMinutes")
+            .and_then(Value::as_u64)
+            .unwrap_or(5);
         if duration != 5 {
-            return Err(HostError::InvalidRequest("only a five-minute exception is supported".into()));
+            return Err(HostError::InvalidRequest(
+                "only a five-minute exception is supported".into(),
+            ));
         }
         let expected_version = payload.get("expectedPolicyVersion").and_then(Value::as_u64);
         let now = now_ms();
         let existing = self.policy_store.load_valid(now)?;
+        if existing.get("allowTemporaryExceptions") == Some(&Value::Bool(false)) {
+            return Err(HostError::Policy(
+                "Temporary access must be configured in SHINPO for this session".into(),
+            ));
+        }
         if scalar(&existing, "sessionId").as_deref() != Some(session_id.as_str()) {
-            return Err(HostError::Policy("Focus session changed before exception approval".into()));
+            return Err(HostError::Policy(
+                "Focus session changed before exception approval".into(),
+            ));
         }
         if let Some(expected) = expected_version {
-            let current = existing.get("policyVersion").and_then(Value::as_u64).unwrap_or(0);
+            let current = existing
+                .get("policyVersion")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
             if expected != current {
-                return Err(HostError::Policy("policy revision changed; refresh before retrying".into()));
+                return Err(HostError::Policy(
+                    "policy revision changed; refresh before retrying".into(),
+                ));
             }
         }
 
@@ -285,7 +323,11 @@ impl NativeHostService {
         };
         let stored = self.policy_store.apply_snapshot(
             snapshot,
-            if self.config.backend.is_some() { PolicySource::Backend } else { PolicySource::LocalException },
+            if self.config.backend.is_some() {
+                PolicySource::Backend
+            } else {
+                PolicySource::LocalException
+            },
             self.config.max_lease_seconds,
             now,
         )?;
@@ -305,10 +347,14 @@ impl NativeHostService {
 }
 
 fn required_string(value: &Value, key: &str, max_length: usize) -> Result<String, HostError> {
-    let string = value.get(key).and_then(Value::as_str)
+    let string = value
+        .get(key)
+        .and_then(Value::as_str)
         .ok_or_else(|| HostError::InvalidRequest(format!("{key} is required")))?;
     if string.is_empty() || string.len() > max_length {
-        return Err(HostError::InvalidRequest(format!("{key} has an invalid length")));
+        return Err(HostError::InvalidRequest(format!(
+            "{key} has an invalid length"
+        )));
     }
     Ok(string.to_owned())
 }
@@ -319,7 +365,9 @@ fn required_scalar(value: &Value, key: &str) -> Result<String, HostError> {
 
 fn scalar(value: &Value, key: &str) -> Option<String> {
     match value.get(key) {
-        Some(Value::String(value)) if !value.is_empty() && value.len() <= 128 => Some(value.clone()),
+        Some(Value::String(value)) if !value.is_empty() && value.len() <= 128 => {
+            Some(value.clone())
+        }
         Some(Value::Number(value)) => Some(value.to_string()),
         _ => None,
     }
@@ -328,20 +376,30 @@ fn scalar(value: &Value, key: &str) -> Option<String> {
 fn validate_http_destination(destination: &str) -> Result<(), HostError> {
     let parsed = url::Url::parse(destination)
         .map_err(|_| HostError::InvalidRequest("destination is not a valid URL".into()))?;
-    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() ||
-        !parsed.username().is_empty() || parsed.password().is_some() {
-        return Err(HostError::InvalidRequest("destination must be an HTTP(S) URL without credentials".into()));
+    if !matches!(parsed.scheme(), "http" | "https")
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+    {
+        return Err(HostError::InvalidRequest(
+            "destination must be an HTTP(S) URL without credentials".into(),
+        ));
     }
     Ok(())
 }
 
 pub fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 pub fn read_json_from<R: Read>(reader: &mut R) -> Result<Value, HostError> {
     let mut bytes = Vec::new();
-    reader.take(MAX_NATIVE_MESSAGE_BYTES as u64).read_to_end(&mut bytes)?;
+    reader
+        .take(MAX_NATIVE_MESSAGE_BYTES as u64)
+        .read_to_end(&mut bytes)?;
     if bytes.is_empty() {
         return Err(HostError::InvalidRequest("JSON input is empty".into()));
     }
@@ -361,8 +419,78 @@ pub fn read_json_file(path: &Path) -> Result<Value, HostError> {
     Ok(serde_json::from_slice(&fs::read(path)?)?)
 }
 
-pub fn write_status_json<W: Write, T: Serialize>(writer: &mut W, value: &T) -> Result<(), HostError> {
+pub fn write_status_json<W: Write, T: Serialize>(
+    writer: &mut W,
+    value: &T,
+) -> Result<(), HostError> {
     serde_json::to_writer(&mut *writer, value)?;
     writer.write_all(b"\n")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn request(message_type: &str, auth: Option<String>) -> NativeRequest {
+        NativeRequest {
+            protocol_version: PROTOCOL_VERSION,
+            request_id: "qa-1".into(),
+            message_type: message_type.into(),
+            payload: json!({}),
+            auth,
+        }
+    }
+
+    #[test]
+    fn native_pairing_issues_a_separate_token_and_unpair_revokes_it() {
+        let dir = tempdir().unwrap();
+        let paths = HostPaths {
+            config: dir.path().join("config.json"),
+            policy: dir.path().join("policy.json"),
+            state_dir: dir.path().to_path_buf(),
+        };
+        let setup = initialize_installation(&paths).unwrap();
+        let challenge = setup.pairing_code.unwrap();
+        let mut host = NativeHostService::load(paths.clone()).unwrap();
+        let response = host.handle(request("pair", Some(challenge.clone())));
+        assert!(response.ok);
+        let token = response.payload.unwrap()["sessionToken"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert_ne!(challenge, token);
+        assert!(
+            NativeHostService::load(paths.clone())
+                .unwrap()
+                .handle(request("status", Some(token.clone())))
+                .ok
+        );
+        assert!(
+            !NativeHostService::load(paths.clone())
+                .unwrap()
+                .handle(request("status", Some(challenge.clone())))
+                .ok
+        );
+
+        publish_policy(&paths, json!({"status":"ACTIVE","sessionId":42,"currentPhase":"FOCUS","mode":"PROTECTED","issuedAt":now_ms(),"policyVersion":1,"allowTemporaryExceptions":false,"resources":[]})).unwrap();
+        let mut host = NativeHostService::load(paths.clone()).unwrap();
+        assert!(host
+            .request_exception(
+                json!({"sessionId":42,"destination":"https://example.com","durationMinutes":5})
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("configured in SHINPO"));
+
+        let mut host = NativeHostService::load(paths.clone()).unwrap();
+        assert!(host.handle(request("unpair", Some(token.clone()))).ok);
+        assert!(
+            !NativeHostService::load(paths)
+                .unwrap()
+                .handle(request("status", Some(token)))
+                .ok
+        );
+    }
 }

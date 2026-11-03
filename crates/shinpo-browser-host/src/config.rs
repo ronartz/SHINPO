@@ -1,11 +1,11 @@
-use std::fs::{self, File, Permissions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use crate::{CredentialUpdate, HostError};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::fs::{self, File, Permissions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use subtle::ConstantTimeEq;
-use crate::{CredentialUpdate, HostError};
 
 #[derive(Clone, Debug)]
 pub struct HostPaths {
@@ -85,6 +85,10 @@ pub struct HostConfig {
     pub pairing_secret_hash: String,
     pub max_lease_seconds: u64,
     #[serde(default)]
+    pub pairing_expires_at_ms: Option<u64>,
+    #[serde(default)]
+    pub browser_token_hash: Option<String>,
+    #[serde(default)]
     pub review_url: Option<String>,
     #[serde(default)]
     pub backend: Option<BackendConfig>,
@@ -108,6 +112,8 @@ impl HostConfig {
             installation_id,
             pairing_secret_hash: hash,
             max_lease_seconds: 60,
+            pairing_expires_at_ms: Some(now_ms() + 10 * 60 * 1000),
+            browser_token_hash: None,
             review_url: Some("http://localhost:5173".to_string()),
             backend: None,
         };
@@ -120,12 +126,30 @@ impl HostConfig {
         rng.fill_bytes(&mut raw_bytes);
         let raw_token = hex::encode(raw_bytes);
         self.pairing_secret_hash = hash_token(&raw_token);
+        self.pairing_expires_at_ms = Some(now_ms() + 10 * 60 * 1000);
+        self.browser_token_hash = None;
         raw_token
     }
 
-    pub fn verify_pairing(&self, candidate: &str) -> bool {
+    pub fn verify_pairing(&self, candidate: &str, now_ms: u64) -> bool {
+        if self
+            .pairing_expires_at_ms
+            .is_none_or(|expires| expires <= now_ms)
+        {
+            return false;
+        }
+        self.verify_hash(&self.pairing_secret_hash, candidate)
+    }
+
+    pub fn verify_browser_token(&self, candidate: &str) -> bool {
+        self.browser_token_hash
+            .as_deref()
+            .is_some_and(|expected| self.verify_hash(expected, candidate))
+    }
+
+    fn verify_hash(&self, expected: &str, candidate: &str) -> bool {
         let candidate_hash = hash_token(candidate);
-        let expected = self.pairing_secret_hash.as_bytes();
+        let expected = expected.as_bytes();
         let actual = candidate_hash.as_bytes();
         if expected.len() != actual.len() {
             return false;
@@ -133,9 +157,25 @@ impl HostConfig {
         expected.ct_eq(actual).into()
     }
 
+    pub fn consume_pairing(&mut self, candidate: &str, now_ms: u64) -> Result<String, HostError> {
+        if !self.verify_pairing(candidate, now_ms) {
+            return Err(HostError::Authentication);
+        }
+        let mut rng = rand::thread_rng();
+        let mut raw_bytes = [0u8; 32];
+        rng.fill_bytes(&mut raw_bytes);
+        let browser_token = hex::encode(raw_bytes);
+        self.browser_token_hash = Some(hash_token(&browser_token));
+        self.pairing_expires_at_ms = None;
+        self.pairing_secret_hash = hash_token("");
+        Ok(browser_token)
+    }
+
     pub fn set_backend(&mut self, update: CredentialUpdate) -> Result<(), HostError> {
         if update.base_url.is_empty() || update.access_token.is_empty() {
-            return Err(HostError::Config("Base URL and access token are required".into()));
+            return Err(HostError::Config(
+                "Base URL and access token are required".into(),
+            ));
         }
         let base_url = validate_backend_url(&update.base_url)
             .map_err(|message| HostError::Config(message.into()))?;
@@ -175,8 +215,16 @@ impl HostConfig {
 
 fn validate_backend_url(raw: &str) -> Result<String, &'static str> {
     let parsed = url::Url::parse(raw.trim()).map_err(|_| "Invalid backend URL")?;
-    let authority = raw.trim().split_once("://").map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default()).unwrap_or_default();
-    if authority.contains('@') || parsed.password().is_some() || parsed.query().is_some() || parsed.fragment().is_some() {
+    let authority = raw
+        .trim()
+        .split_once("://")
+        .map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default())
+        .unwrap_or_default();
+    if authority.contains('@')
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
         return Err("Backend URL must not contain credentials, a query, or a fragment");
     }
     let loopback = match parsed.host() {
@@ -198,6 +246,13 @@ fn hash_token(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     hex::encode(hasher.finalize())
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 pub fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), HostError> {
@@ -227,10 +282,7 @@ pub fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Hos
 
 mod hex {
     pub fn encode<T: AsRef<[u8]>>(data: T) -> String {
-        data.as_ref()
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect()
+        data.as_ref().iter().map(|b| format!("{:02x}", b)).collect()
     }
 }
 
@@ -243,24 +295,50 @@ mod tests {
     fn test_pairing_and_rotation() {
         let (mut config, pairing_code) = HostConfig::new_installation();
         assert!(!pairing_code.is_empty());
-        assert!(config.verify_pairing(&pairing_code));
-        assert!(!config.verify_pairing("wrong-code"));
+        assert!(config.verify_pairing(&pairing_code, now_ms()));
+        assert!(!config.verify_pairing("wrong-code", now_ms()));
 
         let rotated = config.rotate_pairing();
         assert_ne!(pairing_code, rotated);
-        assert!(!config.verify_pairing(&pairing_code));
-        assert!(config.verify_pairing(&rotated));
+        assert!(!config.verify_pairing(&pairing_code, now_ms()));
+        assert!(config.verify_pairing(&rotated, now_ms()));
+    }
+
+    #[test]
+    fn pairing_challenge_expires_is_one_time_and_issues_a_distinct_revocable_token() {
+        let (mut config, pairing_code) = HostConfig::new_installation();
+        let expiry = config.pairing_expires_at_ms.unwrap();
+        assert!(!config.verify_pairing(&pairing_code, expiry));
+        assert!(config.verify_pairing(&pairing_code, expiry - 1));
+
+        let browser_token = config.consume_pairing(&pairing_code, expiry - 1).unwrap();
+        assert_ne!(browser_token, pairing_code);
+        assert!(config.verify_browser_token(&browser_token));
+        assert!(!config.verify_pairing(&pairing_code, expiry - 1));
+
+        config.browser_token_hash = None;
+        assert!(!config.verify_browser_token(&browser_token));
     }
 
     #[test]
     fn backend_credentials_require_https_except_explicit_loopback() {
-        for url in ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080", "https://api.example.com"] {
+        for url in [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://[::1]:8080",
+            "https://api.example.com",
+        ] {
             assert!(validate_backend_url(url).is_ok(), "{url}");
         }
         for url in [
-            "http://192.168.1.2:8080", "http://127.0.0.2:8080", "http://localhost.example:8080",
-            "https://user:secret@example.com", "https://@example.com", "https://example.com/?token=x",
-            "https://example.com/#fragment", "ftp://example.com",
+            "http://192.168.1.2:8080",
+            "http://127.0.0.2:8080",
+            "http://localhost.example:8080",
+            "https://user:secret@example.com",
+            "https://@example.com",
+            "https://example.com/?token=x",
+            "https://example.com/#fragment",
+            "ftp://example.com",
         ] {
             assert!(validate_backend_url(url).is_err(), "{url}");
         }
@@ -282,4 +360,3 @@ mod tests {
         assert_eq!(config.installation_id, loaded.installation_id);
     }
 }
-

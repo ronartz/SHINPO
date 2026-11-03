@@ -1,5 +1,5 @@
-use std::process::Command;
 use crate::platform::PlatformInterceptor;
+use std::process::Command;
 
 /// macOS implementation using POSIX signals and AppleScript notification center.
 /// Pre-configured with Apple Endpoint Security (ES) and NetworkExtension stubs.
@@ -44,9 +44,7 @@ impl PlatformInterceptor for MacOsInterceptor {
             title.replace('"', "\\\"")
         );
 
-        let _ = Command::new("osascript")
-            .args(["-e", &script])
-            .output();
+        let _ = Command::new("osascript").args(["-e", &script]).output();
     }
 
     fn is_privileged(&self) -> bool {

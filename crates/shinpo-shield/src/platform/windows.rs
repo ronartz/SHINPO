@@ -1,5 +1,5 @@
-use std::process::Command;
 use crate::platform::PlatformInterceptor;
+use std::process::Command;
 
 /// Windows implementation using Win32 / taskkill and PowerShell Windows Toast Notifications.
 /// Pre-configured with Windows Filtering Platform (WFP) architecture stubs.
@@ -29,14 +29,19 @@ impl PlatformInterceptor for WindowsInterceptor {
         }
         cmd.args(["/PID", &pid.to_string()]);
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| format!("Failed to execute taskkill for PID {}: {}", pid, e))?;
 
         if output.status.success() {
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("taskkill failed for PID {}: {}", pid, stderr.trim()))
+            Err(format!(
+                "taskkill failed for PID {}: {}",
+                pid,
+                stderr.trim()
+            ))
         }
     }
 

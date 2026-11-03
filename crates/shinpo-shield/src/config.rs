@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,7 +131,8 @@ impl CliOptions {
 }
 
 fn print_help() {
-    println!(r#"
+    println!(
+        r#"
 進歩 (SHINPO) NATIVE FOCUS ENFORCEMENT SHIELD DAEMON
 
 USAGE:
@@ -150,7 +151,8 @@ OPTIONS:
     --token <JWT>          Bearer token for authenticated API requests
     --interval <SECONDS>   Polling interval in seconds (default: 2)
     -h, --help             Print help information
-"#);
+"#
+    );
 }
 
 pub fn load_config(opts: &CliOptions) -> Result<ShieldConfig, String> {
@@ -196,8 +198,16 @@ pub fn load_config(opts: &CliOptions) -> Result<ShieldConfig, String> {
 
 pub fn validate_backend_url(raw: &str) -> Result<String, String> {
     let parsed = Url::parse(raw.trim()).map_err(|_| "Invalid backend URL".to_string())?;
-    let authority = raw.trim().split_once("://").map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default()).unwrap_or_default();
-    if authority.contains('@') || parsed.password().is_some() || parsed.query().is_some() || parsed.fragment().is_some() {
+    let authority = raw
+        .trim()
+        .split_once("://")
+        .map(|(_, rest)| rest.split(['/', '?', '#']).next().unwrap_or_default())
+        .unwrap_or_default();
+    if authority.contains('@')
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
         return Err("Backend URL must not contain credentials, a query, or a fragment".into());
     }
     let loopback = match parsed.host() {
@@ -221,13 +231,23 @@ mod url_tests {
 
     #[test]
     fn backend_url_policy_allows_only_https_or_explicit_loopback_http() {
-        for url in ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080", "https://api.example.com"] {
+        for url in [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://[::1]:8080",
+            "https://api.example.com",
+        ] {
             assert!(validate_backend_url(url).is_ok(), "{url}");
         }
         for url in [
-            "http://192.168.1.2:8080", "http://127.0.0.2:8080", "http://localhost.example:8080",
-            "https://user:pass@example.com", "https://@example.com", "https://example.com/?token=x",
-            "https://example.com/#fragment", "ftp://example.com",
+            "http://192.168.1.2:8080",
+            "http://127.0.0.2:8080",
+            "http://localhost.example:8080",
+            "https://user:pass@example.com",
+            "https://@example.com",
+            "https://example.com/?token=x",
+            "https://example.com/#fragment",
+            "ftp://example.com",
         ] {
             assert!(validate_backend_url(url).is_err(), "{url}");
         }

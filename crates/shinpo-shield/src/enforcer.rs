@@ -526,6 +526,12 @@ impl ShieldEnforcer {
     }
 }
 
+impl Default for ShieldEnforcer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn verify_target_exit<F>(mut target_is_running: F) -> bool
 where
     F: FnMut() -> bool,
@@ -560,19 +566,19 @@ pub fn parse_iso8601_to_epoch_secs(s: &str) -> Option<u64> {
     let min: u64 = s.get(14..16)?.parse().ok()?;
     let sec: u64 = s.get(17..19)?.parse().ok()?;
 
-    if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 60 {
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || min > 59 || sec > 60 {
         return None;
     }
 
     let mut days = 0u64;
     for y in 1970..year {
-        days += if (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0) {
+        days += if (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400) {
             366
         } else {
             365
         };
     }
-    let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
     let month_days = [
         31,
         if leap { 29 } else { 28 },

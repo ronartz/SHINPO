@@ -1,5 +1,5 @@
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SentinelDaemonSyncResponse {
@@ -155,13 +155,12 @@ impl SentinelClient {
         }
 
         match req.call() {
-            Ok(response) => {
-                response.into_json::<SentinelDaemonSyncResponse>()
-                    .map_err(|e| format!("Failed to parse sync response: {}", e))
-            }
-            Err(ureq::Error::Status(401, _)) => {
-                Err("Authentication required. Set SHINPO_AUTH_TOKEN or pass --token <jwt>".to_string())
-            }
+            Ok(response) => response
+                .into_json::<SentinelDaemonSyncResponse>()
+                .map_err(|e| format!("Failed to parse sync response: {}", e)),
+            Err(ureq::Error::Status(401, _)) => Err(
+                "Authentication required. Set SHINPO_AUTH_TOKEN or pass --token <jwt>".to_string(),
+            ),
             Err(ureq::Error::Status(404, _)) | Err(ureq::Error::Transport(_)) => {
                 // Fallback attempt to public focus-sessions endpoint
                 self.fallback_sync()
@@ -187,7 +186,11 @@ impl SentinelClient {
                         return Ok(SentinelDaemonSyncResponse {
                             has_active_session: true,
                             active_session_id: Some(active.id),
-                            active_session_name: Some(if active.name.is_empty() { "Focus Sprint".to_string() } else { active.name }),
+                            active_session_name: Some(if active.name.is_empty() {
+                                "Focus Sprint".to_string()
+                            } else {
+                                active.name
+                            }),
                             duration_minutes: active.duration_minutes,
                             intention: active.intention,
                             enforcement_mode: "AUDIT_ONLY".to_string(),
@@ -228,7 +231,10 @@ impl SentinelClient {
     /// Records an intercepted quarantine event to the backend for audit & telemetry.
     pub fn report_quarantine(&self, record: &RecordQuarantineRequest) -> Result<(), String> {
         let quarantine_url = format!("{}/api/device/sentinel/quarantines", self.base_url);
-        let mut req = self.agent.post(&quarantine_url).timeout(Duration::from_secs(3));
+        let mut req = self
+            .agent
+            .post(&quarantine_url)
+            .timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
@@ -244,7 +250,10 @@ impl SentinelClient {
     }
 
     /// Reports a batch of quarantine events (flushed from offline spool) in a single HTTP request.
-    pub fn report_quarantines_batch(&self, records: &[RecordQuarantineRequest]) -> Result<BatchQuarantineResponse, String> {
+    pub fn report_quarantines_batch(
+        &self,
+        records: &[RecordQuarantineRequest],
+    ) -> Result<BatchQuarantineResponse, String> {
         if records.is_empty() {
             return Ok(BatchQuarantineResponse {
                 processed_count: 0,
@@ -264,10 +273,9 @@ impl SentinelClient {
         };
 
         match req.send_json(&payload) {
-            Ok(resp) => {
-                resp.into_json::<BatchQuarantineResponse>()
-                    .map_err(|e| format!("Failed to parse batch quarantine response: {}", e))
-            }
+            Ok(resp) => resp
+                .into_json::<BatchQuarantineResponse>()
+                .map_err(|e| format!("Failed to parse batch quarantine response: {}", e)),
             Err(ureq::Error::Status(code, resp)) => {
                 let err_msg = resp.into_string().unwrap_or_default();
                 Err(format!("Server returned HTTP {}: {}", code, err_msg))
@@ -277,21 +285,29 @@ impl SentinelClient {
     }
 
     /// Evaluates a candidate blocked process with the backend authority.
-    pub fn evaluate_candidate(&self, request: &CandidateProcessRequest) -> Result<CandidateProcessResponse, String> {
+    pub fn evaluate_candidate(
+        &self,
+        request: &CandidateProcessRequest,
+    ) -> Result<CandidateProcessResponse, String> {
         let candidate_url = format!("{}/api/device/sentinel/warnings/candidate", self.base_url);
-        let mut req = self.agent.post(&candidate_url).timeout(Duration::from_secs(3));
+        let mut req = self
+            .agent
+            .post(&candidate_url)
+            .timeout(Duration::from_secs(3));
         if let Some(token) = &self.auth_token {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
 
         match req.send_json(request) {
-            Ok(resp) => {
-                resp.into_json::<CandidateProcessResponse>()
-                    .map_err(|e| format!("Failed to parse candidate response: {}", e))
-            }
+            Ok(resp) => resp
+                .into_json::<CandidateProcessResponse>()
+                .map_err(|e| format!("Failed to parse candidate response: {}", e)),
             Err(ureq::Error::Status(code, resp)) => {
                 let body = resp.into_string().unwrap_or_default();
-                Err(format!("Candidate evaluation API error (HTTP {}): {}", code, body))
+                Err(format!(
+                    "Candidate evaluation API error (HTTP {}): {}",
+                    code, body
+                ))
             }
             Err(e) => Err(format!("Failed to evaluate candidate with backend: {}", e)),
         }
@@ -416,6 +432,9 @@ mod tests {
 
         assert_eq!(sync.active_grace_windows.len(), 1);
         assert_eq!(sync.active_grace_windows[0].process_name, "discord");
-        assert_eq!(sync.active_grace_windows[0].expires_at, "2026-10-02T12:15:00Z");
+        assert_eq!(
+            sync.active_grace_windows[0].expires_at,
+            "2026-10-02T12:15:00Z"
+        );
     }
 }

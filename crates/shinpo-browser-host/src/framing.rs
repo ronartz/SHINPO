@@ -1,8 +1,11 @@
-use std::io::{self, Read, Write};
 use crate::HostError;
+use std::io::{self, Read, Write};
 
 /// Reads a single native messaging frame (4-byte length prefix in native endianness, followed by JSON payload).
-pub fn read_message<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Option<Vec<u8>>, HostError> {
+pub fn read_message<R: Read>(
+    reader: &mut R,
+    max_bytes: usize,
+) -> Result<Option<Vec<u8>>, HostError> {
     let mut len_bytes = [0u8; 4];
     match reader.read_exact(&mut len_bytes) {
         Ok(()) => {}
@@ -12,7 +15,9 @@ pub fn read_message<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Option<
 
     let len = u32::from_ne_bytes(len_bytes) as usize;
     if len == 0 {
-        return Err(HostError::InvalidRequest("Native message length is zero".into()));
+        return Err(HostError::InvalidRequest(
+            "Native message length is zero".into(),
+        ));
     }
     if len > max_bytes {
         return Err(HostError::InvalidRequest(format!(
@@ -26,7 +31,11 @@ pub fn read_message<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Option<
 }
 
 /// Writes a single native messaging frame (4-byte length prefix in native endianness, followed by JSON payload).
-pub fn write_message<W: Write>(writer: &mut W, bytes: &[u8], max_bytes: usize) -> Result<(), HostError> {
+pub fn write_message<W: Write>(
+    writer: &mut W,
+    bytes: &[u8],
+    max_bytes: usize,
+) -> Result<(), HostError> {
     let len = bytes.len();
     if len > max_bytes {
         return Err(HostError::InvalidRequest(format!(
@@ -53,7 +62,9 @@ mod tests {
         write_message(&mut sink, payload, 1024).expect("write failed");
 
         let mut source = Cursor::new(sink);
-        let read = read_message(&mut source, 1024).expect("read failed").expect("eof");
+        let read = read_message(&mut source, 1024)
+            .expect("read failed")
+            .expect("eof");
         assert_eq!(read, payload);
     }
 
@@ -64,4 +75,3 @@ mod tests {
         assert!(read.is_none());
     }
 }
-

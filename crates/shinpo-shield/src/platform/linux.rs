@@ -1,5 +1,5 @@
-use std::process::Command;
 use crate::platform::PlatformInterceptor;
+use std::process::Command;
 
 pub struct LinuxInterceptor;
 
