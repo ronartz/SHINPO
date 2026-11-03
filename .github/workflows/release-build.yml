@@ -1,0 +1,122 @@
+name: SHINPO tagged installer build
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux-installers:
+    name: Linux installers and checksums
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate tag matches the Tauri application version
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const tag = process.env.GITHUB_REF_NAME ?? "";
+            const { version } = JSON.parse(fs.readFileSync("frontend/src-tauri/tauri.conf.json", "utf8"));
+            if (!/^v\d+\.\d+\.\d+$/.test(tag) || tag !== `v${version}`) {
+              throw new Error(`Tag ${tag} must be v${version}`);
+            }
+            console.log(`Building SHINPO ${version}`);
+          '
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+      - name: Install Tauri Linux bundler dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential curl file libayatana-appindicator3-dev libfuse2t64 \
+            libssl-dev libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev patchelf pkg-config rpm wget
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build Linux installers
+        run: npm run tauri:build -- --bundles deb,appimage,rpm
+        working-directory: frontend
+      - name: Generate and display checksums
+        run: |
+          set -euo pipefail
+          output=release-artifacts/linux-x64
+          mkdir -p "$output"
+          mapfile -d '' artifacts < <(find frontend/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -print0)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No Linux installer artifacts were produced" >&2
+            exit 1
+          fi
+          for artifact in "${artifacts[@]}"; do cp "$artifact" "$output/"; done
+          (cd "$output" && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          cat "$output/SHA256SUMS"
+
+  windows-installer:
+    name: Windows NSIS installer and checksum
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate tag matches the Tauri application version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$' -or $env:RELEASE_TAG -ne "v$($config.version)") {
+            throw "Release tag must exactly match v$($config.version)"
+          }
+          Write-Output "Building SHINPO $($config.version)"
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Confirm MSVC compiler
+        shell: pwsh
+        run: |
+          rustc -vV
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw "MSVC compiler cl.exe is unavailable" }
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build Windows NSIS installer
+        run: npm run tauri:build -- --bundles nsis
+        working-directory: frontend
+      - name: Generate and display checksum
+        shell: pwsh
+        run: |
+          $output = "release-artifacts/windows-x64"
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Filter *.exe -File -ErrorAction SilentlyContinue)
+          if ($installers.Count -eq 0) { throw "No Windows NSIS installer was produced" }
+          foreach ($installer in $installers) { Copy-Item $installer.FullName $output }
+          $lines = Get-ChildItem $output -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          $lines | Set-Content "$output/SHA256SUMS" -Encoding ascii
+          Get-Content "$output/SHA256SUMS"

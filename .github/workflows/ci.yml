@@ -1,19 +1,24 @@
-name: CI / Build & Test
+name: SHINPO CI
 
 on:
   push:
-    branches: [ main ]
+    branches: ["**"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
-    name: Backend Build & Test
-    runs-on: ubuntu-latest
-
+    name: Legacy backend tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17-alpine
@@ -28,106 +33,158 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Run backend tests
+        run: ./mvnw -B test
+        working-directory: backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: shinpo_test
+          POSTGRES_USER: shinpo
+          POSTGRES_PASSWORD: shinpo_dev
+          SHINPO_JWT_SECRET: test-only-secret-not-used-outside-this-job-123456
 
-    - name: Set up JDK 25
-      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
-      with:
-        java-version: '25'
-        distribution: 'temurin'
-        cache: 'maven'
-        cache-dependency-path: backend/pom.xml
-
-    - name: Make Maven wrapper executable
-      run: chmod +x mvnw
-      working-directory: backend
-
-    - name: Run Backend Tests
-      run: ./mvnw -B test
-      working-directory: backend
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: shinpo_test
-        POSTGRES_USER: shinpo
-        POSTGRES_PASSWORD: shinpo_dev
-        SHINPO_JWT_SECRET: shinpo_test_secret_key_minimum_32_characters_for_hmac256_testing_only
-
-  frontend:
-    name: Frontend Lint & Build
-    runs-on: ubuntu-latest
+  desktop-linux:
+    name: Desktop tests and build (Ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential curl file libayatana-appindicator3-dev libfuse2t64 \
+            libssl-dev libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev patchelf pkg-config rpm wget
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Audit locked frontend dependencies
+        run: npm audit --audit-level=high
+        working-directory: frontend
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+      - name: Browser Companion tests
+        run: npm test
+        working-directory: browser-extension
+      - name: Tauri Rust tests
+        run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Tauri strict Clippy
+        run: cargo clippy --locked --manifest-path frontend/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Tauri formatting
+        run: cargo fmt --manifest-path frontend/src-tauri/Cargo.toml --check
+      - name: Build Tauri desktop binary
+        run: cargo build --locked --release --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Shield tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-shield/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-shield/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-shield/Cargo.toml --check
+      - name: Browser Host tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-browser-host/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-browser-host/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-browser-host/Cargo.toml --check
 
-    - name: Set up Node.js 22
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-
-    - name: Install Dependencies
-      run: npm ci
-      working-directory: frontend
-
-    - name: Audit locked frontend dependencies
-      run: npm audit --audit-level=high
-      working-directory: frontend
-
-    - name: Lint
-      run: npm run lint
-      working-directory: frontend
-
-    - name: Unit Tests
-      run: npm test
-      working-directory: frontend
-
-    - name: Build
-      run: npm run build
-      working-directory: frontend
-
-    - name: Browser Extension Tests
-      run: npm test
-      working-directory: browser-extension
-
-  rust-shield:
-    name: Rust Shield Tests
-    runs-on: ubuntu-latest
+  desktop-windows:
+    name: Desktop tests and build (Windows MSVC)
+    runs-on: windows-2025
+    timeout-minutes: 60
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable at 2026-10-21
-
-    - name: Run Rust Shield Tests
-      run: cargo test
-      working-directory: crates/shinpo-shield
-
-    - name: Run Rust Browser Host Tests
-      run: cargo test
-      working-directory: crates/shinpo-browser-host
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Confirm MSVC toolchain
+        shell: pwsh
+        run: |
+          rustc -vV
+          cargo -V
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw "MSVC compiler cl.exe is unavailable" }
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+      - name: Browser Companion tests
+        run: npm test
+        working-directory: browser-extension
+      - name: Tauri Rust tests
+        run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Tauri strict Clippy
+        run: cargo clippy --locked --manifest-path frontend/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Tauri formatting
+        run: cargo fmt --manifest-path frontend/src-tauri/Cargo.toml --check
+      - name: Build Tauri desktop binary
+        run: cargo build --locked --release --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Shield tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-shield/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-shield/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-shield/Cargo.toml --check
+      - name: Browser Host tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-browser-host/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-browser-host/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-browser-host/Cargo.toml --check
 
   security:
-    name: Dependency and secret checks
-    runs-on: ubuntu-latest
+    name: Existing secret and Rust dependency checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: read
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-      with:
-        fetch-depth: 0
-    - name: Scan repository history for secrets
-      uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITLEAKS_ENABLE_COMMENTS: 'false'
-    - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
-    - name: Audit Rust dependency lockfiles
-      run: |
-        cargo audit --file crates/shinpo-shield/Cargo.lock
-        cargo audit --file crates/shinpo-browser-host/Cargo.lock
-        cargo audit --file frontend/src-tauri/Cargo.lock
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit Rust dependency lockfiles
+        run: |
+          cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock
+          cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock
+          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock

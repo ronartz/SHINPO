@@ -7,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const run = (command, args, cwd = root, options = {}) =>
   execFileSync(command, args, { cwd, stdio: 'inherit', ...options })
 
-run('cargo', ['build', '--release', '--manifest-path', 'crates/shinpo-browser-host/Cargo.toml'])
+run('cargo', ['build', '--locked', '--release', '--manifest-path', 'crates/shinpo-browser-host/Cargo.toml'])
 const suffix = process.platform === 'win32' ? '.exe' : ''
 const hostSource = resolve(root, `crates/shinpo-browser-host/target/release/shinpo-browser-host${suffix}`)
 const bundleInput = resolve(root, 'frontend/src-tauri/target/bundle-input')
