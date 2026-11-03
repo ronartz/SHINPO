@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.shinpo.dto.AiDtos.AiChatRequest;
@@ -60,7 +61,6 @@ class ShinpoApplicationTests {
     @LocalServerPort
     private int port;
 
-    @Autowired
     private TestRestTemplate restTemplate;
 
     @Autowired
@@ -100,6 +100,10 @@ class ShinpoApplicationTests {
 
     @BeforeEach
     void setUp() {
+        restTemplate = new TestRestTemplate();
+        restTemplate.getRestTemplate().setUriTemplateHandler(
+                new DefaultUriBuilderFactory("http://localhost:" + port)
+        );
         aiSuggestionRepository.deleteAll();
         focusSessionRepository.deleteAll();
         sessionIntervalRepository.deleteAll();
