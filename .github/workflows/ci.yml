@@ -158,6 +158,21 @@ jobs:
           }
           $clPath = $msvcPath -split ';' | ForEach-Object { Join-Path $_ 'cl.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $clPath) { throw "MSVC compiler cl.exe is unavailable after initializing vcvars64.bat" }
+      - name: Install static SQLCipher OpenSSL dependency
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:VCPKG_INSTALLATION_ROOT 'vcpkg.exe'
+          & $vcpkg install openssl:x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg failed to install SQLCipher's OpenSSL dependency" }
+          $openssl = Join-Path $env:VCPKG_INSTALLATION_ROOT 'installed\x64-windows-static-md'
+          $include = Join-Path $openssl 'include'
+          $lib = Join-Path $openssl 'lib'
+          if (-not (Test-Path (Join-Path $include 'openssl\opensslv.h')) -or -not (Test-Path (Join-Path $lib 'libcrypto.lib'))) {
+            throw "The installed OpenSSL headers or x64 static library are missing"
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$openssl" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$include" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$lib" -Encoding utf8
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
