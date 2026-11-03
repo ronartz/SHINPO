@@ -155,5 +155,37 @@ test('Onboarding API client contracts', async (t) => {
     assert.ok(capturedUrl.endsWith('/api/onboarding/skip'))
     assert.strictEqual(capturedMethod, 'POST')
   })
+
+  await t.test('local vault onboarding uses only registered Tauri commands', async () => {
+    const commands: Array<[string, Record<string, unknown> | undefined]> = []
+    const tauriWindow = globalThis as unknown as {
+      __TAURI_INTERNALS__?: { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> }
+    }
+    tauriWindow.__TAURI_INTERNALS__ = {
+      invoke: async (command, args) => {
+        commands.push([command, args])
+        return { userId: 1, status: 'IN_PROGRESS', currentStep: 2 }
+      },
+    }
+    storage.set('shinpo_local_vault_account', 'local-user')
+    globalThis.fetch = (() => { throw new Error('Local onboarding attempted a server request') }) as typeof fetch
+
+    await getOnboardingState()
+    await startOnboarding(2)
+    await recordOnboardingStep(2)
+    await finishOnboarding()
+    await pauseOnboarding(3)
+    await skipOnboarding()
+
+    assert.deepEqual(commands, [
+      ['local_get_onboarding_state', undefined],
+      ['local_start_onboarding', { fromStep: 2 }],
+      ['local_record_onboarding_step', { stepIndex: 2 }],
+      ['local_finish_onboarding', undefined],
+      ['local_pause_onboarding', { stepIndex: 3 }],
+      ['local_skip_onboarding', undefined],
+    ])
+    delete tauriWindow.__TAURI_INTERNALS__
+  })
 })
 

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { Icon } from './Icon'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -52,20 +53,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             padding: '32px 24px',
             margin: '24px auto',
             maxWidth: '680px',
-            background: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
+            background: 'color-mix(in srgb, var(--brand-primary) 8.0%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--brand-primary) 25.0%, transparent)',
             borderRadius: '16px',
-            color: 'var(--text, #F3F4F6)',
+            color: 'var(--text, #e7e7e7)',
             fontFamily: 'inherit',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '24px' }}>⚠️</span>
+            <Icon name="shield" size={22} />
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>
                 Something went wrong in this view
               </h2>
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-3, #9CA3AF)' }}>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-3, #5d5d5d)' }}>
                 SHINPO captured this error without crashing the rest of your session.
               </p>
             </div>
@@ -76,10 +77,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               style={{
                 padding: '12px',
                 borderRadius: '8px',
-                background: 'rgba(0, 0, 0, 0.4)',
+                background: 'rgba(0,0,0, 0.4)',
                 fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '12.5px',
-                color: '#EF4444',
+                color: 'var(--brand-primary)',
                 marginBottom: '16px',
                 overflowX: 'auto',
                 whiteSpace: 'pre-wrap',
@@ -96,8 +97,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               style={{
                 padding: '8px 18px',
                 borderRadius: '8px',
-                background: 'var(--primary-violet, #3156D8)',
-                color: '#FFFFFF',
+                background: 'var(--primary-violet, var(--brand-primary))',
+                color: '#ffffff',
                 border: 'none',
                 fontWeight: 600,
                 fontSize: '13px',
@@ -111,9 +112,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               style={{
                 padding: '8px 16px',
                 borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'var(--text, #F3F4F6)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                background: 'rgba(255,255,255, 0.08)',
+                color: 'var(--text, #e7e7e7)',
+                border: '1px solid rgba(255,255,255, 0.15)',
                 fontWeight: 600,
                 fontSize: '13px',
                 cursor: 'pointer',

@@ -201,7 +201,7 @@ class OnboardingServiceTests {
         when(progressEventRepository.existsByUser_IdAndEventType(1L, "ONBOARDING_COMPLETED")).thenReturn(false);
         when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
 
-        ProgressResponse mockProgress = new ProgressResponse(1L, 50, 1, "Focus Initiate", 50, 100, 50.0, List.of());
+        ProgressResponse mockProgress = new ProgressResponse(1L, 50, 1, "Getting Started", 50, 100, 50.0, List.of());
         when(progressService.getUserProgress(1L)).thenReturn(mockProgress);
 
         ProgressResponse res = onboardingService.completeOnboarding(1L);
@@ -240,7 +240,7 @@ class OnboardingServiceTests {
         when(progressEventRepository.existsByUser_IdAndEventType(1L, "ONBOARDING_COMPLETED")).thenReturn(true);
         when(onboardingRepository.save(any(UserOnboarding.class))).thenAnswer(i -> i.getArgument(0));
 
-        ProgressResponse mockProgress = new ProgressResponse(1L, 50, 1, "Focus Initiate", 50, 100, 50.0, List.of());
+        ProgressResponse mockProgress = new ProgressResponse(1L, 50, 1, "Getting Started", 50, 100, 50.0, List.of());
         when(progressService.getUserProgress(1L)).thenReturn(mockProgress);
 
         ProgressResponse res = onboardingService.completeOnboarding(1L);

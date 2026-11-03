@@ -78,14 +78,14 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
           {isLevelUp && payload.newLevel && (
             <div className="celebration-level-announcement">
-              <span className="level-number">Tier {payload.newLevel}</span>
-              <span className="level-title">{payload.levelTitle || 'Master of Flow'}</span>
+              <span className="level-number">Level {payload.newLevel}</span>
+              <span className="level-title">{payload.levelTitle || `Level ${payload.newLevel}`}</span>
             </div>
           )}
 
           {payload.streakDays !== undefined && payload.streakDays > 1 && (
             <div className="celebration-streak-note">
-              <span>🔥 {payload.streakDays}-Day Momentum Active</span>
+              <span><Icon name="zap" size={14} /> {payload.streakDays}-day streak</span>
             </div>
           )}
         </div>

@@ -10,6 +10,9 @@ import {
   fetchCurrentUser,
   authHeaders,
   setCustomServerUrl,
+  login,
+  changePassword,
+  recoverLocalAccount,
 } from './auth.ts'
 
 const storage = new Map<string, string>()
@@ -118,6 +121,75 @@ test('Auth API - updateUsername and session contracts', async (t) => {
         message: 'Database constraint failure',
       }
     )
+  })
+
+  await t.test('local username is immutable and never falls through to the server', async () => {
+    storage.set('shinpo_local_vault_account', 'local-user')
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    nativeWindow.__TAURI_INTERNALS__ = { invoke: async () => undefined }
+    globalThis.fetch = (async () => { throw new Error('Local account attempted a server request') }) as typeof fetch
+    try {
+      await assert.rejects(updateUsername('renamed-user'), /fixed because they are part of the encrypted account identity/)
+    } finally {
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('local account deletion uses native vault commands and clears local session metadata', async () => {
+    storage.set('shinpo_local_vault_account', 'local-user')
+    storage.set('shinpo_local_vault_email', 'local-user@local.shinpo')
+    storage.set('shinpo_auth_user', JSON.stringify({ id: 1, username: 'local-user' }))
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    const calls: Array<[string, Record<string, unknown> | undefined]> = []
+    nativeWindow.__TAURI_INTERNALS__ = {
+      invoke: async (cmd, args) => { calls.push([cmd, args]); return undefined },
+    }
+    globalThis.fetch = (async () => { throw new Error('Local account attempted a server request') }) as typeof fetch
+    try {
+      await deleteAccount()
+      assert.deepEqual(calls, [
+        ['delete_local_account', { username: 'local-user' }],
+        ['lock_local_account', undefined],
+      ])
+      assert.equal(storage.has('shinpo_local_vault_account'), false)
+      assert.equal(storage.has('shinpo_local_vault_email'), false)
+      assert.equal(storage.has('shinpo_auth_user'), false)
+    } finally {
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('local recovery resets the native vault password and unlocks without a server', async () => {
+    storage.set('shinpo_local_vault_account', 'local-user')
+    storage.set('shinpo_local_vault_email', 'local-user@local.shinpo')
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    const calls: Array<[string, Record<string, unknown> | undefined]> = []
+    nativeWindow.__TAURI_INTERNALS__ = {
+      invoke: async (cmd, args) => {
+        calls.push([cmd, args])
+        if (cmd === 'local_vault_status') return { unlocked: true, username: 'local-user' }
+        return undefined
+      },
+    }
+    globalThis.fetch = (async () => { throw new Error('Local recovery attempted a server request') }) as typeof fetch
+    try {
+      const response = await recoverLocalAccount(' Local-User ', ' aabbcc ', 'a new password long enough')
+      assert.equal(response.user.username, 'local-user')
+      assert.deepEqual(calls, [
+        ['recover_local_account', { username: 'local-user', recoveryKey: 'aabbcc', newPassword: 'a new password long enough' }],
+        ['local_vault_status', undefined],
+      ])
+      assert.equal(storage.get('shinpo_local_vault_account'), 'local-user')
+      assert.equal(storage.get('shinpo_auth_user') !== undefined, true)
+    } finally {
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
   })
 
   await t.test('updateUsername throws meaningful error on 409 conflict or 400 validation error', async () => {
@@ -313,6 +385,55 @@ test('Auth API - updateUsername and session contracts', async (t) => {
       assert.equal(await getRefreshToken(), 'rotated-refresh')
     } finally {
       await clearAuthSession()
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('local account remains offline-unlockable after logout', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    const unlocked: string[] = []
+    nativeWindow.__TAURI_INTERNALS__ = {
+      invoke: async (cmd, args) => {
+        if (cmd === 'lock_local_account') return undefined
+        if (cmd === 'unlock_local_account') {
+          unlocked.push(String(args?.username))
+          return { unlocked: true, username: String(args?.username) }
+        }
+        throw new Error(`Unexpected command: ${cmd}`)
+      },
+    }
+    try {
+      await setAuthSession({ accessToken: 'local-vault', refreshToken: '', tokenType: 'Local', expiresInSeconds: 0,
+        user: { id: 1, username: 'offline-user', email: 'offline@example.test' } })
+      await clearAuthSession()
+      assert.equal(localStorage.getItem('shinpo_local_vault_account'), 'offline-user')
+      await login('offline-user', 'test-password')
+      assert.deepEqual(unlocked, ['offline-user'])
+      assert.equal(localStorage.getItem('shinpo_access_token'), null)
+      assert.equal(getStoredUser()?.email, 'offline@example.test')
+    } finally {
+      await clearAuthSession()
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('local password change uses native key rewrap without a server request', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    let invocation: [string, Record<string, unknown> | undefined] | undefined
+    nativeWindow.__TAURI_INTERNALS__ = { invoke: async (cmd, args) => { invocation = [cmd, args] } }
+    storage.set('shinpo_local_vault_account', 'offline-user')
+    globalThis.fetch = (() => { throw new Error('Local password change attempted a server request') }) as typeof fetch
+    try {
+      const result = await changePassword('old-password', 'new-password')
+      assert.equal(result.message, 'Password successfully updated.')
+      assert.deepEqual(invocation, ['change_local_password', {
+        username: 'offline-user', currentPassword: 'old-password', newPassword: 'new-password',
+      }])
+    } finally {
       if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
       else delete nativeWindow.__TAURI_INTERNALS__
     }

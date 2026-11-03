@@ -44,20 +44,6 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$ServerUrl = $env:VITE_SHINPO_SERVER_URL
-$ParsedServerUrl = $null
-if ([string]::IsNullOrWhiteSpace($ServerUrl) -or
-    -not [Uri]::TryCreate($ServerUrl, [UriKind]::Absolute, [ref]$ParsedServerUrl) -or
-    $ParsedServerUrl.Scheme -ne "https" -or $ParsedServerUrl.UserInfo -or
-    $ParsedServerUrl.Query -or $ParsedServerUrl.Fragment) {
-    throw "Set VITE_SHINPO_SERVER_URL to the deployed remote HTTPS server before packaging."
-}
-$ServerIp = $null
-if ($ParsedServerUrl.Host -eq "localhost" -or
-    ([Net.IPAddress]::TryParse($ParsedServerUrl.Host.Trim('[', ']'), [ref]$ServerIp) -and [Net.IPAddress]::IsLoopback($ServerIp))) {
-    throw "VITE_SHINPO_SERVER_URL must point to a remote HTTPS server, not this computer."
-}
-
 Write-Host "=================================================================" -ForegroundColor Cyan
 Write-Host "  進歩 (SHINPO) Windows Desktop Installer Builder" -ForegroundColor Cyan
 Write-Host "  Target: Single Standalone Installer (SHINPO-Setup.exe)" -ForegroundColor Cyan
@@ -74,8 +60,25 @@ try {
     Pop-Location
 }
 
-# 2. Build Tauri Windows Installer
-Write-Host "`n[2/4] Building Tauri Windows Native Binary and NSIS Installer..." -ForegroundColor Green
+# 2. Build the native browser host and extension archives
+Write-Host "`n[2/4] Building the native browser host and extension archives..." -ForegroundColor Green
+Push-Location "$PSScriptRoot/../crates/shinpo-browser-host"
+try {
+    cargo build --release
+    if ($LASTEXITCODE -ne 0) { throw "Browser host build failed" }
+} finally {
+    Pop-Location
+}
+Push-Location "$PSScriptRoot/../browser-extension"
+try {
+    npm run package
+    if ($LASTEXITCODE -ne 0) { throw "Browser Companion packaging failed" }
+} finally {
+    Pop-Location
+}
+
+# 3. Build Tauri Windows Installer
+Write-Host "`n[3/4] Building Tauri Windows Native Binary and NSIS Installer..." -ForegroundColor Green
 Push-Location "$PSScriptRoot/../frontend"
 try {
     npx tauri build
@@ -84,8 +87,8 @@ try {
     Pop-Location
 }
 
-# 3. Locate and Stage Artifacts
-Write-Host "`n[3/4] Staging release artifacts..." -ForegroundColor Green
+# 4. Locate and Stage Artifacts
+Write-Host "`n[4/4] Staging release artifacts..." -ForegroundColor Green
 $BundleNsisDir = "$PSScriptRoot/../frontend/src-tauri/target/release/bundle/nsis"
 $ReleaseDir = "$PSScriptRoot/../release"
 
@@ -108,6 +111,13 @@ if (-not $Installer) {
 $DestinationExe = "$ReleaseDir/SHINPO-Setup.exe"
 Copy-Item -Path $Installer.FullName -Destination $DestinationExe -Force
 Write-Host "  Staged installer: $DestinationExe" -ForegroundColor Cyan
+$CompanionHost = "$PSScriptRoot/../crates/shinpo-browser-host/target/release/shinpo-browser-host.exe"
+if (-not (Test-Path $CompanionHost)) { throw "Built browser host not found: $CompanionHost" }
+Copy-Item -Path $CompanionHost -Destination "$ReleaseDir/shinpo-browser-host.exe" -Force
+Copy-Item -Path "$PSScriptRoot/../browser-extension/artifacts/shinpo-browser-companion-chromium.zip" -Destination $ReleaseDir -Force
+Copy-Item -Path "$PSScriptRoot/../browser-extension/artifacts/shinpo-browser-companion-firefox.zip" -Destination $ReleaseDir -Force
+Copy-Item -Path "$PSScriptRoot/register-browser-companion.ps1" -Destination $ReleaseDir -Force
+Copy-Item -Path "$PSScriptRoot/../docs/Browser-Companion-Install.md" -Destination $ReleaseDir -Force
 
 # 4. Code Signing & Authenticode Verification
 if (-not $SkipSigning) {
@@ -152,7 +162,25 @@ if (-not $SkipSigning) {
     & $SignTool verify /pa "$DestinationExe"
 }
 
+$StagedNames = @(
+    "SHINPO-Setup.exe",
+    "shinpo-browser-host.exe",
+    "shinpo-browser-companion-chromium.zip",
+    "shinpo-browser-companion-firefox.zip",
+    "register-browser-companion.ps1",
+    "Browser-Companion-Install.md"
+)
+$ChecksumLines = foreach ($Name in $StagedNames) {
+    $Path = Join-Path $ReleaseDir $Name
+    if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing staged artifact for checksum: $Path" }
+    $Hash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$Hash  $Name"
+}
+$Utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllLines((Join-Path $ReleaseDir "SHA256SUMS"), $ChecksumLines, $Utf8WithoutBom)
+
 Write-Host "`n=================================================================" -ForegroundColor Cyan
 Write-Host "  BUILD COMPLETE: $DestinationExe" -ForegroundColor Green
+Write-Host "  SHA-256 manifest: $ReleaseDir/SHA256SUMS" -ForegroundColor Cyan
 Write-Host "  Shareable with Windows users with ZERO dependencies required." -ForegroundColor Green
 Write-Host "=================================================================" -ForegroundColor Cyan

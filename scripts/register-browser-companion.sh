@@ -1,22 +1,83 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # SHINPO — Native Browser Companion Registration Script (Linux / macOS)
-# Automatically registers com.shinpo.browser_companion Native Messaging Host
-# for Chrome, Chromium, Brave, Edge, and Firefox.
+# Registers only the explicitly selected browser's SHINPO Native Messaging Host.
 # ==============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+HOST_NAME="com.shinpo.browser_companion"
+CHROMIUM_ID="ndknhgihhogcfkliohfjcllglpjdgjpj"
+FIREFOX_ID="browser-companion@shinpo.local"
+MANIFEST_DIR="${CONFIG_HOME}/shinpo"
+MANIFEST_PATH="${MANIFEST_DIR}/${HOST_NAME}.json"
+FIREFOX_MANIFEST_PATH="${MANIFEST_DIR}/${HOST_NAME}.firefox.json"
+TARGET_DIRS=(
+    "${CONFIG_HOME}/google-chrome/NativeMessagingHosts"
+    "${CONFIG_HOME}/chromium/NativeMessagingHosts"
+    "${CONFIG_HOME}/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+    "${CONFIG_HOME}/microsoft-edge/NativeMessagingHosts"
+)
+FIREFOX_TARGETS=("${HOME}/.mozilla/native-messaging-hosts")
+SELECTED_TARGETS=()
+REGISTER_FIREFOX=false
+REGISTER_ALL=false
+
+for ARG in "$@"; do
+    case "$ARG" in
+        --chrome) SELECTED_TARGETS+=("${TARGET_DIRS[0]}") ;;
+        --chromium) SELECTED_TARGETS+=("${TARGET_DIRS[1]}") ;;
+        --brave) SELECTED_TARGETS+=("${TARGET_DIRS[2]}") ;;
+        --edge) SELECTED_TARGETS+=("${TARGET_DIRS[3]}") ;;
+        --firefox) REGISTER_FIREFOX=true ;;
+        --all) REGISTER_ALL=true ;;
+        --uninstall) ;;
+        *) echo "Unknown option: ${ARG}" >&2; exit 2 ;;
+    esac
+done
+
+if [[ "${REGISTER_ALL}" == true ]]; then
+    SELECTED_TARGETS=("${TARGET_DIRS[@]}")
+    REGISTER_FIREFOX=true
+fi
+
+is_shinpo_manifest() {
+    [[ -f "$1" ]] && python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1], encoding="utf-8")).get("name") == "com.shinpo.browser_companion" else 1)' "$1" 2>/dev/null
+}
+
+if [[ "${1:-}" == "--uninstall" ]]; then
+    for DIR in "${TARGET_DIRS[@]}" "${FIREFOX_TARGETS[@]}"; do
+        DEST="${DIR}/${HOST_NAME}.json"
+        if is_shinpo_manifest "${DEST}"; then
+            rm -- "${DEST}"
+            echo "Removed SHINPO host registration: ${DEST}"
+        fi
+    done
+    for MANIFEST in "${MANIFEST_PATH}" "${FIREFOX_MANIFEST_PATH}"; do
+        if is_shinpo_manifest "${MANIFEST}"; then rm -- "${MANIFEST}"; fi
+    done
+    exit 0
+fi
 
 echo "======================================================================"
 echo "[SHINPO BROWSER HOST] Registering Native Messaging Host..."
 echo "======================================================================"
 
+if [[ ${#SELECTED_TARGETS[@]} -eq 0 && "${REGISTER_FIREFOX}" != true ]]; then
+    echo "Choose a browser explicitly: --chrome, --chromium, --edge, --brave, --firefox, or --all." >&2
+    exit 2
+fi
+
 # Locate shinpo-browser-host binary
 HOST_BIN=""
-if [[ -x "${PROJECT_ROOT}/crates/shinpo-browser-host/target/release/shinpo-browser-host" ]]; then
+if [[ -x "${SCRIPT_DIR}/shinpo-browser-host" ]]; then
+    HOST_BIN="${SCRIPT_DIR}/shinpo-browser-host"
+elif [[ -x "${PROJECT_ROOT}/release/shinpo-browser-host" ]]; then
+    HOST_BIN="${PROJECT_ROOT}/release/shinpo-browser-host"
+elif [[ -x "${PROJECT_ROOT}/crates/shinpo-browser-host/target/release/shinpo-browser-host" ]]; then
     HOST_BIN="${PROJECT_ROOT}/crates/shinpo-browser-host/target/release/shinpo-browser-host"
 elif [[ -x "${PROJECT_ROOT}/target/release/shinpo-browser-host" ]]; then
     HOST_BIN="${PROJECT_ROOT}/target/release/shinpo-browser-host"
@@ -35,11 +96,22 @@ fi
 HOST_BIN="$(realpath "${HOST_BIN}")"
 echo "[SHINPO BROWSER HOST] Target binary: ${HOST_BIN}"
 
+# Validate every destination before writing any registration.
+DESTINATIONS=("${MANIFEST_PATH}")
+if [[ "${REGISTER_FIREFOX}" == true ]]; then
+    DESTINATIONS+=("${FIREFOX_MANIFEST_PATH}")
+    for DIR in "${FIREFOX_TARGETS[@]}"; do DESTINATIONS+=("${DIR}/${HOST_NAME}.json"); done
+fi
+for DIR in "${SELECTED_TARGETS[@]}"; do DESTINATIONS+=("${DIR}/${HOST_NAME}.json"); done
+for MANIFEST in "${DESTINATIONS[@]}"; do
+    if [[ -e "${MANIFEST}" ]] && ! is_shinpo_manifest "${MANIFEST}"; then
+        echo "Refusing to overwrite a non-SHINPO native host manifest: ${MANIFEST}" >&2
+        exit 1
+    fi
+done
+
 # Manifest Directory and Path
-MANIFEST_DIR="${HOME}/.config/shinpo"
 mkdir -p "${MANIFEST_DIR}"
-MANIFEST_PATH="${MANIFEST_DIR}/com.shinpo.browser_companion.json"
-FIREFOX_MANIFEST_PATH="${MANIFEST_DIR}/com.shinpo.browser_companion.firefox.json"
 
 # Write Chromium manifest
 cat > "${MANIFEST_PATH}" <<EOF
@@ -49,12 +121,12 @@ cat > "${MANIFEST_PATH}" <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://*",
-    "chrome-extension://*/*"
+    "chrome-extension://${CHROMIUM_ID}/"
   ]
 }
 EOF
 
+if [[ "${REGISTER_FIREFOX}" == true ]]; then
 # Write Firefox manifest
 cat > "${FIREFOX_MANIFEST_PATH}" <<EOF
 {
@@ -63,38 +135,36 @@ cat > "${FIREFOX_MANIFEST_PATH}" <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
-    "companion@shinpo.local",
-    "shinpo@shinpo.local"
+    "${FIREFOX_ID}"
   ]
 }
 EOF
+fi
 
 # Browser target directories on Linux
-TARGET_DIRS=(
-    "${HOME}/.config/google-chrome/NativeMessagingHosts"
-    "${HOME}/.config/chromium/NativeMessagingHosts"
-    "${HOME}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
-    "${HOME}/.config/microsoft-edge/NativeMessagingHosts"
-)
-
 INSTALLED_COUNT=0
-for DIR in "${TARGET_DIRS[@]}"; do
+for DIR in "${SELECTED_TARGETS[@]}"; do
     mkdir -p "${DIR}"
-    cp -f "${MANIFEST_PATH}" "${DIR}/com.shinpo.browser_companion.json"
+    DEST="${DIR}/${HOST_NAME}.json"
+    if [[ -e "${DEST}" ]] && ! is_shinpo_manifest "${DEST}"; then
+        echo "Refusing to overwrite a non-SHINPO native host manifest: ${DEST}" >&2
+        exit 1
+    fi
+    install -m 644 "${MANIFEST_PATH}" "${DEST}"
     echo "  [OK] Registered manifest in: ${DIR}"
     INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
 done
 
 # Firefox target directories
-FIREFOX_TARGETS=(
-    "${HOME}/.mozilla/native-messaging-hosts"
-)
-for DIR in "${FIREFOX_TARGETS[@]}"; do
-    mkdir -p "${DIR}"
-    cp -f "${FIREFOX_MANIFEST_PATH}" "${DIR}/com.shinpo.browser_companion.json"
-    echo "  [OK] Registered Firefox manifest in: ${DIR}"
-    INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
-done
+if [[ "${REGISTER_FIREFOX}" == true ]]; then
+    for DIR in "${FIREFOX_TARGETS[@]}"; do
+        mkdir -p "${DIR}"
+        DEST="${DIR}/${HOST_NAME}.json"
+        install -m 644 "${FIREFOX_MANIFEST_PATH}" "${DEST}"
+        echo "  [OK] Registered Firefox manifest in: ${DIR}"
+        INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
+    done
+fi
 
 echo "======================================================================"
 echo "[SHINPO BROWSER HOST] Successfully registered in ${INSTALLED_COUNT} browser locations."

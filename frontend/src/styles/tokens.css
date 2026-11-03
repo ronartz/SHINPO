@@ -1,8 +1,4 @@
-/* ==========================================================================
-   SHINPO (進歩) — PREMIUM PRODUCT UI DESIGN SYSTEM (SLICE 7.4)
-   Cobalt, Turquoise & Deep Blue Palettes, 8pt Grid Geometry
-   ========================================================================== */
-
+/* SHINPO design tokens: one semantic palette shared by legacy and Aurora UI. */
 :root {
   --sidebar-w: 260px;
   --sidebar-w-collapsed: 72px;
@@ -12,8 +8,17 @@
   --motion-page: 380ms;
   --motion-stagger: 32ms;
   --ease-kinetic: cubic-bezier(0.2, 0.85, 0.25, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Global Semantic Typography Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
   --font-size-display: 28px;
   --font-size-title: 22px;
   --font-size-heading: 18px;
@@ -23,396 +28,424 @@
   --font-size-explanation: 13.5px;
   --font-size-caption: 13px;
   --font-size-metadata: 12px;
+
+  --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: var(--font-family);
+  --font-body: var(--font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Canonical palette values. Theme mappings below are the only mode switch. */
+  --palette-dark-background: #0B1120;
+  --palette-dark-surface-1: #111A2D;
+  --palette-dark-surface-2: #1E293B;
+  --palette-dark-surface-3: #29364B;
+  --palette-dark-primary: #3B82F6;
+  --palette-dark-focus: #22D3EE;
+  --palette-dark-ai: #A78BFA;
+  --palette-light-background: #F8FAFC;
+  --palette-light-surface-1: #FFFFFF;
+  --palette-light-surface-2: #F1F5F9;
+  --palette-light-surface-3: #E9EFF7;
+  --palette-light-primary: #2563EB;
+  --palette-light-focus: #0E7490;
+  --palette-light-ai: #6D5BD0;
+
+  --status-success: #16A36A;
+  --status-warning: #B7791F;
+  --status-danger: #DC4455;
+  --status-info: var(--color-primary);
+
+  --status-success-subtle: color-mix(in srgb, var(--status-success) 16%, transparent);
+  --status-success-border: color-mix(in srgb, var(--status-success) 38%, transparent);
+  --status-warning-subtle: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 38%, transparent);
+  --status-danger-subtle: color-mix(in srgb, var(--status-danger) 16%, transparent);
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 38%, transparent);
+
+  --radius-xl: 16px;
+  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.20);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.20);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: var(--shadow-elevated);
+  --shadow-glass: var(--shadow-card);
+  --shadow-glow: none;
+  --transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: all 100ms ease;
+
+  --z-popover: 1000;
+  --z-dialog: 9000;
+  --z-dialog-popover: 9500;
+  --z-toast: 99999;
 }
 
 :root,
 html[data-theme='dark'],
 .theme-dark {
   color-scheme: dark;
-  /* 1. OPAQUE & CANVAS SURFACES (Deep blue ink) */
-  --bg: oklch(16% 0.035 255);
+  --color-background: var(--palette-dark-background);
+  --color-surface-1: var(--palette-dark-surface-1);
+  --color-surface-2: var(--palette-dark-surface-2);
+  --color-surface-3: var(--palette-dark-surface-3);
+  --color-primary: var(--palette-dark-primary);
+  --color-focus: var(--palette-dark-focus);
+  --color-ai: var(--palette-dark-ai);
+  --color-success: #16A36A;
+  --color-warning: #B7791F;
+  --color-danger: #E65363;
+  --color-info: var(--color-primary);
+  --color-primary-hover: #5E99F8;
+  --color-on-primary: var(--color-background);
+  --color-on-success: var(--color-background);
+  --color-on-warning: var(--color-background);
+  --color-on-danger: var(--color-background);
+  --primary-blue: var(--color-primary);
+  --focus-cyan: var(--color-focus);
+  --ai-violet: var(--color-ai);
+  --status-success: var(--color-success);
+  --status-warning: var(--color-warning);
+  --status-danger: var(--color-danger);
+  --status-info: var(--color-info);
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
+
+  /* Compatibility aliases for older stylesheets. */
+  --brand-space-indigo: var(--color-background);
+  --brand-yale-blue: var(--color-surface-1);
+  --brand-baltic-blue: var(--color-surface-2);
+  --brand-cloudy-sky: var(--color-primary);
+  --brand-cool-sky: var(--color-primary);
+  --brand-violet: var(--color-ai);
+  --brand-violet-light: var(--color-ai);
+  --brand-deep: var(--palette-dark-background);
+  --brand-secondary: var(--color-surface-2);
+  --brand-primary: var(--color-primary);
+  /* Legacy highlight now resolves to primary blue; cyan is reserved for live focus. */
+  --brand-highlight: var(--color-primary);
+  --bg: var(--color-background);
   --bg-gradient: none;
-  --surface: oklch(19% 0.04 255);
-  --surface-opaque: oklch(19% 0.04 255);
-  --surface-card: oklch(22% 0.045 255);
-  --surface-subtle: oklch(26% 0.05 255);
-  --surface-elevated: oklch(29% 0.055 255);
-  --surface-hover: oklch(28% 0.055 255);
-  --surface-active: oklch(32% 0.06 255);
-  --surface-execution: oklch(19% 0.04 255);
-  --surface-execution-text: oklch(97% 0.015 245);
-  --surface-muted: oklch(22% 0.045 190);
-  --text-primary: oklch(97% 0.015 245);
-  --text-secondary: oklch(76% 0.035 235);
-  --text-muted: oklch(70% 0.035 235);
+  --surface-base: var(--color-background);
+  --surface: var(--color-surface-1);
+  --surface-opaque: var(--color-surface-1);
+  /* Legacy screens retain their cool tinted cards; Aurora maps cards to Surface 1 in its scope. */
+  --surface-card: var(--color-surface-2);
+  --surface-subtle: var(--color-surface-2);
+  --surface-elevated: var(--color-surface-3);
+  --surface-hover: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-2));
+  --surface-card-hover: var(--surface-hover);
+  --surface-active: color-mix(in srgb, var(--color-primary) 22%, var(--color-surface-1));
+  --surface-inner: var(--color-background);
+  --surface-execution: var(--color-surface-1);
+  --surface-execution-text: #F4F7FC;
+  --surface-muted: color-mix(in srgb, var(--color-surface-1) 70%, var(--color-background));
+  --surface-semi-opaque: color-mix(in srgb, var(--surface) 94%, transparent);
 
-  /* 2. SEMI-OPAQUE SURFACES & SIDEBAR (Refined Dark Theme) */
-  --surface-semi-opaque: #18191E;
-  --sidebar-bg: oklch(13% 0.04 255);
-  --sidebar-border: 1px solid color-mix(in srgb, var(--brand-coral) 16%, transparent);
-  --sidebar-logo-wordmark: #FFFFFF;
-  --sidebar-logo-kanji: oklch(68% 0.17 265);
-  --sidebar-logo-tagline: oklch(68% 0.022 70);
-  --sidebar-toggle-bg: rgba(255, 255, 255, 0.06);
-  --sidebar-toggle-border: 1px solid rgba(255, 255, 255, 0.12);
-  --sidebar-toggle-color: #D1D5DB;
-  --sidebar-toggle-hover-bg: rgba(255, 255, 255, 0.14);
-  --sidebar-toggle-hover-color: #FFFFFF;
-  --sidebar-section-header: oklch(76% 0.025 70);
-  --sidebar-btn-color: oklch(88% 0.018 75);
-  --sidebar-btn-hover-bg: rgba(255, 255, 255, 0.08);
-  --sidebar-btn-hover-color: #FFFFFF;
-  --sidebar-btn-active-bg: color-mix(in srgb, var(--brand-coral) 14%, transparent);
-  --sidebar-btn-active-color: oklch(96% 0.012 75);
-  --sidebar-btn-active-border: color-mix(in srgb, var(--brand-coral) 40%, transparent);
-  --sidebar-btn-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.20);
-  --sidebar-btn-active-icon: oklch(68% 0.17 265);
-  --sidebar-active-arrow-bg: color-mix(in srgb, var(--brand-coral) 24%, transparent);
-  --sidebar-active-arrow-color: oklch(76% 0.15 265);
-  --sidebar-quote-bg: rgba(255, 255, 255, 0.03);
-  --sidebar-quote-border: 1px solid rgba(255, 255, 255, 0.08);
-  --sidebar-quote-tag: var(--accent-cyan);
-  --sidebar-quote-text: #F1F5F9;
-  --sidebar-quote-btn: #9DA2AE;
-  --sidebar-quote-btn-hover: #FFFFFF;
-  --sidebar-footer-border: 1px solid rgba(255, 255, 255, 0.08);
-  --sidebar-status-bg: rgba(255, 255, 255, 0.03);
-  --sidebar-status-border: 1px solid rgba(255, 255, 255, 0.08);
-  --sidebar-status-title: #FFFFFF;
-  --sidebar-status-sub: #9DA2AE;
+  --text: var(--color-text-primary);
+  --text-1: var(--text);
+  --text-2: var(--color-text-secondary);
+  --text-3: var(--color-text-muted);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
 
-  /* 3. SURFACES & PANELS (Clean solid desktop cards, no decorative blur) */
-  --glass-surface: #18191E;
-  --glass-surface-elevated: #1D1E24;
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.16);
-  --glass-blur: none;
-  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.24);
-
-  /* 4. ELEVATED FLOATING PANELS (Modals, Overlays, Drawers) */
-  --glass-elevated: #1D1E24;
-  --glass-elevated-blur: blur(8px);
-  --glass-elevated-border: 1px solid rgba(255, 255, 255, 0.12);
-  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.35);
-
-  /* Solid Inner Layer */
-  --opaque-card: #1D1E24;
-  --opaque-card-elevated: #282A33;
-  --opaque-border: 1px solid rgba(255, 255, 255, 0.07);
-  --surface-base: #18191E;
+  --border: rgba(196, 216, 239, 0.14);
+  --border-strong: rgba(196, 216, 239, 0.24);
+  --border-accent: color-mix(in srgb, var(--color-primary) 48%, transparent);
   --border-subtle: var(--border);
 
-  /* Typography (WCAG AA Compliant: >= 4.5:1 on all dark surfaces) */
-  --text: #F3F4F6;
-  --text-1: var(--text);
-  --text-2: #B0B5C2;
-  --text-3: #9096A4;
-  --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sidebar-bg: var(--brand-space-indigo);
+  --sidebar-border: 1px solid var(--border);
+  --sidebar-logo-wordmark: #F4F7FC;
+  --sidebar-logo-kanji: var(--color-ai);
+  --sidebar-logo-tagline: var(--text-3);
+  --sidebar-toggle-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-toggle-border: 1px solid var(--border);
+  --sidebar-toggle-color: var(--text-2);
+  --sidebar-toggle-hover-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-toggle-hover-color: #FFFFFF;
+  --sidebar-section-header: var(--text-3);
+  --sidebar-btn-color: var(--text-2);
+  --sidebar-btn-hover-bg: rgba(255, 255, 255, 0.07);
+  --sidebar-btn-hover-color: #FFFFFF;
+  --sidebar-btn-active-bg: color-mix(in srgb, var(--brand-cloudy-sky) 18%, transparent);
+  --sidebar-btn-active-color: #FFFFFF;
+  --sidebar-btn-active-border: color-mix(in srgb, var(--brand-cloudy-sky) 42%, transparent);
+  --sidebar-btn-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  --sidebar-btn-active-icon: var(--color-primary);
+  --sidebar-active-arrow-bg: var(--brand-baltic-blue);
+  --sidebar-active-arrow-color: #FFFFFF;
+  --sidebar-quote-bg: rgba(255, 255, 255, 0.035);
+  --sidebar-quote-border: 1px solid var(--border);
+  --sidebar-quote-tag: var(--color-ai);
+  --sidebar-quote-text: var(--text-2);
+  --sidebar-quote-btn: var(--text-3);
+  --sidebar-quote-btn-hover: #FFFFFF;
+  --sidebar-footer-border: 1px solid var(--border);
+  --sidebar-status-bg: rgba(255, 255, 255, 0.035);
+  --sidebar-status-border: 1px solid var(--border);
+  --sidebar-status-title: #FFFFFF;
+  --sidebar-status-sub: var(--text-3);
 
-  /* 5. COBALT BRAND IDENTITY */
-  /* Cobalt - primary action and wayfinding accent */
-  --primary-violet: oklch(60% 0.18 265);
-  --accent-violet: oklch(60% 0.18 265);
-  --primary-coral: oklch(60% 0.18 265); /* Aliased for component compatibility */
-  --accent-coral: oklch(60% 0.18 265);
-  --brand-coral: oklch(60% 0.18 265);
-  --brand-coral-hover: oklch(68% 0.17 265);
-  --brand-coral-deep: oklch(48% 0.18 265);
-  --coral-light: oklch(68% 0.17 265);
-  --coral-deep: oklch(48% 0.18 265);
-  --brand-coral-subtle: color-mix(in srgb, var(--brand-coral) 14%, transparent);
-  --brand-coral-border: color-mix(in srgb, var(--brand-coral) 34%, transparent);
-  --brand-coral-glow: none;
-  --brand-coral-gradient: linear-gradient(135deg, oklch(60% 0.18 265), oklch(65% 0.15 180));
-
-  /* Deep ink blue - secondary navigation and information accent */
-  --primary-blue: oklch(66% 0.18 255);
-  --accent-blue: oklch(66% 0.18 255);
-  --accent-blue-hover: oklch(74% 0.16 255);
-  --accent-blue-subtle: color-mix(in srgb, var(--accent-blue) 14%, transparent);
-  --accent-blue-border: color-mix(in srgb, var(--accent-blue) 32%, transparent);
-  --accent-blue-glow: none;
-  --accent-blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2457D6 100%);
-  --blue-gradient: linear-gradient(135deg, #3B82F6 0%, #2457D6 100%);
-
-  /* Muted teal - secondary highlight */
-  --primary-cyan: oklch(74% 0.14 180);
-  --accent-cyan: oklch(74% 0.14 180);
-  --accent-cyan-hover: oklch(82% 0.12 180);
-  --accent-cyan-subtle: color-mix(in srgb, var(--accent-cyan) 14%, transparent);
-  --accent-cyan-border: color-mix(in srgb, var(--accent-cyan) 32%, transparent);
-  --accent-cyan-glow: none;
-  --accent-cyan-gradient: linear-gradient(135deg, #19D3C5 0%, #0F9F9A 100%);
-
-  /* Functional Green Accent (Tasks, Success, AI Confirm) */
-  --primary-green: oklch(73% 0.10 125);
-  --primary-green-hover: oklch(80% 0.09 125);
-  --primary-green-subtle: color-mix(in srgb, var(--primary-green) 12%, transparent);
-  --primary-green-border: color-mix(in srgb, var(--primary-green) 32%, transparent);
-  --primary-green-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
-
-  /* 6. SUPPORTING FUNCTIONAL PALETTE */
-  --accent-green: oklch(78% 0.09 125);
-  --accent-emerald: oklch(78% 0.09 125);
-  --accent-emerald-bg: color-mix(in srgb, var(--accent-emerald) 14%, transparent);
-  --accent-green-subtle: color-mix(in srgb, var(--accent-green) 14%, transparent);
-  --accent-green-border: color-mix(in srgb, var(--accent-green) 35%, transparent);
-  --accent-lime: oklch(78% 0.09 125);
-  --accent-lime-gradient: linear-gradient(135deg, #34D399 0%, #10B981 100%);
-
-  --accent-orange: #FB923C;
-  --accent-orange-subtle: rgba(251, 146, 60, 0.14);
-  --accent-orange-border: rgba(251, 146, 60, 0.35);
-  --accent-orange-gradient: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
-
-  --accent-purple: var(--brand-coral);
-  --accent-purple-subtle: var(--brand-coral-subtle);
-  --accent-purple-border: var(--brand-coral-border);
-  --accent-purple-gradient: var(--brand-coral-gradient);
-
-  --accent-pink: #FF5C9A;
-  --accent-pink-subtle: rgba(255, 92, 154, 0.14);
-  --accent-yellow: #FBBF24;
-  --accent-yellow-subtle: rgba(251, 191, 36, 0.14);
-  --accent-yellow-border: rgba(251, 191, 36, 0.35);
-  --accent-amber: #FBBF24;
-  --accent-terracotta: var(--brand-coral);
-  --accent-terracotta-bg: color-mix(in srgb, var(--accent-terracotta) 14%, transparent);
-
-  /* Red (Reserved strictly for Danger / Destructive / Failed / Emergency Stop) */
-  --brand-red: #F87171;
-  --brand-red-hover: #FCA5A5;
-  --brand-red-deep: #EF4444;
-  --accent-red: #F87171;
-  --accent-red-subtle: rgba(248, 113, 113, 0.14);
-  --accent-red-border: rgba(248, 113, 113, 0.35);
-  --accent-red-glow: none;
-  --accent-red-gradient: linear-gradient(135deg, #F87171 0%, #EF4444 100%);
-
-  --accent-gradient: var(--brand-coral-gradient);
-  --shinpo-gradient: var(--brand-coral-gradient);
-  --aurora-gradient: var(--brand-coral-gradient);
-
-  /* Geometry Tokens (Restrained 8pt Grid) */
-  --radius-xl: 16px;
-  --radius-lg: 12px;
-  --radius-md: 10px;
-  --radius-sm: 8px;
-  --radius-pill: 999px;
-
-  /* Elevation & Shadows (Crisp, directional, no glowing halos) */
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.20);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.20);
-  --shadow-glow: none;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --border-accent: color-mix(in srgb, var(--brand-coral) 34%, transparent);
-
-  --transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast: 0.10s ease;
-
-  --radar-circle: rgba(255, 255, 255, 0.08);
-  --bar-empty-bg: #1D1E24;
-  --bar-empty-border: #262730;
-  --promo-bg: #18191E;
-  --promo-text: #F0F1F3;
-  --promo-sub: #9DA2AE;
-  --promo-border: #262730;
-  --tooltip-bg: #1D1E24;
-  --tooltip-text: #F0F1F3;
+  --glass-surface: var(--brand-yale-blue);
+  --glass-surface-elevated: var(--brand-baltic-blue);
+  --glass-border: 1px solid var(--border);
+  --glass-border-hover: 1px solid var(--border-strong);
+  --glass-blur: none;
+  --glass-elevated: var(--brand-baltic-blue);
+  --glass-elevated-blur: blur(8px);
+  --glass-elevated-border: 1px solid var(--border-strong);
+  --opaque-card: var(--brand-yale-blue);
+  --opaque-card-elevated: var(--brand-baltic-blue);
+  --opaque-border: 1px solid var(--border);
+  --bar-empty-bg: color-mix(in srgb, var(--brand-space-indigo) 70%, var(--brand-yale-blue));
+  --bar-empty-border: var(--border);
+  --radar-circle: rgba(255, 255, 255, 0.1);
+  --promo-bg: var(--brand-yale-blue);
+  --promo-text: var(--text);
+  --promo-sub: var(--text-3);
+  --promo-border: var(--border);
+  --tooltip-bg: var(--brand-space-indigo);
+  --tooltip-text: #FFFFFF;
   --glow-color: transparent;
+
+  --primary-blue: var(--color-primary);
+  --accent-blue: var(--color-primary);
+  --accent-blue-hover: color-mix(in srgb, var(--color-primary) 82%, white);
+  --accent-blue-subtle: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  --accent-blue-border: color-mix(in srgb, var(--color-primary) 38%, transparent);
+  --accent-blue-glow: none;
+  --accent-blue-gradient: var(--color-primary);
+  --blue-gradient: var(--accent-blue-gradient);
+  --brand-coral: var(--color-primary);
+  --brand-coral-hover: var(--accent-blue-hover);
+  --brand-coral-deep: var(--color-surface-2);
+  --coral-light: var(--color-primary);
+  --coral-deep: var(--color-surface-2);
+  --brand-coral-subtle: var(--accent-blue-subtle);
+  --brand-coral-border: var(--accent-blue-border);
+  --brand-coral-glow: none;
+  --brand-coral-gradient: var(--accent-blue-gradient);
+  --primary-violet: var(--color-ai);
+  --accent-violet: var(--color-ai);
+  --accent-violet-border: color-mix(in srgb, var(--color-ai) 38%, transparent);
+  --brand-violet-border: var(--accent-violet-border);
+  --brand-violet-hover: var(--brand-violet-light);
+  --brand-violet-subtle: color-mix(in srgb, var(--brand-violet) 16%, transparent);
+  --primary-coral: var(--brand-cloudy-sky);
+  --primary-coral-subtle: var(--accent-blue-subtle);
+  --accent-coral: var(--brand-cloudy-sky);
+  --accent-purple: var(--brand-violet);
+  --accent-purple-subtle: var(--brand-violet-subtle);
+  --accent-purple-border: var(--accent-violet-border);
+  --accent-purple-gradient: linear-gradient(135deg, var(--color-ai), var(--color-primary));
+  --accent-pink: var(--color-ai);
+  --primary-cyan: var(--color-focus);
+  --accent-cyan: var(--color-focus);
+  --accent-cyan-hover: var(--color-focus);
+  --accent-cyan-subtle: color-mix(in srgb, var(--color-focus) 16%, transparent);
+  --accent-cyan-border: color-mix(in srgb, var(--color-focus) 38%, transparent);
+  --accent-cyan-glow: none;
+  --accent-cyan-gradient: linear-gradient(135deg, var(--brand-cool-sky), var(--brand-cloudy-sky));
+  --accent-green: var(--status-success);
+  --accent-emerald: var(--status-success);
+  --accent-emerald-bg: color-mix(in srgb, var(--status-success) 16%, transparent);
+  --accent-green-subtle: color-mix(in srgb, var(--status-success) 16%, transparent);
+  --accent-green-border: color-mix(in srgb, var(--status-success) 38%, transparent);
+  --primary-green: var(--status-success);
+  --primary-green-hover: var(--color-success);
+  --primary-green-subtle: var(--accent-green-subtle);
+  --primary-green-border: var(--accent-green-border);
+  --primary-green-gradient: linear-gradient(135deg, var(--status-success), #138A59);
+  --accent-lime: var(--status-success);
+  --accent-lime-gradient: var(--primary-green-gradient);
+  --accent-orange: var(--status-warning);
+  --accent-orange-subtle: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  --accent-orange-border: color-mix(in srgb, var(--status-warning) 38%, transparent);
+  --accent-orange-gradient: linear-gradient(135deg, #E8B247, var(--status-warning));
+  --accent-yellow: var(--status-warning);
+  --accent-yellow-subtle: var(--accent-orange-subtle);
+  --accent-yellow-border: var(--accent-orange-border);
+  --accent-amber: var(--status-warning);
+  --accent-terracotta: var(--status-warning);
+  --accent-terracotta-bg: var(--accent-orange-subtle);
+  --brand-red: var(--status-danger);
+  --brand-red-hover: #E15C63;
+  --brand-red-deep: #B9363E;
+  --accent-red: var(--status-danger);
+  --accent-red-subtle: color-mix(in srgb, var(--status-danger) 16%, transparent);
+  --accent-red-border: color-mix(in srgb, var(--status-danger) 38%, transparent);
+  --accent-red-glow: none;
+  --accent-red-gradient: linear-gradient(135deg, #E15C63, #B9363E);
+  --accent-gradient: var(--accent-blue-gradient);
+  --shinpo-gradient: var(--accent-blue-gradient);
+  --aurora-gradient: var(--accent-blue-gradient);
+  --brand-blue: var(--brand-baltic-blue);
+  --brand-primary: var(--brand-cloudy-sky);
+  --accent-primary: var(--brand-cloudy-sky);
+  --btn-primary-bg: var(--brand-cloudy-sky);
+  --analytics-accent: var(--brand-cloudy-sky);
+  --glass-bg: var(--glass-surface);
+  --bar-height: 240px;
+  --schedule-grid-height: 720px;
 }
 
 html[data-theme='light'],
 .theme-light {
   color-scheme: light;
-  /* 1. OPAQUE & CANVAS SURFACES (Cool paper and deep blue ink) */
-  --bg: oklch(96% 0.018 250);
+  --color-background: var(--palette-light-background);
+  --color-surface-1: var(--palette-light-surface-1);
+  --color-surface-2: var(--palette-light-surface-2);
+  --color-surface-3: var(--palette-light-surface-3);
+  --color-primary: var(--palette-light-primary);
+  --color-focus: var(--palette-light-focus);
+  --color-ai: var(--palette-light-ai);
+  --color-success: #087A50;
+  --color-warning: #8A5700;
+  --color-danger: #C73548;
+  --color-info: var(--color-primary);
+  --color-primary-hover: #1F53C5;
+  --color-on-primary: #FFFFFF;
+  --color-on-success: #FFFFFF;
+  --color-on-warning: #FFFFFF;
+  --color-on-danger: #FFFFFF;
+  --primary-blue: var(--color-primary);
+  --focus-cyan: var(--color-focus);
+  --ai-violet: var(--color-ai);
+  --status-success: var(--color-success);
+  --status-warning: var(--color-warning);
+  --status-danger: var(--color-danger);
+  --status-info: var(--color-info);
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #475569;
+  --brand-space-indigo: var(--color-background);
+  --brand-yale-blue: var(--color-surface-1);
+  --brand-baltic-blue: var(--color-surface-2);
+  --brand-cloudy-sky: var(--color-primary);
+  --brand-cool-sky: var(--color-primary);
+  --brand-violet: var(--color-ai);
+  --brand-violet-light: var(--color-ai);
+  --brand-deep: var(--palette-dark-background);
+  --brand-secondary: var(--color-surface-2);
+  --brand-primary: var(--color-primary);
+  --brand-highlight: var(--color-primary);
+  --bg: var(--color-background);
   --bg-gradient: none;
-  --surface: oklch(99% 0.006 250);
-  --surface-opaque: oklch(99% 0.006 250);
-  --surface-card: oklch(99% 0.006 250);
-  --surface-subtle: oklch(93% 0.022 250);
-  --surface-elevated: oklch(100% 0 0);
-  --surface-hover: oklch(94% 0.022 75);
-  --surface-active: oklch(90% 0.028 75);
-  --surface-execution: oklch(100% 0 0);
-  --surface-execution-text: oklch(24% 0.018 45);
-  --surface-muted: oklch(95% 0.018 180);
-  --text-primary: oklch(24% 0.04 255);
-  --text-secondary: oklch(40% 0.05 255);
-  --text-muted: oklch(43% 0.045 255);
+  --surface-base: var(--color-background);
+  --surface: var(--color-surface-1);
+  --surface-opaque: var(--color-surface-1);
+  --surface-card: var(--color-surface-1);
+  --surface-subtle: var(--color-surface-2);
+  --surface-elevated: var(--color-surface-3);
+  --surface-hover: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface-2));
+  --surface-card-hover: var(--surface-hover);
+  --surface-active: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface-2));
+  --surface-inner: var(--color-surface-2);
+  --surface-execution: var(--color-surface-1);
+  --surface-execution-text: var(--color-text-primary);
+  --surface-muted: var(--color-surface-3);
+  --surface-semi-opaque: rgba(255, 255, 255, 0.96);
 
-  /* 2. SEMI-OPAQUE SURFACES & SIDEBAR */
-  --surface-semi-opaque: color-mix(in srgb, var(--surface) 95%, transparent);
-  --sidebar-bg: oklch(94% 0.025 250);
-  --sidebar-border: 1px solid oklch(87% 0.026 250);
-  --sidebar-logo-wordmark: oklch(24% 0.04 255);
-  --sidebar-logo-kanji: oklch(48% 0.18 265);
-  --sidebar-logo-tagline: oklch(48% 0.045 255);
-  --sidebar-toggle-bg: rgba(0, 0, 0, 0.04);
-  --sidebar-toggle-border: 1px solid rgba(0, 0, 0, 0.09);
-  --sidebar-toggle-color: #484C56;
-  --sidebar-toggle-hover-bg: rgba(0, 0, 0, 0.08);
-  --sidebar-toggle-hover-color: #18191B;
-  --sidebar-section-header: oklch(48% 0.022 45);
-  --sidebar-btn-color: oklch(34% 0.022 45);
-  --sidebar-btn-hover-bg: rgba(0, 0, 0, 0.05);
-  --sidebar-btn-hover-color: #18191B;
-  --sidebar-btn-active-bg: color-mix(in srgb, var(--brand-coral) 13%, var(--sidebar-bg));
-  --sidebar-btn-active-color: oklch(48% 0.18 265);
-  --sidebar-btn-active-border: color-mix(in srgb, var(--brand-coral) 34%, transparent);
-  --sidebar-btn-active-shadow: 0 2px 10px color-mix(in srgb, var(--brand-coral) 14%, transparent);
-  --sidebar-btn-active-icon: oklch(48% 0.18 265);
-  --sidebar-active-arrow-bg: oklch(48% 0.18 265);
-  --sidebar-active-arrow-color: #FFFFFF;
-  --sidebar-quote-bg: rgba(0, 0, 0, 0.03);
-  --sidebar-quote-border: 1px solid rgba(0, 0, 0, 0.06);
-  --sidebar-quote-tag: oklch(52% 0.14 180);
-  --sidebar-quote-text: oklch(24% 0.018 45);
-  --sidebar-quote-btn: oklch(48% 0.022 45);
-  --sidebar-quote-btn-hover: oklch(24% 0.018 45);
-  --sidebar-footer-border: 1px solid oklch(87% 0.026 75);
-  --sidebar-status-bg: rgba(0, 0, 0, 0.03);
-  --sidebar-status-border: 1px solid rgba(0, 0, 0, 0.06);
-  --sidebar-status-title: #18191B;
-  --sidebar-status-sub: #646976;
+  --text: var(--color-text-primary);
+  --text-1: var(--text);
+  --text-2: var(--color-text-secondary);
+  --text-3: var(--color-text-muted);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
 
-  /* 3. SURFACES & PANELS (Clean solid desktop cards, no decorative blur) */
-  --glass-surface: #FFFFFF;
-  --glass-surface-elevated: #FFFFFF;
-  --glass-border: 1px solid #E9E7E3;
-  --glass-border-hover: 1px solid #DBD8D3;
-  --glass-blur: none;
-  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.05);
-
-  /* 4. ELEVATED FLOATING PANELS */
-  --glass-elevated: #FFFFFF;
-  --glass-elevated-blur: blur(8px);
-  --glass-elevated-border: 1px solid #DBD8D3;
-  --shadow-elevated: 0 8px 24px -2px rgba(0, 0, 0, 0.08);
-
-  /* Solid Inner Layer */
-  --opaque-card: #FFFFFF;
-  --opaque-card-elevated: #FAFAF8;
-  --opaque-border: 1px solid #E9E7E3;
-  --surface-base: #F7F6F3;
+  --border: #CBD5E1;
+  --border-strong: #94A3B8;
+  --border-accent: color-mix(in srgb, var(--color-primary) 48%, transparent);
   --border-subtle: var(--border);
 
-  /* Typography (WCAG AA Compliant: >= 4.5:1 on both white cards and surface-subtle) */
-  --text: #18191B;
-  --text-1: var(--text);
-  --text-2: #484C56;
-  --text-3: #4B5563;
-  --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sidebar-bg: var(--color-surface-3);
+  --sidebar-border: 1px solid var(--border);
+  --sidebar-logo-wordmark: var(--brand-space-indigo);
+  --sidebar-logo-kanji: var(--color-ai);
+  --sidebar-logo-tagline: var(--text-3);
+  --sidebar-toggle-bg: rgba(9, 22, 41, 0.04);
+  --sidebar-toggle-border: 1px solid var(--border);
+  --sidebar-toggle-color: var(--color-text-secondary);
+  --sidebar-toggle-hover-bg: rgba(39, 64, 96, 0.08);
+  --sidebar-toggle-hover-color: var(--color-primary);
+  --sidebar-section-header: var(--color-text-muted);
+  --sidebar-btn-color: var(--color-text-secondary);
+  --sidebar-btn-hover-bg: rgba(39, 64, 96, 0.06);
+  --sidebar-btn-hover-color: var(--color-text-primary);
+  --sidebar-btn-active-bg: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-1));
+  --sidebar-btn-active-color: var(--color-primary);
+  --sidebar-btn-active-border: color-mix(in srgb, var(--color-primary) 44%, transparent);
+  --sidebar-btn-active-shadow: 0 1px 4px rgba(9, 22, 41, 0.08);
+  --sidebar-btn-active-icon: var(--color-primary);
+  --sidebar-active-arrow-bg: var(--color-primary);
+  --sidebar-active-arrow-color: #FFFFFF;
+  --sidebar-quote-bg: #FFFFFF;
+  --sidebar-quote-border: 1px solid var(--border);
+  --sidebar-quote-tag: var(--color-ai);
+  --sidebar-quote-text: var(--color-text-primary);
+  --sidebar-quote-btn: var(--text-3);
+  --sidebar-quote-btn-hover: var(--color-primary);
+  --sidebar-footer-border: 1px solid var(--border);
+  --sidebar-status-bg: #FFFFFF;
+  --sidebar-status-border: 1px solid var(--border);
+  --sidebar-status-title: var(--color-text-primary);
+  --sidebar-status-sub: var(--text-3);
 
-  /* 5. COBALT BRAND IDENTITY (light-mode contrast values) */
-  --primary-violet: oklch(48% 0.18 265);
-  --accent-violet: oklch(48% 0.18 265);
-  --primary-coral: oklch(48% 0.18 265); /* Aliased for component compatibility */
-  --accent-coral: oklch(48% 0.18 265);
-  --brand-coral: oklch(48% 0.18 265);
-  --brand-coral-hover: oklch(40% 0.18 265);
-  --brand-coral-deep: oklch(36% 0.17 265);
-  --coral-light: oklch(56% 0.17 265);
-  --coral-deep: oklch(36% 0.17 265);
-  --brand-coral-subtle: color-mix(in srgb, var(--brand-coral) 11%, transparent);
-  --brand-coral-border: color-mix(in srgb, var(--brand-coral) 28%, transparent);
-  --brand-coral-glow: none;
-  --brand-coral-gradient: linear-gradient(135deg, oklch(48% 0.18 265), oklch(50% 0.14 180));
-
-  /* Deep ink blue */
-  --primary-blue: oklch(52% 0.18 255);
-  --accent-blue: oklch(52% 0.18 255);
-  --accent-blue-hover: oklch(44% 0.18 255);
-  --accent-blue-subtle: color-mix(in srgb, var(--accent-blue) 10%, transparent);
-  --accent-blue-border: color-mix(in srgb, var(--accent-blue) 25%, transparent);
-  --accent-blue-glow: none;
-  --accent-blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-  --blue-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-
-  /* Muted teal */
-  --primary-cyan: oklch(52% 0.14 180);
-  --accent-cyan: oklch(52% 0.14 180);
-  --accent-cyan-hover: oklch(44% 0.14 180);
-  --accent-cyan-subtle: color-mix(in srgb, var(--accent-cyan) 10%, transparent);
-  --accent-cyan-border: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
-  --accent-cyan-glow: none;
-  --accent-cyan-gradient: linear-gradient(135deg, #0F9F9A 0%, #087F83 100%);
-
-  /* Functional Green Accent (Tasks, Success, AI Confirm) */
-  --primary-green: #059669;
-  --primary-green-hover: #047857;
-  --primary-green-subtle: #ECFDF5;
-  --primary-green-border: rgba(5, 150, 105, 0.28);
-  --primary-green-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
-
-  /* 6. SUPPORTING FUNCTIONAL PALETTE */
-  --accent-green: #166534;
-  --accent-emerald: #166534;
-  --accent-emerald-bg: rgba(22, 101, 52, 0.09);
-  --accent-green-subtle: rgba(22, 101, 52, 0.09);
-  --accent-green-border: rgba(22, 101, 52, 0.25);
-  --accent-lime: #166534;
-  --accent-lime-gradient: linear-gradient(135deg, #166534 0%, #14532D 100%);
-
-  --accent-orange: #C2410C;
-  --accent-orange-subtle: rgba(194, 65, 12, 0.08);
-  --accent-orange-border: rgba(194, 65, 12, 0.25);
-  --accent-orange-gradient: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
-
-  --accent-purple: var(--brand-coral);
-  --accent-purple-subtle: var(--brand-coral-subtle);
-  --accent-purple-border: var(--brand-coral-border);
-  --accent-purple-gradient: var(--brand-coral-gradient);
-
-  --accent-pink: #BE185D;
-  --accent-yellow: #B45309;
-  --accent-yellow-border: rgba(180, 83, 9, 0.25);
-  --accent-amber: #B45309;
-  --accent-terracotta: var(--brand-coral);
-  --accent-terracotta-bg: color-mix(in srgb, var(--accent-terracotta) 10%, transparent);
-
-  /* Red (Reserved strictly for Danger / Destructive / Failed / Emergency Stop) */
-  --brand-red: #B91C1C;
-  --brand-red-hover: #DC2626;
-  --brand-red-deep: #991B1B;
-  --accent-red: #B91C1C;
-  --accent-red-subtle: rgba(185, 28, 28, 0.08);
-  --accent-red-gradient: linear-gradient(135deg, #B91C1C 0%, #991B1B 100%);
-
-  --accent-gradient: var(--brand-coral-gradient);
-  --shinpo-gradient: var(--brand-coral-gradient);
-  --aurora-gradient: var(--brand-coral-gradient);
-
-  /* Geometry Tokens (Restrained 8pt Grid) */
-  --radius-xl: 16px;
-  --radius-lg: 12px;
-  --radius-md: 10px;
-  --radius-sm: 8px;
-  --radius-pill: 999px;
-
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-glow: none;
-  --border: oklch(88% 0.022 250);
-  --border-strong: oklch(82% 0.028 250);
-  --border-accent: color-mix(in srgb, var(--brand-coral) 28%, transparent);
-
-  --radar-circle: rgba(0, 0, 0, 0.05);
-  --bar-empty-bg: oklch(92% 0.026 250);
-  --bar-empty-border: oklch(86% 0.028 250);
+  --glass-surface: #FFFFFF;
+  --glass-surface-elevated: #FFFFFF;
+  --glass-border: 1px solid var(--border);
+  --glass-border-hover: 1px solid var(--border-strong);
+  --glass-blur: none;
+  --glass-elevated: #FFFFFF;
+  --glass-elevated-blur: blur(8px);
+  --glass-elevated-border: 1px solid var(--border-strong);
+  --opaque-card: var(--color-surface-2);
+  --opaque-card-elevated: var(--color-surface-2);
+  --opaque-border: 1px solid var(--border);
+  --bar-empty-bg: var(--color-surface-3);
+  --bar-empty-border: var(--border);
+  --radar-circle: rgba(9, 22, 41, 0.08);
   --promo-bg: #FFFFFF;
-  --promo-text: #242424;
-  --promo-sub: #747474;
-  --promo-border: #E9E7E3;
-  --tooltip-bg: #1D1D1F;
+  --promo-text: var(--color-text-primary);
+  --promo-sub: var(--text-3);
+  --promo-border: var(--border);
+  --tooltip-bg: var(--brand-space-indigo);
   --tooltip-text: #FFFFFF;
-  --glow-color: transparent;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: 0 8px 24px -2px rgba(0, 0, 0, 0.08);
+
+  --accent-blue-subtle: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  --accent-blue-border: color-mix(in srgb, var(--color-primary) 38%, transparent);
+  --primary-blue: var(--color-primary);
+  --accent-blue: var(--color-primary);
+  --accent-blue-hover: color-mix(in srgb, var(--color-primary) 84%, black);
+  --accent-violet: var(--color-ai);
+  --primary-violet: var(--color-ai);
+  /* Legacy coral and purple names retained as aliases for existing callers. */
+  --brand-coral: var(--color-primary);
+  --primary-coral: var(--color-primary);
+  --accent-coral: var(--color-primary);
+  --accent-purple: var(--color-ai);
+  --accent-purple-subtle: var(--brand-violet-subtle);
+  --accent-purple-border: var(--accent-violet-border);
+  --accent-blue-gradient: var(--color-primary);
+  --blue-gradient: var(--accent-blue-gradient);
+  --accent-gradient: var(--accent-blue-gradient);
+  --shinpo-gradient: var(--accent-blue-gradient);
+  --aurora-gradient: var(--accent-blue-gradient);
+  --brand-coral-hover: var(--accent-blue-hover);
+  --brand-coral-gradient: var(--accent-blue-gradient);
+  --brand-coral-deep: var(--color-surface-2);
+  --coral-deep: var(--color-surface-2);
+  --primary-green-hover: var(--color-success);
 }
+
+/* Historical names remain aliases so existing screens inherit the same system. */

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { Icon } from './components/common/Icon'
@@ -18,7 +18,7 @@ import {
   updateFocusSession,
 } from './api/focusSessions'
 
-import type { FocusSession } from './api/focusSessions'
+import type { FocusSession, GuardianMode } from './api/focusSessions'
 import {
   clearActiveConversation,
   commitDailyPlan,
@@ -57,14 +57,16 @@ import {
 } from './api/goalsAndMissions'
 import type { Goal, Mission } from './api/goalsAndMissions'
 import {
-  authHeaders,
   clearAuthSession,
   fetchCurrentUser,
   getAuthenticatedUserId,
+  isLocalVaultSession,
   login,
   logout,
   register,
+  recoverLocalAccount,
   setCustomServerUrl,
+  touchLocalVaultActivity,
 } from './api/auth'
 import type { AuthUser } from './api/auth'
 import { getCurrentUserProgress, claimOnboardingReward } from './api/progress'
@@ -78,7 +80,6 @@ import {
 } from './api/onboarding'
 import {
   fetchDeviceSnapshot,
-  terminateProcess,
   fetchSentinelStatus,
   fetchSentinelRules,
   fetchSentinelTamperEvents,
@@ -86,7 +87,6 @@ import {
   respondToWarning,
 } from './api/device'
 import type {
-  ProcessInfo,
   ProcessSnapshot,
   SentinelStatus,
   PolicyRule,
@@ -96,9 +96,9 @@ import type {
 } from './api/device'
 import { fetchAnalyticsDashboard } from './api/analytics'
 import type { AnalyticsDashboardResponse } from './api/analytics'
-import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from './api/config'
+import { getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from './api/config'
 import { ShinpoLogo } from './components/ShinpoLogo'
-import { TutorialOverlay } from './components/TutorialOverlay'
+import { OnboardingWelcome, TutorialOverlay } from './components/TutorialOverlay'
 import { ConfirmationDialog } from './components/ConfirmationDialog'
 import { DistractionWarningModal } from './components/dialogs/DistractionWarningModal'
 import { SessionSummaryModal } from './components/dialogs/SessionSummaryModal'
@@ -113,6 +113,7 @@ import { SettingsModal } from './components/dialogs/SettingsModal'
 import type { SettingsSection } from './components/dialogs/SettingsModal'
 import { CelebrationModal } from './components/dialogs/CelebrationModal'
 import {
+  findNewProgressEvents,
   spawnCelebrationSparkles,
   type CelebrationPayload,
 } from './utils/progressionEngine'
@@ -121,11 +122,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
 import { SHINPO_ONBOARDING_STEPS } from './tutorial/tutorialSteps'
 import { wsClient } from './api/websocket'
-import {
-  startNativeShield,
-  stopNativeShield,
-  isTauriEnvironment,
-} from './api/nativeShield'
+import { isTauriEnvironment } from './api/tauri'
 import type {
   SentinelQuarantineEvent,
   SentinelStatusEvent,
@@ -143,6 +140,7 @@ import { NAVIGATION_ITEMS } from './types/navigation'
 import type { AppView } from './types/navigation'
 import { trackRender } from './utils/renderTracker'
 import { toLocalScheduleIso } from './utils/localScheduleTime'
+import { isLocalVaultIdleLockDue } from './utils/idleLock'
 
 const isAppView = (value: string): value is AppView =>
   NAVIGATION_ITEMS.some((item) => item.id === value)
@@ -176,26 +174,6 @@ const addLocalCalendarDays = (days: number): string => {
 }
 
 export type { LiveAlertItem }
-
-type Dashboard = {
-  user: {
-    id: number
-    username: string
-  }
-  progress: {
-    total: number
-  }
-  missions: {
-    total: number
-    completed: number
-    pending: number
-  }
-  goals: {
-    id: number
-    title: string
-    status: string
-  }[]
-}
 
 function mapStructuredCard(card: StructuredCard | null | undefined, suggestionType?: string): ProposedMission[] {
   if (!card) return []
@@ -234,10 +212,11 @@ export function App() {
   trackRender('App')
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [authRestored, setAuthRestored] = useState(false)
-  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN')
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER' | 'RECOVER'>('LOGIN')
   const [authIdentifier, setAuthIdentifier] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [authRecoveryKey, setAuthRecoveryKey] = useState('')
   const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
@@ -246,31 +225,26 @@ export function App() {
   const [serverConfigSaved, setServerConfigSaved] = useState(false)
   const [serverConfigError, setServerConfigError] = useState('')
 
-  const [_dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [sessions, setSessions] = useState<FocusSession[]>([])
+  const celebrationSequence = useRef(0)
   const scheduledCount = sessions.filter((s) => s.status === 'SCHEDULED' || Boolean(s.scheduledAt && s.status !== 'COMPLETED')).length
   const [selectedDuration, setSelectedDuration] = useState(30)
   const [pomodoroEnabled, setPomodoroEnabled] = useState(false)
-  const [pomodoroFocusCycles, setPomodoroFocusCycles] = useState(4)
-  const [pomodoroShortBreakMinutes, setPomodoroShortBreakMinutes] = useState(5)
+  const pomodoroFocusCycles = 2
+  const pomodoroShortBreakMinutes = 5
   const [pomodoroLongBreakMinutes, setPomodoroLongBreakMinutes] = useState(15)
   const [pomodoroGraceMinutes, setPomodoroGraceMinutes] = useState(10)
+  const [guardianMode, setGuardianMode] = useState<GuardianMode>('PROTECTED')
+  const [guardianAppMonitoring, setGuardianAppMonitoring] = useState(false)
+  const [latePenaltyEnabled, setLatePenaltyEnabled] = useState(false)
+  const [latePenaltyXp, setLatePenaltyXp] = useState(5)
+  const [latePenaltyDailyCapXp, setLatePenaltyDailyCapXp] = useState(20)
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [sessionIntention, setSessionIntention] = useState('')
   const [activeTab, setActiveTab] = useState<AppView>(() => {
     const tab = new URLSearchParams(window.location.search).get('tab')
     return tab && isAppView(tab) ? tab : 'Dashboard'
   })
-  const appMainRef = useRef<HTMLElement | null>(null)
-  useEffect(() => {
-    const main = appMainRef.current
-    if (!main || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const transition = main.animate(
-      [{ opacity: 0.88 }, { opacity: 1 }],
-      { duration: 160, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
-    )
-    return () => transition.cancel()
-  }, [activeTab])
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return new URLSearchParams(window.location.search).get('theme') === 'light' ? false : true
@@ -438,6 +412,7 @@ export function App() {
 
   // Interactive Guided Tour State & Scoped Storage Helpers
   const [isTutorialActive, setIsTutorialActive] = useState(false)
+  const [isOnboardingWelcomeOpen, setIsOnboardingWelcomeOpen] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
 
   const getTutorialStorageItem = (prefix: string, userId?: number | null): string | null => {
@@ -578,8 +553,11 @@ export function App() {
   )
 
   const isTutorialPendingLaunch = useRef<number | null>(null)
+  const isWelcomePendingLaunch = useRef(false)
   const hasActiveModalRef = useRef(hasActiveModal)
-  hasActiveModalRef.current = hasActiveModal
+  useEffect(() => {
+    hasActiveModalRef.current = hasActiveModal
+  }, [hasActiveModal])
   const handleStartTutorialRef = useRef<(initialStepIndex?: number) => void>(() => {})
 
   const handleQuickCreateMission = async (e: FormEvent) => {
@@ -614,9 +592,10 @@ export function App() {
         timestamp: new Date().toISOString(),
       })
       await loadData()
+      advanceTutorialAfterAction('CREATE_TASK')
     } catch (err) {
-      console.error('Failed to create quick mission', err)
-      setQuickMissionError('Could not create mission. Please try again.')
+      console.error('Failed to create quick task', err)
+      setQuickMissionError('Could not create task. Please try again.')
       if (hasHttpStatus(err, 401)) {
         await clearAuthSession()
         setCurrentUser(null)
@@ -717,24 +696,8 @@ export function App() {
     }, 4500)
   }, [shouldSuppressToast])
 
-  const loadData = useCallback(async (): Promise<{ success: boolean; failedServices: string[] }> => {
+  const loadData = async (): Promise<{ success: boolean; failedServices: string[] }> => {
     const failedServices: string[] = []
-    try {
-      const res = await fetchWithoutRedirects(`${getBackendBaseUrl()}/api/dashboard`, { headers: authHeaders() })
-      if (res.ok) {
-        const d = await res.json()
-        setDashboard(d)
-      } else if (res.status === 401) {
-        await clearAuthSession()
-        setCurrentUser(null)
-        return { success: false, failedServices: ['Session Expired'] }
-      } else {
-        failedServices.push('Dashboard')
-      }
-    } catch {
-      failedServices.push('Dashboard')
-    }
-
     try {
       const [goalsRes, missionsRes, sessionsRes, analytics, sentStatus, briefing, warnings, progressRes] =
         await Promise.all([
@@ -796,7 +759,9 @@ export function App() {
       success: failedServices.length === 0,
       failedServices,
     }
-  }, [pushToast, setSentinelStatus])
+  }
+
+  const loadDataForEffect = useEffectEvent(loadData)
 
   const refreshBriefing = async () => {
     setBriefingLoading(true)
@@ -848,6 +813,8 @@ export function App() {
                   : null,
             })),
         )
+      } else {
+        setChatMessages([{ role: 'assistant', text: 'How can I help you plan your work? I can use the tasks and sessions saved in your current account.' }])
       }
     } catch {
       // Keep initial chat
@@ -876,16 +843,25 @@ export function App() {
   useEffect(() => {
     if (!authRestored || !currentUser) return
     const timer = setTimeout(() => {
-      void loadData()
+      void loadDataForEffect()
       void loadActiveConversation()
     }, 0)
     return () => clearTimeout(timer)
-  }, [authRestored, currentUser, loadData, loadActiveConversation])
+  }, [authRestored, currentUser, loadActiveConversation])
 
   // First-Time User Onboarding Detection (Section 3.1 - Per-Account & Ledger Scoped)
   useEffect(() => {
     if (!authRestored || !currentUser) return
     let active = true
+    let timer: number | undefined
+
+    const launchWelcome = () => {
+      if (hasActiveModalRef.current) {
+        isWelcomePendingLaunch.current = true
+      } else {
+        setIsOnboardingWelcomeOpen(true)
+      }
+    }
 
     getOnboardingState()
       .then((state) => {
@@ -895,16 +871,19 @@ export function App() {
         }
         const dismissed = getTutorialStorageItem('shinpo_onboarding_dismissed', currentUser.id)
         if (!dismissed) {
-          const timer = setTimeout(() => {
+          timer = window.setTimeout(() => {
             if (active) {
-              if (hasActiveModalRef.current) {
+              if (state.status === 'IN_PROGRESS' && state.currentStep > 0) {
                 isTutorialPendingLaunch.current = state.currentStep || 0
+                if (!hasActiveModalRef.current) {
+                  isTutorialPendingLaunch.current = null
+                  handleStartTutorialRef.current(state.currentStep || 0)
+                }
               } else {
-                handleStartTutorialRef.current(state.currentStep || 0)
+                launchWelcome()
               }
             }
           }, 800)
-          return () => clearTimeout(timer)
         }
       })
       .catch(() => {
@@ -915,16 +894,16 @@ export function App() {
           if (!completed && !dismissed) {
             const savedProgress = getTutorialStorageItem('shinpo_onboarding_progress', currentUser.id)
             const initialStep = savedProgress ? parseInt(savedProgress, 10) : 0
-            const timer = setTimeout(() => {
+            timer = window.setTimeout(() => {
               if (active) {
-                if (hasActiveModalRef.current) {
-                  isTutorialPendingLaunch.current = isNaN(initialStep) ? 0 : initialStep
+                if (!isNaN(initialStep) && initialStep > 0) {
+                  if (hasActiveModalRef.current) isTutorialPendingLaunch.current = initialStep
+                  else handleStartTutorialRef.current(initialStep)
                 } else {
-                  handleStartTutorialRef.current(isNaN(initialStep) ? 0 : initialStep)
+                  launchWelcome()
                 }
               }
             }, 800)
-            return () => clearTimeout(timer)
           }
         } catch {
           // storage inaccessible
@@ -933,6 +912,7 @@ export function App() {
 
     return () => {
       active = false
+      if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [authRestored, currentUser])
 
@@ -970,7 +950,7 @@ export function App() {
     setIsSettingsOpen(true)
   }, [])
 
-  const handleRefreshWithFeedback = useCallback(async () => {
+  const handleRefreshWithFeedback = async () => {
     if (isDataRefreshing) return
     setIsDataRefreshing(true)
     const startTime = performance.now()
@@ -1013,7 +993,7 @@ export function App() {
         setIsDataRefreshing(false)
       }, 400)
     }
-  }, [isDataRefreshing, loadData, currentUser, pushToast])
+  }
 
   useEffect(() => {
     return wsClient.onConnectionChange((connected) => {
@@ -1141,7 +1121,7 @@ export function App() {
     setTmLoading(true)
     try {
       const [snap, sentStatus, rules, tEvents] = await Promise.all([
-        fetchDeviceSnapshot(search, policy),
+        fetchDeviceSnapshot(search, policy).catch(() => null),
         fetchSentinelStatus().catch(() => null),
         fetchSentinelRules().catch(() => []),
         fetchSentinelTamperEvents().catch(() => []),
@@ -1169,39 +1149,6 @@ export function App() {
     }
   }, [])
 
-  const handleTerminateProcess = (proc: ProcessInfo) => {
-    requestConfirmation({
-      title: 'Terminate Process',
-      message: (
-        <div>
-          <p style={{ margin: '0 0 8px 0' }}>
-            Are you sure you want to terminate <strong>{proc.name}</strong> (PID {proc.pid})?
-          </p>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-3)' }}>
-            Unsaved work in that application may be lost.
-          </p>
-        </div>
-      ),
-      confirmLabel: 'Terminate',
-      cancelLabel: 'Cancel',
-      isDestructive: true,
-      onConfirm: async () => {
-        try {
-          const res = await terminateProcess(proc.pid, false)
-          if (res.status === 'SUCCESS' || res.status === 'FORCE_KILL') {
-            setTmToast(`Process ${proc.name} (PID ${proc.pid}) terminated`)
-            setTmRefreshKey((key) => key + 1)
-          } else {
-            setTmToast(`Notice: ${res.message}`)
-          }
-        } catch (err: unknown) {
-          setTmToast(`Notice: ${err instanceof Error ? err.message : 'Process control is managed by local desktop Shield'}`)
-        }
-        setTimeout(() => setTmToast(null), 4000)
-      },
-    })
-  }
-
   useEffect(() => {
     if (!currentUser) return
     if (activeTab === 'Task Manager') {
@@ -1227,13 +1174,18 @@ export function App() {
       if (authMode === 'LOGIN') {
         const res = await login(authIdentifier.trim(), authPassword)
         setCurrentUser(res.user)
-      } else {
+      } else if (authMode === 'REGISTER') {
         const res = await register(authIdentifier.trim(), authEmail.trim(), authPassword)
+        setCurrentUser(res.user)
+        if (res.recoveryKey) window.alert(`Save this SHINPO recovery key somewhere safe. It is shown only once and is required if you forget your password:\n\n${res.recoveryKey}`)
+      } else {
+        const res = await recoverLocalAccount(authIdentifier.trim(), authRecoveryKey, authPassword)
         setCurrentUser(res.user)
       }
       setAuthIdentifier('')
       setAuthEmail('')
       setAuthPassword('')
+      setAuthRecoveryKey('')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed'
       setAuthError(msg)
@@ -1243,9 +1195,6 @@ export function App() {
   }
 
   const handleLogout = useCallback(async () => {
-    if (isTauriEnvironment()) {
-      await stopNativeShield().catch(() => {})
-    }
     try {
       await logout()
     } catch (err) {
@@ -1257,18 +1206,49 @@ export function App() {
     setToastAlerts([])
     setUnreadAlertCount(0)
     setCurrentUser(null)
-    setDashboard(null)
     setSessions([])
     setGoals([])
     setMissions([])
   }, [])
 
   useEffect(() => {
+    if (!currentUser || !isLocalVaultSession()) return
+    let lastActivityAt = Date.now()
+    let lastNativeActivityAt = 0
+    let locked = false
+    const checkIdle = () => {
+      if (!locked && isLocalVaultIdleLockDue(lastActivityAt, Date.now())) {
+        locked = true
+        void handleLogout()
+      }
+    }
+    const recordActivity = () => {
+      lastActivityAt = Date.now()
+      if (lastActivityAt - lastNativeActivityAt >= 30_000) {
+        lastNativeActivityAt = lastActivityAt
+        void touchLocalVaultActivity().catch(() => undefined)
+      }
+    }
+    const interval = window.setInterval(checkIdle, 15_000)
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'wheel']
+    for (const event of events) window.addEventListener(event, recordActivity, { passive: true })
+    window.addEventListener('focus', checkIdle)
+    document.addEventListener('visibilitychange', checkIdle)
+    return () => {
+      window.clearInterval(interval)
+      for (const event of events) window.removeEventListener(event, recordActivity)
+      window.removeEventListener('focus', checkIdle)
+      document.removeEventListener('visibilitychange', checkIdle)
+    }
+  }, [currentUser, handleLogout])
+
+  useEffect(() => {
     if (!currentUser) return
-    if (isTauriEnvironment()) {
-      startNativeShield().catch((err) => {
-        console.warn('Native shield auto-start encountered:', err)
-      })
+    if (isLocalVaultSession()) {
+      const refresh = () => fetchSentinelStatus().then(setSentinelStatus).catch(() => {})
+      refresh()
+      const interval = setInterval(refresh, 6000)
+      return () => clearInterval(interval)
     }
     const interval = setInterval(() => {
       fetchSentinelStatus()
@@ -1302,14 +1282,14 @@ export function App() {
       // The active-session card already confirms this event; keep its toast off the schedule.
       setToastAlerts((prev) => prev.filter((alert) => alert.title !== 'Focus Session Started'))
     }
-  }, [])
+  }, [setActiveTab])
 
   const [missionsFilter, setMissionsFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
 
-  const handleNavigateToTasks = useCallback((filter: 'ALL' | 'PENDING' | 'COMPLETED' = 'ALL') => {
+  const handleNavigateToTasks = (filter: 'ALL' | 'PENDING' | 'COMPLETED' = 'ALL') => {
     setMissionsFilter(filter)
     setActiveTab('Goals & Missions')
-  }, [])
+  }
 
   const handleToggleAlertsDrawer = useCallback(() => {
     setIsAlertsDrawerOpen((prev) => !prev)
@@ -1416,7 +1396,8 @@ export function App() {
         })
       }
       setEditingGoal(null)
-      loadData()
+      await loadData()
+      advanceTutorialAfterAction('CREATE_GOAL')
     } catch (err) {
       console.error('Failed to update goal', err)
       pushToast({
@@ -1452,7 +1433,8 @@ export function App() {
       })
       setMissions((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
       setEditingMission(null)
-      loadData()
+      await loadData()
+      advanceTutorialAfterAction('CREATE_TASK')
     } catch (err) {
       console.error('Failed to update task', err)
       pushToast({
@@ -1481,7 +1463,7 @@ export function App() {
     if (!aiDecompResult) return
     try {
       if (aiDecompResult.suggestionId) {
-        await commitSuggestion(aiDecompResult.suggestionId, { targetGoalId: aiDecompResult.goalId })
+        await commitSuggestion(aiDecompResult.suggestionId, { targetGoalId: aiDecompResult.goalId, confirmationToken: aiDecompResult.confirmationToken })
       } else {
         const today = localCalendarDate()
         const created = await Promise.all(
@@ -1580,6 +1562,7 @@ export function App() {
       await commitDailyPlan({
         suggestionId: suggestionId || plan.suggestionId || undefined,
         selectedItems: plan.planItems,
+        confirmationToken: plan.confirmationToken,
       })
       await loadData()
       pushToast({
@@ -1614,34 +1597,41 @@ export function App() {
   const handleToggleMissionComplete = async (missionId: number) => {
     try {
       const targetMission = missions.find((m) => m.id === missionId)
+      const previousProgress = userProgress
       await completeMission(missionId)
       setMissions((prev) =>
         prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
       )
-
-      spawnCelebrationSparkles()
-
-      const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
-      pushToast({
-        title: isMinimal ? 'Task Completed' : 'Task Completed! +10 XP',
-        description: isMinimal ? 'Task marked as completed' : 'Execution objective achieved and logged in progress ledger.',
-        type: 'reward',
-        badge: '+10 XP',
-        timestamp: new Date().toISOString(),
-      })
-
       await loadData()
       const updatedProg = await getCurrentUserProgress().catch(() => null)
+      if (updatedProg) setUserProgress(updatedProg)
+      const earnedXp = findNewProgressEvents(previousProgress, updatedProg)
+        .filter((event) => event.eventType === 'MISSION_COMPLETED' || event.eventType === 'GOAL_COMPLETED')
+        .reduce((total, event) => total + Math.max(0, event.amount), 0)
+      const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
+      if (earnedXp > 0) {
+        if (!isMinimal) spawnCelebrationSparkles()
+        pushToast({
+          title: isMinimal ? 'Task completed' : `Task completed · +${earnedXp} XP`,
+          description: 'The XP amount is confirmed by SHINPO’s progress ledger.',
+          type: 'reward',
+          badge: isMinimal ? undefined : `+${earnedXp} XP`,
+          timestamp: new Date().toISOString(),
+        })
+      } else {
+        pushToast({ title: 'Task completed', description: 'Task state saved. No new XP transaction was recorded.', type: 'focus', timestamp: new Date().toISOString() })
+      }
       const oldLevel = userProgress?.level || 1
       const newLevel = updatedProg?.level || oldLevel
 
+      const celebrationTimestamp = ++celebrationSequence.current
       if (newLevel > oldLevel) {
         setCelebrationPayload({
-          id: `lvl-${Date.now()}`,
+          id: `lvl-${celebrationTimestamp}`,
           type: 'LEVEL_UP',
-          headline: 'Level Up! Tier Unlocked',
-          detail: `You have advanced to Tier ${newLevel}: ${updatedProg?.levelTitle || 'Master of Flow'}.`,
-          xpEarned: 10,
+          headline: `Level ${newLevel} reached`,
+          detail: `Your progress has reached Level ${newLevel}.`,
+          xpEarned: earnedXp,
           oldLevel,
           newLevel,
           levelTitle: updatedProg?.levelTitle,
@@ -1649,17 +1639,20 @@ export function App() {
           nextActionPrompt: 'View Progression',
           nextActionTab: 'Progression',
         })
-      } else if (!isMinimal) {
+      } else if (earnedXp > 0 && !isMinimal) {
         setCelebrationPayload({
-          id: `task-${missionId}-${Date.now()}`,
+          id: `task-${missionId}-${celebrationTimestamp}`,
           type: 'TASK',
-          headline: 'Task Completed! +10 XP',
-          detail: `Objective "${targetMission?.title || 'Task'}" achieved and recorded in progress ledger.`,
-          xpEarned: 10,
+          headline: `Task Completed · +${earnedXp} XP`,
+          detail: `Objective "${targetMission?.title || 'Task'}" completed. The reward amount came from the server ledger.`,
+          xpEarned: earnedXp,
           streakDays: analyticsData?.summary?.currentStreak,
           nextActionPrompt: 'Arm Focus Sprint',
           nextActionTab: 'Focus Engine',
         })
+      }
+      if (sessions.some((session) => session.missionId === missionId && session.status === 'COMPLETED')) {
+        advanceTutorialAfterAction('COMPLETE')
       }
     } catch (err) {
       console.error('Failed to complete task', err)
@@ -1883,7 +1876,11 @@ export function App() {
       try {
         const updated = await getFocusSession(activeSession.id)
         if (!cancelled) {
-        setSessions((prev) => prev.map((session) => session.id === updated.id ? updated : session))
+          setSessions((prev) => prev.map((session) => session.id === updated.id ? updated : session))
+          if (updated.currentPhase === 'RETURN_REQUIRED' && activeSession?.currentPhase !== 'RETURN_REQUIRED') {
+            const progress = await getCurrentUserProgress().catch(() => null)
+            if (!cancelled && progress) setUserProgress(progress)
+          }
         }
       } catch {
         // Preserve the last persisted phase during temporary API loss.
@@ -1893,7 +1890,7 @@ export function App() {
     }
     void refreshPhase()
     return () => { cancelled = true; window.clearTimeout(timeout) }
-  }, [activeSession?.id, activeSession?.pomodoroEnabled, activeSession?.status])
+  }, [activeSession?.id, activeSession?.pomodoroEnabled, activeSession?.status, activeSession?.currentPhase])
 
   // Poll for Sentinel warnings during active focus session or while warnings/grace windows exist
   useEffect(() => {
@@ -1943,7 +1940,7 @@ export function App() {
       const st = await fetchSentinelStatus().catch(() => null)
       if (st) setSentinelStatus(st)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to submit response to Sentinel warning'
+      const msg = err instanceof Error ? err.message : 'Failed to submit your response to the focus protection warning'
       setWarningError(msg)
     } finally {
       setWarningSubmitting(false)
@@ -1952,7 +1949,13 @@ export function App() {
 
   // When all conflicting modals close, resume any pending tutorial launch cleanly
   useEffect(() => {
-    if (!hasActiveModal && isTutorialPendingLaunch.current !== null) {
+    if (hasActiveModal) return
+    if (isWelcomePendingLaunch.current) {
+      isWelcomePendingLaunch.current = false
+      setIsOnboardingWelcomeOpen(true)
+      return
+    }
+    if (isTutorialPendingLaunch.current !== null) {
       const stepToLaunch = isTutorialPendingLaunch.current
       isTutorialPendingLaunch.current = null
       handleStartTutorialRef.current(stepToLaunch)
@@ -1961,6 +1964,7 @@ export function App() {
 
   function handleStartTutorial(initialStepIndex?: number) {
     handleStartTutorialRef.current = handleStartTutorial
+    setIsOnboardingWelcomeOpen(false)
     let stepIndex = initialStepIndex
     if (stepIndex === undefined) {
       try {
@@ -2014,9 +2018,11 @@ export function App() {
       if (isAppView(step.targetTab)) setActiveTab(step.targetTab)
     }
   }
-  handleStartTutorialRef.current = handleStartTutorial
+  useEffect(() => {
+    handleStartTutorialRef.current = handleStartTutorial
+  })
 
-  const handleNextTutorialStep = () => {
+  function handleNextTutorialStep() {
     if (tutorialStepIndex < SHINPO_ONBOARDING_STEPS.length - 1) {
       const nextIndex = tutorialStepIndex + 1
       setTutorialStepIndex(nextIndex)
@@ -2027,6 +2033,12 @@ export function App() {
       }
     } else {
       handleCompleteTutorial()
+    }
+  }
+
+  function advanceTutorialAfterAction(stepId: string) {
+    if (isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex]?.id === stepId) {
+      handleNextTutorialStep()
     }
   }
 
@@ -2059,7 +2071,7 @@ export function App() {
 
   const handleSkipTutorial = () => {
     setIsTutorialActive(false)
-    setTutorialStorageItem('shinpo_onboarding_completed', 'true', currentUser?.id)
+    setIsOnboardingWelcomeOpen(false)
     setTutorialStorageItem('shinpo_onboarding_dismissed', 'true', currentUser?.id)
     removeTutorialStorageItem('shinpo_onboarding_progress', currentUser?.id)
     skipOnboarding().catch(() => {})
@@ -2077,6 +2089,11 @@ export function App() {
         suggestionType: 'COACH',
       },
     ])
+  }
+
+  const handleDismissOnboardingWelcome = () => {
+    setIsOnboardingWelcomeOpen(false)
+    setTutorialStorageItem('shinpo_onboarding_dismissed', 'true', currentUser?.id)
   }
 
   const handleCompleteTutorial = () => {
@@ -2098,6 +2115,7 @@ export function App() {
       })
       .then((prog) => {
         if (!prog) return
+        setTutorialStorageItem('shinpo_onboarding_verified', 'true', currentUser?.id)
         setUserProgress(prog)
         spawnCelebrationSparkles()
         setCelebrationPayload({
@@ -2141,7 +2159,7 @@ export function App() {
       delete window.__SHINPO_START_TUTORIAL__
       delete window.__SHINPO_NAVIGATE_TAB__
     }
-  }, [])
+  }, [setActiveTab])
 
   const handleStartSession = async () => {
     if (!currentUser) return
@@ -2169,9 +2187,16 @@ export function App() {
         pomodoroShortBreakMinutes,
         pomodoroLongBreakMinutes,
         pomodoroGraceMinutes,
+        latePenaltyEnabled: pomodoroEnabled && latePenaltyEnabled,
+        latePenaltyXp,
+        latePenaltyDailyCapXp,
+        guardianMode,
+        guardianAppMonitoring,
       })
       const started = await startFocusSession(created.id, userId)
+      setGuardianAppMonitoring(false)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      advanceTutorialAfterAction('FOCUS')
       setSessionIntention('')
       pushToast({
         type: 'focus',
@@ -2218,6 +2243,7 @@ export function App() {
       })
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      advanceTutorialAfterAction('FOCUS')
       setSelectedDuration(mins)
       setSessionIntention(nextActionMission.title)
       setActiveTab('Focus Engine')
@@ -2265,6 +2291,7 @@ export function App() {
       })
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
+      advanceTutorialAfterAction('FOCUS')
       setSelectedDuration(mins)
       setSessionIntention(missionTitle)
       setActiveTab('Focus Engine')
@@ -2275,11 +2302,11 @@ export function App() {
         timestamp: new Date().toISOString(),
       })
     } catch (e: unknown) {
-      console.error('Failed to arm focus sprint:', e)
+      console.error('Failed to start focus session:', e)
       pushToast({
         type: 'focus',
         title: 'Arm Sprint Failed',
-        description: e instanceof Error ? e.message : 'Could not arm focus sprint.',
+        description: e instanceof Error ? e.message : 'Could not start focus session.',
         timestamp: new Date().toISOString(),
       })
     }
@@ -2335,42 +2362,39 @@ export function App() {
         },
       )
       setSessions((prev) => prev.map((s) => (s.id === targetSessionId ? res : s)))
+      if (markTaskCompleted) advanceTutorialAfterAction('COMPLETE')
       setCompletingSessionId(null)
       setAccomplishment('')
       setReflectionNotes('')
       setCompleteSessionError(null)
-      const sessionDuration = res.durationMinutes || 25
       const measuredFocusSeconds = res.pomodoroEnabled ? res.focusActiveSeconds ?? res.activeSeconds ?? 0 : res.activeSeconds ?? 0
-      const measuredMinutes = Math.floor(measuredFocusSeconds / 60)
-      const activeMinutes = res.pomodoroEnabled ? measuredMinutes : Math.min(measuredMinutes, sessionDuration)
-      const earnedXp = activeMinutes >= 45 ? 25 : activeMinutes >= 15 ? 15 : 0
+      const activeMinutes = Math.floor(measuredFocusSeconds / 60)
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
-
-      if (earnedXp > 0) {
-        spawnCelebrationSparkles()
-      }
-
-      pushToast({
-        type: earnedXp > 0 ? 'reward' : 'focus',
-        title: earnedXp > 0 && !isMinimal ? `Focus Sprint Completed! +${earnedXp} XP` : 'Session Completed',
-        description: earnedXp > 0
-          ? `Focus block recorded with quality rating ${completionQuality}/5. XP ledger updated.`
-          : `Focus block recorded with quality rating ${completionQuality}/5. Earn XP by focusing for at least 15 active minutes.`,
-        badge: earnedXp > 0 ? `+${earnedXp} XP` : undefined,
-        timestamp: new Date().toISOString(),
-      })
-
+      const previousProgress = userProgress
       await loadData()
       const updatedProg = await getCurrentUserProgress().catch(() => null)
+      if (updatedProg) setUserProgress(updatedProg)
+      const earnedXp = findNewProgressEvents(previousProgress, updatedProg)
+        .filter((event) => ['FOCUS_SESSION_COMPLETED', 'MISSION_COMPLETED', 'GOAL_COMPLETED'].includes(event.eventType))
+        .reduce((total, event) => total + Math.max(0, event.amount), 0)
+      if (earnedXp > 0 && !isMinimal) spawnCelebrationSparkles()
+      pushToast({
+        type: earnedXp > 0 ? 'reward' : 'focus',
+        title: earnedXp > 0 && !isMinimal ? `Focus session completed · +${earnedXp} XP` : 'Session completed',
+        description: `Focus block recorded with ${activeMinutes} actual active minutes and quality ${completionQuality}/5${earnedXp > 0 ? '. XP confirmed in the server ledger.' : '.'}`,
+        badge: earnedXp > 0 && !isMinimal ? `+${earnedXp} XP` : undefined,
+        timestamp: new Date().toISOString(),
+      })
       const oldLevel = userProgress?.level || 1
       const newLevel = updatedProg?.level || oldLevel
 
+      const celebrationTimestamp = ++celebrationSequence.current
       if (newLevel > oldLevel) {
         setCelebrationPayload({
-          id: `lvl-${Date.now()}`,
+          id: `lvl-${celebrationTimestamp}`,
           type: 'LEVEL_UP',
-          headline: 'Level Up! Tier Unlocked',
-          detail: `You have advanced to Tier ${newLevel}: ${updatedProg?.levelTitle || 'Master of Flow'}.`,
+          headline: `Level ${newLevel} reached`,
+          detail: `Your progress has reached Level ${newLevel}.`,
           xpEarned: earnedXp,
           oldLevel,
           newLevel,
@@ -2381,9 +2405,9 @@ export function App() {
         })
       } else if (earnedXp > 0 && !isMinimal) {
         setCelebrationPayload({
-          id: `session-${targetSessionId}-${Date.now()}`,
+          id: `session-${targetSessionId}-${celebrationTimestamp}`,
           type: 'FOCUS_SESSION',
-          headline: `Focus Sprint Completed! +${earnedXp} XP`,
+          headline: `Focus session completed · +${earnedXp} XP`,
           detail: `Deep work session verified (${activeMinutes} active mins, quality ${completionQuality}/5).`,
           xpEarned: earnedXp,
           streakDays: analyticsData?.summary?.currentStreak,
@@ -2669,6 +2693,7 @@ export function App() {
           timestamp: new Date().toISOString(),
         })
         await loadData()
+        advanceTutorialAfterAction('SCHEDULE')
       } else {
         const created = await createFocusSession({
           userId,
@@ -2688,6 +2713,7 @@ export function App() {
           timestamp: new Date().toISOString(),
         })
         await loadData()
+        advanceTutorialAfterAction('SCHEDULE')
       }
     } catch (err: unknown) {
       console.error('Failed to book or edit session:', err)
@@ -2723,6 +2749,7 @@ export function App() {
       const started = await startFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? started : s)))
       setActiveTab('Focus Engine')
+      advanceTutorialAfterAction('FOCUS')
       pushToast({
         type: 'focus',
         title: 'Focus Started',
@@ -2771,6 +2798,26 @@ export function App() {
   }
 
   if (!currentUser) {
+    const localVaultExists = isLocalVaultSession()
+    const authDescription = authMode === 'RECOVER'
+      ? 'Enter the one-time recovery key saved when this encrypted local workspace was created. Recovery resets the password and unlocks this device vault.'
+      : isTauriEnvironment()
+      ? authMode === 'REGISTER'
+        ? 'Create an encrypted workspace stored on this device. Your recovery key appears once after setup; save it somewhere private.'
+        : localVaultExists
+          ? 'Enter your password to unlock the encrypted workspace stored on this device.'
+          : 'Sign in to a server account, or create a local workspace on this device.'
+      : authMode === 'REGISTER'
+        ? 'Create a SHINPO account to save your work and progress.'
+        : 'Sign in to continue to your SHINPO workspace.'
+    const authSubmitLabel = authLoading
+      ? authMode === 'REGISTER'
+        ? isTauriEnvironment() ? 'Creating workspace…' : 'Creating account…'
+        : authMode === 'RECOVER' ? 'Recovering workspace…' : localVaultExists ? 'Unlocking workspace…' : 'Signing in…'
+      : authMode === 'REGISTER'
+        ? isTauriEnvironment() ? 'Create local workspace' : 'Create Account'
+        : authMode === 'RECOVER' ? 'Recover & Unlock Workspace' : localVaultExists ? 'Unlock workspace' : 'Sign In'
+
     return (
         <div className={`auth-fullscreen-container ${isDarkMode ? 'theme-dark' : 'theme-light'}`}>
         <div className="auth-card">
@@ -2781,7 +2828,15 @@ export function App() {
             </div>
           </div>
 
-          <div className="auth-nav-tabs">
+          {authMode === 'RECOVER' ? (
+            <div className="auth-nav-tabs">
+              <button
+                type="button"
+                className="auth-tab-btn active"
+                onClick={() => { setAuthMode('LOGIN'); setAuthError(null); setAuthRecoveryKey('') }}
+              >Back to Sign In</button>
+            </div>
+          ) : <div className="auth-nav-tabs">
             <button
               type="button"
               className={`auth-tab-btn ${authMode === 'LOGIN' ? 'active' : ''}`}
@@ -2802,9 +2857,10 @@ export function App() {
             >
               Create Account
             </button>
-          </div>
+          </div>}
 
           <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <p className="auth-context-note">{authDescription}</p>
             {authError && (
               <div id="auth-error" className="auth-error-banner" role="alert">
                 {authError}
@@ -2819,7 +2875,7 @@ export function App() {
                 id="auth-identifier"
                 className="auth-input"
                 type="text"
-                placeholder={authMode === 'LOGIN' ? 'alex / user@shinpo.app' : 'e.g. Alex'}
+                placeholder={authMode === 'LOGIN' ? 'alex / user@shinpo.app' : 'Local username'}
                 value={authIdentifier}
                 onChange={(e) => setAuthIdentifier(e.target.value)}
                 maxLength={authMode === 'LOGIN' ? 254 : 64}
@@ -2850,8 +2906,26 @@ export function App() {
               </div>
             )}
 
+            {authMode === 'RECOVER' && (
+              <div className="auth-field-group">
+                <label className="auth-label" htmlFor="auth-recovery-key">Recovery Key</label>
+                <input
+                  id="auth-recovery-key"
+                  className="auth-input"
+                  type="password"
+                  value={authRecoveryKey}
+                  onChange={(e) => setAuthRecoveryKey(e.target.value)}
+                  maxLength={128}
+                  autoComplete="off"
+                  aria-invalid={Boolean(authError)}
+                  aria-describedby={authError ? 'auth-error' : undefined}
+                  required
+                />
+              </div>
+            )}
+
             <div className="auth-field-group">
-              <label className="auth-label" htmlFor="auth-password">Password</label>
+              <label className="auth-label" htmlFor="auth-password">{authMode === 'RECOVER' ? 'New Password' : 'Password'}</label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
                   id="auth-password"
@@ -2859,6 +2933,7 @@ export function App() {
                   type={showAuthPassword ? 'text' : 'password'}
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
+                  minLength={authMode === 'LOGIN' ? 12 : 15}
                   maxLength={128}
                   autoComplete={authMode === 'LOGIN' ? 'current-password' : 'new-password'}
                   aria-invalid={Boolean(authError)}
@@ -2878,7 +2953,7 @@ export function App() {
                     right: '10px',
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-secondary, #94a3b8)',
+                    color: 'var(--text-secondary, #5c5c5c)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -2890,11 +2965,25 @@ export function App() {
                   <Icon name={showAuthPassword ? 'eye-off' : 'eye'} size={16} />
                 </button>
               </div>
+              {authMode !== 'LOGIN' && (
+                <small className="auth-context-note">Use at least 15 characters; common passwords are rejected. Existing local vault passwords remain valid.</small>
+              )}
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={authLoading}>
-              {authLoading ? 'Verifying credentials...' : authMode === 'LOGIN' ? 'Sign In' : 'Create Account'}
+              {authSubmitLabel}
             </button>
+
+            {localVaultExists && authMode === 'LOGIN' && (
+              <button
+                type="button"
+                className="auth-server-toggle-btn"
+                style={{ width: '100%', marginTop: 10 }}
+                onClick={() => { setAuthMode('RECOVER'); setAuthError(null); setAuthPassword('') }}
+              >
+                Forgot password? Recover with key
+              </button>
+            )}
 
             {/* Server Endpoint Configuration for Desktop Distribution */}
             <div className="auth-server-config-section" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
@@ -2904,7 +2993,7 @@ export function App() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--text-3, #94a3b8)',
+                  color: 'var(--text-3, #5c5c5c)',
                   fontSize: '12px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -2917,12 +3006,12 @@ export function App() {
                 onClick={() => setShowServerConfig((prev) => !prev)}
                 title="Configure Cloud Backend Endpoint"
               >
-                <span>🌐 Server: <strong style={{ color: 'var(--text-2, #e2e8f0)' }}>{getBackendBaseUrl() || 'Direct / Proxy (/api)'}</strong></span>
+          <span>Server: <strong style={{ color: 'var(--text-2, #cccccc)' }}>{getBackendBaseUrl() || 'Direct / Proxy (/api)'}</strong></span>
               </button>
 
               {showServerConfig && (
                 <div className="auth-server-dropdown" style={{ marginTop: '10px', textAlign: 'left' }}>
-                  <label className="auth-label" style={{ fontSize: '12px', marginBottom: '4px', display: 'block', color: 'var(--text-3, #94a3b8)' }}>
+                  <label className="auth-label" style={{ fontSize: '12px', marginBottom: '4px', display: 'block', color: 'var(--text-3, #5c5c5c)' }}>
                     Server URL (remote servers require HTTPS; HTTP is only for localhost)
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -2950,7 +3039,7 @@ export function App() {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: 'var(--text-3, #94a3b8)',
+                        color: 'var(--text-3, #5c5c5c)',
                         fontSize: '12px',
                         cursor: 'pointer',
                         marginTop: '6px',
@@ -2996,6 +3085,7 @@ export function App() {
             activeSession={activeSession}
             sentinelStatus={sentinelStatus}
             analyticsData={analyticsData}
+            progress={userProgress}
             setActiveTab={handleSelectTab}
             onNavigateToTasks={handleNavigateToTasks}
             handleArmMissionAsSession={handleArmMissionAsSession}
@@ -3066,6 +3156,7 @@ export function App() {
         {/* Tab 2: Focus Engine */}
         {activeTab === 'Focus Engine' && (
           <FocusView
+            isAurora={isV2Preview}
             activeSession={activeSession}
             timerSeconds={timerSeconds}
             sessions={sessions}
@@ -3082,14 +3173,22 @@ export function App() {
             setSelectedPomodoroPlan={setSelectedPomodoroPlan}
             pomodoroEnabled={pomodoroEnabled}
             setPomodoroEnabled={setPomodoroEnabled}
-            pomodoroFocusCycles={pomodoroFocusCycles}
-            setPomodoroFocusCycles={setPomodoroFocusCycles}
             pomodoroShortBreakMinutes={pomodoroShortBreakMinutes}
-            setPomodoroShortBreakMinutes={setPomodoroShortBreakMinutes}
             pomodoroLongBreakMinutes={pomodoroLongBreakMinutes}
             setPomodoroLongBreakMinutes={setPomodoroLongBreakMinutes}
             pomodoroGraceMinutes={pomodoroGraceMinutes}
             setPomodoroGraceMinutes={setPomodoroGraceMinutes}
+            latePenaltyEnabled={latePenaltyEnabled}
+            setLatePenaltyEnabled={setLatePenaltyEnabled}
+            latePenaltyXp={latePenaltyXp}
+            setLatePenaltyXp={setLatePenaltyXp}
+            latePenaltyDailyCapXp={latePenaltyDailyCapXp}
+            setLatePenaltyDailyCapXp={setLatePenaltyDailyCapXp}
+            guardianMode={guardianMode}
+            setGuardianMode={setGuardianMode}
+            guardianAppMonitoring={guardianAppMonitoring}
+            setGuardianAppMonitoring={setGuardianAppMonitoring}
+            guardianModeAvailable={isTauriEnvironment() && isLocalVaultSession()}
             handleReturnToFocus={handleReturnToFocus}
             handleStartSession={handleStartSession}
             handlePause={handlePause}
@@ -3104,6 +3203,12 @@ export function App() {
           <EonpaiView
             chatMessages={chatMessages}
             aiLoading={aiLoading}
+            isAurora={isV2Preview}
+            goals={goals}
+            missions={missions}
+            sessions={sessions}
+            activeSession={activeSession ?? null}
+            focusStreak={analyticsData?.summary?.currentStreak ?? 0}
             handleTriggerPresetAction={handleTriggerPresetAction}
             handleClearChat={handleClearChat}
             handleStartTutorial={handleStartTutorial}
@@ -3112,7 +3217,10 @@ export function App() {
             handleCommitChatSuggestion={handleCommitChatSuggestion}
             handleRecoveryActionClick={handleRecoveryActionClick}
             handleAiSend={handleAiSend}
+            requestConversationDelete={(title, confirm) => requestConfirmation({ title: 'Delete conversation', message: `Delete “${title}” and its saved messages?`, confirmLabel: 'Delete', isDestructive: true, onConfirm: confirm })}
+            onConversationChange={loadActiveConversation}
             onActionExecuted={loadData}
+            onOpenAiSettings={() => handleOpenSettings('eonpai')}
           />
         )}
 
@@ -3123,6 +3231,8 @@ export function App() {
             userId={currentUser?.id ?? null}
             goals={goals}
             missions={missions}
+            progress={userProgress}
+            currentStreak={analyticsData?.summary?.currentStreak ?? 0}
             activeSession={activeSession}
             aiDecompResult={aiDecompResult}
             setAiDecompResult={setAiDecompResult}
@@ -3159,6 +3269,8 @@ export function App() {
         {activeTab === 'Schedule' && (
           <ScheduleView
             sessions={sessions}
+            goals={goals}
+            missions={missions}
             selectedScheduleDate={selectedScheduleDate}
             setSelectedScheduleDate={setSelectedScheduleDate}
             setActiveTab={setActiveTab}
@@ -3175,6 +3287,8 @@ export function App() {
             ========================================================================== */}
         {activeTab === 'Task Manager' && (
           <TaskManagerView
+            isAurora={isV2Preview}
+            localVaultMode={isLocalVaultSession()}
             deviceSnapshot={deviceSnapshot}
             tmLoading={tmLoading}
             tmSearch={tmSearch}
@@ -3186,7 +3300,6 @@ export function App() {
             setSentinelStatus={setSentinelStatus}
             sentinelRules={sentinelRules}
             setSentinelRules={setSentinelRules}
-            handleTerminateProcess={handleTerminateProcess}
             tamperEvents={tamperEvents}
             setTamperEvents={setTamperEvents}
             tamperEventsExpanded={tamperEventsExpanded}
@@ -3196,6 +3309,7 @@ export function App() {
             loadSentinelTamperEvents={loadSentinelTamperEvents}
             tmToast={tmToast}
             setTmToast={setTmToast}
+            onOpenCompanionSettings={() => handleOpenSettings('companion')}
           />
         )}
 
@@ -3207,6 +3321,8 @@ export function App() {
             analyticsData={analyticsData}
             analyticsLoading={analyticsLoading}
             loadAnalytics={loadAnalytics}
+            onNavigateFocus={() => handleSelectTab('Focus Engine')}
+            userId={currentUser?.id ?? null}
           />
         )}
 
@@ -3217,7 +3333,8 @@ export function App() {
             goals={goals}
             missions={missions}
             sessions={sessions}
-            onboardingVerified={Boolean(getTutorialStorageItem('shinpo_onboarding_completed', currentUser?.id))}
+            onboardingVerified={getTutorialStorageItem('shinpo_onboarding_verified', currentUser?.id) === 'true'}
+            onNavigate={handleSelectTab}
           />
         )}
 
@@ -3228,7 +3345,8 @@ export function App() {
           activeTab !== 'AI Assistant' &&
           activeTab !== 'Schedule' &&
           activeTab !== 'Task Manager' &&
-          activeTab !== 'Analytics' && (
+          activeTab !== 'Analytics' &&
+          activeTab !== 'Rewards' && (
             <div className="bento-card" style={{ padding: 48, textAlign: 'center' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>{activeTab} Module</h2>
               <p style={{ color: 'var(--text-3)', fontSize: 14 }}>
@@ -3261,10 +3379,12 @@ export function App() {
           graceSecondsLeft={graceSecondsLeft}
           sentinelStatus={sentinelStatus}
           userProgress={userProgress}
+          topSearchQuery={topSearchQuery}
+          onSearchChange={setTopSearchQuery}
         />
 
         {/* Main Content Area */}
-        <main ref={appMainRef} className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
+        <main className={`app-main ${sidebarExpanded ? 'sidebar-expanded' : ''} ${activeTab === 'AI Assistant' ? 'app-main-ai' : ''}`}>
           {/* Top Bar */}
           <TopBar
             activeTab={activeTab}
@@ -3286,11 +3406,13 @@ export function App() {
             isV2Preview={isV2Preview}
           />
 
-          <ErrorBoundary>
-            <Suspense fallback={<div role="status" aria-busy="true" className="bento-card" style={{ margin: 20, padding: 24 }}>Loading {activeTab}…</div>}>
-              {renderTabContent()}
-            </Suspense>
-          </ErrorBoundary>
+          <div className={`app-content-stage${activeTab === 'AI Assistant' ? ' app-content-stage-ai' : ''}`}>
+            <ErrorBoundary>
+              <Suspense fallback={<div role="status" aria-busy="true" className="bento-card" style={{ margin: 20, padding: 24 }}>Loading {activeTab}…</div>}>
+                {renderTabContent()}
+              </Suspense>
+            </ErrorBoundary>
+          </div>
 
         </main>
       </div>
@@ -3452,6 +3574,13 @@ export function App() {
       />
 
       {/* Interactive Guided Tour Spotlight Overlay */}
+      {isOnboardingWelcomeOpen && !isTutorialActive && !hasActiveModal && (
+        <OnboardingWelcome
+          onStart={() => handleStartTutorial()}
+          onExplore={handleSkipTutorial}
+          onDismiss={handleDismissOnboardingWelcome}
+        />
+      )}
       {isTutorialActive && SHINPO_ONBOARDING_STEPS[tutorialStepIndex] && !hasActiveModal && (
         <TutorialOverlay
           step={SHINPO_ONBOARDING_STEPS[tutorialStepIndex]}

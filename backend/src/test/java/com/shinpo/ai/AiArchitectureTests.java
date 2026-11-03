@@ -111,7 +111,7 @@ class AiArchitectureTests {
 
         assertNotNull(chatRes);
         assertNotNull(chatRes.reply());
-        assertTrue(chatRes.reply().contains("EONPAI"));
+        assertTrue(chatRes.reply().contains("Suggested next task"));
         verify(suggestionRepository, atLeastOnce()).save(any(AiSuggestion.class));
     }
 

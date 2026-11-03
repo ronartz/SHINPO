@@ -165,9 +165,9 @@ class SilenceEngineTests {
 
         assertNotNull(response);
         assertEquals("FOCUS_ASSISTANT", response.suggestionType());
-        assertTrue(response.reply().contains("Focus sprint"));
+        assertTrue(response.reply().contains("Focus session"));
         assertTrue(response.reply().contains("Deep Work Sprint Alpha"));
-        assertTrue(response.reply().contains("Shield active. What quick assistance do you need to stay in flow?"));
+        assertTrue(response.reply().contains("What help do you need?"));
         // Must NOT spam with full 4-bullet planning options
         assertFalse(response.reply().contains("• `Plan my day`"));
     }
@@ -184,9 +184,9 @@ class SilenceEngineTests {
 
             assertNotNull(response);
             assertEquals("FOCUS_ASSISTANT", response.suggestionType());
-            assertTrue(response.reply().contains("Focus sprint"));
+            assertTrue(response.reply().contains("Focus session"));
             assertTrue(response.reply().contains("Kernel Driver Optimization"));
-            assertTrue(response.reply().contains("keeping interruptions minimal"));
+            assertTrue(response.reply().contains("You can pause or complete it from the Focus page when ready."));
             assertFalse(response.reply().contains("• `Plan my day`"));
         } finally {
             aiProperties.setEnabled(true);

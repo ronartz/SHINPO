@@ -9,6 +9,8 @@ import com.shinpo.repository.MissionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -137,6 +139,81 @@ public class AnalyticsService {
         }
 
         return new AnalyticsDashboardResponse(summary, weeklyVelocity, debriefs);
+    }
+
+    @Transactional(readOnly = true)
+    public AnalyticsPeriodResponse getAnalyticsPeriod(Long userId, String range) {
+        Instant now = Instant.now(clock);
+        int bucketCount;
+        long bucketSeconds;
+        switch (range) {
+            case "24h" -> { bucketCount = 12; bucketSeconds = 2 * 60 * 60L; }
+            case "7d" -> { bucketCount = 7; bucketSeconds = 24 * 60 * 60L; }
+            case "30d" -> { bucketCount = 30; bucketSeconds = 24 * 60 * 60L; }
+            case "90d" -> { bucketCount = 13; bucketSeconds = 7 * 24 * 60 * 60L; }
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported analytics range");
+        }
+        long rangeSeconds = range.equals("90d") ? 90 * 24 * 60 * 60L : bucketCount * bucketSeconds;
+        Instant currentStart = now.minusSeconds(rangeSeconds);
+        Instant previousStart = currentStart.minusSeconds(rangeSeconds);
+        List<FocusSession> sessions = focusSessionRepository
+                .findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                        userId, FocusSessionStatus.COMPLETED, previousStart, now);
+
+        List<ActivityBucket> current = emptyBuckets(currentStart, now, range, bucketCount, bucketSeconds);
+        List<ActivityBucket> previous = emptyBuckets(previousStart, currentStart, range, bucketCount, bucketSeconds);
+        long currentSeconds = 0;
+        long previousSeconds = 0;
+        int currentSessions = 0;
+        int previousSessions = 0;
+        Instant computedAt = Instant.now(clock);
+        for (FocusSession session : sessions) {
+            long active = session.calculateActiveSeconds(computedAt);
+            Instant completedAt = session.getEndedAt();
+            if (completedAt.isBefore(currentStart)) {
+                int index = bucketIndex(completedAt, previousStart, range, bucketSeconds, bucketCount);
+                previous.set(index, add(previous.get(index), active));
+                previousSeconds += active;
+                previousSessions++;
+            } else if (completedAt.isBefore(now)) {
+                int index = bucketIndex(completedAt, currentStart, range, bucketSeconds, bucketCount);
+                current.set(index, add(current.get(index), active));
+                currentSeconds += active;
+                currentSessions++;
+            }
+        }
+        return new AnalyticsPeriodResponse(range, "UTC", currentStart, now, previousStart, currentStart,
+                current, previous, currentSeconds, currentSessions, previousSeconds, previousSessions);
+    }
+
+    private List<ActivityBucket> emptyBuckets(Instant start, Instant end, String range, int count, long bucketSeconds) {
+        List<ActivityBucket> buckets = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            Instant bucketStart = range.equals("90d") && i > 0
+                    ? start.plusSeconds(6 * 24 * 60 * 60L + (long) (i - 1) * bucketSeconds)
+                    : start.plusSeconds((long) i * bucketSeconds);
+            Instant bucketEnd = i == count - 1 ? end : bucketStart.plusSeconds(
+                    range.equals("90d") && i == 0 ? 6 * 24 * 60 * 60L : bucketSeconds);
+            buckets.add(new ActivityBucket(bucketStart, bucketEnd, 0, 0));
+        }
+        return buckets;
+    }
+
+    private int bucketIndex(Instant point, Instant start, String range, long bucketSeconds, int count) {
+        long offset = Math.max(0, point.getEpochSecond() - start.getEpochSecond());
+        int index;
+        if (range.equals("90d")) {
+            long firstBucket = 6 * 24 * 60 * 60L;
+            index = offset < firstBucket ? 0 : 1 + (int) ((offset - firstBucket) / bucketSeconds);
+        } else {
+            index = (int) (offset / bucketSeconds);
+        }
+        return Math.min(count - 1, Math.max(0, index));
+    }
+
+    private ActivityBucket add(ActivityBucket bucket, long activeSeconds) {
+        return new ActivityBucket(bucket.start(), bucket.end(), bucket.activeSeconds() + activeSeconds,
+                bucket.completedSessions() + 1);
     }
 
     private int calculateCurrentStreak(Set<LocalDate> completedExecutionDates, LocalDate today) {

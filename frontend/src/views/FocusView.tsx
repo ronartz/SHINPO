@@ -1,5 +1,6 @@
-import React from 'react'
-import type { FocusSession, FocusSessionStatus } from '../api/focusSessions'
+import React, { useEffect, useState } from 'react'
+import { getGuardianObservations } from '../api/focusSessions'
+import type { FocusSession, FocusSessionStatus, GuardianMode, GuardianObservation } from '../api/focusSessions'
 import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
 import {
@@ -9,8 +10,11 @@ import {
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
+import { trackMicrokitPointer } from '../components/microkit/pointerGlow'
+import { sortFocusSessionsNewestFirst } from '../utils/focusSessionHistory'
 
 export interface FocusViewProps {
+  isAurora?: boolean
   activeSession?: FocusSession | null
   timerSeconds: number
   sessions: FocusSession[]
@@ -34,14 +38,22 @@ export interface FocusViewProps {
   handleReturnToFocus: (id: number) => void
   pomodoroEnabled: boolean
   setPomodoroEnabled: (enabled: boolean) => void
-  pomodoroFocusCycles: number
-  setPomodoroFocusCycles: (cycles: number) => void
   pomodoroShortBreakMinutes: number
-  setPomodoroShortBreakMinutes: (minutes: number) => void
   pomodoroLongBreakMinutes: number
   setPomodoroLongBreakMinutes: (minutes: number) => void
   pomodoroGraceMinutes: number
   setPomodoroGraceMinutes: (minutes: number) => void
+  latePenaltyEnabled: boolean
+  setLatePenaltyEnabled: (enabled: boolean) => void
+  latePenaltyXp: number
+  setLatePenaltyXp: (xp: number) => void
+  latePenaltyDailyCapXp: number
+  setLatePenaltyDailyCapXp: (xp: number) => void
+  guardianMode: GuardianMode
+  setGuardianMode: (mode: GuardianMode) => void
+  guardianAppMonitoring: boolean
+  setGuardianAppMonitoring: (enabled: boolean) => void
+  guardianModeAvailable: boolean
 }
 
 import { trackRender } from '../utils/renderTracker'
@@ -68,6 +80,7 @@ const getStatusClass = (status: FocusSessionStatus | string): string => {
 }
 
 export const FocusView: React.FC<FocusViewProps> = ({
+  isAurora = false,
   activeSession,
   timerSeconds,
   sessions,
@@ -91,20 +104,49 @@ export const FocusView: React.FC<FocusViewProps> = ({
   handleReturnToFocus,
   pomodoroEnabled,
   setPomodoroEnabled,
-  pomodoroFocusCycles,
-  setPomodoroFocusCycles,
   pomodoroShortBreakMinutes,
-  setPomodoroShortBreakMinutes,
   pomodoroLongBreakMinutes,
   setPomodoroLongBreakMinutes,
   pomodoroGraceMinutes,
   setPomodoroGraceMinutes,
+  latePenaltyEnabled,
+  setLatePenaltyEnabled,
+  latePenaltyXp,
+  setLatePenaltyXp,
+  latePenaltyDailyCapXp,
+  setLatePenaltyDailyCapXp,
+  guardianMode,
+  setGuardianMode,
+  guardianAppMonitoring,
+  setGuardianAppMonitoring,
+  guardianModeAvailable,
 }) => {
+  const [guardianObservations, setGuardianObservations] = useState<GuardianObservation[]>([])
+  const [guardianObservationError, setGuardianObservationError] = useState(false)
+  const [guardianNow, setGuardianNow] = useState<number | null>(null)
+
+  useEffect(() => {
+    const sessionId = activeSession?.id
+    if (!guardianModeAvailable || activeSession?.status !== 'ACTIVE' || !activeSession.guardianAppMonitoring || !sessionId) {
+      return
+    }
+    let mounted = true
+    const refresh = () => getGuardianObservations(sessionId)
+      .then((items) => { if (mounted) { setGuardianObservations(items); setGuardianObservationError(false); setGuardianNow(Date.now()) } })
+      .catch(() => { if (mounted) setGuardianObservationError(true) })
+    void refresh()
+    const timer = window.setInterval(() => { void refresh() }, 5000)
+    return () => { mounted = false; window.clearInterval(timer) }
+  }, [activeSession?.id, activeSession?.status, activeSession?.guardianAppMonitoring, guardianModeAvailable])
+
   trackRender('FocusView')
 
   const isFocusEngaged = activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED'
   const currentPhase = activeSession?.currentPhase ?? 'FOCUS'
-  const isBreak = currentPhase === 'SHORT_BREAK' || currentPhase === 'LONG_BREAK' || currentPhase === 'GRACE'
+  const isBreak = currentPhase === 'BREAK' || currentPhase === 'SHORT_BREAK' || currentPhase === 'LONG_BREAK' || currentPhase === 'GRACE'
+  const latestGuardianObservation = guardianObservations[0]
+  const isRecentGuardianObservation = latestGuardianObservation && guardianNow !== null &&
+    guardianNow - new Date(latestGuardianObservation.observedAt).getTime() < 30_000
   const isReturnRequired = currentPhase === 'RETURN_REQUIRED'
   const isPaused = activeSession?.status === 'PAUSED'
   const isSequenceComplete = currentPhase === 'COMPLETE'
@@ -113,6 +155,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
     ? activeSession?.pomodoroGraceMinutes ?? pomodoroGraceMinutes
     : currentPhase === 'SHORT_BREAK'
     ? activeSession?.pomodoroShortBreakMinutes ?? pomodoroShortBreakMinutes
+    : currentPhase === 'BREAK'
+      ? activeSession?.pomodoroLongBreakMinutes ?? pomodoroLongBreakMinutes
     : currentPhase === 'LONG_BREAK'
       ? activeSession?.pomodoroLongBreakMinutes ?? pomodoroLongBreakMinutes
       : activeSession?.durationMinutes ?? selectedDuration
@@ -121,6 +165,9 @@ export const FocusView: React.FC<FocusViewProps> = ({
     ? Math.max(0, Math.min(1, 1 - timerSeconds / focusDurationSeconds))
     : 0
   const orbitLength = 2 * Math.PI * 148
+  const [showAllSessions, setShowAllSessions] = React.useState(false)
+  const recentSessions = sortFocusSessionsNewestFirst(sessions)
+  const visibleSessions = isAurora ? showAllSessions ? recentSessions : recentSessions.slice(0, 5) : sessions
 
   return (
     <div className="focus-workspace-container" data-focus-mode={isPaused ? 'paused' : isBreak ? 'break' : activeSession?.status === 'ACTIVE' ? 'active' : 'ready'}>
@@ -153,7 +200,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 : activeGraceWarning
                 ? `Grace (${formatTimerDigits(graceSecondsLeft)})`
                 : isReturnRequired ? 'Return to Focus'
-                : isSequenceComplete ? 'Reflection ready' : isPaused ? `Paused · ${isBreak ? currentPhase === 'GRACE' ? 'grace' : currentPhase === 'LONG_BREAK' ? 'long break' : 'short break' : 'focus'}` : isBreak ? (currentPhase === 'GRACE' ? timerSeconds <= 120 ? `Grace · return soon (${formatTimerDigits(timerSeconds)})` : `Grace (${formatTimerDigits(timerSeconds)})` : currentPhase === 'LONG_BREAK' ? 'Long break' : 'Short break') : activeSession
+                : isSequenceComplete ? 'Reflection ready' : isPaused ? `Paused · ${isBreak ? currentPhase === 'GRACE' ? 'grace' : currentPhase === 'LONG_BREAK' || currentPhase === 'BREAK' ? 'long break' : 'short break' : 'focus'}` : isBreak ? (currentPhase === 'GRACE' ? timerSeconds <= 120 ? `Grace · return soon (${formatTimerDigits(timerSeconds)})` : `Grace (${formatTimerDigits(timerSeconds)})` : currentPhase === 'LONG_BREAK' || currentPhase === 'BREAK' ? 'Long break' : 'Short break') : activeSession
                 ? (isTimerExpired ? 'Complete' : activeSession.status === 'ACTIVE' ? 'Active' : activeSession.status === 'PAUSED' ? 'Paused' : activeSession.status)
                 : 'Ready'}
             </span>
@@ -230,7 +277,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
         <div className="timer-action-buttons">
           {!activeSession && (
-            <button className="btn-timer primary" onClick={handleStartSession} data-tutorial="start-timer-btn">
+            <button className="btn-timer primary microkit-pointer-glow" data-microkit-glow onPointerMove={trackMicrokitPointer} onClick={handleStartSession} data-tutorial="start-timer-btn">
               <Icon name="play" size={16} />
               <span>Start {selectedDuration}m Session</span>
             </button>
@@ -239,7 +286,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
           {activeSession && activeSession.status === 'ACTIVE' && (
             <>
               <button
-                className="btn-timer secondary"
+                className="btn-timer secondary microkit-invert-press"
                 onClick={() => handlePause(activeSession.id)}
                 disabled={isSequenceComplete || isReturnRequired}
               >
@@ -248,7 +295,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
               </button>
               {(isBreak || isReturnRequired) && <button className="btn-timer primary" onClick={() => handleReturnToFocus(activeSession.id)}>Return to Focus</button>}
               {!isReturnRequired && <button
-                className="btn-timer primary"
+                className="btn-timer primary microkit-finish-glow"
                 onClick={() => setCompletingSessionId(activeSession.id)}
                 data-tutorial="debrief-controls"
               >
@@ -278,7 +325,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 <span>Resume Session</span>
               </button>
               <button
-                className="btn-timer secondary"
+                className="btn-timer secondary microkit-finish-glow"
                 onClick={() => setCompletingSessionId(activeSession.id)}
               >
                 <Icon name="check" size={16} />
@@ -305,7 +352,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
         <div className="card-header-row">
           <div className="card-title-group">
             <span className="card-title">{activeSession ? 'Current Session' : 'Session Configuration'}</span>
-            <span className="badge-tag">{activeSession ? `${currentPhase.replace('_', ' ').toLowerCase()} · ${activeSession.completedFocusCycles ?? 0}/${activeSession.pomodoroFocusCycles ?? 1} cycles` : 'Duration & Presets'}</span>
+            <span className="badge-tag">{activeSession ? `${currentPhase.replace('_', ' ').toLowerCase()} · ${activeSession.completedFocusCycles ?? 0}/${activeSession.pomodoroEnabled ? 2 : 1} focus blocks` : 'Duration & Presets'}</span>
           </div>
           <Icon name={activeSession ? 'clock' : 'target'} size={20} />
         </div>
@@ -319,6 +366,19 @@ export const FocusView: React.FC<FocusViewProps> = ({
               <span>{isReturnRequired ? 'Return required' : isBreak ? currentPhase === 'GRACE' ? 'Grace time remaining' : 'Break time remaining' : 'Active focus recorded'}</span>
               <b>{isReturnRequired ? 'Now' : `${formatTimerDigits(isBreak ? timerSeconds : activeSession.focusActiveSeconds ?? activeSession.activeSeconds)}${isBreak ? ' remaining' : ' focused'}`}</b>
             </div>
+            {activeSession.guardianAppMonitoring && <section className="guardian-observations" aria-live="polite" aria-label="Local app monitoring">
+              <div><strong>Local app monitoring</strong><span>Warning only · apps are never closed</span></div>
+              {isRecentGuardianObservation && <p role="status" className="guardian-observation-notice">
+                {latestGuardianObservation.outcome === 'ALLOWED_BREAK'
+                  ? `${latestGuardianObservation.processName} is allowed during this break. Guardian does not control applications.`
+                  : `${latestGuardianObservation.processName} matches the built-in distraction catalog. This warning is saved in your encrypted vault; SHINPO will not close the app.`}
+              </p>}
+              {guardianObservationError
+                ? <p>Local observations are temporarily unavailable.</p>
+                : guardianObservations.length
+                  ? <ul>{guardianObservations.slice(0, 4).map((item) => <li key={item.id}><span><strong>{item.processName}</strong><small>{item.outcome.replaceAll('_', ' ').toLowerCase()} · {item.rationale} · {item.catalogVersion}</small></span><time>{new Date(item.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></li>)}</ul>
+                  : <p>No matching distraction apps observed this session.</p>}
+            </section>}
           </div>
         ) : (
           <>
@@ -350,17 +410,34 @@ export const FocusView: React.FC<FocusViewProps> = ({
         </div>
 
         <section className="pomodoro-config" aria-label="Pomodoro cycle configuration">
+          {guardianModeAvailable && !activeSession && <div className="study-mode-section">
+            <span className="study-section-label">Automatic Guardian</span>
+            <div className="study-mode-options" role="group" aria-label="Guardian mode">
+              {([
+                ['GUIDED', 'Light', 'Website warnings; known distracting apps are recorded only.'],
+                ['PROTECTED', 'Standard', 'Known distracting sites are restricted; app alerts are warnings.'],
+                ['STRICT', 'Strict', 'Unknown sites may be restricted; app alerts remain warnings.'],
+              ] as const).map(([mode, label, detail]) => <button key={mode} type="button" className={`study-mode-option ${guardianMode === mode ? 'is-active' : ''}`} aria-pressed={guardianMode === mode} onClick={() => setGuardianMode(mode)}><strong>{label}</strong><span>{detail}</span></button>)}
+            </div>
+            <label className="pomodoro-toggle"><input type="checkbox" checked={guardianAppMonitoring} onChange={(event) => setGuardianAppMonitoring(event.target.checked)} />Allow SHINPO to observe matching app names during this Focus session</label>
+            <p className="guardian-observation-note">When enabled, matching process names and warning history are saved in this device's encrypted vault. Apps are never closed.</p>
+          </div>}
           <label className="pomodoro-toggle">
             <input type="checkbox" checked={pomodoroEnabled} onChange={(event) => { setPomodoroEnabled(event.target.checked); setSelectedPomodoroPlan(null) }} />
-            <span>Run focus and break cycles</span>
+            <span>Include one midpoint break</span>
           </label>
           {pomodoroEnabled && <div className="pomodoro-config-fields">
-            <label>Cycles<input type="number" min={1} max={12} value={pomodoroFocusCycles} onChange={(event) => setPomodoroFocusCycles(Math.max(1, Math.min(12, Number(event.target.value) || 1)))} /></label>
-            <label>Short break<input type="number" min={1} max={60} value={pomodoroShortBreakMinutes} onChange={(event) => setPomodoroShortBreakMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
             <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
-            <label>Grace<input type="number" min={1} max={60} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
+            <label>Grace<input type="number" min={1} max={10} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} /></label>
           </div>}
-          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min focus × {pomodoroFocusCycles} cycles · {pomodoroShortBreakMinutes} min short breaks · {pomodoroLongBreakMinutes} min final break + {pomodoroGraceMinutes} min grace</p>}
+          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min total focus in 2 blocks · {pomodoroLongBreakMinutes} min midpoint break + up to {pomodoroGraceMinutes} min grace</p>}
+          {pomodoroEnabled && <div className="pomodoro-config-fields">
+            <label className="pomodoro-toggle"><input type="checkbox" checked={latePenaltyEnabled} onChange={(event) => setLatePenaltyEnabled(event.target.checked)} />Deduct XP only if I miss the return deadline</label>
+            {latePenaltyEnabled && <>
+              <label>XP per late return<input type="number" min={1} max={100} value={latePenaltyXp} onChange={(event) => setLatePenaltyXp(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} /></label>
+              <label>Daily XP cap<input type="number" min={latePenaltyXp} max={100} value={latePenaltyDailyCapXp} onChange={(event) => setLatePenaltyDailyCapXp(Math.max(latePenaltyXp, Math.min(100, Number(event.target.value) || 1)))} /></label>
+            </>}
+          </div>}
         </section>
 
         {isCustomDuration && (
@@ -377,7 +454,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 step={5}
                 value={selectedDuration}
                 onChange={(e) => setSelectedDuration(Number(e.target.value))}
-                className="custom-slider"
+                className="custom-slider microkit-scrub-range"
+                style={{ '--scrub-progress': `${((selectedDuration - 5) / 175) * 100}%` } as React.CSSProperties}
               />
               <input
                 type="number"
@@ -422,7 +500,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
               onClick={() => {
                 setSelectedPomodoroPlan(plan.name)
                 setSelectedDuration(plan.totalMinutes)
-                setPomodoroEnabled(false)
               }}
             >
               <div>
@@ -451,13 +528,44 @@ export const FocusView: React.FC<FocusViewProps> = ({
             <span className="card-title">Recent Sessions</span>
             <span className="badge-tag">{sessions.length} {sessions.length === 1 ? 'Session' : 'Sessions'}</span>
           </div>
-          <Icon name="clock" size={18} />
+          {isAurora && sessions.length > 5 ? (
+            <button type="button" className="focus-history-toggle" aria-expanded={showAllSessions} onClick={() => setShowAllSessions((value) => !value)}>
+              {showAllSessions ? 'Show recent' : 'View all'}
+            </button>
+          ) : <Icon name="clock" size={18} />}
         </div>
 
         {sessions.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-3)', fontSize: 14 }}>
             No focus session records yet. Start your first session above.
           </div>
+        ) : isAurora ? (
+          <ol className="focus-session-history-list">
+            {visibleSessions.map((sess) => {
+              const actualSeconds = sess.focusActiveSeconds ?? sess.activeSeconds ?? 0
+              const actualMinutes = Math.floor(actualSeconds / 60)
+              const sessionTime = sess.startedAt || sess.scheduledAt || sess.createdAt
+              const parsedTime = new Date(sessionTime)
+              const timeLabel = Number.isNaN(parsedTime.getTime())
+                ? 'Time unavailable'
+                : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(parsedTime)
+              const sessionSummary = sess.status === 'SCHEDULED'
+                ? `Scheduled ${timeLabel} · ${sess.durationMinutes} min planned`
+                : `${timeLabel} · ${actualMinutes} min focused`
+              const canDelete = sess.id !== activeSession?.id && sess.status !== 'ACTIVE' && sess.status !== 'PAUSED'
+              return <li key={sess.id} className="focus-session-history-item">
+                <div className="focus-session-history-copy">
+                  <strong>{sess.name}</strong>
+                  <span>{sessionSummary}</span>
+                  {sess.intention && <small>{sess.intention}</small>}
+                </div>
+                <span className={`status-indicator-pill ${getStatusClass(sess.status)}`}>{sess.status}</span>
+                <button className="btn-icon-delete" title={canDelete ? 'Delete Focus Session' : 'Active session cannot be deleted while running. Cancel or complete it first.'} aria-label={`Delete Focus Session: ${sess.name}`} disabled={!canDelete} onClick={() => handleDeleteSession(sess.id)}>
+                  <Icon name="trash" size={15} />
+                </button>
+              </li>
+            })}
+          </ol>
         ) : (
           <div className="dense-table-wrapper">
             <table className="dense-table">

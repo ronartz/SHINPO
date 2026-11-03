@@ -7,19 +7,19 @@
 .hero-body-active {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .hero-session-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   background: var(--brand-coral-subtle);
   border: 1px solid var(--brand-coral-border);
   color: var(--primary-coral);
   font-size: 12px;
   font-weight: 800;
-  padding: 3px 10px;
+  padding: 3px var(--space-2);
   border-radius: 999px;
   width: fit-content;
 }
@@ -52,13 +52,13 @@
   color: var(--text);
   letter-spacing: -0.5px;
   line-height: 1;
-  margin: 4px 0;
+  margin: var(--space-1) 0;
 }
 
 .hero-progress-track {
   width: 100%;
   height: 7px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255, 0.08);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -74,16 +74,16 @@
 .hero-actions-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .hero-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
   border-radius: 100px;
   font-size: 12.5px;
   font-weight: 700;
@@ -94,8 +94,8 @@
 
 .hero-btn.primary {
   background: var(--brand-coral-gradient);
-  color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(255, 77, 94, 0.3);
+  color: var(--brand-space-indigo);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-highlight) 30.0%, transparent);
 }
 
 .hero-btn.primary:hover {
@@ -118,19 +118,19 @@
 .hero-body-idle {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .hero-idle-shield-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: var(--space-1);
+  background: rgba(255,255,255, 0.05);
   border: 1px solid var(--border);
   color: var(--text-2);
   font-size: 12px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 3px var(--space-2);
   border-radius: 999px;
   width: fit-content;
 }
@@ -146,10 +146,10 @@
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .hero-preview-label {
@@ -173,19 +173,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 10px;
+  padding: var(--space-2);
   border-radius: 100px;
   background: var(--brand-coral-gradient);
-  color: #FFFFFF;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 800;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(255, 77, 94, 0.35);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
   transition: transform 0.2s, filter 0.2s;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .hero-arm-btn:hover {
@@ -198,7 +198,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   margin: auto 0;
 }
 
@@ -230,7 +230,7 @@
   flex-direction: column;
   align-items: center;
   position: relative;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .velocity-gauge-svg {
@@ -246,7 +246,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--text-3);
-  padding: 0 10px;
+  padding: 0 var(--space-2);
   margin-top: 2px;
 }
 
@@ -254,14 +254,14 @@
 .timesheet-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   margin: auto 0;
   max-height: 190px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  padding-right: 6px;
+  padding-right: var(--space-1);
 }
 
 .timesheet-list::-webkit-scrollbar {
@@ -281,11 +281,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-2);
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   transition: all 0.15s ease;
 }
 
@@ -302,7 +302,7 @@
 .timesheet-item-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -310,7 +310,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255, 0.08);
   color: var(--text-2);
   font-size: 12px;
   font-weight: 800;
@@ -322,7 +322,7 @@
 
 .timesheet-item.rank-first .timesheet-rank-pill {
   background: var(--primary-coral);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .timesheet-meta {
@@ -348,7 +348,7 @@
 .timesheet-item-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -356,7 +356,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--text-2);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255,255,255, 0.05);
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -365,14 +365,14 @@
 .activity-feed-list {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: var(--space-2);
   margin: auto 0;
   max-height: 190px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
-  padding-right: 6px;
+  scrollbar-color: rgba(255,255,255, 0.18) transparent;
+  padding-right: var(--space-1);
 }
 
 .activity-feed-list::-webkit-scrollbar {
@@ -384,7 +384,7 @@
 }
 
 .activity-feed-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255,255,255, 0.18);
   border-radius: 999px;
 }
 
@@ -395,14 +395,14 @@
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 9px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 
 .activity-feed-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .activity-feed-name {
@@ -434,7 +434,7 @@
 .activity-feed-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12px;
   font-weight: 700;
   color: var(--accent-green);

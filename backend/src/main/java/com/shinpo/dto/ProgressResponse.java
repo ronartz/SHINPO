@@ -35,11 +35,11 @@ public record ProgressResponse(
 
     public static String calculateLevelTitle(int level) {
         return switch (level) {
-            case 5 -> "Master of Flow";
-            case 4 -> "High-Flow Architect";
-            case 3 -> "Execution Specialist";
-            case 2 -> "Disciplined Practitioner";
-            default -> "Focus Initiate";
+            case 5 -> "Sustained Focus";
+            case 4 -> "Deep Work Practitioner";
+            case 3 -> "Steady Builder";
+            case 2 -> "Focused Learner";
+            default -> "Getting Started";
         };
     }
 

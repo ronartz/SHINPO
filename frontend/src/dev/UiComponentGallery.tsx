@@ -113,8 +113,8 @@ export const UiComponentGallery: React.FC = () => {
           gap: 16,
           marginBottom: 32,
           padding: '16px 20px',
-          backgroundColor: 'var(--surface-card, #1D1E24)',
-          border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.12))',
+          backgroundColor: 'var(--surface-card, #030303)',
+          border: '1px solid var(--border-strong, rgba(255,255,255, 0.12))',
           borderRadius: 14,
         }}
       >
@@ -122,14 +122,14 @@ export const UiComponentGallery: React.FC = () => {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
             SHINPO UI Core Component Gallery
           </h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-2, #B0B5C2)' }}>
+          <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-2, #767676)' }}>
             Authoritative test workbench for custom dropdowns, date/time pickers, dialogs, and form primitives.
           </p>
         </div>
 
         {/* Live Theme Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: 6, backgroundColor: 'var(--surface-subtle, #24252D)', padding: 4, borderRadius: 8 }}>
+          <div style={{ display: 'flex', gap: 6, backgroundColor: 'var(--surface-subtle, #050505)', padding: 4, borderRadius: 8 }}>
             {(['aurora-dark', 'aurora-light', 'classic-dark', 'classic-light'] as const).map((t) => (
               <button
                 key={t}
@@ -167,8 +167,8 @@ export const UiComponentGallery: React.FC = () => {
         <div
           className="gallery-card"
           style={{
-            backgroundColor: 'var(--surface-card, #1D1E24)',
-            border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.12))',
+            backgroundColor: 'var(--surface-card, #030303)',
+            border: '1px solid var(--border-strong, rgba(255,255,255, 0.12))',
             borderRadius: 14,
             padding: 24,
             display: 'flex',
@@ -176,9 +176,9 @@ export const UiComponentGallery: React.FC = () => {
             gap: 20,
           }}
         >
-          <div style={{ borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))', paddingBottom: 12 }}>
+          <div style={{ borderBottom: '1px solid var(--border, rgba(255,255,255, 0.08))', paddingBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>1. Custom ShinpoSelect</h2>
-            <span style={{ fontSize: 12, color: 'var(--text-3, #9096A4)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3, #4e4e4e)' }}>
               Keyboard navigation (Up/Down/Home/End/Enter/Esc), zero OS popups, portals.
             </span>
           </div>
@@ -240,8 +240,8 @@ export const UiComponentGallery: React.FC = () => {
         <div
           className="gallery-card"
           style={{
-            backgroundColor: 'var(--surface-card, #1D1E24)',
-            border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.12))',
+            backgroundColor: 'var(--surface-card, #030303)',
+            border: '1px solid var(--border-strong, rgba(255,255,255, 0.12))',
             borderRadius: 14,
             padding: 24,
             display: 'flex',
@@ -249,9 +249,9 @@ export const UiComponentGallery: React.FC = () => {
             gap: 20,
           }}
         >
-          <div style={{ borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))', paddingBottom: 12 }}>
+          <div style={{ borderBottom: '1px solid var(--border, rgba(255,255,255, 0.08))', paddingBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>2. Date & Time Pickers</h2>
-            <span style={{ fontSize: 12, color: 'var(--text-3, #9096A4)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3, #4e4e4e)' }}>
               7-column calendar grid, leap-year local math, 24h scroll columns.
             </span>
           </div>
@@ -290,8 +290,8 @@ export const UiComponentGallery: React.FC = () => {
         <div
           className="gallery-card"
           style={{
-            backgroundColor: 'var(--surface-card, #1D1E24)',
-            border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.12))',
+            backgroundColor: 'var(--surface-card, #030303)',
+            border: '1px solid var(--border-strong, rgba(255,255,255, 0.12))',
             borderRadius: 14,
             padding: 24,
             display: 'flex',
@@ -299,9 +299,9 @@ export const UiComponentGallery: React.FC = () => {
             gap: 20,
           }}
         >
-          <div style={{ borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))', paddingBottom: 12 }}>
+          <div style={{ borderBottom: '1px solid var(--border, rgba(255,255,255, 0.08))', paddingBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>3. Dialogs & Nested Popups</h2>
-            <span style={{ fontSize: 12, color: 'var(--text-3, #9096A4)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3, #4e4e4e)' }}>
               Focus trapping, body scroll locking, z-index: 9500 for nested menus.
             </span>
           </div>
@@ -346,14 +346,14 @@ export const UiComponentGallery: React.FC = () => {
             style={{
               marginTop: 16,
               padding: 16,
-              backgroundColor: 'rgba(0, 0, 0, 0.16)',
+              backgroundColor: 'rgba(0,0,0, 0.16)',
               borderRadius: 10,
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary-cyan, #19D3C5)' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>
               Viewport Edge Boundary Protection:
             </span>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -374,8 +374,8 @@ export const UiComponentGallery: React.FC = () => {
         <div
           className="gallery-card"
           style={{
-            backgroundColor: 'var(--surface-card, #1D1E24)',
-            border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.12))',
+            backgroundColor: 'var(--surface-card, #030303)',
+            border: '1px solid var(--border-strong, rgba(255,255,255, 0.12))',
             borderRadius: 14,
             padding: 24,
             display: 'flex',
@@ -383,9 +383,9 @@ export const UiComponentGallery: React.FC = () => {
             gap: 20,
           }}
         >
-          <div style={{ borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))', paddingBottom: 12 }}>
+          <div style={{ borderBottom: '1px solid var(--border, rgba(255,255,255, 0.08))', paddingBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>4. Form Primitives & Feedback</h2>
-            <span style={{ fontSize: 12, color: 'var(--text-3, #9096A4)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3, #4e4e4e)' }}>
               Buttons, TextFields, TextAreas, Checkboxes, Switches, Tooltips, Toasts.
             </span>
           </div>

@@ -43,4 +43,21 @@ public class AnalyticsDtos {
             List<DailyFocusVelocity> weeklyVelocity,
             List<RecentDebrief> recentDebriefs
     ) {}
+
+    public record ActivityBucket(Instant start, Instant end, long activeSeconds, int completedSessions) {}
+
+    public record AnalyticsPeriodResponse(
+            String range,
+            String timezone,
+            Instant currentStart,
+            Instant currentEnd,
+            Instant previousStart,
+            Instant previousEnd,
+            List<ActivityBucket> currentBuckets,
+            List<ActivityBucket> previousBuckets,
+            long currentActiveSeconds,
+            int currentCompletedSessions,
+            long previousActiveSeconds,
+            int previousCompletedSessions
+    ) {}
 }

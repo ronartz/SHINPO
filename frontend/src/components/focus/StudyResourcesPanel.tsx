@@ -55,16 +55,16 @@ const DURATION_OPTIONS: SelectOption<DurationOption>[] = [
 
 const MODE_DETAILS: Record<StudyFocusMode, { label: string; detail: string }> = {
   GUIDED: {
-    label: 'Guided',
-    detail: 'Normal browsing stays available, with gentle return-to-task prompts.',
+    label: 'Light',
+    detail: 'Recognized distracting sites show a warning. Browsing stays available.',
   },
   PROTECTED: {
-    label: 'Protected',
-    detail: 'Applies your explicit site and route rules; uncertain destinations receive a warning.',
+    label: 'Standard',
+    detail: 'Recognized distracting sites are restricted during Focus. Unknown sites stay available.',
   },
   STRICT: {
     label: 'Strict',
-    detail: 'Enforces configured restrictions while keeping approved study resources available.',
+    detail: 'Enforces recognized site restrictions while keeping study exceptions available.',
   },
 }
 
@@ -372,7 +372,7 @@ export function StudyResourcesPanel({
                   detail={status.browserCompanion.detail}
                 />
                 <ConnectionBadge
-                  label="Native Shield"
+                  label="Automatic Guardian"
                   state={status.nativeShield.state}
                   detail={status.nativeShield.detail}
                 />

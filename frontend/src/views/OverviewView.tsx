@@ -13,7 +13,6 @@ import { formatTimerDigits } from '../utils/focusTimer'
 import { deriveOverallProtectionStatus } from '../utils/focusProtectionStatus'
 import { trackRender } from '../utils/renderTracker'
 import { getTodayScheduleSessions, getSessionSecondaryInfo, isMissionInFocusSession } from '../utils/scheduleHelpers'
-import { DailyObjectivesCard } from '../components/dashboard/DailyObjectivesCard'
 import { DashboardInsights } from '../components/dashboard/DashboardInsights'
 
 export interface OverviewViewProps {
@@ -66,9 +65,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   sentinelStatus,
   analyticsData,
   topSearchQuery,
-  setTopSearchQuery,
   setActiveTab,
-  onNavigateToTasks,
   handleArmMissionAsSession,
   handleToggleMissionComplete,
   handleDeleteMission,
@@ -97,16 +94,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   const totalMissionsCount = missions.length
   const completedMissionsCount = missions.filter((m) => m.status === 'COMPLETED').length
-  const velocityRate = totalMissionsCount > 0
-    ? Math.round((completedMissionsCount / totalMissionsCount) * 100)
-    : (analyticsData?.summary?.completionRate ? Math.round(analyticsData.summary.completionRate) : 0)
-
   const totalFocusMinutesToday = analyticsData?.summary?.totalFocusMinutes ??
     sessions.filter((s) => s.status === 'COMPLETED').reduce((acc, s) => acc + (s.durationMinutes || 0), 0)
-
-
-  const completedSessionsCount = analyticsData?.summary?.sessionsCompleted ??
-    sessions.filter((s) => s.status === 'COMPLETED').length
 
   const sortedSessions = React.useMemo(() => {
     return getTodayScheduleSessions(sessions, activeSession)
@@ -130,7 +119,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return m.status === 'IN_PROGRESS'
   })
 
-  const compM = missions.filter((m) => m.status === 'COMPLETED' && searchFilter(m))
+
   const inProgIds = new Set(inProgM.map((m) => m.id))
   const pendM = missions.filter((m) => m.status !== 'COMPLETED' && !inProgIds.has(m.id) && searchFilter(m))
 
@@ -152,6 +141,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const recentDebriefsList = analyticsData?.recentDebriefs && analyticsData.recentDebriefs.length > 0
     ? analyticsData.recentDebriefs
     : []
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayMissions = missions
+    .filter((mission) => mission.scheduledDate?.slice(0, 10) === todayKey)
+    .sort((a, b) => a.status === 'COMPLETED' ? 1 : b.status === 'COMPLETED' ? -1 : a.id - b.id)
+  const activeGoals = goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED')
 
   const renderFlightDeckCard = (task: Mission) => {
     const parentGoal = goals.find((g) => g.id === task.goalId)
@@ -362,7 +357,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div
               className={`sentinel-badge-pill ${protectionInfo?.badgeVariant || 'offline'}`}
               onClick={() => setActiveTab('Task Manager')}
-              title={`Focus Protection: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today`}
+              title={sentinelStatus.warningOnly
+                ? `Automatic Guardian: ${sentinelStatus.guardianMode ?? 'Standard'} · ${sentinelStatus.guardianWarningCount ?? 0} app warnings today · no apps closed`
+                : `Focus Protection: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today`}
             >
               <span className="sentinel-mini-dot" />
               <span>
@@ -391,114 +388,81 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
       {/* 2. Performance Summary Metrics (4 Balanced Cards) */}
       <section className="dashboard-metrics-grid" aria-label="Performance Metrics">
-        {/* Metric 1: Active Goals */}
+        {/* Metric 1: Focus time */}
+        <button
+          type="button"
+          className="dashboard-metric-card"
+          onClick={() => setActiveTab('Analytics')}
+          title="View focus analytics"
+          aria-label={`View focus analytics: ${totalFocusMinutesToday} minutes recorded`}
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Focus time</span>
+            <div className="metric-icon-box blue" aria-hidden="true">⏱️</div>
+          </div>
+          <div className="metric-card-value">{totalFocusMinutesToday >= 60 ? `${Math.floor(totalFocusMinutesToday / 60)}h ${totalFocusMinutesToday % 60}m` : `${totalFocusMinutesToday}m`}</div>
+          <div className="metric-card-footer">
+            <span className="metric-card-sub">Recorded focus time</span>
+          </div>
+        </button>
+
+        {/* Metric 2: Tasks completed */}
+        <button
+          type="button"
+          className="dashboard-metric-card metric-tasks"
+          onClick={() => setActiveTab('Goals & Missions')}
+          title="View tasks"
+          aria-label={`View tasks: ${completedMissionsCount} of ${totalMissionsCount} complete`}
+        >
+          <div className="metric-card-top">
+            <span className="metric-card-label">Tasks completed</span>
+            <div className="metric-icon-box blue" aria-hidden="true">☑️</div>
+          </div>
+          <div className="metric-card-value">{completedMissionsCount} <small>/ {totalMissionsCount}</small></div>
+          <div className="metric-card-footer">
+            <span className="metric-card-sub">Tasks finished in your workspace</span>
+          </div>
+        </button>
+
+        {/* Metric 3: Active goals */}
         <button
           type="button"
           className="dashboard-metric-card"
           onClick={() => setActiveTab('Goals & Missions')}
-          title="View all goals"
-          aria-label={`View goals: ${goals.length} active goals`}
+          title="View active goals"
+          aria-label={`View goals: ${activeGoals.length} active`}
         >
           <div className="metric-card-top">
-            <span className="metric-card-label">Active Goals</span>
-            <div className="metric-icon-box coral">
-              <Icon name="target" size={16} />
-            </div>
+            <span className="metric-card-label">Active goals</span>
+            <div className="metric-icon-box orange" aria-hidden="true">🎯</div>
           </div>
-          <div className="metric-card-value">{goals.length}</div>
+          <div className="metric-card-value">{activeGoals.length}</div>
           <div className="metric-card-footer">
-            <span className="metric-card-sub">
-              {completedMissionsCount} {completedMissionsCount === 1 ? 'task' : 'tasks'} completed
-            </span>
+            <span className="metric-card-sub">Goals in progress</span>
           </div>
         </button>
 
-        {/* Metric 2: Focus Logged */}
+        {/* Metric 4: Current streak */}
         <button
           type="button"
           className="dashboard-metric-card"
-          onClick={() => setActiveTab('Analytics')}
-          title="View Focus Analytics"
-          aria-label={`View focus analytics: ${totalFocusMinutesToday} minutes logged today`}
+          onClick={() => onOpenAchievements?.()}
+          title="View rewards and progress"
+          aria-label={`Current focus streak: ${analyticsData?.summary?.currentStreak || 0} days`}
         >
           <div className="metric-card-top">
-            <span className="metric-card-label">Focus Logged</span>
-            <div className="metric-icon-box green">
-              <Icon name="focus" size={16} />
-            </div>
+            <span className="metric-card-label">Current streak</span>
+            <div className="metric-icon-box purple" aria-hidden="true">🔥</div>
           </div>
-          <div className="metric-card-value">{totalFocusMinutesToday}m</div>
+          <div className="metric-card-value">{analyticsData?.summary?.currentStreak || 0} <small>days</small></div>
           <div className="metric-card-footer">
-            <span className="metric-card-sub">{completedSessionsCount} sessions completed</span>
-          </div>
-        </button>
-
-        {/* Metric 3: Tasks in Queue */}
-        <button
-          type="button"
-          className="dashboard-metric-card"
-          onClick={() => {
-            const board = document.querySelector('.flight-deck-board-panel')
-            if (board) board.scrollIntoView({
-              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-            })
-          }}
-          title="View Tasks Board"
-          aria-label={`View task board: ${displayInProgress.length + displayPending.length} tasks in queue`}
-        >
-          <div className="metric-card-top">
-            <span className="metric-card-label">Tasks In Queue</span>
-            <div className="metric-icon-box cyan">
-              <Icon name="clock" size={16} />
-            </div>
-          </div>
-          <div className="metric-card-value">{displayInProgress.length + displayPending.length}</div>
-          <div className="metric-card-footer">
-            <span className="metric-card-sub">{compM.length} finished today</span>
-          </div>
-        </button>
-
-        {/* Metric 4: Task Completion Rate */}
-        <button
-          type="button"
-          className="dashboard-metric-card"
-          onClick={() => setActiveTab('Analytics')}
-          title="View Execution Analytics"
-          aria-label={`View execution analytics: ${velocityRate}% completion rate`}
-        >
-          <div className="metric-card-top">
-            <span className="metric-card-label">Completion Rate</span>
-            <div className="metric-icon-box purple">
-              <Icon name="analytics" size={16} />
-            </div>
-          </div>
-          <div className="metric-card-value">{velocityRate}%</div>
-          <div className="metric-card-footer completion-footer">
-            <span className="metric-card-sub">Velocity rate this week</span>
-            <div className="metric-progress-track">
-              <div
-                className="metric-progress-fill"
-                style={{ width: `${Math.min(100, Math.max(0, velocityRate))}%` }}
-              />
-            </div>
+            <span className="metric-card-sub">Keep your focus going</span>
           </div>
         </button>
       </section>
 
-      {/* 2.5 Daily Execution Flow & Consistency Objectives */}
-      <DailyObjectivesCard
-        missions={missions}
-        sessions={sessions}
-        currentStreak={analyticsData?.summary?.currentStreak || 0}
-        onOpenAchievements={onOpenAchievements}
-        onNavigateToTasks={() => onNavigateToTasks ? onNavigateToTasks('ALL') : setActiveTab('Goals & Missions')}
-        onNavigateToFocus={() => setActiveTab('Focus Engine')}
-      />
-
-      <DashboardInsights goals={goals} missions={missions} analyticsData={analyticsData} setActiveTab={setActiveTab} />
-
       {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
-      <section className="dashboard-cockpit-grid" aria-label="Execution Cockpit">
+      <section className="dashboard-cockpit-grid" aria-label="Dashboard">
         {/* Priority Hero Card (Primary Execution Anchor) */}
         <section
           className={`priority-hero-card ${!activeSession && !primaryActionTask ? 'is-complete-state' : ''}`}
@@ -799,165 +763,45 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </button>
             </div>
           </section>
+
+          <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} />
+
+          <section className="dashboard-sidecar-card dashboard-quick-actions" aria-label="Quick actions">
+            <header className="dashboard-reference-card-heading">
+              <h2>Quick actions</h2><span aria-hidden="true">✨</span>
+            </header>
+            <div className="dashboard-quick-action-grid">
+              <button type="button" onClick={() => activeSession ? setActiveTab('Focus Engine') : primaryActionTask ? handleEngageNextAction ? handleEngageNextAction() : handleArmMissionAsSession(primaryActionTask.title, primaryActionTask.estimatedMinutes || undefined) : setActiveTab('Focus Engine')}>
+                <span aria-hidden="true">▶️</span><strong>{activeSession ? 'Return to focus' : 'Start focus'}</strong><small>{activeSession ? 'Open the live timer' : `${primaryActionTask?.estimatedMinutes || 25} min session`}</small>
+              </button>
+              <button type="button" onClick={() => setActiveTab('Schedule')}>
+                <span aria-hidden="true">🗓️</span><strong>Book session</strong><small>Schedule focus time</small>
+              </button>
+              <button type="button" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>
+                <span aria-hidden="true">➕</span><strong>New task</strong><small>Add a task</small>
+              </button>
+              <button type="button" onClick={() => setActiveTab('Goals & Missions')}>
+                <span aria-hidden="true">🎯</span><strong>New goal</strong><small>Set a goal</small>
+              </button>
+            </div>
+          </section>
       </section>
 
-      {/* 4. Full-Width Tasks Board (Uses 100% available width beneath priority & schedule) */}
-      <section className="flight-deck-board-panel full-width-board" id="tasks-board" aria-label="Tasks Board">
-        <div className="board-panel-header">
-          <div className="board-header-left">
-            <h2 className="board-panel-title">Tasks Board</h2>
-            <div className="board-status-summary">
-              <span className="summary-pill active">
-                {displayInProgress.length + displayPending.length} in progress & ready
-              </span>
-              <span className="summary-pill completed">
-                {compM.length} completed
-              </span>
-            </div>
-          </div>
+      <section className="dashboard-bottom-grid" aria-label="Goals and today's tasks">
+        <article className="dashboard-reference-panel">
+          <header className="dashboard-reference-card-heading"><h2>Active goals</h2><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
+          {activeGoals.length ? <ul className="dashboard-goals-list">{activeGoals.slice(0, 3).map((goal) => {
+            const goalTasks = missions.filter((mission) => mission.goalId === goal.id)
+            const complete = goalTasks.filter((mission) => mission.status === 'COMPLETED').length
+            const percent = goalTasks.length ? Math.round(complete / goalTasks.length * 100) : 0
+            return <li key={goal.id}><div className="dashboard-goal-name"><span aria-hidden="true">🎯</span><strong title={goal.title}>{goal.title}</strong><b>{percent}%</b></div><small>{goal.description || 'Keep making progress toward this goal.'}</small><div className="dashboard-goal-bar"><span style={{ width: `${percent}%` }} /></div></li>
+          })}</ul> : <div className="dashboard-reference-empty"><span aria-hidden="true">🎯</span><p>No active goals yet.</p><button type="button" onClick={() => setActiveTab('Goals & Missions')}>Create a goal</button></div>}
+        </article>
 
-          <div className="board-header-actions">
-            {topSearchQuery && (
-              <div className="board-filter-indicator">
-                <span>Filtering: "{topSearchQuery}"</span>
-                <button onClick={() => setTopSearchQuery?.('')} title="Clear filter">×</button>
-              </div>
-            )}
-            <button
-              className="board-action-btn primary"
-              onClick={() => {
-                if (goals.length > 0) {
-                  setQuickMissionGoalId(goals[0].id)
-                  setIsCreatingQuickMission(true)
-                } else {
-                  setActiveTab('Goals & Missions')
-                }
-              }}
-              title="Add a new task"
-            >
-              <Icon name="plus" size={13} />
-              <span>Add Task</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flight-deck-board-grid">
-          {/* Column 1: In Progress */}
-          <div className="status-column col-in-progress">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-coral" />
-                <span className="column-title-text">In Progress</span>
-              </div>
-              <span className="column-count-badge">{displayInProgress.length}</span>
-            </div>
-
-            <div className="status-column-cards">
-              {displayInProgress.length > 0 ? (
-                <>
-                  {displayInProgress.slice(0, 3).map((t) => renderFlightDeckCard(t))}
-                  {displayInProgress.length > 3 && (
-                    <button
-                      type="button"
-                      className="board-view-remaining-btn"
-                      onClick={() => onNavigateToTasks ? onNavigateToTasks('PENDING') : setActiveTab('Goals & Missions')}
-                    >
-                      View {displayInProgress.length - 3} remaining {displayInProgress.length - 3 === 1 ? 'task' : 'tasks'} →
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="clock" size={16} />
-                  </div>
-                  <span className="empty-title">No active focus session</span>
-                  <span className="empty-subtitle">Select a ready task below or start your priority session.</span>
-                  {displayPending.length > 0 && (
-                    <button
-                      className="empty-action-link"
-                      onClick={() => handleArmMissionAsSession(displayPending[0].title, displayPending[0].estimatedMinutes || 25)}
-                    >
-                      Start Next Focus Session
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Column 2: Ready */}
-          <div className="status-column col-backlog">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-cyan" />
-                <span className="column-title-text">Ready</span>
-              </div>
-              <span className="column-count-badge">{displayPending.length}</span>
-            </div>
-
-            <div className="status-column-cards">
-              {displayPending.length > 0 ? (
-                <>
-                  {displayPending.slice(0, 3).map((t) => renderFlightDeckCard(t))}
-                  {displayPending.length > 3 && (
-                    <button
-                      type="button"
-                      className="board-view-remaining-btn"
-                      onClick={() => onNavigateToTasks ? onNavigateToTasks('PENDING') : setActiveTab('Goals & Missions')}
-                    >
-                      View {displayPending.length - 3} remaining {displayPending.length - 3 === 1 ? 'task' : 'tasks'} →
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="target" size={16} />
-                  </div>
-                  <span className="empty-title">No tasks queued</span>
-                  <span className="empty-subtitle">Create a task to plan your next session.</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Completed */}
-          <div className="status-column col-completed">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-emerald" />
-                <span className="column-title-text">Completed</span>
-              </div>
-              <span className="column-count-badge">{compM.length}</span>
-            </div>
-
-            <div className="status-column-cards">
-              {compM.length > 0 ? (
-                <>
-                  {compM.slice(0, 3).map((t) => renderFlightDeckCard(t))}
-                  {compM.length > 3 && (
-                    <button
-                      type="button"
-                      className="board-view-remaining-btn"
-                      onClick={() => onNavigateToTasks ? onNavigateToTasks('COMPLETED') : setActiveTab('Goals & Missions')}
-                    >
-                      View {compM.length - 3} remaining {compM.length - 3 === 1 ? 'task' : 'tasks'} →
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="check-circle" size={16} />
-                  </div>
-                  <span className="empty-title">No completed tasks yet</span>
-                  <span className="empty-subtitle">Finished tasks from your focus sessions will be cataloged here.</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <article className="dashboard-reference-panel dashboard-today-tasks">
+          <header className="dashboard-reference-card-heading"><span><h2>Today's tasks</h2><small>{todayMissions.length} planned</small></span><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
+          {todayMissions.length ? <div className="dashboard-today-task-list">{todayMissions.slice(0, 5).map((task) => renderFlightDeckCard(task))}</div> : <div className="dashboard-reference-empty"><span aria-hidden="true">📝</span><p>No tasks planned for today.</p><button type="button" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>Add a task</button></div>}
+        </article>
       </section>
 
       {/* Task Details Modal */}

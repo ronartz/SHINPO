@@ -1,4 +1,5 @@
-import { authHeaders } from './auth'
+import { authHeaders, isLocalVaultSession } from './auth.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
 
 export type ShinpoPolicyState = 'ALLOWED' | 'BLOCKED' | 'PROTECTED' | 'UNKNOWN'
 
@@ -41,11 +42,18 @@ export interface ProcessSnapshot {
   timestamp: string
 }
 
-import { fetchWithoutRedirects, getBackendBaseUrl } from './config'
+import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
 
 const API_BASE = `${getBackendBaseUrl()}/api/device`
 
+function requireBackendDeviceApi(): void {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    throw new Error('Sentinel device controls are not available for this local account yet. No backend request was made.')
+  }
+}
+
 export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${API_BASE}/system-info`, {
     headers: authHeaders(),
   })
@@ -54,6 +62,7 @@ export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
 }
 
 export async function fetchProcesses(search?: string, policy?: string): Promise<ProcessInfo[]> {
+  requireBackendDeviceApi()
   const params = new URLSearchParams()
   if (search) params.set('search', search)
   if (policy && policy !== 'ALL') params.set('policy', policy)
@@ -67,6 +76,7 @@ export async function fetchProcesses(search?: string, policy?: string): Promise<
 }
 
 export async function fetchDeviceSnapshot(search?: string, policy?: string): Promise<ProcessSnapshot> {
+  requireBackendDeviceApi()
   const params = new URLSearchParams()
   if (search) params.set('search', search)
   if (policy && policy !== 'ALL') params.set('policy', policy)
@@ -80,6 +90,7 @@ export async function fetchDeviceSnapshot(search?: string, policy?: string): Pro
 }
 
 export async function terminateProcess(pid: number, force: boolean = false): Promise<ProcessControlResult> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${API_BASE}/processes/${pid}/terminate?force=${force}`, {
     method: 'POST',
     headers: authHeaders(),
@@ -120,6 +131,37 @@ export interface SentinelStatus {
   lastSweepAt: string | null
   daemonConnected?: boolean
   lastDaemonSyncAt?: string | null
+  guardianMode?: string | null
+  focusPhase?: string | null
+  guardianWarningCount?: number
+  guardianAppCatalogVersion?: string
+  guardianDomainCatalogVersion?: string
+  warningOnly?: boolean
+  lastGuardianObservationAt?: string | null
+  observerStatus?: string
+  applicationPolicyStatus?: string
+  guardianApplicationCatalog?: GuardianCatalogEntry[]
+  guardianObservations?: GuardianObservation[]
+}
+
+export interface GuardianCatalogEntry {
+  processName: string
+  category: string
+  rationale: string
+}
+
+export interface GuardianObservation {
+  id: number
+  sessionId: number
+  pid: number
+  processName: string
+  catalogVersion: string
+  category: string
+  rationale: string
+  guardianMode: string
+  focusPhase: string
+  outcome: string
+  observedAt: string
 }
 
 export interface SentinelTamperEventItem {
@@ -166,6 +208,52 @@ export interface PolicyRule {
 const SENTINEL_BASE = `${API_BASE}/sentinel`
 
 export async function fetchSentinelStatus(): Promise<SentinelStatus> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const local = await invokeTauriCommand<{
+      status: 'LOCKED' | 'READY' | 'ACTIVE' | 'PAUSED'
+      activeFocusSessionId: number | null
+      activeFocusSessionName: string | null
+      guardianMode: string | null
+      focusPhase: string | null
+      observationsToday: number
+      lastObservationAt: string | null
+      appCatalogVersion: string
+      domainCatalogVersion: string
+      warningOnly: boolean
+      observerStatus: string
+      applicationPolicyStatus: string
+      applicationCatalog: GuardianCatalogEntry[]
+    }>('local_get_guardian_status')
+    const guardianObservations = local.status === 'LOCKED' || local.activeFocusSessionId === null
+      ? []
+      : await invokeTauriCommand<GuardianObservation[]>(
+        'local_get_guardian_observations',
+        { sessionId: local.activeFocusSessionId ?? undefined },
+      )
+    return {
+      status: local.status === 'ACTIVE' ? 'ACTIVE' : local.status === 'PAUSED' ? 'STANDBY' : local.status === 'LOCKED' ? 'UNAVAILABLE' : 'READY',
+      activeFocusSessionId: local.activeFocusSessionId,
+      activeFocusSessionName: local.activeFocusSessionName,
+      enforcementMode: 'AUDIT_ONLY',
+      totalInterceptedToday: 0,
+      activePolicyRulesCount: 0,
+      isPolicyLocked: local.status === 'ACTIVE',
+      recentQuarantines: [],
+      lastSweepAt: null,
+      daemonConnected: local.status !== 'LOCKED',
+      guardianMode: local.guardianMode,
+      focusPhase: local.focusPhase,
+      guardianWarningCount: local.observationsToday,
+      guardianAppCatalogVersion: local.appCatalogVersion,
+      guardianDomainCatalogVersion: local.domainCatalogVersion,
+      warningOnly: local.warningOnly,
+      lastGuardianObservationAt: local.lastObservationAt,
+      observerStatus: local.observerStatus,
+      applicationPolicyStatus: local.applicationPolicyStatus,
+      guardianApplicationCatalog: local.applicationCatalog,
+      guardianObservations,
+    }
+  }
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/status`, {
     headers: authHeaders(),
   })
@@ -174,6 +262,7 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
 }
 
 export async function triggerSentinelSweep(): Promise<SentinelSweepResult> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/sweep`, {
     method: 'POST',
     headers: authHeaders(),
@@ -183,6 +272,7 @@ export async function triggerSentinelSweep(): Promise<SentinelSweepResult> {
 }
 
 export async function fetchSentinelQuarantines(sessionId?: number): Promise<SentinelQuarantineItem[]> {
+  requireBackendDeviceApi()
   const qs = sessionId ? `?sessionId=${sessionId}` : ''
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/quarantines${qs}`, {
     headers: authHeaders(),
@@ -192,6 +282,8 @@ export async function fetchSentinelQuarantines(sessionId?: number): Promise<Sent
 }
 
 export async function fetchSentinelRules(): Promise<PolicyRule[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return []
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     headers: authHeaders(),
   })
@@ -200,6 +292,7 @@ export async function fetchSentinelRules(): Promise<PolicyRule[]> {
 }
 
 export async function addSentinelRule(processNamePattern: string, policyType: string = 'BLOCKED'): Promise<PolicyRule> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     method: 'POST',
     headers: authHeaders(),
@@ -210,6 +303,7 @@ export async function addSentinelRule(processNamePattern: string, policyType: st
 }
 
 export async function deleteSentinelRule(ruleId: number): Promise<void> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules/${ruleId}`, {
     method: 'DELETE',
     headers: authHeaders(),
@@ -221,6 +315,7 @@ export async function deleteSentinelRule(ruleId: number): Promise<void> {
 }
 
 export async function updateSentinelMode(enforcementMode: string): Promise<SentinelStatus> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/mode`, {
     method: 'PUT',
     headers: authHeaders(),
@@ -234,6 +329,7 @@ export async function updateSentinelMode(enforcementMode: string): Promise<Senti
 }
 
 export async function emergencyOverride(request: EmergencyOverrideRequest): Promise<EmergencyOverrideResponse> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/emergency-override`, {
     method: 'POST',
     headers: authHeaders(),
@@ -247,6 +343,8 @@ export async function emergencyOverride(request: EmergencyOverrideRequest): Prom
 }
 
 export async function fetchSentinelTamperEvents(sessionId?: number): Promise<SentinelTamperEventItem[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return []
+  requireBackendDeviceApi()
   const qs = sessionId ? `?sessionId=${sessionId}` : ''
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/tamper-events${qs}`, {
     headers: authHeaders(),
@@ -268,6 +366,8 @@ export interface SentinelWarningItem {
 }
 
 export async function fetchActiveWarnings(): Promise<SentinelWarningItem[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return []
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/warnings`, {
     headers: authHeaders(),
   })
@@ -280,6 +380,7 @@ export async function respondToWarning(
   action: 'GRANT_GRACE' | 'TERMINATE_NOW',
   graceMinutes?: number,
 ): Promise<SentinelWarningItem> {
+  requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/warnings/${warningId}/respond`, {
     method: 'POST',
     headers: authHeaders(),

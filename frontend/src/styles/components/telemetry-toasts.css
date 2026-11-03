@@ -15,19 +15,19 @@
 
 @keyframes pulseGlowRed {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255, 77, 94, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-highlight) 40.0%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(255, 77, 94, 0);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-highlight) 0.0%, transparent);
   }
 }
 
 @keyframes pulseGlowGreen {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-highlight) 40.0%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-highlight) 0.0%, transparent);
   }
 }
 
@@ -38,7 +38,7 @@
   z-index: 100000;
   display: flex;
   flex-direction: column-reverse;
-  gap: 12px;
+  gap: var(--space-3);
   max-width: 440px;
   width: calc(100vw - 56px);
   pointer-events: none;
@@ -56,58 +56,58 @@
 .shinpo-toast-item {
   pointer-events: auto;
   border-radius: 14px;
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-6);
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: var(--space-3);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  background: rgba(22, 26, 36, 0.98);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--brand-baltic-blue) 98.0%, transparent);
+  box-shadow: 0 16px 40px rgba(0,0,0, 0.5), inset 0 1px 0 rgba(255,255,255, 0.08);
   animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   transition: border-color 0.16s ease, background-color 0.16s ease;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255,255,255, 0.12);
 }
 
 .shinpo-toast-item.toast-quarantine {
-  background: rgba(26, 20, 24, 0.98);
-  border: 1px solid rgba(255, 77, 94, 0.55);
+  background: rgba(2,2,2, 0.98);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 55.0%, transparent);
 }
 
 .shinpo-toast-item.toast-focus {
-  background: rgba(18, 28, 25, 0.98);
-  border: 1px solid rgba(16, 185, 129, 0.55);
+  background: color-mix(in srgb, var(--brand-baltic-blue) 98.0%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 55.0%, transparent);
 }
 
 .shinpo-toast-item.toast-sentinel {
-  background: rgba(18, 26, 34, 0.98);
-  border: 1px solid rgba(56, 189, 248, 0.55);
+  background: color-mix(in srgb, var(--brand-yale-blue) 98.0%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 55.0%, transparent);
 }
 
 .shinpo-toast-item.toast-reward {
-  background: rgba(22, 28, 48, 0.98);
-  border: 1px solid rgba(110, 144, 251, 0.6);
-  box-shadow: 0 16px 40px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(110, 144, 251, 0.3);
+  background: color-mix(in srgb, var(--brand-baltic-blue) 98.0%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 60.0%, transparent);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--brand-highlight) 25.0%, transparent), inset 0 1px 0 color-mix(in srgb, var(--brand-highlight) 30.0%, transparent);
 }
 
 .theme-light .shinpo-toast-item.toast-reward,
 html[data-theme='light'] .shinpo-toast-item.toast-reward {
-  background: #FFFFFF !important;
-  border: 1px solid rgba(43, 88, 230, 0.35) !important;
-  box-shadow: 0 16px 40px rgba(43, 88, 230, 0.15) !important;
+  background: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35.0%, transparent) !important;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--brand-primary) 15.0%, transparent) !important;
 }
 
 .shinpo-toast-item.toast-reward .shinpo-toast-icon {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(49, 86, 216, 0.25));
-  border: 1px solid rgba(110, 144, 251, 0.4);
-  color: #6E90FB;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-highlight) 25.0%, transparent), color-mix(in srgb, var(--brand-primary) 25.0%, transparent));
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 40.0%, transparent);
+  color: var(--brand-primary);
 }
 
 .theme-light .shinpo-toast-item.toast-reward .shinpo-toast-icon {
-  background: rgba(43, 88, 230, 0.1) !important;
-  color: #2563EB !important;
+  background: color-mix(in srgb, var(--brand-primary) 10.0%, transparent) !important;
+  color: var(--brand-primary) !important;
 }
 
 .shinpo-toast-icon {
@@ -122,20 +122,20 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 }
 
 .toast-quarantine .shinpo-toast-icon {
-  background: rgba(255, 77, 94, 0.2);
-  color: var(--brand-coral, #FF4D5E);
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-coral, var(--brand-primary));
   animation: pulseGlowRed 2s infinite;
 }
 
 .toast-focus .shinpo-toast-icon {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10B981;
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-primary);
   animation: pulseGlowGreen 2s infinite;
 }
 
 .toast-sentinel .shinpo-toast-icon {
-  background: rgba(56, 189, 248, 0.2);
-  color: #38BDF8;
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-primary);
 }
 
 .shinpo-toast-content {
@@ -143,14 +143,14 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .shinpo-toast-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -158,7 +158,7 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
   min-width: 0;
   font-size: 15px;
   font-weight: 700;
-  color: var(--text, #F3F4F6);
+  color: var(--text, #e7e7e7);
   letter-spacing: -0.01em;
   line-height: 1.3;
   display: -webkit-box;
@@ -173,33 +173,33 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-2, #8E95A5);
+  background: rgba(255,255,255, 0.08);
+  color: var(--text-2, #4c4c4c);
 }
 
 .toast-quarantine .shinpo-toast-badge {
-  background: rgba(255, 77, 94, 0.2);
-  color: #FFA5AE;
-  border: 1px solid rgba(255, 77, 94, 0.35);
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
 }
 
 .toast-focus .shinpo-toast-badge {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6EE7B7;
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
 }
 
 .toast-sentinel .shinpo-toast-badge {
-  background: rgba(56, 189, 248, 0.2);
-  color: #93C5FD;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  color: var(--brand-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
 }
 
 .shinpo-toast-desc {
   font-size: 14px;
-  color: var(--text-2, #9CA3AF);
+  color: var(--text-2, #5d5d5d);
   line-height: 1.45;
   word-break: break-word;
   margin-top: 2px;
@@ -212,16 +212,16 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 .shinpo-toast-time {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-3, #6B7280);
-  margin-top: 4px;
+  color: var(--text-3, #2b2b2b);
+  margin-top: var(--space-1);
 }
 
 .shinpo-toast-dismiss {
   background: transparent;
   border: none;
-  color: var(--text-3, #6B7280);
+  color: var(--text-3, #2b2b2b);
   cursor: pointer;
-  padding: 6px;
+  padding: var(--space-1);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -232,78 +232,78 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 }
 
 .shinpo-toast-dismiss:hover {
-  color: var(--text, #F3F4F6);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--text, #e7e7e7);
+  background: rgba(255,255,255, 0.1);
 }
 
 /* Light Mode Overrides for Toasts */
 html[data-theme='light'] .shinpo-toast-item,
 .theme-light .shinpo-toast-item {
-  background: #FFFFFF;
-  border: 1px solid #D1D5DB;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  border: 1px solid #a9a9a9;
+  box-shadow: 0 16px 36px rgba(0,0,0, 0.12), 0 4px 10px rgba(0,0,0, 0.04);
 }
 
 html[data-theme='light'] .shinpo-toast-item.toast-quarantine,
 .theme-light .shinpo-toast-item.toast-quarantine {
-  background: #FFFDFD;
-  border: 1px solid #FCA5A5;
+  background: #fbfbfb;
+  border: 1px solid var(--brand-primary);
 }
 
 html[data-theme='light'] .shinpo-toast-item.toast-focus,
 .theme-light .shinpo-toast-item.toast-focus {
-  background: #FDFEFD;
-  border: 1px solid #A7F3D0;
+  background: #fcfcfc;
+  border: 1px solid var(--brand-primary);
 }
 
 html[data-theme='light'] .shinpo-toast-item.toast-sentinel,
 .theme-light .shinpo-toast-item.toast-sentinel {
-  background: #F8FAFC;
-  border: 1px solid #BAE6FD;
+  background: #f3f3f3;
+  border: 1px solid #bdbdbd;
 }
 
 html[data-theme='light'] .shinpo-toast-title,
 .theme-light .shinpo-toast-title {
-  color: #111827;
+  color: var(--brand-yale-blue);
 }
 
 html[data-theme='light'] .shinpo-toast-desc,
 .theme-light .shinpo-toast-desc {
-  color: #374151;
+  color: var(--brand-deep);
 }
 
 html[data-theme='light'] .toast-quarantine .shinpo-toast-badge {
-  background: #FEE2E2;
-  color: #991B1B;
-  border-color: #FECACA;
+  background: #cecece;
+  color: var(--brand-deep);
+  border-color: #acacac;
 }
 
 html[data-theme='light'] .toast-focus .shinpo-toast-badge {
-  background: #D1FAE5;
-  color: #065F46;
-  border-color: #A7F3D0;
+  background: #dfdfdf;
+  color: var(--brand-deep);
+  border-color: var(--brand-primary);
 }
 
 html[data-theme='light'] .toast-sentinel .shinpo-toast-badge {
-  background: #E0F2FE;
-  color: #075985;
-  border-color: #BAE6FD;
+  background: #dddddd;
+  color: var(--brand-deep);
+  border-color: #bdbdbd;
 }
 
 html[data-theme='light'] .shinpo-toast-time,
 .theme-light .shinpo-toast-time {
-  color: #6B7280;
+  color: #2b2b2b;
 }
 
 html[data-theme='light'] .shinpo-toast-dismiss,
 .theme-light .shinpo-toast-dismiss {
-  color: #6B7280;
+  color: #2b2b2b;
 }
 
 html[data-theme='light'] .shinpo-toast-dismiss:hover,
 .theme-light .shinpo-toast-dismiss:hover {
-  color: #111827;
-  background: rgba(0, 0, 0, 0.06);
+  color: var(--brand-yale-blue);
+  background: rgba(0,0,0, 0.06);
 }
 
 /* Telemetry Drawer Styles */
@@ -324,7 +324,7 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
   background: var(--glass-elevated);
   border: var(--glass-elevated-border);
   border-radius: 16px;
-  box-shadow: var(--shadow-elevated), 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-elevated), 0 20px 60px rgba(0,0,0, 0.6);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   display: flex;
@@ -334,8 +334,8 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 }
 
 .telemetry-drawer-header {
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid rgba(255,255,255, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -344,55 +344,55 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 .telemetry-drawer-title-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .telemetry-live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #64748B;
+  background: #2c2c2c;
 }
 
 .telemetry-live-dot.connected {
-  background: #10B981;
+  background: var(--brand-primary);
   box-shadow: none;
 }
 
 .telemetry-drawer-title {
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--text, #F3F4F6);
+  color: var(--text, #e7e7e7);
 }
 
 .telemetry-drawer-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .telemetry-clear-btn {
   background: transparent;
   border: none;
   font-size: 13px;
-  color: var(--text-2, #8E95A5);
+  color: var(--text-2, #4c4c4c);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .telemetry-clear-btn:hover {
-  color: var(--brand-coral, #FF4D5E);
-  background: rgba(255, 77, 94, 0.08);
+  color: var(--brand-coral, var(--brand-primary));
+  background: color-mix(in srgb, var(--brand-highlight) 8.0%, transparent);
 }
 
 .telemetry-close-btn {
   background: transparent;
   border: none;
-  color: var(--text-2, #8E95A5);
+  color: var(--text-2, #4c4c4c);
   cursor: pointer;
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -400,43 +400,43 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 }
 
 .telemetry-close-btn:hover {
-  color: var(--text, #F3F4F6);
+  color: var(--text, #e7e7e7);
 }
 
 .telemetry-drawer-list {
-  padding: 12px;
+  padding: var(--space-3);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   max-height: 440px;
 }
 
 .telemetry-empty-state {
-  padding: 36px 20px;
+  padding: 36px var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   text-align: center;
-  color: var(--text-3, #565D6D);
+  color: var(--text-3, #1c1c1c);
   font-size: 12.5px;
   line-height: 1.5;
 }
 
 .telemetry-item {
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255,255,255, 0.03);
+  border: 1px solid rgba(255,255,255, 0.05);
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: flex-start;
   transition: all 0.15s ease;
 }
 
 .telemetry-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255,255,255, 0.05);
 }
 
 .telemetry-item-icon {
@@ -450,18 +450,18 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 }
 
 .item-quarantine .telemetry-item-icon {
-  background: rgba(255, 77, 94, 0.15);
-  color: var(--brand-coral, #FF4D5E);
+  background: color-mix(in srgb, var(--brand-highlight) 15.0%, transparent);
+  color: var(--brand-coral, var(--brand-primary));
 }
 
 .item-focus .telemetry-item-icon {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10B981;
+  background: color-mix(in srgb, var(--brand-highlight) 15.0%, transparent);
+  color: var(--brand-primary);
 }
 
 .item-sentinel .telemetry-item-icon {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38BDF8;
+  background: color-mix(in srgb, var(--brand-highlight) 15.0%, transparent);
+  color: var(--brand-primary);
 }
 
 .telemetry-item-body {
@@ -476,47 +476,47 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .telemetry-item-title {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text, #F3F4F6);
+  color: var(--text, #e7e7e7);
 }
 
 .telemetry-item-badge {
   font-size: 12px;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-2, #8E95A5);
+  background: rgba(255,255,255, 0.06);
+  color: var(--text-2, #4c4c4c);
 }
 
 .telemetry-item-desc {
   font-size: 12.5px;
-  color: var(--text-2, #8E95A5);
+  color: var(--text-2, #4c4c4c);
   line-height: 1.35;
 }
 
 .telemetry-item-time {
   font-size: 12px;
-  color: var(--text-3, #565D6D);
+  color: var(--text-3, #1c1c1c);
   margin-top: 2px;
 }
 
 /* EONPAI Controlled Action Cards (Semantic Tokens & Both Themes) */
 .ai-action-card {
-  margin-top: 12px;
-  padding: 16px 18px;
+  margin-top: var(--space-3);
+  padding: var(--space-4) var(--space-4);
   border-radius: 12px;
   background: var(--surface-card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   animation: actionCardFadeIn 0.25s ease-out;
 }
 
@@ -529,15 +529,15 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
 }
 
 .ai-action-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--brand-coral);
 }
 
@@ -558,7 +558,7 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 .ai-risk-tag {
   font-size: 12px;
   font-weight: 800;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: 4px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -586,24 +586,24 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .ai-action-apply-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
   border-radius: 8px;
   font-size: 12.5px;
   font-weight: 600;
   background: var(--brand-coral);
-  color: #FFFFFF;
+  color: #ffffff;
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 8px rgba(234, 101, 72, 0.25);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-highlight) 25.0%, transparent);
 }
 
 .ai-action-apply-btn:hover:not(:disabled) {
@@ -619,8 +619,8 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 .ai-action-reject-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
@@ -640,37 +640,37 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 .ai-action-status-badge {
   font-size: 12px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .ai-action-status-badge.completed {
-  background: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+  background: color-mix(in srgb, var(--brand-highlight) 15.0%, transparent);
+  color: var(--brand-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 30.0%, transparent);
 }
 
 .ai-action-status-badge.failed {
-  background: rgba(231, 76, 60, 0.15);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  background: var(--accent-red-subtle);
+  color: var(--accent-red);
+  border: 1px solid var(--accent-red-border);
 }
 
 .ai-action-status-badge.rejected {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-3, #565D6D);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255,255,255, 0.08);
+  color: var(--text-3, #1c1c1c);
+  border: 1px solid rgba(255,255,255, 0.12);
 }
 
 .ai-pending-banner {
-  padding: 10px 14px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 10px;
-  background: rgba(0, 229, 255, 0.06);
-  border: 1px solid rgba(0, 229, 255, 0.2);
-  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--brand-highlight) 6.0%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: center;
   justify-content: space-between;

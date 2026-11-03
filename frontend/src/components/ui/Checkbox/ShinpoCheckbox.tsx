@@ -61,21 +61,21 @@ export const ShinpoCheckbox: React.FC<ShinpoCheckboxProps> = ({
           width: 18,
           height: 18,
           borderRadius: 5,
-          border: checked ? 'none' : '1px solid var(--border-strong, rgba(255, 255, 255, 0.2))',
+          border: checked ? 'none' : '1px solid var(--border-strong, rgba(255,255,255, 0.2))',
           backgroundColor: checked
-            ? 'var(--primary-violet, #3156D8)'
-            : 'var(--surface-card, #1D1E24)',
+            ? 'var(--primary-violet, var(--brand-primary))'
+            : 'var(--surface-card, #030303)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#FFFFFF',
+          color: '#ffffff',
           transition: 'all 0.14s ease',
-          boxShadow: checked ? '0 2px 8px rgba(49, 86, 216, 0.35)' : 'none',
+          boxShadow: checked ? '0 2px 8px color-mix(in srgb, var(--brand-primary) 35.0%, transparent)' : 'none',
           flexShrink: 0,
         }}
       >
         {checked && (
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <svg className="microkit-checkmark" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path
               fillRule="evenodd"
               d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"
@@ -86,7 +86,7 @@ export const ShinpoCheckbox: React.FC<ShinpoCheckboxProps> = ({
       </div>
 
       {label && (
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text, #F3F4F6)' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text, #e7e7e7)' }}>
           {label}
         </span>
       )}

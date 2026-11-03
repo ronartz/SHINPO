@@ -58,9 +58,9 @@ public class SessionDebriefService {
         }
 
         List<RecoveryOption> defaultSteps = List.of(
-                new RecoveryOption("RECESS_RESTORE", "5m Cognitive Recess", "Step away from screens and stretch to restore attention capacity."),
-                new RecoveryOption("NEXT_MISSION", "Arm Next Mission", "Proceed immediately to the next scheduled backlog item."),
-                new RecoveryOption("CALIBRATE_SCOPE", "Scope Calibration", "Adjust future sprint estimation based on observed time variance.")
+                new RecoveryOption("RECESS_RESTORE", "Take a short break", "Step away from screens and stretch before your next task."),
+                new RecoveryOption("NEXT_MISSION", "Start the next task", "Continue with the next scheduled task."),
+                new RecoveryOption("CALIBRATE_SCOPE", "Review time estimates", "Use this session to refine future task estimates.")
         );
 
         if (session == null) {
@@ -68,19 +68,19 @@ public class SessionDebriefService {
                     null,
                     "No Recorded Sessions",
                     "No completed focus sessions found in database.",
-                    "Complete a focus sprint and log your reflection to generate deep performance analytics.",
+                    "Complete a focus session and add a reflection to review your progress.",
                     "INITIALIZING",
                     25,
                     0L,
                     0.0,
                     "CALIBRATION_BASELINE",
-                    "No past session debriefs are available yet. To begin the behavioral execution loop, start a 25-minute sprint on your top priority mission.",
-                    "Arm your first tactical mission and run an uninterrupted focus block with the Sentinel shield.",
+                    "No session reviews are available yet. Start a focus session on a priority task to begin.",
+                    "Choose a task and start a focus session to get started.",
                     defaultSteps
             );
         }
 
-        String sessionName = session.getName() != null ? session.getName() : "Focus Sprint";
+        String sessionName = session.getName() != null ? session.getName() : "Focus Session";
         String accomplishment = session.getAccomplishment() != null ? session.getAccomplishment() : "No accomplishment logged";
         String reflectionNote = session.getReflectionNote() != null ? session.getReflectionNote() : "No reflection notes logged";
         String quality = session.getCompletionQuality() != null ? String.valueOf(session.getCompletionQuality()) : "NORMAL";
@@ -113,9 +113,9 @@ public class SessionDebriefService {
             try {
                 String systemPrompt = """
                         You are EONPAI, Strategic Execution Companion for SHINPO.
-                        Analyze the user's completed focus sprint debrief.
-                        Provide a crisp, constructive tactical critique and actionable recommendation for their next sprint.
-                        Philosophy: Execution > Planning Theater. Radical Honesty + Behavioral Encouragement.
+                        Review the user's completed focus session.
+                        Provide a concise, constructive summary and one practical recommendation for their next session.
+                        Use professional, plain language. Avoid role-play, military, and game terminology.
                         Respond strictly in valid JSON matching:
                         {
                           "tacticalCritique": "<2 sentences evaluating accomplishment, cognitive effort, and time discipline>",
@@ -163,14 +163,14 @@ public class SessionDebriefService {
         String heuristicCritique;
         String heuristicRecommendation;
         if ("EXCELLENT".equalsIgnoreCase(quality) || "HIGH".equalsIgnoreCase(quality)) {
-            heuristicCritique = "High-leverage sprint completed with disciplined focus. Accomplishment clearly advances tactical objectives.";
-            heuristicRecommendation = "Take a 5-minute cognitive reset before locking into your next milestone sprint.";
+            heuristicCritique = "Focus session completed. The recorded work supports your stated goal.";
+            heuristicRecommendation = "Take a short break before starting your next focus session.";
         } else if ("DISTRACTED".equalsIgnoreCase(quality)) {
-            heuristicCritique = "Focus boundary was tested during this sprint. Cognitive friction reduced total depth of work.";
-            heuristicRecommendation = "Engage strict Sentinel enforcement on your next block to insulate against recurring distraction patterns.";
+            heuristicCritique = "Distractions interrupted this focus session.";
+            heuristicRecommendation = "Review your focus protection settings before your next session.";
         } else {
-            heuristicCritique = "Sprint successfully logged. Time variance maintained within acceptable operational tolerances.";
-            heuristicRecommendation = "Review your primary backlog mission and initialize the next execution window.";
+            heuristicCritique = "Focus session recorded.";
+            heuristicRecommendation = "Review your task list and choose a next step.";
         }
 
         return new SessionDebriefAnalysisResponse(
@@ -190,17 +190,17 @@ public class SessionDebriefService {
     }
 
     public RecoveryResponse getSessionRecovery(Long sessionId, Long userId, String sessionName, Integer plannedMinutes, Long actualMinutes) {
-        String name = sessionName != null ? sessionName : "Recent Sprint";
+        String name = sessionName != null ? sessionName : "Recent Focus Session";
         int planned = plannedMinutes != null ? plannedMinutes : 25;
         long actual = actualMinutes != null ? actualMinutes : 25;
 
         List<RecoveryOption> options = List.of(
                 new RecoveryOption("RECESS_RESTORE", "Take 10m Restoration Break", "Step away from all terminals, hydrate, and allow neural fatigue to dissipate."),
-                new RecoveryOption("SPLIT_SCOPE", "Partition Scope into 2x 20m Sprints", "The remaining deliverable is overloaded. Split it into smaller atomic slices."),
+                new RecoveryOption("SPLIT_SCOPE", "Split the task", "Break the remaining work into smaller steps."),
                 new RecoveryOption("ABORT_RECALIBRATE", "Conclude Work Block & Review Backlog", "Do not force diminished returns. Log reflection notes and plan tomorrow's trajectory.")
         );
 
-        String message = String.format("Sprint [%s] concluded (Planned: %dm, Actual: %dm). Select a calibration strategy to maintain cognitive throughput.",
+        String message = String.format("Focus session '%s' ended (planned: %dm, recorded: %dm). Choose how you would like to continue.",
                 name, planned, actual);
 
         return new RecoveryResponse(

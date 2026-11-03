@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="brand-blue" x1="24" y1="70" x2="91" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#164bff" />
+      <stop offset="1" stop-color="#148bff" />
+    </linearGradient>
+    <linearGradient id="brand-violet" x1="34" y1="116" x2="99" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5428f6" />
+      <stop offset="1" stop-color="#a33bff" />
+    </linearGradient>
+    <mask id="brand-notch" maskUnits="userSpaceOnUse" x="16" y="8" width="96" height="112">
+      <rect x="16" y="8" width="96" height="112" fill="#fff" />
+      <path d="M53 60h24v-9l20 15-20 15v-9H53Z" fill="#000" />
+    </mask>
+  </defs>
+  <rect x="2" y="2" width="124" height="124" rx="30" fill="#091629" />
+  <g mask="url(#brand-notch)">
+    <path d="m29 43 47-28c3-2 7-2 10 0l13 8c3 2 5 5 5 9v6c0 4-2 7-6 9L64 68 48 58l31-19-43 25c-3 2-7 2-10 0l-4-2v-9c0-4 2-8 7-10Z" fill="url(#brand-blue)" />
+    <path d="m45 79 37-23c3-2 7-2 10 0l15 9c3 2 5 5 5 9v13c0 4-2 7-6 9l-41 24c-3 2-7 2-10 0l-16-9c-3-2-5-5-5-9v-9c0-4 2-7 6-9l28-17 14 9-29 18 20-12-13-8Z" fill="url(#brand-violet)" />
+  </g>
+</svg>

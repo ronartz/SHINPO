@@ -145,6 +145,52 @@ export function formatEnforcementMode(mode?: string | null): string {
  * daemon heartbeat connectivity, and enforcement mode.
  */
 export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | null): ProtectionStatusInfo {
+  if (sentinelStatus?.warningOnly) {
+    const connected = Boolean(sentinelStatus.daemonConnected)
+    const active = sentinelStatus.status === 'ACTIVE'
+    const paused = sentinelStatus.status === 'STANDBY'
+    const name = sentinelStatus.activeFocusSessionName || null
+    const mode = sentinelStatus.guardianMode || 'Standard'
+    if (!connected) {
+      return {
+        statusKey: 'DISCONNECTED',
+        badgeText: 'Vault Locked',
+        badgeVariant: 'offline',
+        headline: 'Guardian Paused',
+        description: 'Automatic Guardian is paused while the encrypted vault is locked.',
+        shieldConnected: false,
+        mode: 'Warning only',
+        isPolicyLocked: false,
+        activeSessionName: null,
+      }
+    }
+    if (active) {
+      return {
+        statusKey: 'ACTIVE_DEFENSE',
+        badgeText: 'Guardian Monitoring',
+        badgeVariant: 'active',
+        headline: name ? `Monitoring Focus: "${name}"` : 'Guardian Monitoring',
+        description: `Automatic ${mode} mode records recognized distracting app names in the encrypted vault. Apps are never closed; website restrictions depend on the Browser Companion connection.`,
+        shieldConnected: true,
+        mode: `${mode} · warning only`,
+        isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked),
+        activeSessionName: name,
+      }
+    }
+    return {
+      statusKey: paused ? 'STANDBY' : 'READY',
+      badgeText: paused ? 'Focus Paused' : 'Guardian Ready',
+      badgeVariant: 'standby',
+      headline: paused ? 'Guardian Paused with Focus' : 'Guardian Ready',
+      description: paused
+        ? 'App observation is paused with the Focus session. No applications are closed.'
+        : 'App observation starts with a Focus session. Website policy is managed separately by the Browser Companion.',
+      shieldConnected: true,
+      mode: `${mode} · warning only`,
+      isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked),
+      activeSessionName: null,
+    }
+  }
   const isSessionActive = Boolean(sentinelStatus?.activeFocusSessionId)
   const shieldConnected = Boolean(sentinelStatus?.daemonConnected)
   const rawMode = sentinelStatus?.enforcementMode || 'STRICT'

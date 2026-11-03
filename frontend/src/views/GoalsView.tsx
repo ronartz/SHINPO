@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Goal, Mission } from '../api/goalsAndMissions'
 import type { FocusSession } from '../api/focusSessions'
 import type { GoalDecomposition, ProposedMission } from '../api/ai'
+import type { ProgressResponse } from '../api/progress'
 import { Icon } from '../components/common/Icon'
 import { StudyResourcesPanel } from '../components/focus'
 
@@ -9,6 +10,8 @@ export interface GoalsViewProps {
   userId: number | null
   goals: Goal[]
   missions: Mission[]
+  progress: ProgressResponse | null
+  currentStreak: number
   activeSession?: FocusSession | null
   aiDecompResult: GoalDecomposition | null
   setAiDecompResult: (res: GoalDecomposition | null) => void
@@ -37,6 +40,7 @@ import { isMissionInFocusSession } from '../utils/scheduleHelpers'
 import { ShinpoSelect } from '../components/ui'
 import type { SelectOption } from '../components/ui/Select/types'
 import { getTaskViewPreference, saveTaskViewPreference, type TaskViewMode } from '../utils/taskViewPreference'
+import { trackMicrokitPointer } from '../components/microkit/pointerGlow'
 
 export type TaskStatusFilter = 'ALL' | 'IN_PROGRESS' | 'READY' | 'COMPLETED'
 export type TaskSortOption = 'default' | 'date' | 'duration-asc' | 'duration-desc' | 'title'
@@ -53,6 +57,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   userId,
   goals,
   missions,
+  progress,
+  currentStreak,
   activeSession,
   aiDecompResult,
   setAiDecompResult,
@@ -140,7 +146,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
 
   const handleConfirmClearAllTasks = () => {
     setShowTaskMenu(false)
-    if (window.confirm('Are you sure you want to clear all tasks from the execution queue? This cannot be undone.')) {
+    if (window.confirm('Delete all tasks? This action cannot be undone.')) {
       handleDeleteMissionBulk()
     }
   }
@@ -259,7 +265,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               title={isDone ? 'Completed (click to reopen)' : 'Mark task complete'}
               aria-label={isDone ? 'Completed' : 'Mark task complete'}
             >
-              {isDone && <Icon name="check" size={13} />}
+              {isDone && <Icon name="check" size={13} className="microkit-checkmark" />}
             </button>
             <h4 className={`card-title ${isDone ? 'completed-title' : ''}`} style={{ fontSize: 14, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>
               {m.title}
@@ -270,7 +276,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
         <div className="card-context-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
           {parentGoal && (
             <span className="card-goal-tag" title={parentGoal.title}>
-              🎯 {parentGoal.title}
+              <Icon name="target" size={12} />
+              <span>{parentGoal.title}</span>
             </span>
           )}
           <span className="card-duration-chip">
@@ -278,8 +285,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
             <span>{m.estimatedMinutes || 25}m</span>
           </span>
           {m.scheduledDate && (
-            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
-              📅 {m.scheduledDate}
+            <span className="card-scheduled-date">
+              <Icon name="calendar" size={12} />
+              {m.scheduledDate}
             </span>
           )}
         </div>
@@ -345,7 +353,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           title={isDone ? 'Completed (click to reopen)' : 'Mark task complete'}
           aria-label={isDone ? 'Completed' : 'Mark task complete'}
         >
-          {isDone && <Icon name="check" size={13} />}
+          {isDone && <Icon name="check" size={13} className="microkit-checkmark" />}
         </button>
 
         <div className="task-row-content">
@@ -429,16 +437,22 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       {/* =========================================================================
           SECTION 1: GOALS AREA (Balanced Single-Goal Summary or Multi-Goal Grid)
           ========================================================================= */}
-      <div className="deck-section-header">
-        <div className="deck-section-title">
-          <Icon name="goals" size={17} />
-          <span>Goals</span>
-          <span className="deck-counter-badge">{goals.length}</span>
+      <header className="goals-page-heading">
+        <div className="goals-page-copy">
+          <span>Goals &amp; Tasks</span>
+          <h1>Goals &amp; Tasks</h1>
+          <p>Turn your goals into focused action. Plan, track, and complete the work that matters.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+        <div className="goals-page-actions">
+          <div className="goals-progress-summary" aria-label={progress ? `Level ${progress.level}, ${progress.currentLevelXp} of ${progress.nextLevelThreshold} XP, ${currentStreak} day streak` : 'Progress unavailable'}>
+            <span className="goals-level-ring" style={{ '--goals-progress': `${progress?.progressPercent ?? 0}%` } as React.CSSProperties}><Icon name="zap" size={20} /></span>
+            <span className="goals-level-copy"><strong>{progress ? `Level ${progress.level}` : 'Progress unavailable'}</strong><small>{progress ? `${progress.currentLevelXp} / ${progress.nextLevelThreshold} XP` : 'XP will appear when synced'}</small></span>
+            <span className="goals-streak-divider" />
+            <span className="goals-streak"><Icon name="zap" size={21} /><strong>{currentStreak}</strong><small>Day streak</small></span>
+          </div>
           <button
             type="button"
-            className="btn-timer primary"
+            className="btn-timer primary goals-new-goal-button"
             onClick={() => setIsCreatingGoal(true)}
             data-tutorial="new-goal"
           >
@@ -446,9 +460,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
             <span>New Goal</span>
           </button>
 
-          {/* Secondary Destructive Overflow Menu */}
           {goals.length > 0 && (
-            <div ref={goalMenuRef} style={{ position: 'relative' }}>
+            <div ref={goalMenuRef} className="goals-overflow-wrap">
               <button
                 type="button"
                 className="btn-timer secondary btn-overflow-trigger"
@@ -460,7 +473,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 ···
               </button>
               {showGoalMenu && (
-                <div className="overflow-menu-dropdown">
+                <div className="overflow-menu-dropdown microkit-glide-menu">
                   <button
                     type="button"
                     className="overflow-menu-item danger"
@@ -473,6 +486,14 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               )}
             </div>
           )}
+        </div>
+      </header>
+
+      <div className="deck-section-header goals-section-heading">
+        <div className="deck-section-title">
+          <span className="goals-section-icon"><Icon name="goals" size={16} /></span>
+          <span>Goals</span>
+          <span className="deck-counter-badge">{goals.length}</span>
         </div>
       </div>
 
@@ -609,7 +630,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 <div className="goal-summary-actions">
                   <button
                     type="button"
-                    className="btn-ai-deconstruct"
+                    className="btn-ai-deconstruct microkit-pointer-glow"
+                    data-microkit-glow
+                    onPointerMove={trackMicrokitPointer}
                     onClick={() => handleDeconstructGoal(g.id)}
                     disabled={decomposingGoalId === g.id}
                     data-tutorial="decompose-goal"
@@ -681,7 +704,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                       title="Start focus session on this task"
                     >
                       <Icon name="play" size={12} />
-                      <span>Start Focus Sprint</span>
+                      <span>Start Focus Session</span>
                     </button>
                   </div>
                 )}
@@ -697,7 +720,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
             const progressPct = goalMissions.length > 0 ? Math.round((goalCompletedCount / goalMissions.length) * 100) : 0
 
             return (
-              <div key={g.id} className="goal-card-item">
+              <div key={g.id} className="goal-card-item microkit-goal-highlight" data-microkit-glow onPointerMove={trackMicrokitPointer}>
                 <div className="goal-top-row">
                   <span className="goal-item-title">{g.title}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -754,7 +777,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                   </span>
                   <button
                     type="button"
-                    className="btn-ai-deconstruct"
+                    className="btn-ai-deconstruct microkit-pointer-glow"
+                    data-microkit-glow
+                    onPointerMove={trackMicrokitPointer}
                     onClick={() => handleDeconstructGoal(g.id)}
                     disabled={decomposingGoalId === g.id}
                     data-tutorial="decompose-goal"
@@ -774,7 +799,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           <Icon name="goals" size={28} />
           <p className="empty-title">No Active Goals</p>
           <p className="empty-desc">
-            Create an outcome you care about, then turn it into clear next steps.
+            Create a goal, then add the tasks that move it forward.
           </p>
           <button type="button" className="btn-timer primary" onClick={() => setIsCreatingGoal(true)}>
             <Icon name="plus" size={14} />
@@ -786,59 +811,12 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       {/* =========================================================================
           SECTION 2: TASKS AREA (Primary List View with Status Tabs, Search & Sort)
           ========================================================================= */}
-      <div className="deck-section-header" data-tutorial="missions-queue" style={{ marginTop: 24 }}>
+      <section className="goals-task-area" aria-label="Tasks">
+      <div className="deck-section-header" data-tutorial="missions-queue">
         <div className="deck-section-title">
           <Icon name="target" size={17} />
           <span>Tasks</span>
           <span className="deck-counter-badge">{missions.length}</span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
-          <button
-            type="button"
-            className="btn-timer primary"
-            onClick={() => {
-              if (goals.length === 0) {
-                onGoalRequired()
-                return
-              }
-              if (!quickMissionGoalId && goals.length > 0) {
-                setQuickMissionGoalId(goals[0].id)
-              }
-              setIsCreatingQuickMission(true)
-            }}
-            data-tutorial="new-task"
-          >
-            <Icon name="plus" size={13} />
-            <span>New Task</span>
-          </button>
-
-          {/* Secondary Task Overflow Menu for Bulk Actions */}
-          {missions.length > 0 && (
-            <div ref={taskMenuRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="btn-timer secondary btn-overflow-trigger"
-                onClick={() => setShowTaskMenu((prev) => !prev)}
-                title="Task Options"
-                aria-label="Task Options"
-                aria-expanded={showTaskMenu}
-              >
-                ···
-              </button>
-              {showTaskMenu && (
-                <div className="overflow-menu-dropdown">
-                  <button
-                    type="button"
-                    className="overflow-menu-item danger"
-                    onClick={handleConfirmClearAllTasks}
-                  >
-                    <Icon name="trash" size={13} />
-                    <span>Delete all tasks</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -869,7 +847,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               className={`status-tab-btn ${activeStatusFilter === 'READY' ? 'active' : ''}`}
               onClick={() => handleFilterChange('READY')}
             >
-              <span className="status-dot-mini dot-cyan" />
+              <span className="status-dot-mini dot-blue" />
               <span>Ready</span>
               <span className="tab-count-badge">{readyCount}</span>
             </button>
@@ -922,7 +900,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           </div>
 
           {/* View Mode Toggle: List (Primary) vs Board */}
-          <div className="view-mode-toggle">
+          <div className="view-mode-toggle microkit-sliding-tabs" data-active-index={taskViewMode === 'board' ? 1 : 0}>
             <button
               type="button"
               className={`view-mode-btn ${taskViewMode === 'list' ? 'active' : ''}`}
@@ -940,18 +918,58 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               Board
             </button>
           </div>
+
+          <button
+            type="button"
+            className="btn-timer primary goals-new-task-button"
+            onClick={() => {
+              if (goals.length === 0) {
+                onGoalRequired()
+                return
+              }
+              if (!quickMissionGoalId) setQuickMissionGoalId(goals[0].id)
+              setIsCreatingQuickMission(true)
+            }}
+            data-tutorial="new-task"
+          >
+            <Icon name="plus" size={13} />
+            <span>New Task</span>
+          </button>
+
+          {missions.length > 0 && (
+            <div ref={taskMenuRef} className="goals-overflow-wrap">
+              <button
+                type="button"
+                className="btn-timer secondary btn-overflow-trigger"
+                onClick={() => setShowTaskMenu((prev) => !prev)}
+                title="Task Options"
+                aria-label="Task Options"
+                aria-expanded={showTaskMenu}
+              >
+                ···
+              </button>
+              {showTaskMenu && (
+                <div className="overflow-menu-dropdown microkit-glide-menu">
+                  <button type="button" className="overflow-menu-item danger" onClick={handleConfirmClearAllTasks}>
+                    <Icon name="trash" size={13} />
+                    <span>Delete all tasks</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Task Content: Primary List View OR Board Mode */}
       {taskViewMode === 'list' ? (
-        <div className="missions-list-container">
+        <div className="missions-list-container microkit-tab-content">
           {filteredMissions.length === 0 ? (
             <div className="missions-empty-row">
               <Icon name="target" size={18} />
               <span>
                 {missions.length === 0
-                  ? 'No tasks in the execution queue. Create a task or click "Plan Tasks" from a goal.'
+                  ? 'No tasks yet. Create a task or plan tasks from a goal.'
                   : 'No tasks matching the selected filter or search query.'}
               </span>
             </div>
@@ -961,7 +979,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
         </div>
       ) : (
         /* Board Mode (Improved Symmetrical Kanban) */
-        <div className="flight-deck-board-grid" style={{ width: '100%' }}>
+        <div className="flight-deck-board-grid microkit-tab-content">
           {/* Lane 1: In Progress */}
           <div className="status-column col-in-progress">
             <div className="status-column-header">
@@ -971,16 +989,12 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               </div>
               <span className="column-count-badge">{boardInProgress.length}</span>
             </div>
-            <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
+            <div className="status-column-cards">
               {boardInProgress.length > 0 ? (
                 boardInProgress.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="clock" size={16} />
-                  </div>
-                  <span className="empty-title">Nothing in progress</span>
-                  <span className="empty-subtitle">Choose a ready task to start focusing.</span>
+                  <span className="empty-title">No tasks in progress.</span>
                 </div>
               )}
             </div>
@@ -990,21 +1004,17 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           <div className="status-column col-backlog">
             <div className="status-column-header">
               <div className="column-header-title">
-                <span className="column-status-dot dot-cyan" />
+                <span className="column-status-dot dot-blue" />
                 <span className="column-title-text">Ready</span>
               </div>
               <span className="column-count-badge">{boardReady.length}</span>
             </div>
-            <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
+            <div className="status-column-cards">
               {boardReady.length > 0 ? (
                 boardReady.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="target" size={16} />
-                  </div>
-                  <span className="empty-title">No tasks ready</span>
-                  <span className="empty-subtitle">Add a task to decide what to work on next.</span>
+                  <span className="empty-title">Tasks ready to start will appear here.</span>
                 </div>
               )}
             </div>
@@ -1019,22 +1029,19 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
               </div>
               <span className="column-count-badge">{boardCompleted.length}</span>
             </div>
-            <div className="status-column-cards" style={{ maxHeight: 520, overflowY: 'auto' }}>
+            <div className="status-column-cards">
               {boardCompleted.length > 0 ? (
                 boardCompleted.map(renderKanbanCard)
               ) : (
                 <div className="status-column-empty">
-                  <div className="empty-icon-circle">
-                    <Icon name="check-circle" size={16} />
-                  </div>
-                  <span className="empty-title">No completed tasks yet</span>
-                  <span className="empty-subtitle">Tasks you finish will appear here.</span>
+                  <span className="empty-title">Completed tasks will appear here.</span>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+      </section>
 
       {resourceMission && (
         <div className="quick-modal-overlay" onClick={() => setResourceMission(null)}>

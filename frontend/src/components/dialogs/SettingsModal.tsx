@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
-import { changePassword, getAuthToken, setCustomServerUrl, updateUsername, deleteAccount } from '../../api/auth'
+import { changePassword, getAuthToken, isLocalVaultSession, setCustomServerUrl, updateUsername, deleteAccount } from '../../api/auth'
 import { ShinpoConfirmDialog } from '../ui/Dialog/ShinpoConfirmDialog'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
 import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from '../../api/config'
 import { isTauriEnvironment } from '../../api/nativeShield'
+import { invokeTauriCommand } from '../../api/tauri'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
+import { getAiProviderStatus, getNativeAiProviderConfig, configureNativeAiProvider } from '../../api/ai'
+import type { NativeAiProviderConfig } from '../../api/ai'
 
 export type SettingsSection =
   | 'appearance'
@@ -108,6 +111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     detail?: string
   } | null>(null)
   const [companionLoading, setCompanionLoading] = useState(false)
+  const [pairingCode, setPairingCode] = useState<string | null>(null)
 
   // EONPAI AI state
   const [aiStatus, setAiStatus] = useState<{
@@ -157,6 +161,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchCompanionInfo = useCallback(async () => {
     setCompanionLoading(true)
     try {
+      if (isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account')) {
+        const data = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
+        setCompanionStatus({
+          state: data.state,
+          coverage: 'LIMITED',
+          adapterName: 'Native messaging',
+          detail: data.detail,
+        })
+        return
+      }
       const baseUrl = getBackendBaseUrl()
       const token = getAuthToken()
       const res = await fetchWithoutRedirects(`${baseUrl}/api/contextual-focus/status`, {
@@ -191,26 +205,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [])
 
+  const createCompanionPairingCode = async () => {
+    setCompanionLoading(true)
+    try {
+      setPairingCode(await invokeTauriCommand<string>('browser_companion_pairing_code'))
+      await fetchCompanionInfo()
+    } catch (error) {
+      setCompanionStatus({ state: 'UNAVAILABLE', coverage: 'NONE', detail: error instanceof Error ? error.message : 'Could not create a pairing code.' })
+    } finally {
+      setCompanionLoading(false)
+    }
+  }
+
+  const revokeCompanionPairing = async () => {
+    setCompanionLoading(true)
+    try {
+      await invokeTauriCommand('browser_companion_revoke')
+      setPairingCode(null)
+      await fetchCompanionInfo()
+    } catch (error) {
+      setCompanionStatus({ state: 'UNAVAILABLE', coverage: 'NONE', detail: error instanceof Error ? error.message : 'Could not revoke pairing.' })
+    } finally {
+      setCompanionLoading(false)
+    }
+  }
+
+  const [nativeProvider, setNativeProvider] = useState<NativeAiProviderConfig>({ provider: 'none', model: '', endpoint: '', allowCloudContext: false })
+  const nativeApiKeyRef = useRef<HTMLInputElement>(null)
+  const [providerSaving, setProviderSaving] = useState(false)
+  const [providerMessage, setProviderMessage] = useState('')
+  useEffect(() => {
+    let current = true
+    if (isOpen && activeSection === 'eonpai' && isLocalVaultSession()) {
+      getNativeAiProviderConfig().then((config) => { if (current) setNativeProvider(config) }).catch((error: unknown) => { if (current) setProviderMessage(error instanceof Error ? error.message : 'Could not read provider settings') })
+    }
+    if (!isOpen && nativeApiKeyRef.current) nativeApiKeyRef.current.value = ''
+    return () => { current = false }
+  }, [isOpen, activeSection])
+
   // Fetch EONPAI Status
   const fetchAiInfo = useCallback(async () => {
     setAiLoading(true)
     try {
-      const baseUrl = getBackendBaseUrl()
-      const token = getAuthToken()
-      const res = await fetchWithoutRedirects(`${baseUrl}/api/ai/status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setAiStatus(data)
-      } else {
-        setAiStatus({
-          enabled: false,
-          available: false,
-          status: 'OFFLINE',
-          message: 'AI service endpoint returned non-200 status',
-        })
-      }
+      setAiStatus(await getAiProviderStatus())
     } catch {
       setAiStatus({
         enabled: false,
@@ -332,8 +369,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     e.preventDefault()
     setPwdMessage(null)
 
-    if (newPassword.length < 6) {
-      setPwdMessage({ text: 'New password must be at least 6 characters long.', isError: true })
+    const minimumPasswordLength = isLocalVaultSession() ? 12 : 6
+    if (newPassword.length < minimumPasswordLength) {
+      setPwdMessage({ text: `New password must be at least ${minimumPasswordLength} characters long.`, isError: true })
       return
     }
     if (newPassword !== confirmPassword) {
@@ -465,7 +503,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleExportData = () => {
     const exportPayload = {
       exportMetadata: {
-        app: 'SHINPO Focus Cockpit',
+        app: 'SHINPO',
         version: '1.0.0',
         exportedAt: new Date().toISOString(),
         username: currentUser?.username || 'anonymous',
@@ -550,12 +588,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isTauriEnvironment()) {
       results.shield = {
         pass: true,
-        detail: 'Tauri native desktop runtime verified. Local Shield daemon bound.',
+        detail: 'Tauri desktop runtime verified. Local protection service connected.',
       }
     } else {
       results.shield = {
         pass: true,
-        detail: 'Web browser cockpit environment active. Native Shield via companion.',
+        detail: 'Browser environment active. Native focus protection is available in the desktop app.',
       }
     }
 
@@ -602,8 +640,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: '8px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(49, 86, 216, 0.2) 100%)',
-                color: '#3B82F6',
+                background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-highlight) 20.0%, transparent) 0%, color-mix(in srgb, var(--brand-primary) 20.0%, transparent) 100%)',
+                color: 'var(--brand-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -682,7 +720,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Appearance & Display
                 </h3>
                 <p className="settings-section-desc">
-                  Customize your cockpit's theme, layout identity, and time display format.
+                  Customize your workspace theme and time display format.
                 </p>
 
                 {/* Theme Mode */}
@@ -795,7 +833,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Celebratory Feedback & Progression Effects
                   </label>
                   <p>
-                    Adjust completion shimmers and reward toasts when finishing tasks and focus sprints.
+                    Choose the visual feedback shown when you complete tasks and focus sessions.
                   </p>
                   <div className="settings-pill-row">
                     <button
@@ -829,7 +867,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Consistency Streak Display
                   </label>
                   <p>
-                    Display productive days momentum on your cockpit dashboard without anxiety or penalties.
+                    Show your productive-day streak on the Dashboard.
                   </p>
                   <div className="settings-pill-row">
                     <button
@@ -838,7 +876,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => handleStreakDisplayChange('visible')}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span>🔥</span>
+                        <Icon name="zap" size={14} />
                         <span>Visible (Show Streak)</span>
                       </div>
                       {streakDisplay !== 'hidden' && <span className="settings-pill-indicator">✓</span>}
@@ -875,7 +913,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <label style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       Active User Profile
                     </label>
-                    {currentUser && !isEditingUsername && (
+                    {currentUser && !isEditingUsername && !isLocalVaultSession() && (
                       <button
                         type="button"
                         onClick={() => {
@@ -950,13 +988,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             borderRadius: '6px',
                             marginBottom: 10,
                             fontSize: '12px',
-                            background: usernameFeedback.isError ? 'rgba(255, 77, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                            border: `1px solid ${usernameFeedback.isError ? 'rgba(255, 77, 94, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
-                            color: usernameFeedback.isError ? '#FF4D5E' : '#10B981',
+                            background: usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                            border: `1px solid ${usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                            color: usernameFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
                           }}
                         >
                           {usernameFeedback.text}
                         </div>
+                      )}
+
+                      {isLocalVaultSession() && (
+                        <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                          This name identifies your encrypted local vault and cannot be changed.
+                        </p>
                       )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
@@ -967,7 +1011,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>User ID:</span>
                         <span className="settings-badge-value" style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>#{currentUser.id}</span>
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Tenant Isolation:</span>
-                        <span style={{ color: '#10B981', fontWeight: 600 }}>✓ Verified Private Workspace</span>
+                        <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>✓ Verified Private Workspace</span>
                       </div>
                     </div>
                   ) : (
@@ -1007,7 +1051,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           right: '8px',
                           background: 'transparent',
                           border: 'none',
-                          color: 'var(--text-secondary, #94a3b8)',
+                          color: 'var(--text-secondary, #5c5c5c)',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -1042,7 +1086,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             right: '8px',
                             background: 'transparent',
                             border: 'none',
-                            color: 'var(--text-secondary, #94a3b8)',
+                            color: 'var(--text-secondary, #5c5c5c)',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1076,7 +1120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             right: '8px',
                             background: 'transparent',
                             border: 'none',
-                            color: 'var(--text-secondary, #94a3b8)',
+                            color: 'var(--text-secondary, #5c5c5c)',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1096,9 +1140,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           borderRadius: '6px',
                           marginBottom: 12,
                           fontSize: '12.5px',
-                          background: pwdMessage.isError ? 'rgba(255, 77, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                          border: `1px solid ${pwdMessage.isError ? 'rgba(255, 77, 94, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
-                          color: pwdMessage.isError ? '#FF4D5E' : '#10B981',
+                          background: pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                          border: `1px solid ${pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                          color: pwdMessage.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
                         }}
                       >
                         {pwdMessage.text}
@@ -1116,7 +1160,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Sign Out Card */}
-                <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 77, 94, 0.2)', background: 'rgba(255, 77, 94, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)', background: 'color-mix(in srgb, var(--brand-highlight) 5.0%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       End Workstation Session
@@ -1131,9 +1175,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={{
                       padding: '8px 16px',
                       borderRadius: '8px',
-                      border: '1px solid rgba(255, 77, 94, 0.4)',
-                      background: 'rgba(255, 77, 94, 0.15)',
-                      color: '#FF4D5E',
+                      border: '1px solid color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)',
+                      background: 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                      color: 'var(--brand-primary)',
                       fontWeight: 700,
                       fontSize: '13px',
                       cursor: 'pointer',
@@ -1149,60 +1193,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeSection === 'protection' && (
               <div>
                 <h3 className="settings-section-title">
-                  Focus Protection & Shield Enforcement
+                  Focus Protection
                 </h3>
                 <p className="settings-section-desc">
-                  Manage active defense policies, distraction quarantine modes, and emergency protocols.
+                  Manage distraction rules and protection behavior during focus sessions.
                 </p>
 
                 {/* Health & Status Card */}
                 <div className="settings-group-card">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Sentinel Status: {sentinelStatus?.status || 'STANDBY'}
+                      Protection status: {sentinelStatus?.status?.replaceAll('_', ' ') || 'STANDBY'}
                     </span>
                     <span style={{
                       padding: '3px 8px',
                       borderRadius: '6px',
                       fontSize: '12px',
                       fontWeight: 700,
-                      background: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)',
-                      color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? '#10B981' : '#38BDF8',
+                      background: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)',
+                      color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'var(--brand-primary)' : 'var(--brand-primary)',
                     }}>
-                      {sentinelStatus?.activeFocusSessionId ? 'SPRINT IN PROGRESS' : 'IDLE / READY'}
+                      {sentinelStatus?.activeFocusSessionId ? 'FOCUS SESSION IN PROGRESS' : 'IDLE / READY'}
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '12.5px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Interceptions Today: </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{sentinelStatus?.totalInterceptedToday ?? 0}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'App observations today: ' : 'Interceptions Today: '}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? sentinelStatus?.guardianWarningCount ?? 0 : sentinelStatus?.totalInterceptedToday ?? 0}</span>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Active Policy Rules: </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{sentinelStatus?.activePolicyRulesCount ?? 0}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'Application handling: ' : 'Active Policy Rules: '}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? 'Warning only' : sentinelStatus?.activePolicyRulesCount ?? 0}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Enforcement Mode Selector */}
-                <div className="settings-group-card">
+                {isLocalVaultSession() ? (
+                  <div className="settings-group-card">
+                    <label>Guardian policy</label>
+                    <p>Application handling is warning-only in this local build. The saved Focus session selects Light, Standard, or Strict; apps are not closed.</p>
+                    <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
+                      <div><strong>Effective mode: </strong>{sentinelStatus?.guardianMode === 'GUIDED' ? 'Light' : sentinelStatus?.guardianMode === 'PROTECTED' ? 'Standard' : sentinelStatus?.guardianMode === 'STRICT' ? 'Strict' : 'No active session'}</div>
+                      <div><strong>Focus phase: </strong>{sentinelStatus?.focusPhase ?? 'Idle'}</div>
+                      <div><strong>Observer: </strong>{sentinelStatus?.observerStatus ?? 'Unavailable'}</div>
+                      <div><strong>Application policy: </strong>{sentinelStatus?.applicationPolicyStatus?.replaceAll('_', ' ').toLowerCase() ?? 'inactive'}</div>
+                      <div><strong>Recognized apps: </strong>{sentinelStatus?.guardianApplicationCatalog?.length ?? 0} · {sentinelStatus?.guardianAppCatalogVersion ?? 'catalog unavailable'}</div>
+                    </div>
+                  </div>
+                ) : <div className="settings-group-card">
                   <label>
                     Enforcement Policy Mode
                   </label>
                   <p>
-                    Select how aggressively background distractions and blacklisted apps are contained during sprints.
+                    Choose how focus protection handles distracting applications during a focus session.
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[
                       {
                         mode: 'STRICT',
                         title: 'STRICT (Containment)',
-                        desc: 'Auto-terminates blacklisted distractions during active sprints without grace periods.',
+                        desc: 'Closes blocked applications during a focus session without a grace period.',
                       },
                       {
                         mode: 'BALANCED',
                         title: 'BALANCED (Grace Period)',
-                        desc: 'Issues a 15-second grace prompt before restriction, allowing emergency snooze.',
+                        desc: 'Shows a 15-second warning before restriction, with an option to pause protection.',
                       },
                       {
                         mode: 'MONITORED',
@@ -1225,7 +1280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <span className="settings-mode-name">
                               {item.title}
                             </span>
-                            {isSel && <span style={{ fontSize: '12px', color: '#3B82F6', fontWeight: 700 }}>✓ ACTIVE</span>}
+                            {isSel && <span style={{ fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 700 }}>✓ ACTIVE</span>}
                           </div>
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.desc}</span>
                         </div>
@@ -1233,19 +1288,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     })}
                   </div>
                   {modeFeedback && (
-                    <div style={{ marginTop: 10, fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
+                    <div style={{ marginTop: 10, fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 600 }}>
                       {modeFeedback}
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* Emergency Session Override */}
-                <div className="settings-group-card">
+                {!isLocalVaultSession() && <div className="settings-group-card">
                   <label>
-                    Emergency Sprint Override
+                    Emergency Focus Override
                   </label>
                   <p>
-                    If you are locked in a strict sprint and require urgent workstation access, enter your password and a documented reason.
+                    If you need urgent access while strict focus protection is active, enter your password and a reason.
                   </p>
                   <form onSubmit={handleEmergencyOverrideSubmit}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -1270,7 +1325,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             right: '8px',
                             background: 'transparent',
                             border: 'none',
-                            color: 'var(--text-secondary, #94a3b8)',
+                            color: 'var(--text-secondary, #5c5c5c)',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1297,8 +1352,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           borderRadius: '6px',
                           marginBottom: 10,
                           fontSize: '12px',
-                          background: overrideFeedback.isError ? 'rgba(255, 77, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                          color: overrideFeedback.isError ? '#FF4D5E' : '#10B981',
+                          background: overrideFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                          color: overrideFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
                         }}
                       >
                         {overrideFeedback.text}
@@ -1313,7 +1368,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {overrideLoading ? 'Submitting Override...' : 'Execute Emergency Override'}
                     </button>
                   </form>
-                </div>
+                </div>}
               </div>
             )}
 
@@ -1340,7 +1395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="btn-timer secondary"
                       style={{ padding: '5px 12px', fontSize: '12.5px' }}
                     >
-                      {companionLoading ? 'Checking...' : 'Test Connection'}
+                      {companionLoading ? 'Checking...' : isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') ? 'Refresh Pairing Status' : 'Test Connection'}
                     </button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
@@ -1353,6 +1408,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {companionStatus?.detail || 'Native host registered for Chrome, Brave, Edge, and Firefox.'}
                     </span>
                   </div>
+                  {isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                      <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void createCompanionPairingCode()}>
+                        Generate 10-minute pairing code
+                      </button>
+                      {companionStatus?.state === 'PAIRED' && (
+                        <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void revokeCompanionPairing()}>
+                          Revoke pairing
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {pairingCode && (
+                    <p role="status" style={{ marginTop: 10, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
+                      Enter this code in the Browser Companion within 10 minutes: <code>{pairingCode}</code>
+                    </p>
+                  )}
                 </div>
 
                 {/* Registration Guide */}
@@ -1361,13 +1433,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Native Messaging Setup
                   </label>
                   <p>
-                    If your browser extension shows a disconnected badge, run the registration script on this workstation:
+                    Install the SHINPO Browser Companion, then register its native host for this workstation:
                   </p>
                   <div className="settings-code-box">
                     bash scripts/register-browser-companion.sh
                   </div>
                   <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                    Windows users: Run <code style={{ color: '#38BDF8' }}>.\scripts\register-browser-companion.ps1</code> in PowerShell.
+                    Windows users: Run <code style={{ color: 'var(--brand-primary)' }}>.\scripts\register-browser-companion.ps1</code> in PowerShell.
                   </span>
                 </div>
               </div>
@@ -1384,6 +1456,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
 
                 {/* AI Status Card */}
+                {isLocalVaultSession() && <form className="settings-group-card" onSubmit={(event) => {
+                  event.preventDefault()
+                  if (providerSaving) return
+                  setProviderSaving(true)
+                  setProviderMessage('')
+                  configureNativeAiProvider(nativeProvider, nativeApiKeyRef.current?.value || undefined)
+                    .then(async () => { if (nativeApiKeyRef.current) nativeApiKeyRef.current.value = '';  setProviderMessage('Provider settings saved.'); await fetchAiInfo() })
+                    .catch((error: unknown) => setProviderMessage(error instanceof Error ? error.message : 'Could not save provider'))
+                    .finally(() => setProviderSaving(false))
+                }}>
+                  <label htmlFor="native-ai-provider">Native AI provider</label>
+                  <select id="native-ai-provider" value={nativeProvider.provider} onChange={(event) => setNativeProvider({ ...nativeProvider, provider: event.target.value as NativeAiProviderConfig['provider'] })}>
+                    <option value="none">Offline planning (no model)</option>
+                    <option value="ollama">Ollama on this computer</option>
+                    <option value="openai">OpenAI-compatible provider (your key)</option>
+                  </select>
+                  {nativeProvider.provider !== 'none' && <>
+                    <label htmlFor="native-ai-model">Installed or provider model name</label>
+                    <input id="native-ai-model" value={nativeProvider.model} maxLength={120} required onChange={(event) => setNativeProvider({ ...nativeProvider, model: event.target.value })} />
+                  </>}
+                  {nativeProvider.provider === 'ollama' && <p>Ollama must be installed separately with the selected model. SHINPO connects only to 127.0.0.1:11434.</p>}
+                  {nativeProvider.provider === 'openai' && <>
+                    <label htmlFor="native-ai-endpoint">HTTPS API base URL</label>
+                    <input id="native-ai-endpoint" type="url" value={nativeProvider.endpoint} required placeholder="https://api.example.com/v1" onChange={(event) => setNativeProvider({ ...nativeProvider, endpoint: event.target.value })} />
+                    <label htmlFor="native-ai-key">API key {nativeProvider.hasApiKey ? '(leave blank to keep saved key)' : ''}</label>
+                    <input id="native-ai-key" type="password" autoComplete="off" ref={nativeApiKeyRef} />
+                    <label><input type="checkbox" checked={nativeProvider.allowCloudContext} required onChange={(event) => setNativeProvider({ ...nativeProvider, allowCloudContext: event.target.checked })} /> I allow my messages and bounded goal, task and session context to be sent to this provider. The provider may charge my account.</label>
+                  </>}
+                  <button type="submit" disabled={providerSaving}>{providerSaving ? 'Saving…' : 'Save provider'}</button>
+                  {providerMessage && <p role="status">{providerMessage}</p>}
+                </form>}
                 <div className="settings-group-card">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1402,14 +1505,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Active Engine:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {aiStatus?.enabled ? `External Provider (${aiStatus.provider || 'Ollama'})` : 'Offline Deterministic Silence Engine'}
+                      {aiStatus?.enabled ? `External Provider (${aiStatus.provider || 'Ollama'})` : 'Offline planning'}
                     </span>
                     <span style={{ color: 'var(--text-secondary)' }}>Model:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {aiStatus?.model || 'Calm Heuristics / Deterministic Rule-Engine'}
+                      {aiStatus?.model || 'No model; local planning rules'}
                     </span>
                     <span style={{ color: 'var(--text-secondary)' }}>Privacy Guarantee:</span>
-                    <span style={{ color: '#10B981', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
                       Zero cognitive telemetry transmitted to unauthorized external APIs.
                     </span>
                   </div>
@@ -1442,7 +1545,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Cloud Backend Server URL
                   </label>
                   <p>
-                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: '#3B82F6' }}>https://shinpo.yourdomain.com</code>).
+                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: 'var(--brand-primary)' }}>https://shinpo.yourdomain.com</code>).
                   </p>
                   <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                     <input
@@ -1469,9 +1572,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         padding: '8px 12px',
                         borderRadius: '6px',
                         fontSize: '12.5px',
-                        background: serverPingStatus.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 77, 94, 0.15)',
-                        border: `1px solid ${serverPingStatus.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 77, 94, 0.4)'}`,
-                        color: serverPingStatus.status === 'SUCCESS' ? '#10B981' : '#FF4D5E',
+                        background: serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                        border: `1px solid ${serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                        color: serverPingStatus.status === 'SUCCESS' ? 'var(--brand-primary)' : 'var(--brand-primary)',
                       }}
                     >
                       {serverPingStatus.message}
@@ -1495,8 +1598,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       borderRadius: '6px',
                       fontSize: '12px',
                       fontWeight: 700,
-                      background: isWsConnected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 77, 94, 0.2)',
-                      color: isWsConnected ? '#10B981' : '#FF4D5E',
+                      background: isWsConnected ? 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)',
+                      color: isWsConnected ? 'var(--brand-primary)' : 'var(--brand-primary)',
                     }}>
                       {isWsConnected ? '● CONNECTED' : '○ DISCONNECTED'}
                     </span>
@@ -1537,7 +1640,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Export Personal Data (JSON)
                   </label>
                   <p>
-                    Download a complete archive containing all your goals, missions, focus session history, and distraction telemetry.
+                    Download a complete archive containing your goals, tasks, focus session history, and protection activity.
                   </p>
                   <button
                     type="button"
@@ -1555,8 +1658,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Workstation Privacy Guarantees
                   </label>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    <li><strong>No Keystroke or Screen Logging:</strong> SHINPO Shield inspects only process names against your approved focus policy.</li>
-                    <li><strong>Local Enforcement:</strong> Shield runs 100% locally on your computer. Server-side host process scanning is disabled.</li>
+                    <li><strong>No Keystroke or Screen Logging:</strong> SHINPO checks application names against your focus rules.</li>
+                    <li><strong>Local Enforcement:</strong> Application blocking runs locally on your computer. Server-side process scanning is disabled.</li>
                     <li><strong>Tenant Isolation:</strong> Your cloud account data is strictly isolated by user ID and signed by cryptographically validated JWTs.</li>
                   </ul>
                 </div>
@@ -1565,15 +1668,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div
                   className="settings-group-card"
                   style={{
-                    borderColor: 'rgba(239, 68, 68, 0.4)',
-                    background: 'rgba(239, 68, 68, 0.04)',
+                    borderColor: 'color-mix(in srgb, var(--brand-primary) 40.0%, transparent)',
+                    background: 'color-mix(in srgb, var(--brand-primary) 4.0%, transparent)',
                   }}
                 >
-                  <label style={{ color: 'var(--brand-red, #EF4444)' }}>
+                  <label style={{ color: 'var(--brand-red, var(--brand-primary))' }}>
                     Danger Zone: Irreversible Account Deletion
                   </label>
                   <p style={{ color: 'var(--text-secondary)' }}>
-                    Permanently delete your SHINPO account and purge all your goals, missions, focus history, and telemetry from the database.
+                    Permanently delete your SHINPO account and all associated goals, tasks, focus history, and protection activity.
                   </p>
                   <button
                     type="button"
@@ -1585,9 +1688,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={{
                       padding: '8px 16px',
                       fontSize: '13px',
-                      color: '#EF4444',
-                      borderColor: 'rgba(239, 68, 68, 0.5)',
-                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      color: 'var(--brand-primary)',
+                      borderColor: 'color-mix(in srgb, var(--brand-primary) 50.0%, transparent)',
+                      backgroundColor: 'color-mix(in srgb, var(--brand-primary) 8.0%, transparent)',
                     }}
                   >
                     Delete Account & Wipe All Data
@@ -1610,15 +1713,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-group-card">
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Product:</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>進歩 (SHINPO) Focus Cockpit</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>進歩 (SHINPO)</span>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Version:</span>
                     <span style={{ color: 'var(--text-primary)' }}>1.0.0 (Private Beta)</span>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Runtime Shell:</span>
                     <span style={{ color: 'var(--text-primary)' }}>
-                      {isTauriEnvironment() ? 'Tauri v2 Native Desktop Container' : 'Web Cockpit (Chromium/Gecko)'}
+                      {isTauriEnvironment() ? 'Tauri desktop app' : 'Browser app (Chromium/Gecko)'}
                     </span>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Decoupled State:</span>
-                    <span style={{ color: '#10B981', fontWeight: 600 }}>✓ Verified Device-Independent</span>
+                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>✓ Verified Device-Independent</span>
                   </div>
                 </div>
 
@@ -1650,18 +1753,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         { title: 'REST API Connectivity', res: diagnosticResults.api },
                         { title: 'WebSocket Stream (/ws)', res: diagnosticResults.ws },
                         { title: 'Client-Side Storage', res: diagnosticResults.storage },
-                        { title: 'Desktop Shield Runtime', res: diagnosticResults.shield },
+                        { title: 'Desktop protection service', res: diagnosticResults.shield },
                       ].map((item, idx) => (
                         <div
                           key={idx}
                           className="settings-diag-row"
                           style={{
-                            background: item.res.pass ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 77, 94, 0.1)',
-                            border: `1px solid ${item.res.pass ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 77, 94, 0.3)'}`,
+                            background: item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)',
+                            border: `1px solid ${item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)'}`,
                           }}
                         >
                           <span className="settings-diag-name">{item.title}</span>
-                          <span className="settings-diag-badge" style={{ color: item.res.pass ? '#10B981' : '#FF4D5E', fontWeight: 700 }}>
+                          <span className="settings-diag-badge" style={{ color: item.res.pass ? 'var(--brand-primary)' : 'var(--brand-primary)', fontWeight: 700 }}>
                             {item.res.pass ? '✓ PASS' : '✗ FAIL'} — <span className="settings-diag-detail">{item.res.detail}</span>
                           </span>
                         </div>
@@ -1677,8 +1780,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       <ShinpoConfirmDialog
         isOpen={showDeleteAccountConfirm}
-        title="Permanently Delete Account?"
-        message="This will immediately and irrevocably wipe your user record and all associated goals, missions, analytics, and telemetry from the database. This action cannot be undone."
+        title={isLocalVaultSession() ? 'Delete Encrypted Local Account?' : 'Permanently Delete Account?'}
+        message={isLocalVaultSession()
+          ? 'This removes the unlocked local vault and its encrypted data files after clearing the Browser Companion policy. It is blocked while a Focus session is active. Filesystem deletion is not a guaranteed secure overwrite.'
+          : 'This will immediately and permanently delete your account and associated goals, tasks, analytics, and activity. This action cannot be undone.'}
         confirmLabel="Yes, Delete Everything"
         cancelLabel="Keep Account"
         isDestructive={true}

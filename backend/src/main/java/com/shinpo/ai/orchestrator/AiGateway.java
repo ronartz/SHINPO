@@ -273,14 +273,14 @@ public class AiGateway {
             Long goalId = currentGoal.get("id") instanceof Long gid ? gid : null;
             String goalTitle = currentGoal.get("title") instanceof String gt ? gt : "Primary Objective";
             GoalDecompositionResponse decomp = decomposeGoal(goalId, userId, goalTitle);
-            String reply = "🎯 Deconstructed primary objective [" + decomp.goalTitle() + "]: " + decomp.analysis();
+            String reply = "Plan for " + decomp.goalTitle() + ": " + decomp.analysis();
             logSuggestion(userId, "ARCHITECT", rawMsg, reply);
             return new AiChatResponse(reply, "ARCHITECT", decomp);
         }
 
         if (isNextActionIntent(msgLower)) {
             NextActionResponse next = getNextAction(userId);
-            String reply = "EONPAI Operational Directive: Execute [" + next.missionTitle() + "]. " + next.rationale();
+            String reply = "Suggested next task: " + next.missionTitle() + ". " + next.rationale();
             logSuggestion(userId, "NEXT_ACTION", rawMsg, reply);
             return new AiChatResponse(reply, "NEXT_ACTION", next);
         }
@@ -300,19 +300,19 @@ public class AiGateway {
         // on every chat adds latency and can reject a working generation endpoint.
         if (aiProperties.isEnabled() && provider != null) {
             String silenceDirective = intelContext.isSilenceModeActive()
-                    ? "SILENCE MODE ACTIVE: User is in an active focus sprint. Keep replies extremely calm, brief, and directly relevant to the user's specific request. Do NOT introduce new tasks, planning rabbit holes, or conversational tangents. Preserve flow state.\n"
+                    ? "The user is in an active focus session. Keep replies brief and directly relevant to the request. Do not introduce unrelated tasks or planning.\n"
                     : "";
 
             String systemPrompt = """
-                    You are EONPAI (also known as SHINPAI), the Personal Strategic Execution AI Companion for SHINPO (SYSTEM: ARISE).
-                    Philosophy: Execution > Planning Theater. Real Data > Vanity Metrics.
-                    Role: You analyze the user's current goals, missions, and schedule to provide crisp, concrete, actionable guidance.
+                    You are EONPAI, SHINPO's professional productivity assistant.
+                    Help users make steady progress with clear, practical, evidence-based guidance.
+                    Analyze the user's goals, tasks, and schedule. Use concise, plain language and avoid role-play, military, or game terminology.
                     Robustness: Deduce user intent intelligently even if the user has typos, informal shorthand, or misspellings.
                     """ + silenceDirective + """
                     CRITICAL: You are an advisory companion. You NEVER directly modify databases or execute processes.
                     You MUST respond strictly in valid JSON matching this schema:
                     {
-                      "reply": "Your clear, inspiring, and concise tactical message to the user",
+                      "reply": "Your clear, concise, professional message to the user",
                       "suggestionType": "TACTICAL_ASSISTANT" | "PLANNER" | "ARCHITECT" | "COACH" | "FOCUS_ASSISTANT",
                       "structuredCard": null
                     }
@@ -463,7 +463,7 @@ public class AiGateway {
         String trimmed = raw.trim();
         // If the model echoed raw context JSON without a reply field, present a clean companion response
         if (trimmed.contains("\"userId\":") || trimmed.contains("\"username\":") || trimmed.contains("USER PRODUCTIVITY STATUS:") || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
-            return "I am EONPAI, your Personal Strategic Execution AI Companion. I am tracking your active goals and missions. How can I help you execute right now?";
+            return "I'm EONPAI, SHINPO's productivity assistant. I can help with your goals, tasks, focus sessions, and schedule. What would you like to work on?";
         }
         return raw;
     }
@@ -697,7 +697,7 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = timeOfDay + nameClause + ". Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). Shield active. What quick assistance do you need to stay in flow?";
+            String reply = timeOfDay + nameClause + ". Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining). What help do you need?";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
@@ -707,12 +707,12 @@ public class AiGateway {
             sessionNote = "\n\n*Active focus session:* **" + activeSession.get("name") + "** is currently active.";
         }
 
-        String reply = timeOfDay + nameClause + ". I'm **EONPAI**, your personal execution assistant.\n\n"
+        String reply = timeOfDay + nameClause + ". I'm **EONPAI**, SHINPO's productivity assistant.\n\n"
                 + "How can I support your focus today? Available actions:\n"
-                + "• `Plan my day` — generate a structured focus itinerary\n"
+                + "• `Plan my day` — create a practical focus plan\n"
                 + "• `What should I work on now?` — identify your immediate priority task\n"
                 + "• `How do I use SHINPO?` — interactive feature walkthrough\n"
-                + "• `Why is YouTube blocked?` — check Sentinel focus protection status"
+                + "• `Why is YouTube blocked?` — check Focus Protection status"
                 + sessionNote;
 
         logSuggestion(userId, "GREETING", rawMsg, reply);
@@ -720,11 +720,11 @@ public class AiGateway {
     }
 
     private AiChatResponse buildIdentityResponse(Long userId, String rawMsg) {
-        String reply = "I am **EONPAI**, the embedded execution assistant for SHINPO.\n\n"
-                + "I integrate directly with your local tasks, focus sessions, and Sentinel protection policies:\n\n"
-                + "• **Goal Deconstruction**: Break broad strategic objectives into 25–45 minute actionable tasks.\n"
-                + "• **Tactical Priority**: Recommend high-impact tasks based on your deadlines and active goals.\n"
-                + "• **Sentinel Transparency**: Explain why specific applications or web routes are restricted during sprints.\n"
+        String reply = "I am **EONPAI**, SHINPO's productivity assistant.\n\n"
+                + "I can help with your goals, tasks, focus sessions, and Focus Protection:\n\n"
+                + "• **Plan tasks**: Break a goal into manageable next steps.\n"
+                + "• **Choose a priority**: Find a task based on your deadlines and active goals.\n"
+                + "• **Focus Protection**: Explain why applications or websites are restricted during a focus session.\n"
                 + "• **Interactive Walkthroughs**: Guide you through onboarding and core workflows.\n"
                 + "• **Verified Bug Reporting**: Collect and submit non-sensitive host diagnostics for technical issues.\n\n"
                 + "How can I assist your workflow today?";
@@ -737,7 +737,7 @@ public class AiGateway {
                 "SHINPO_ONBOARDING",
                 1,
                 "goals",
-                "Let's start with your first goal. Click '+ New Strategic Goal' to establish your objective boundary.",
+                "Let's start with your first goal. Click '+ New Goal' to define what you want to accomplish.",
                 "GOAL_CREATED"
         );
         String reply = "I will guide you through the initial setup.\n\nLet's start by defining your first goal.";
@@ -754,14 +754,14 @@ public class AiGateway {
         if (activeBlock) {
             Long remSec = (Long) explanation.get("remainingSeconds");
             long remMin = remSec != null ? remSec / 60 : 0;
-            sb.append("**Sentinel Enforcement Active**\n\n");
+            sb.append("**Focus Protection is active**\n\n");
             sb.append("You currently have an active focus session (**").append(explanation.get("sessionName")).append("**)");
             sb.append(" with approximately **").append(remMin).append(" minutes** remaining.\n\n");
             sb.append("SHINPO applies process and URL restrictions during active sessions to minimize distractions. When the session concludes or is paused, standard access resumes.");
         } else {
-            sb.append("**Sentinel System Status**\n\n");
+            sb.append("**Focus Protection status**\n\n");
             sb.append(reason).append("\n\n");
-            sb.append("*Note: Sentinel enforcement is only engaged during active focus sessions. If an external application closed outside a session, Sentinel was not responsible.*");
+            sb.append("*Application and website restrictions apply only during an active focus session. SHINPO does not close applications outside a session.*");
         }
 
         logSuggestion(userId, "ENFORCEMENT_EXPLANATION", rawMsg, sb.toString());
@@ -847,22 +847,22 @@ public class AiGateway {
             String sessionName = (String) activeSession.get("name");
             Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
             long remainingMins = Math.max(0, remainingSecs / 60);
-            String reply = "Focus sprint **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
-                    + "I am keeping interruptions minimal to protect your deep work. You can pause or complete your sprint from the Focus view when ready.";
+            String reply = "Focus session **\"" + sessionName + "\"** is in progress (" + remainingMins + "m remaining).\n\n"
+                    + "You can pause or complete it from the Focus page when ready.";
             logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
             return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("**EONPAI Execution Assistant**\n\n")
+        sb.append("**EONPAI**\n\n")
           .append("I can assist with your workflow, goal decomposition, and focus management.\n\n")
           .append("I’m using SHINPO’s built-in guidance right now; generated AI may be temporarily unavailable.\n\n");
 
         sb.append("Here is how I can assist you directly:\n")
           .append("• **Focus Planning**: Request a structured daily focus itinerary based on your active goals.\n")
-          .append("• **Tactical Priority**: Identify the immediate high-impact task to work on next.\n")
-          .append("• **Goal Decomposition**: Break broad strategic objectives into actionable 25–45 minute tasks.\n")
-          .append("• **Sentinel Protection**: Inspect active application shields or study resource access rules.\n")
+          .append("• **Choose a priority**: Identify a useful next task based on your active goals.\n")
+          .append("• **Plan tasks**: Break a goal into actionable steps.\n")
+          .append("• **Focus Protection**: Review application and website restrictions during focus sessions.\n")
           .append("• **Issue Reporting**: File a verified defect report with non-sensitive runtime diagnostics.\n\n")
           .append("Connect a cloud AI provider in the server configuration to enable generated conversational responses.");
 

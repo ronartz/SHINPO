@@ -127,6 +127,43 @@ test('deriveOverallProtectionStatus - derives honest operational status from dae
   assert.equal(staleActiveState.shieldConnected, false)
 })
 
+test('local Automatic Guardian reports warnings without claiming app enforcement', () => {
+  const active = deriveOverallProtectionStatus({
+    status: 'ACTIVE',
+    activeFocusSessionId: 42,
+    activeFocusSessionName: 'Study block',
+    enforcementMode: 'AUDIT_ONLY',
+    totalInterceptedToday: 0,
+    activePolicyRulesCount: 0,
+    recentQuarantines: [],
+    lastSweepAt: null,
+    daemonConnected: true,
+    guardianMode: 'STRICT',
+    focusPhase: 'FOCUS',
+    guardianWarningCount: 2,
+    warningOnly: true,
+  })
+  assert.equal(active.badgeText, 'Guardian Monitoring')
+  assert.match(active.description, /records recognized distracting app names/i)
+  assert.match(active.description, /never closed/i)
+  assert.match(active.description, /Browser Companion/i)
+
+  const locked = deriveOverallProtectionStatus({
+    status: 'UNAVAILABLE',
+    activeFocusSessionId: null,
+    activeFocusSessionName: null,
+    enforcementMode: 'AUDIT_ONLY',
+    totalInterceptedToday: 0,
+    activePolicyRulesCount: 0,
+    recentQuarantines: [],
+    lastSweepAt: null,
+    daemonConnected: false,
+    warningOnly: true,
+  })
+  assert.equal(locked.badgeText, 'Vault Locked')
+  assert.match(locked.description, /paused/i)
+})
+
 test('groupQuarantineEvents - groups repeated events while preserving all records and PIDs', () => {
   const items: SentinelQuarantineItem[] = [
     {

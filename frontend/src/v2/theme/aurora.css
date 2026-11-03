@@ -14,14 +14,18 @@
 
 .aurora-viewport.theme-dark,
 .app-shell.theme-aurora:not(.theme-light) {
-  background-color: var(--bg, #121316);
-  color: var(--text-primary, #F3F4F6);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
 }
 
 .aurora-viewport.theme-light,
 .app-shell.theme-aurora.theme-light {
-  background-color: var(--bg, #F7F6F3);
-  color: var(--text-primary, #18191B);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.app-shell.theme-aurora.theme-light {
+  --surface-card: var(--color-surface-1);
 }
 
 /* Atmospheric Ambient Lights — disabled for clean desktop look */
@@ -52,19 +56,19 @@
 /* Refined Hover Shadow & Edge Definition (No glowing halo) */
 .aurora-viewport.theme-dark .aurora-card-interactive:hover,
 .aurora-viewport.theme-dark .aurora-card-interactive:focus-visible {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 14px rgba(0,0,0, 0.28);
+  border-color: var(--border-strong);
 }
 
 .aurora-viewport.theme-light .aurora-card-interactive:hover,
 .aurora-viewport.theme-light .aurora-card-interactive:focus-visible {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-  border-color: rgba(40, 71, 184, 0.22);
+  box-shadow: 0 4px 14px rgba(0,0,0, 0.05);
+  border-color: var(--border-strong);
 }
 
 /* Keyboard accessibility outline */
 .aurora-card-interactive:focus-visible {
-  outline: 2px solid #3B82F6;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -85,123 +89,124 @@
    ========================================================================== */
 
 .aurora-glass {
-  background: color-mix(in srgb, var(--surface-card, #1D1E24) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-card, var(--color-surface-1)) 96%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
   -webkit-backdrop-filter: blur(8px) saturate(110%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0, 0.18);
 }
 
 .aurora-viewport.theme-light .aurora-glass,
 .app-shell.theme-aurora.theme-light .aurora-glass {
-  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
+  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 96%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
   -webkit-backdrop-filter: blur(8px) saturate(110%);
-  border: 1px solid var(--border, #E9E7E3);
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border, var(--color-surface-3));
+  box-shadow: 0 4px 16px -2px rgba(0,0,0, 0.05);
 }
 
 /* Fallback for environments where backdrop-filter is unsupported */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .aurora-glass {
-    background: #18191E !important;
+    background: var(--surface-card, var(--color-surface-1)) !important;
   }
   .aurora-viewport.theme-light .aurora-glass,
   .app-shell.theme-aurora.theme-light .aurora-glass {
-    background: #FFFFFF !important;
+    background: var(--color-surface-1) !important;
   }
 }
 
 .aurora-viewport.theme-dark .aurora-glass,
 .app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar {
-  background: color-mix(in srgb, var(--surface, #18191E) 92%, transparent);
+  background: color-mix(in srgb, var(--surface, var(--color-surface-1)) 96%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
   -webkit-backdrop-filter: blur(8px) saturate(110%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0, 0.28);
 }
 
 .aurora-viewport.theme-light .aurora-glass,
 .app-shell.theme-aurora.theme-light .cockpit-top-bar {
-  background: color-mix(in srgb, var(--surface-card, #FFFFFF) 94%, transparent);
+  background: color-mix(in srgb, var(--surface-card, var(--color-surface-1)) 94%, transparent);
   backdrop-filter: blur(8px) saturate(110%);
   -webkit-backdrop-filter: blur(8px) saturate(110%);
-  border: 1px solid var(--border, #E9E7E3);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border, var(--color-surface-3));
+  box-shadow: 0 2px 10px rgba(0,0,0, 0.04);
 }
 
 /* Aurora Navigation Button Styling on Classic Sidebar */
 .app-shell.theme-aurora .icon-sidebar .sidebar-btn {
-  color: var(--text-secondary, #B0B5C2);
+  color: var(--color-text-secondary);
   border-radius: 11px;
   font-weight: 600;
   transition: color 150ms ease, background 170ms ease, transform 150ms ease;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn {
-  color: var(--text-secondary, #484C56);
+  color: var(--color-text-secondary);
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn:hover {
-  background: rgba(162, 111, 255, 0.12);
-  color: #FFFFFF;
+  background: color-mix(in srgb, var(--brand-highlight) 12.0%, transparent);
+  color: #ffffff;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn:hover {
-  background: #f3edff;
-  color: var(--text-primary, #18191B);
+  background: var(--surface-hover);
+  color: var(--color-text-primary);
 }
 
 .app-shell.theme-aurora:not(.theme-light) .icon-sidebar .sidebar-btn.active {
-  background: transparent;
-  color: #FFFFFF;
-  border: 1px solid transparent;
+  background: var(--sidebar-btn-active-bg);
+  color: var(--sidebar-btn-active-color);
+  border: 1px solid var(--sidebar-btn-active-border);
   box-shadow: none;
 }
 
 .app-shell.theme-aurora.theme-light .icon-sidebar .sidebar-btn.active {
-  background: transparent;
-  color: #FFFFFF;
-  border: 1px solid transparent;
+  background: var(--sidebar-btn-active-bg);
+  color: var(--sidebar-btn-active-color);
+  border: 1px solid var(--sidebar-btn-active-border);
   box-shadow: none;
 }
 
 /* Aurora Search Input Pill */
-.app-shell.theme-aurora:not(.theme-light) .top-search-command {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.app-shell.theme-aurora:not(.theme-light) .top-search-command:not(:focus-within) {
+  background: rgba(255,255,255, 0.04);
+  border: 1px solid rgba(255,255,255, 0.08);
 }
 
-.app-shell.theme-aurora.theme-light .top-search-command {
-  background: #FFFFFF;
-  border: 1px solid #E9E7E3;
+.app-shell.theme-aurora.theme-light .top-search-command:not(:focus-within) {
+  background: var(--color-surface-1);
+  border: 1px solid var(--border);
 }
 
-.app-shell.theme-aurora:not(.theme-light) .top-search-command:focus-within {
-  border-color: #3156D8;
-  box-shadow: 0 0 0 2px rgba(49, 86, 216, 0.25);
+.app-shell.theme-aurora .top-search-command .top-search-input:focus {
+  border: 0;
+  outline: none;
+  box-shadow: none;
 }
 
 /* Aurora Sidebar Quote */
 .app-shell.theme-aurora:not(.theme-light) .sidebar-upper-quote {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255,255,255, 0.03);
+  border: 1px solid rgba(255,255,255, 0.06);
 }
 
 .app-shell.theme-aurora.theme-light .sidebar-upper-quote {
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: color-mix(in srgb, var(--color-ai) 7%, var(--color-surface-1));
+  border: 1px solid var(--border);
 }
 
 /* Aurora Sidebar Footer Status Pill */
 .app-shell.theme-aurora:not(.theme-light) .sidebar-status-quiet {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255, 0.03);
+  border: 1px solid rgba(255,255,255, 0.08);
 }
 
 .app-shell.theme-aurora.theme-light .sidebar-status-quiet {
-  background: #FFFFFF;
-  border: 1px solid #E9E7E3;
+  background: var(--color-surface-1);
+  border: 1px solid var(--border);
 }
 
 /* Featured Card: prominent through composition, clean typography and actions */
@@ -213,19 +218,19 @@
 }
 
 .aurora-viewport.theme-dark .aurora-featured-card {
-  background: #1D1E24;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0, 0.20);
 }
 
 .aurora-viewport.theme-light .aurora-featured-card {
-  background: #FFFFFF;
-  border: 1px solid #E9E7E3;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: var(--color-surface-1);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0, 0.04);
 }
 
 .aurora-featured-inner {
-  padding: 22px 24px;
+  padding: var(--space-6) var(--space-6);
   height: 100%;
 }
 
@@ -235,43 +240,44 @@
 
 .aurora-btn-primary,
 button.aurora-btn-primary {
-  background: var(--primary-violet, #3156D8) !important;
-  color: #FFFFFF !important;
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
   border: none !important;
   border-radius: 10px;
   font-weight: 600;
   font-size: 14px;
   height: 38px;
-  padding: 0 20px;
+  padding: 0 var(--space-6);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   transition: all 150ms ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
+  box-shadow: 0 1px 3px rgba(0,0,0, 0.20);
   text-decoration: none;
 }
 
 .aurora-btn-primary:hover,
 button.aurora-btn-primary:hover {
-  background: var(--brand-coral-hover, #AB75FC) !important;
+  background: var(--color-primary-hover) !important;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 3px 8px rgba(0,0,0, 0.25);
 }
 
 .aurora-viewport.theme-light .aurora-btn-primary,
 .theme-light .aurora-btn-primary,
 .aurora-viewport.theme-light button.aurora-btn-primary,
 .theme-light button.aurora-btn-primary {
-  background: var(--primary-violet, #2847B8) !important;
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
 }
 
 .aurora-viewport.theme-light .aurora-btn-primary:hover,
 .theme-light .aurora-btn-primary:hover,
 .aurora-viewport.theme-light button.aurora-btn-primary:hover,
 .theme-light button.aurora-btn-primary:hover {
-  background: var(--brand-coral-hover, #1E3694) !important;
+  background: var(--color-primary-hover) !important;
 }
 
 .aurora-btn-secondary,
@@ -280,12 +286,12 @@ button.aurora-btn-secondary {
   font-weight: 600;
   font-size: 14px;
   height: 38px;
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   transition: all 150ms ease;
   text-decoration: none;
 }
@@ -294,17 +300,17 @@ button.aurora-btn-secondary {
 .theme-dark .aurora-btn-secondary,
 .aurora-viewport.theme-dark button.aurora-btn-secondary,
 .theme-dark button.aurora-btn-secondary {
-  background: #24252D !important;
-  border: 1px solid rgba(255, 255, 255, 0.10) !important;
-  color: #F5F7FF !important;
+  background: var(--surface-subtle) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
 }
 
 .aurora-viewport.theme-dark .aurora-btn-secondary:hover,
 .theme-dark .aurora-btn-secondary:hover,
 .aurora-viewport.theme-dark button.aurora-btn-secondary:hover,
 .theme-dark button.aurora-btn-secondary:hover {
-  background: #282A33 !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
+  background: var(--surface-hover) !important;
+  border-color: var(--border-strong) !important;
   transform: translateY(-1px);
 }
 
@@ -312,18 +318,18 @@ button.aurora-btn-secondary {
 .theme-light .aurora-btn-secondary,
 .aurora-viewport.theme-light button.aurora-btn-secondary,
 .theme-light button.aurora-btn-secondary {
-  background: #FFFFFF !important;
-  border: 1px solid #E9E7E3 !important;
-  color: #18191B !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background: var(--color-surface-1) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0, 0.04);
 }
 
 .aurora-viewport.theme-light .aurora-btn-secondary:hover,
 .theme-light .aurora-btn-secondary:hover,
 .aurora-viewport.theme-light button.aurora-btn-secondary:hover,
 .theme-light button.aurora-btn-secondary:hover {
-  background: #F2EFEB !important;
-  border-color: #DBD8D3 !important;
+  background: var(--surface-hover) !important;
+  border-color: var(--border-strong) !important;
   transform: translateY(-1px);
 }
 
@@ -331,40 +337,40 @@ button.aurora-btn-secondary {
   border-radius: 12px;
   font-weight: 600;
   font-size: 14px;
-  padding: 9px 18px;
+  padding: var(--space-2) var(--space-4);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   transition: all 200ms ease;
   background: transparent;
   border: 1px solid transparent;
 }
 
 .aurora-viewport.theme-dark .aurora-btn-ghost {
-  color: var(--text-secondary, #B0B5C2);
+  color: var(--color-text-secondary);
 }
 
 .aurora-viewport.theme-dark .aurora-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary, #F3F4F6);
+  background: rgba(255,255,255, 0.08);
+  color: var(--color-text-primary);
 }
 
 .aurora-viewport.theme-light .aurora-btn-ghost {
-  color: var(--text-secondary, #484C56);
+  color: var(--color-text-secondary);
 }
 
 .aurora-viewport.theme-light .aurora-btn-ghost:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-primary, #18191B);
+  background: var(--surface-hover);
+  color: var(--color-text-primary);
 }
 
 /* Aurora Status Badge */
 .aurora-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -373,63 +379,63 @@ button.aurora-btn-secondary {
 
 
 .aurora-badge.purple {
-  background: rgba(49, 86, 216, 0.16);
-  color: #A86EFB;
-  border: 1px solid rgba(49, 86, 216, 0.35);
+  background: color-mix(in srgb, var(--ai-violet) 14%, transparent);
+  color: var(--ai-violet);
+  border: 1px solid color-mix(in srgb, var(--ai-violet) 35%, transparent);
 }
 
 .aurora-badge.blue {
-  background: rgba(59, 130, 246, 0.16);
-  color: #6E90FB;
-  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 .aurora-badge.cyan {
-  background: rgba(25, 211, 197, 0.16);
-  color: #30D2E4;
-  border: 1px solid rgba(25, 211, 197, 0.35);
+  background: color-mix(in srgb, var(--focus-cyan) 14%, transparent);
+  color: var(--focus-cyan);
+  border: 1px solid color-mix(in srgb, var(--focus-cyan) 35%, transparent);
 }
 
 .aurora-badge.emerald {
-  background: rgba(16, 185, 129, 0.16);
-  color: #34D399;
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
 }
 
 .aurora-badge.coral {
-  background: rgba(255, 77, 94, 0.16);
-  color: #FFA5AE;
-  border: 1px solid rgba(255, 77, 94, 0.35);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
 }
 
 .aurora-viewport.theme-light .aurora-badge.purple {
-  background: #F3E8FF;
-  color: #7E22CE;
-  border-color: #E9D5FF;
+  background: color-mix(in srgb, var(--ai-violet) 10%, var(--color-surface-1));
+  color: var(--ai-violet);
+  border-color: color-mix(in srgb, var(--ai-violet) 35%, transparent);
 }
 
 .aurora-viewport.theme-light .aurora-badge.blue {
-  background: #EFF6FF;
-  color: #1D4ED8;
-  border-color: #DBEAFE;
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface-1));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
 }
 
 .aurora-viewport.theme-light .aurora-badge.cyan {
-  background: #ECFEFF;
-  color: #0E7490;
-  border-color: #CFFAFE;
+  background: color-mix(in srgb, var(--focus-cyan) 9%, var(--color-surface-1));
+  color: var(--focus-cyan);
+  border-color: color-mix(in srgb, var(--focus-cyan) 32%, transparent);
 }
 
 .aurora-viewport.theme-light .aurora-badge.emerald {
-  background: #ECFDF5;
-  color: #047857;
-  border-color: #A7F3D0;
+  background: color-mix(in srgb, var(--color-success) 9%, var(--color-surface-1));
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 32%, transparent);
 }
 
 .aurora-viewport.theme-light .aurora-badge.coral {
-  background: #FEF2F2;
-  color: #B91C1C;
-  border-color: #FECACA;
+  background: color-mix(in srgb, var(--color-danger) 9%, var(--color-surface-1));
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
 }
 
 /* ==========================================================================
@@ -437,50 +443,50 @@ button.aurora-btn-secondary {
    ========================================================================== */
 
 .aurora-neumorphic-chip {
-  padding: 6px 14px;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm, 8px);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 150ms ease;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-subtle, rgba(255,255,255, 0.08));
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip {
-  background: var(--surface-subtle, #18191E);
-  color: var(--text-secondary, #94A3B8);
-  border-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--surface-subtle, var(--color-surface-2));
+  color: var(--color-text-secondary);
+  border-color: var(--border-subtle, rgba(255,255,255, 0.08));
   box-shadow: none;
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip:hover {
-  background: var(--surface-hover, #24252D);
-  color: var(--text-primary, #F8FAFC);
+  background: var(--surface-hover, var(--color-surface-3));
+  color: var(--color-text-primary);
 }
 
 .aurora-viewport.theme-dark .aurora-neumorphic-chip.active {
-  background: rgba(49, 86, 216, 0.15);
-  color: #C084FC;
-  border-color: rgba(49, 86, 216, 0.4);
+  background: color-mix(in srgb, var(--brand-primary) 15.0%, transparent);
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 40.0%, transparent);
   box-shadow: none;
 }
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip {
-  background: #FFFFFF;
-  color: var(--text-secondary, #64748B);
-  border-color: var(--border-subtle, rgba(0, 0, 0, 0.08));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background: var(--color-surface-1);
+  color: var(--color-text-secondary);
+  border-color: var(--border-subtle, rgba(0,0,0, 0.08));
+  box-shadow: 0 1px 2px rgba(0,0,0, 0.04);
 }
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip:hover {
-  background: #F8FAFC;
-  color: var(--text-primary, #0F172A);
+  background: var(--surface-hover);
+  color: var(--color-text-primary);
 }
 
 .aurora-viewport.theme-light .aurora-neumorphic-chip.active {
-  background: #F3E8FF;
-  color: #2847B8;
-  border-color: rgba(40, 71, 184, 0.3);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-1));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
   box-shadow: none;
 }
 
@@ -492,21 +498,21 @@ button.aurora-btn-secondary {
 }
 
 .app-shell.shinpo-glass-ui :is(input, textarea, select, .shinpo-select-trigger, .shinpo-datepicker-trigger):focus-visible {
-  outline: 2px solid rgba(49, 86, 216, 0.72);
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 72.0%, transparent);
   outline-offset: 2px;
 }
 
 .auth-fullscreen-container.theme-dark,
 body.shinpo-glass-ui.theme-dark .auth-fullscreen-container {
   background-color: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 28%, rgba(49, 86, 216, 0.15), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(59, 130, 246, 0.1), transparent 42%);
+  background-image: radial-gradient(ellipse at 50% 28%, color-mix(in srgb, var(--brand-primary) 15.0%, transparent), transparent 52%), radial-gradient(ellipse at 12% 88%, color-mix(in srgb, var(--brand-highlight) 10.0%, transparent), transparent 42%);
   background-size: 160% 160%;
 }
 
 .auth-fullscreen-container.theme-light,
 body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   background-color: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 28%, rgba(40, 71, 184, 0.1), transparent 52%), radial-gradient(ellipse at 12% 88%, rgba(43, 88, 230, 0.08), transparent 42%);
+  background-image: radial-gradient(ellipse at 50% 28%, color-mix(in srgb, var(--brand-deep) 10.0%, transparent), transparent 52%), radial-gradient(ellipse at 12% 88%, color-mix(in srgb, var(--brand-primary) 8.0%, transparent), transparent 42%);
   background-size: 160% 160%;
 }
 
@@ -529,8 +535,8 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
 .aurora-viewport .MuiDialog-paper,
 .aurora-viewport .MuiPopover-paper,
 .aurora-viewport .MuiMenu-paper {
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
-  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--border-strong, rgba(255,255,255, 0.14));
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0,0,0, 0.35));
 }
 
 .app-shell.theme-aurora .MuiButton-root,
@@ -545,15 +551,15 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   filter: brightness(1.04);
 }
 
-.app-shell.theme-aurora input:focus,
+.app-shell.theme-aurora input:focus:not(.top-search-input):not(.MuiOutlinedInput-input),
 .app-shell.theme-aurora textarea:focus,
 .app-shell.theme-aurora select:focus,
-.aurora-viewport input:focus,
+.aurora-viewport input:focus:not(.top-search-input):not(.MuiOutlinedInput-input),
 .aurora-viewport textarea:focus,
 .aurora-viewport select:focus {
   outline: none;
-  border-color: rgba(49, 86, 216, 0.72);
-  box-shadow: 0 0 0 3px rgba(49, 86, 216, 0.16);
+  border-color: color-mix(in srgb, var(--brand-primary) 72.0%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 16.0%, transparent);
 }
 
 @media (max-width: 720px) {
@@ -564,7 +570,7 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   body.shinpo-glass-ui .MuiDialog-paper {
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
-    margin: 12px;
+    margin: var(--space-3);
   }
 
   .app-shell.theme-aurora .MuiCard-root,
@@ -576,7 +582,7 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   .aurora-viewport .MuiDialog-paper {
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
-    margin: 12px;
+    margin: var(--space-3);
   }
 }
 
@@ -600,6 +606,41 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   }
 }
 
+.aurora-nav-stack {
+  position: relative;
+}
+
+.aurora-nav-spotlight {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 48%, transparent);
+  border-radius: 14px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--brand-primary) 29%, var(--surface-card)), color-mix(in srgb, var(--brand-highlight) 21%, var(--surface-card)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 12%, transparent), 0 5px 16px color-mix(in srgb, var(--brand-primary) 28%, transparent);
+  pointer-events: none;
+  transition: transform 360ms cubic-bezier(.16, 1, .3, 1);
+}
+
+.aurora-nav-spotlight::before {
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand-highlight);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-highlight) 78%, transparent);
+  content: '';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-nav-spotlight { transition: none; }
+}
+
 /* Reflection rows are content within the analytics panel, not cards nested in cards. */
 .app-shell.shinpo-glass-ui .analytics-view .analytics-debrief-card {
   background: transparent;
@@ -610,5 +651,479 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   animation: none;
+}
+
+/* Aurora EONPAI: a bounded three-zone workspace with live, honest context. */
+.app-shell.theme-aurora .app-content-stage-ai {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-shell.theme-aurora .eonpai-aurora-workspace {
+  display: grid !important;
+  grid-template-columns: minmax(188px, 0.78fr) minmax(370px, 2.15fr) minmax(224px, 0.94fr);
+  gap: 12px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  height: auto;
+  overflow: hidden;
+  align-items: start;
+}
+
+.app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel,
+.app-shell.theme-aurora .eonpai-context-panel {
+  min-width: 0;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--surface-card) 94%, transparent);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.13);
+  backdrop-filter: blur(8px) saturate(108%);
+  -webkit-backdrop-filter: blur(8px) saturate(108%);
+}
+
+.app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-conversation-card { min-width: 0; min-height: 0; height: 100%; }
+
+.app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel {
+  width: auto;
+  max-width: none;
+  padding: 13px;
+  gap: 10px;
+}
+
+.app-shell.theme-aurora .eonpai-utility-header {
+  padding: 1px 1px 10px;
+  margin: 0;
+}
+
+.app-shell.theme-aurora .eonpai-utility-footer { margin-top: 8px; }
+
+.app-shell.theme-aurora.theme-light .card-title { color: var(--text-1); }
+
+.app-shell.theme-aurora .eonpai-utility-title,
+.app-shell.theme-aurora .eonpai-context-section h3 {
+  color: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-shell.theme-aurora .eonpai-command-list { gap: 5px; }
+.app-shell.theme-aurora .eonpai-command-row {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--text-2);
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.app-shell.theme-aurora .eonpai-command-row:hover,
+.app-shell.theme-aurora .eonpai-command-row:focus-visible {
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand-primary) 11%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--border));
+}
+
+.app-shell.theme-aurora .eonpai-conversation-card {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--surface-card) 98%, var(--brand-primary) 2%), var(--surface-card));
+  border-radius: 16px;
+}
+
+.app-shell.theme-aurora .eonpai-chat-header {
+  height: auto;
+  min-height: 62px;
+  padding: 10px 15px;
+  background: color-mix(in srgb, var(--surface-card) 86%, transparent);
+  border-color: var(--border);
+}
+
+.app-shell.theme-aurora .eonpai-avatar-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  color: var(--ai-violet);
+  background: color-mix(in srgb, var(--ai-violet) 17%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--ai-violet) 34%, var(--border));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+.app-shell.theme-aurora .eonpai-status-badge {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-card) 70%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-new-chat-btn {
+  color: var(--text-2);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-card) 70%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-chat-feed {
+  padding: clamp(16px, 2vw, 26px);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--brand-primary) 7%, transparent), transparent 56%);
+}
+
+.app-shell.theme-aurora .eonpai-chat-content-wrap { max-width: 880px; gap: 14px; }
+.app-shell.theme-aurora .eonpai-greeting-bubble {
+  padding: clamp(16px, 2.2vw, 25px);
+  border-color: color-mix(in srgb, var(--brand-primary) 27%, var(--border));
+  border-radius: 15px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 10%, var(--surface-card)), var(--surface-card) 68%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.app-shell.theme-aurora .eonpai-welcome-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.app-shell.theme-aurora .eonpai-welcome-orb {
+  position: relative;
+  display: grid;
+  flex: 0 0 82px;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 32%, var(--ai-violet) 0, var(--color-primary) 22%, var(--color-surface-2) 48%, var(--color-background) 76%);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--ai-violet) 35%, transparent), inset 0 0 16px color-mix(in srgb, var(--ai-violet) 30%, transparent);
+  animation: eonpai-orb-breathe 6s ease-in-out infinite;
+}
+
+.app-shell.theme-aurora .eonpai-welcome-orb::before,
+.app-shell.theme-aurora .eonpai-welcome-orb::after {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid color-mix(in srgb, var(--ai-violet) 70%, transparent);
+  border-radius: inherit;
+  content: '';
+  opacity: 0.65;
+}
+
+.app-shell.theme-aurora .eonpai-welcome-orb::after {
+  inset: -10px;
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  opacity: 0.5;
+}
+
+.app-shell.theme-aurora .eonpai-welcome-orb span {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, white 88%, transparent), color-mix(in srgb, var(--ai-violet) 70%, transparent) 12%, color-mix(in srgb, var(--color-background) 12%, transparent) 64%);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ai-violet) 42%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-welcome-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ai-violet);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.app-shell.theme-aurora .eonpai-welcome-hero h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(20px, 2.1vw, 27px);
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+
+.app-shell.theme-aurora .eonpai-greeting-bubble .ai-bubble-text { color: var(--text-2); }
+.app-shell.theme-aurora .ai-bubble.assistant:not(.eonpai-greeting-bubble) {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 93%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-composer {
+  padding: 12px 15px 14px;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-composer-inner { max-width: 880px; align-items: stretch; gap: 8px; }
+.app-shell.theme-aurora .eonpai-composer-input {
+  min-height: 44px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 70%, var(--surface-card));
+  border-color: var(--border-strong);
+}
+
+.app-shell.theme-aurora .eonpai-composer-input:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 17%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-voice-btn {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--surface) 70%, var(--surface-card));
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.app-shell.theme-aurora .eonpai-voice-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.app-shell.theme-aurora .eonpai-voice-btn:hover:not(:disabled),
+.app-shell.theme-aurora .eonpai-voice-btn.is-listening { color: #fff; border-color: var(--brand-primary); background: var(--brand-primary); }
+.app-shell.theme-aurora .eonpai-voice-btn:disabled { opacity: .5; cursor: not-allowed; }
+.app-shell.theme-aurora .eonpai-voice-btn:focus-visible { outline: 2px solid var(--ai-violet); outline-offset: 2px; }
+
+.app-shell.theme-aurora .eonpai-composer-send-btn {
+  height: 42px;
+  border-radius: 11px;
+  background: var(--brand-primary) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+}
+
+.app-shell.theme-aurora .eonpai-speech-status {
+  max-width: 880px;
+  margin: 7px auto 0;
+  color: var(--color-warning);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.app-shell.theme-aurora .eonpai-context-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 14px;
+  max-height: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.app-shell.theme-aurora .eonpai-context-header,
+.app-shell.theme-aurora .eonpai-context-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-shell.theme-aurora .eonpai-context-header h2,
+.app-shell.theme-aurora .eonpai-context-section h3 { margin: 0; color: var(--text); font-size: 13px; line-height: 1.3; }
+.app-shell.theme-aurora .eonpai-context-header p { margin: 0; color: var(--text-3); font-size: 10px; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+.app-shell.theme-aurora .eonpai-context-stat {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-content: start;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 3px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 55%, var(--surface-card));
+}
+
+.app-shell.theme-aurora .eonpai-context-stat > svg { grid-row: span 2; color: var(--ai-violet); }
+.app-shell.theme-aurora .eonpai-context-stat > span { overflow: hidden; color: var(--text-3); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-stat > strong { grid-column: 1 / -1; overflow: hidden; color: var(--text); font-size: 18px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-stat > strong small { font-size: 10px; font-weight: 600; }
+.app-shell.theme-aurora .eonpai-context-stat > small { grid-column: 1 / -1; overflow: hidden; color: var(--text-3); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-section { display: grid; gap: 8px; padding-top: 11px; border-top: 1px solid var(--border); }
+.app-shell.theme-aurora .eonpai-context-section > header > span { color: var(--text-3); font-size: 10px; }
+.app-shell.theme-aurora .eonpai-context-goal,
+.app-shell.theme-aurora .eonpai-context-task,
+.app-shell.theme-aurora .eonpai-upcoming-session {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--surface) 48%, var(--surface-card));
+}
+
+.app-shell.theme-aurora .eonpai-context-goal,
+.app-shell.theme-aurora .eonpai-context-task { width: 100%; text-align: left; cursor: pointer; }
+.app-shell.theme-aurora .eonpai-context-goal:hover,
+.app-shell.theme-aurora .eonpai-context-task:hover { border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--border)); color: var(--text); }
+.app-shell.theme-aurora .eonpai-context-goal > span,
+.app-shell.theme-aurora .eonpai-context-task > span:nth-child(2),
+.app-shell.theme-aurora .eonpai-upcoming-session > span { overflow: hidden; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-goal > small,
+.app-shell.theme-aurora .eonpai-context-task > small,
+.app-shell.theme-aurora .eonpai-upcoming-session > small { color: var(--text-3); font-size: 10px; white-space: nowrap; }
+.app-shell.theme-aurora .eonpai-context-goal > i { grid-column: 1 / -1; height: 4px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--brand-primary) 15%, var(--surface)); }
+.app-shell.theme-aurora .eonpai-context-goal > i > b { display: block; height: 100%; border-radius: inherit; background: var(--brand-primary); }
+.app-shell.theme-aurora .eonpai-context-task { grid-template-columns: 8px minmax(0, 1fr) auto; }
+.app-shell.theme-aurora .eonpai-context-task-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-primary); }
+.app-shell.theme-aurora .eonpai-context-empty { margin: 0; padding: 7px 1px; color: var(--text-3); font-size: 11px; line-height: 1.45; }
+
+@media (min-width: 769px) and (max-width: 1000px) {
+  .app-shell.theme-aurora .cockpit-top-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'heading actions' 'search search';
+    height: auto;
+    min-height: 94px;
+    max-height: none;
+    gap: 8px 10px;
+    padding: 10px 12px;
+  }
+
+  .app-shell.theme-aurora .page-header-info { grid-area: heading; min-width: 0; }
+  .app-shell.theme-aurora .top-bar-actions { grid-area: actions; min-width: 0; gap: 5px; }
+  .app-shell.theme-aurora .top-bar-actions .action-btn-circle { width: 32px; height: 32px; }
+  .app-shell.theme-aurora .top-search-command { grid-area: search; width: 100%; min-width: 0; max-width: none; margin: 0; }
+  .app-shell.theme-aurora .top-search-command input { min-width: 0; }
+}
+
+@keyframes eonpai-orb-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.025); }
+}
+
+@media (max-width: 1180px) {
+  .app-shell.theme-aurora .eonpai-aurora-workspace { grid-template-columns: minmax(174px, .78fr) minmax(330px, 1.7fr) minmax(205px, .9fr); gap: 9px; }
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel,
+  .app-shell.theme-aurora .eonpai-context-panel { padding: 10px; }
+}
+
+@media (max-width: 980px) {
+  .app-shell.theme-aurora .app-main.app-main-ai > .cockpit-top-bar {
+    height: auto !important;
+    min-height: 114px;
+    max-height: none !important;
+  }
+
+  .app-shell.theme-aurora .eonpai-aurora-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.68fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr);
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel { grid-column: 2; grid-row: 2; height: 100% !important; max-height: none !important; }
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-conversation-card { grid-column: 1; grid-row: 1 / span 2; height: 100% !important; }
+  .app-shell.theme-aurora .eonpai-context-panel { grid-column: 2; grid-row: 1; height: 100%; }
+  .app-shell.theme-aurora .eonpai-composer-input { min-height: 64px; }
+}
+
+@media (max-width: 680px) {
+  .app-shell.theme-aurora .eonpai-aurora-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(420px, 68vh) auto;
+    height: calc(100vh - 100px) !important;
+    min-height: 500px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel,
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-conversation-card,
+  .app-shell.theme-aurora .eonpai-context-panel { grid-column: 1; grid-row: auto; height: auto; }
+  .app-shell.theme-aurora .eonpai-aurora-workspace > .eonpai-utility-panel { max-height: 190px; }
+  .app-shell.theme-aurora .eonpai-context-panel { max-height: 430px; }
+  .app-shell.theme-aurora .eonpai-welcome-orb { flex-basis: 58px; width: 58px; height: 58px; }
+  .app-shell.theme-aurora .eonpai-welcome-orb span { width: 32px; height: 32px; }
+  .app-shell.theme-aurora .eonpai-welcome-hero { gap: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.theme-aurora .eonpai-welcome-orb { animation: none; }
+}
+
+/* Restore the vertical page scroll while keeping EONPAI horizontally contained. */
+.app-shell.theme-aurora .app-main.app-main-ai {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Aurora dashboard composition: one page grid, no legacy reordering or flattened panels. */
+.app-shell.theme-aurora .shinpo-dashboard {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start;
+  gap: 14px !important;
+  max-width: 1680px;
+  padding-bottom: 24px;
+}
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-header-bar,
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-metrics-grid,
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-cockpit-grid,
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-insight-grid { order: initial; min-width: 0; width: 100%; }
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-header-bar { padding: 2px 2px 0; }
+.app-shell.theme-aurora .shinpo-dashboard > .dashboard-metrics-grid { gap: 12px; grid-auto-rows: minmax(112px, auto); }
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-metric-card {
+  min-width: 0;
+  min-height: 112px !important;
+  padding: 14px 16px !important;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, var(--border));
+  border-radius: 12px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-card) 94%, var(--color-surface-2)), var(--surface-card));
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-metric-card + .dashboard-metric-card { border-left: 1px solid color-mix(in srgb, var(--brand-primary) 18%, var(--border)); }
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-cockpit-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .9fr) !important;
+  grid-template-rows: minmax(228px, auto);
+  gap: 12px !important;
+  align-items: stretch;
+}
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-cockpit-grid > * { min-width: 0; height: 100%; }
+.app-shell.theme-aurora .shinpo-dashboard .schedule-card,
+.app-shell.theme-aurora .shinpo-dashboard .priority-hero-card,
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-rewards-summary {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, var(--border));
+  border-radius: 12px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-card) 90%, var(--color-surface-2)), var(--surface-card));
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-insight-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-insight-card {
+  min-width: 0;
+  min-height: 166px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, var(--border));
+  border-radius: 12px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-card) 90%, var(--color-surface-2)), var(--surface-card));
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-activity-card,
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-recent-activity { grid-column: auto !important; grid-row: auto !important; }
+.app-shell.theme-aurora .shinpo-dashboard .dashboard-activity-chart { height: 112px; min-height: 112px; }
+.app-shell.theme-aurora .shinpo-dashboard > .daily-objectives-card { display: none !important; }
+
+@media (max-width: 1050px) {
+  .app-shell.theme-aurora .shinpo-dashboard .dashboard-cockpit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .app-shell.theme-aurora .shinpo-dashboard .priority-hero-card { grid-column: 1 / -1 !important; }
+}
+@media (max-width: 680px) {
+  .app-shell.theme-aurora .shinpo-dashboard .dashboard-cockpit-grid,
+  .app-shell.theme-aurora .shinpo-dashboard .dashboard-insight-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .app-shell.theme-aurora .shinpo-dashboard .priority-hero-card { grid-column: auto !important; }
 }
 

@@ -1,0 +1,584 @@
+/* SHINPO adaptations of MicroKit's task, navigation, and action feedback patterns. */
+.microkit-progress-ring {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  overflow: visible;
+}
+
+.microkit-progress-track,
+.microkit-progress-arc {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.microkit-progress-track {
+  stroke: var(--border-strong);
+  stroke-dasharray: 2 2.5;
+  transition: stroke-dasharray 220ms var(--ease-out-expo);
+}
+
+.microkit-progress-ring.is-complete .microkit-progress-track {
+  stroke-dasharray: 56.55;
+  opacity: .3;
+}
+
+.microkit-progress-arc {
+  stroke: var(--brand-primary);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 360ms var(--ease-out-expo), stroke 180ms ease;
+}
+
+.microkit-progress-ring.is-complete .microkit-progress-arc {
+  stroke: var(--status-success);
+}
+
+.microkit-progress-check {
+  fill: none;
+  stroke: var(--status-success);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 12;
+  stroke-dashoffset: 12;
+}
+
+.microkit-progress-ring.is-complete .microkit-progress-check {
+  animation: microkit-check-draw 220ms var(--ease-out-expo) 80ms forwards;
+}
+
+.microkit-progress-ring.is-complete {
+  animation: microkit-ring-complete 560ms var(--ease-out-expo) both;
+}
+
+.microkit-objective-done .objective-title {
+  position: relative;
+}
+
+.microkit-objective-done .objective-title::after {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: currentColor;
+  content: '';
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: microkit-strike 240ms var(--ease-out-expo) 160ms forwards;
+}
+
+.microkit-pointer-glow,
+.microkit-glide-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.microkit-pointer-glow::before,
+.microkit-glide-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(150px circle at var(--microkit-x, 50%) var(--microkit-y, 50%), color-mix(in srgb, var(--brand-highlight) 42%, transparent), color-mix(in srgb, var(--brand-primary) 15%, transparent) 42%, transparent 76%);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.microkit-pointer-glow:hover::before,
+.microkit-pointer-glow:focus-visible::before,
+.microkit-glide-card:hover::before,
+.microkit-glide-card:focus-visible::before {
+  opacity: .92;
+}
+
+.microkit-pointer-glow:hover,
+.microkit-pointer-glow:focus-visible {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-highlight) 72%, transparent), 0 0 15px color-mix(in srgb, var(--brand-primary) 38%, transparent);
+}
+
+.microkit-pointer-glow:active:not(:disabled) {
+  transform: scale(.97);
+}
+
+.microkit-pointer-glow::after {
+  position: absolute;
+  z-index: 0;
+  top: var(--microkit-y, 50%);
+  left: var(--microkit-x, 50%);
+  width: 62px;
+  height: 70%;
+  min-height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--brand-highlight) 86%, white) 0%, color-mix(in srgb, var(--brand-highlight) 58%, transparent) 30%, transparent 75%);
+  content: '';
+  opacity: 0;
+  filter: blur(9px);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 140ms ease;
+}
+
+.microkit-pointer-glow:hover::after,
+.microkit-pointer-glow:focus-visible::after {
+  opacity: .88;
+  filter: blur(7px) drop-shadow(0 0 10px color-mix(in srgb, var(--brand-highlight) 72%, transparent));
+}
+
+.microkit-pointer-glow > *,
+.microkit-glide-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.microkit-glide-card {
+  overflow: hidden;
+}
+
+.microkit-goal-highlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms var(--ease-out-expo), background-color 180ms ease;
+}
+
+.microkit-goal-highlight::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 3px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-highlight), var(--brand-primary));
+  content: '';
+  opacity: 0;
+  transform: scaleX(.18);
+  transform-origin: left;
+  transition: opacity 180ms ease, transform 260ms var(--ease-out-expo);
+}
+
+.microkit-goal-highlight::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--brand-primary) 19%, transparent), transparent 72%);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.microkit-goal-highlight > * {
+  position: relative;
+  z-index: 1;
+}
+
+.microkit-goal-highlight:hover,
+.microkit-goal-highlight:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+
+.microkit-goal-highlight:hover::before,
+.microkit-goal-highlight:focus-within::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.microkit-goal-highlight:hover::after,
+.microkit-goal-highlight:focus-within::after {
+  opacity: 1;
+}
+
+.microkit-checkmark {
+  transform-origin: center;
+  animation: microkit-check-appear 360ms var(--ease-out-expo) both;
+}
+
+.microkit-invert-press {
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.microkit-invert-press:hover:not(:disabled),
+.microkit-invert-press:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand-primary) 84%, white);
+  background: color-mix(in srgb, var(--brand-primary) 18%, var(--surface-card));
+  color: var(--brand-highlight);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 52%, transparent), 0 0 18px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+}
+
+.microkit-danger-invert:hover:not(:disabled),
+.microkit-danger-invert:focus-visible:not(:disabled) {
+  border-color: var(--status-danger);
+  background: var(--surface-card);
+  color: var(--status-danger);
+  box-shadow: inset 0 0 0 1px var(--status-danger-subtle);
+}
+
+.microkit-finish-glow {
+  position: relative;
+  isolation: isolate;
+  transition: box-shadow 180ms ease, filter 180ms ease, transform 150ms ease;
+}
+
+.microkit-finish-glow::before {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 66%, transparent);
+  border-radius: inherit;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--brand-primary) 42%, transparent), inset 0 0 8px color-mix(in srgb, var(--brand-highlight) 25%, transparent);
+  content: '';
+  opacity: 0;
+  transform: scale(.97);
+  transition: opacity 180ms ease, transform 180ms var(--ease-out-expo);
+  pointer-events: none;
+}
+
+.microkit-finish-glow > * {
+  position: relative;
+  z-index: 1;
+}
+
+.microkit-finish-glow:hover:not(:disabled),
+.microkit-finish-glow:focus-visible:not(:disabled) {
+  box-shadow: 0 7px 22px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.microkit-finish-glow:hover:not(:disabled)::before,
+.microkit-finish-glow:focus-visible:not(:disabled)::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.microkit-sliding-send {
+  position: relative;
+  overflow: hidden;
+}
+
+.microkit-sliding-send > span:first-child {
+  transition: transform 360ms var(--ease-out-expo), opacity 220ms ease;
+}
+
+.microkit-send-icon {
+  position: absolute;
+  left: 14px;
+  display: inline-flex;
+  transform: translateX(-24px) scale(.35) rotate(-12deg);
+  opacity: 0;
+  transition: transform 360ms var(--ease-out-expo), opacity 160ms ease;
+}
+
+.microkit-sliding-send:hover:not(:disabled) > span:first-child,
+.microkit-sliding-send:focus-visible:not(:disabled) > span:first-child {
+  transform: translateX(15px);
+}
+
+.microkit-sliding-send:hover:not(:disabled) .microkit-send-icon,
+.microkit-sliding-send:focus-visible:not(:disabled) .microkit-send-icon {
+  transform: translateX(0) scale(1) rotate(0);
+  opacity: 1;
+}
+
+.microkit-staggered-label .microkit-letter {
+  display: inline-block;
+  transition: transform 150ms var(--ease-out-expo), color 150ms ease;
+}
+
+.microkit-staggered-label:hover .microkit-letter,
+.microkit-staggered-label:focus-visible .microkit-letter {
+  color: var(--brand-highlight);
+  transform: translateY(-3px);
+  transition-delay: calc(var(--letter-index) * 12ms);
+}
+
+.microkit-staggered-label {
+  position: relative;
+  overflow: hidden;
+}
+
+.microkit-staggered-label::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--brand-highlight) 25%, transparent), transparent);
+  content: '';
+  opacity: 0;
+  transform: translateX(-105%);
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.microkit-staggered-label:hover::after,
+.microkit-staggered-label:focus-visible::after {
+  opacity: .7;
+  animation: microkit-letter-glow 520ms var(--ease-out-expo) both;
+}
+
+.microkit-tab-content {
+  animation: microkit-content-enter 260ms var(--ease-out-expo) both;
+}
+
+.settings-content-panel > * {
+  animation: microkit-content-enter 260ms var(--ease-out-expo) both;
+}
+
+.microkit-text-swap-window {
+  display: grid;
+  min-width: 118px;
+  height: 1.1em;
+  overflow: hidden;
+  text-align: left;
+}
+
+.microkit-text-swap-track {
+  display: grid;
+  grid-template-rows: repeat(2, 1.1em);
+  transform: translateY(0);
+  transition: transform 320ms var(--ease-out-expo);
+}
+
+.microkit-text-swap-track.is-expanded {
+  transform: translateY(-1.1em);
+}
+
+.microkit-text-swap-track > span {
+  white-space: nowrap;
+}
+
+.microkit-text-swap > svg {
+  transition: transform 240ms var(--ease-out-expo);
+}
+
+.microkit-text-swap > svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.microkit-glide-menu {
+  transform-origin: top right;
+  animation: microkit-menu-enter 220ms var(--ease-out-expo) both;
+}
+
+.microkit-scrub-range {
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+
+.microkit-scrub-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--brand-primary) 0 var(--scrub-progress), var(--surface-muted) var(--scrub-progress) 100%);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.microkit-scrub-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--brand-primary) 0 var(--scrub-progress), var(--surface-muted) var(--scrub-progress) 100%);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.microkit-scrub-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 2px solid var(--surface-card);
+  border-radius: 50%;
+  background: var(--brand-highlight);
+  box-shadow: 0 0 0 2px var(--brand-primary), 0 2px 8px color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  transition: transform 140ms var(--ease-out-expo), box-shadow 140ms ease;
+}
+
+.microkit-scrub-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--surface-card);
+  border-radius: 50%;
+  background: var(--brand-highlight);
+  box-shadow: 0 0 0 2px var(--brand-primary), 0 2px 8px color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  transition: transform 140ms var(--ease-out-expo), box-shadow 140ms ease;
+}
+
+.microkit-scrub-range:hover::-webkit-slider-thumb,
+.microkit-scrub-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.18);
+}
+
+.microkit-scrub-range:hover::-moz-range-thumb,
+.microkit-scrub-range:focus-visible::-moz-range-thumb {
+  transform: scale(1.18);
+}
+
+.view-mode-toggle.microkit-sliding-tabs,
+.schedule-view-switch.microkit-sliding-tabs {
+  position: relative;
+  isolation: isolate;
+}
+
+.view-mode-toggle.microkit-sliding-tabs::before,
+.schedule-view-switch.microkit-sliding-tabs::before {
+  position: absolute;
+  z-index: 0;
+  border-radius: 6px;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sm);
+  content: '';
+  pointer-events: none;
+  transition: transform 220ms var(--ease-out-expo);
+}
+
+.view-mode-toggle.microkit-sliding-tabs::before {
+  inset: 2px auto 2px 2px;
+  width: calc(50% - 2px);
+}
+
+.view-mode-toggle.microkit-sliding-tabs[data-active-index="1"]::before {
+  transform: translateX(100%);
+}
+
+.view-mode-toggle.microkit-sliding-tabs .view-mode-btn {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+
+.schedule-view-switch.microkit-sliding-tabs::before {
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / 3);
+}
+
+.schedule-view-switch.microkit-sliding-tabs[data-active-index="1"]::before {
+  transform: translateX(100%);
+}
+
+.schedule-view-switch.microkit-sliding-tabs > button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-tab-btn {
+  position: relative;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 180ms var(--ease-out-expo);
+}
+
+.settings-tab-btn::before {
+  position: absolute;
+  inset: 7px auto 7px 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--brand-primary);
+  content: '';
+  transform: scaleY(.35);
+  transform-origin: center;
+  opacity: 0;
+  transition: transform 180ms var(--ease-out-expo), opacity 140ms ease;
+}
+
+.settings-tab-btn.is-active::before {
+  transform: scaleY(1);
+  opacity: 1;
+}
+
+.settings-tab-btn.is-active {
+  transform: translateX(2px);
+}
+
+@keyframes microkit-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes microkit-check-appear {
+  0% { opacity: 0; transform: scale(.65); }
+  68% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes microkit-ring-complete {
+  0% { transform: rotate(-90deg) scale(.86); }
+  72% { transform: rotate(280deg) scale(1.08); }
+  100% { transform: rotate(270deg) scale(1); }
+}
+
+@keyframes microkit-letter-glow {
+  to { transform: translateX(105%); }
+}
+
+@keyframes microkit-strike {
+  to { transform: scaleX(1); }
+}
+
+@keyframes microkit-content-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes microkit-menu-enter {
+  from { opacity: 0; filter: blur(3px); transform: translateY(-6px) scale(.98); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .microkit-progress-track,
+  .microkit-progress-arc,
+  .microkit-progress-ring.is-complete,
+  .microkit-objective-done .objective-title::after,
+  .microkit-checkmark,
+  .microkit-pointer-glow::before,
+  .microkit-pointer-glow::after,
+  .microkit-glide-card::before,
+  .microkit-goal-highlight,
+  .microkit-goal-highlight::before,
+  .microkit-finish-glow::before,
+  .microkit-invert-press,
+  .microkit-finish-glow,
+  .microkit-sliding-send > span:first-child,
+  .microkit-send-icon,
+  .microkit-staggered-label .microkit-letter,
+  .microkit-staggered-label::after,
+  .microkit-tab-content,
+  .settings-content-panel > *,
+  .microkit-text-swap-track,
+  .microkit-text-swap > svg,
+  .microkit-glide-menu,
+  .microkit-scrub-range::-webkit-slider-thumb,
+  .microkit-scrub-range::-moz-range-thumb,
+  .view-mode-toggle.microkit-sliding-tabs::before,
+  .schedule-view-switch.microkit-sliding-tabs::before {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .settings-tab-btn,
+  .settings-tab-btn::before {
+    transition: none !important;
+  }
+
+  .microkit-progress-ring.is-complete .microkit-progress-check {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .microkit-objective-done .objective-title::after {
+    transform: scaleX(1);
+  }
+
+  .microkit-goal-highlight:hover,
+  .microkit-goal-highlight:focus-within,
+  .settings-tab-btn.is-active,
+  .microkit-staggered-label:hover .microkit-letter,
+  .microkit-staggered-label:focus-visible .microkit-letter {
+    transform: none;
+  }
+}

@@ -17,9 +17,13 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.lang.reflect.Constructor;
 import java.util.List;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceTests {
@@ -168,6 +172,68 @@ class AnalyticsServiceTests {
         assertEquals(1L, debrief.actualFocusMinutes());
     }
 
+    @Test
+    void calculates24HourCurrentAndPreviousBucketsUsingOnlyCompletedUserSessions() {
+        FocusSession current = periodSession(60, NOW.minusSeconds(3600));
+        FocusSession previous = periodSession(90, NOW.minusSeconds(25 * 3600L));
+        when(focusSessionRepository.findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                USER_ID, FocusSessionStatus.COMPLETED, NOW.minusSeconds(48 * 3600L), NOW))
+                .thenReturn(List.of(previous, current));
+
+        var result = analyticsService.getAnalyticsPeriod(USER_ID, "24h");
+
+        assertEquals("UTC", result.timezone());
+        assertEquals(12, result.currentBuckets().size());
+        assertEquals(12, result.previousBuckets().size());
+        assertEquals(60, result.currentActiveSeconds());
+        assertEquals(90, result.previousActiveSeconds());
+        assertEquals(1, result.currentCompletedSessions());
+        assertEquals(1, result.previousCompletedSessions());
+        assertEquals(1, result.currentBuckets().get(11).completedSessions());
+        assertEquals(1, result.previousBuckets().get(11).completedSessions());
+        verify(focusSessionRepository).findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                USER_ID, FocusSessionStatus.COMPLETED, NOW.minusSeconds(48 * 3600L), NOW);
+    }
+
+    @Test
+    void makes90DayBucketsContinuousAndReturnsEmptyActivityWithoutFakeValues() {
+        when(focusSessionRepository.findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                USER_ID, FocusSessionStatus.COMPLETED, NOW.minusSeconds(180 * 86400L), NOW)).thenReturn(List.of());
+
+        var result = analyticsService.getAnalyticsPeriod(USER_ID, "90d");
+
+        assertEquals(13, result.currentBuckets().size());
+        assertEquals(13, result.previousBuckets().size());
+        assertEquals(result.currentBuckets().get(0).end(), result.currentBuckets().get(1).start());
+        assertEquals(NOW, result.currentBuckets().get(12).end());
+        assertTrue(result.currentBuckets().stream().allMatch(bucket -> bucket.activeSeconds() == 0 && bucket.completedSessions() == 0));
+        assertEquals(0, result.currentActiveSeconds());
+        assertEquals(0, result.currentCompletedSessions());
+    }
+
+    @Test
+    void supportsSevenAndThirtyDayWindowsWithMatchingComparisonLengths() {
+        when(focusSessionRepository.findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                anyLong(), eq(FocusSessionStatus.COMPLETED), any(Instant.class), any(Instant.class))).thenReturn(List.of());
+
+        var week = analyticsService.getAnalyticsPeriod(USER_ID, "7d");
+        var month = analyticsService.getAnalyticsPeriod(USER_ID, "30d");
+
+        assertEquals(7, week.currentBuckets().size());
+        assertEquals(7, week.previousBuckets().size());
+        assertEquals(7 * 86400L, week.currentEnd().getEpochSecond() - week.currentStart().getEpochSecond());
+        assertEquals(30, month.currentBuckets().size());
+        assertEquals(30, month.previousBuckets().size());
+        assertEquals(30 * 86400L, month.currentEnd().getEpochSecond() - month.currentStart().getEpochSecond());
+        verify(focusSessionRepository, times(2)).findAllByUser_IdAndStatusAndEndedAtGreaterThanEqualAndEndedAtLessThanOrderByEndedAtAsc(
+                eq(USER_ID), eq(FocusSessionStatus.COMPLETED), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    void rejectsUnsupportedAnalyticsRanges() {
+        assertThrows(ResponseStatusException.class, () -> analyticsService.getAnalyticsPeriod(USER_ID, "all"));
+    }
+
     private Mission mission(String status) {
         Mission mission = mock(Mission.class);
         when(mission.getStatus()).thenReturn(status);
@@ -180,6 +246,13 @@ class AnalyticsServiceTests {
         when(session.getEndedAt()).thenReturn(endedAt);
         when(session.getStartedAt()).thenReturn(endedAt.minusSeconds(activeSeconds));
         lenient().when(session.calculateActiveSeconds(NOW)).thenReturn(activeSeconds);
+        return session;
+    }
+
+    private FocusSession periodSession(long activeSeconds, Instant endedAt) {
+        FocusSession session = mock(FocusSession.class);
+        when(session.getEndedAt()).thenReturn(endedAt);
+        when(session.calculateActiveSeconds(NOW)).thenReturn(activeSeconds);
         return session;
     }
 

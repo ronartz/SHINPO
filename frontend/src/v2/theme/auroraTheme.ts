@@ -1,34 +1,41 @@
 import { createTheme } from '@mui/material/styles'
 import {
   auroraColors,
+  auroraColorFallbacks,
   auroraShadows,
   auroraTypography,
-} from './auroraTokens'
+} from './auroraTokens.ts'
 
 export function getAuroraTheme(mode: 'dark' | 'light') {
-  const c = mode === 'dark' ? auroraColors.dark : auroraColors.light
+  const tokens = auroraColors[mode]
+  const fallback = auroraColorFallbacks[mode] as Record<string, string>
+  const computed = typeof document === 'undefined' ? undefined : getComputedStyle(document.documentElement)
+  const c = Object.fromEntries(Object.entries(tokens).map(([key, value]) => {
+    const token = /^var\((--[\w-]+)/.exec(value)?.[1]
+    return [key, (token ? computed?.getPropertyValue(token).trim() : value) || fallback[key]]
+  })) as typeof fallback
   const s = mode === 'dark' ? auroraShadows.dark : auroraShadows.light
 
   return createTheme({
     palette: {
       mode,
       primary: {
-        main: c.accentPurple,
-        light: mode === 'dark' ? '#AB75FC' : '#8E4DF0',
-        dark: mode === 'dark' ? '#813BF5' : '#5E1BBF',
-        contrastText: '#FFFFFF',
+        main: c.primaryBlue,
+        light: c.primaryHover,
+        dark: c.primaryBlue,
+        contrastText: c.onPrimary,
       },
       secondary: {
-        main: c.accentBlue,
-        light: mode === 'dark' ? '#688CFA' : '#4871F5',
-        dark: mode === 'dark' ? '#2955E6' : '#1D43B8',
-        contrastText: '#FFFFFF',
+        main: c.primaryBlue,
+        light: c.primaryHover,
+        dark: c.primaryBlue,
+        contrastText: c.onPrimary,
       },
       info: {
-        main: c.accentCyan,
-        light: mode === 'dark' ? '#3CD6E8' : '#0EBAD0',
-        dark: mode === 'dark' ? '#0EBAD0' : '#006C7E',
-        contrastText: '#FFFFFF',
+        main: c.info,
+        light: c.primaryBlue,
+        dark: c.primaryBlue,
+        contrastText: c.onPrimary,
       },
       background: {
         default: c.canvas,
@@ -41,12 +48,21 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       divider: c.border,
       success: {
         main: c.success,
+        light: c.success,
+        dark: c.success,
+        contrastText: c.onSuccess,
       },
       warning: {
         main: c.warning,
+        light: c.warning,
+        dark: c.warning,
+        contrastText: c.onWarning,
       },
       error: {
         main: c.error,
+        light: c.error,
+        dark: c.error,
+        contrastText: c.onError,
       },
     },
     typography: {
@@ -56,7 +72,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       },
       h1: {
         fontFamily: auroraTypography.fontHeading,
-        fontSize: '32px',
+        fontSize: '28px',
         fontWeight: 800,
         letterSpacing: '-0.025em',
       },
@@ -68,13 +84,13 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       },
       h3: {
         fontFamily: auroraTypography.fontHeading,
-        fontSize: '24px',
+        fontSize: '22px',
         fontWeight: 700,
         letterSpacing: '-0.015em',
       },
       h4: {
         fontFamily: auroraTypography.fontHeading,
-        fontSize: '20px',
+        fontSize: '18px',
         fontWeight: 700,
         letterSpacing: '-0.01em',
       },
@@ -174,21 +190,22 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             fontFamily: auroraTypography.fontBody,
             transition: 'all 180ms ease',
             '&:focus-visible': {
-              outline: `2px solid ${c.accentPurple}`,
+              outline: `2px solid ${c.primaryBlue}`,
               outlineOffset: 2,
             },
           },
           contained: {
-            backgroundColor: c.accentPurple,
-            color: '#FFFFFF',
+            backgroundColor: c.primaryBlue,
+            color: c.onPrimary,
             boxShadow: mode === 'dark'
-              ? '0 1px 3px rgba(0, 0, 0, 0.25)'
-              : '0 1px 2px rgba(0, 0, 0, 0.08)',
+              ? '0 1px 3px rgba(0,0,0, 0.25)'
+              : '0 1px 2px rgba(0,0,0, 0.08)',
             '&:hover': {
-              backgroundColor: mode === 'dark' ? '#AB75FC' : '#1E3694',
+              backgroundColor: c.primaryHover,
+              color: c.onPrimary,
               boxShadow: mode === 'dark'
-                ? '0 2px 6px rgba(0, 0, 0, 0.30)'
-                : '0 2px 5px rgba(0, 0, 0, 0.12)',
+                ? '0 2px 6px rgba(0,0,0, 0.30)'
+                : '0 2px 5px rgba(0,0,0, 0.12)',
               transform: 'translateY(-1px)',
             },
           },
@@ -196,8 +213,8 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             borderColor: c.border,
             color: c.textPrimary,
             '&:hover': {
-              borderColor: c.accentPurple,
-              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.08)' : 'rgba(40, 71, 184, 0.06)',
+              borderColor: c.primaryBlue,
+              backgroundColor: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
             },
           },
         },
@@ -207,14 +224,14 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
           root: {
             fontFamily: auroraTypography.fontBody,
             borderRadius: 10,
-            backgroundColor: mode === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+            backgroundColor: c.canvasSecondary,
             borderColor: c.border,
             transition: 'border-color 150ms ease, box-shadow 150ms ease',
             '&:hover .MuiOutlinedInput-notchedOutline': {
               borderColor: c.borderStrong,
             },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderColor: c.accentPurple,
+              borderColor: c.primaryBlue,
               borderWidth: '1.5px',
             },
           },
@@ -231,7 +248,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             fontSize: '14px',
             color: c.textSecondary,
             '&.Mui-focused': {
-              color: c.accentPurple,
+              color: c.primaryBlue,
             },
           },
         },
@@ -239,7 +256,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       MuiMenu: {
         styleOverrides: {
           paper: {
-            backgroundColor: mode === 'dark' ? 'rgba(21, 28, 48, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+            backgroundColor: c.canvasSecondary,
             backdropFilter: 'blur(16px)',
             border: `1px solid ${c.border}`,
             borderRadius: 14,
@@ -260,10 +277,10 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             color: c.textPrimary,
             transition: 'background-color 150ms ease',
             '&:hover': {
-              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.12)' : 'rgba(40, 71, 184, 0.08)',
+              backgroundColor: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
             },
             '&.Mui-selected': {
-              backgroundColor: mode === 'dark' ? 'rgba(49, 86, 216, 0.2)' : 'rgba(40, 71, 184, 0.12)',
+              backgroundColor: 'color-mix(in srgb, var(--color-primary) 16%, transparent)',
               fontWeight: 700,
             },
           },
@@ -272,7 +289,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       MuiDialog: {
         styleOverrides: {
           paper: {
-            backgroundColor: mode === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.97)',
+            backgroundColor: c.card,
             backdropFilter: 'blur(20px)',
             border: `1px solid ${c.border}`,
             borderRadius: 20,
@@ -294,7 +311,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            backgroundColor: mode === 'dark' ? 'rgba(15, 23, 42, 0.96)' : 'rgba(30, 41, 59, 0.96)',
+            backgroundColor: c.canvas,
             border: `1px solid ${c.border}`,
             borderRadius: 8,
             fontFamily: auroraTypography.fontBody,
@@ -311,7 +328,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             fontFamily: auroraTypography.fontBody,
           },
           indicator: {
-            backgroundColor: c.accentPurple,
+            backgroundColor: c.primaryBlue,
             height: 3,
             borderRadius: '3px 3px 0 0',
           },
@@ -326,7 +343,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             fontWeight: 700,
             color: c.textSecondary,
             '&.Mui-selected': {
-              color: c.accentPurple,
+              color: c.primaryBlue,
             },
           },
         },

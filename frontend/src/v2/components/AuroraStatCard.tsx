@@ -27,19 +27,19 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
   tiltVariant = 'lift',
 }) => {
   const iconGradients = {
-    purple: 'linear-gradient(135deg, rgba(49, 86, 216, 0.20) 0%, rgba(49, 86, 216, 0.06) 100%)',
-    blue: 'linear-gradient(135deg, rgba(59, 130, 246, 0.20) 0%, rgba(59, 130, 246, 0.06) 100%)',
-    cyan: 'linear-gradient(135deg, rgba(25, 211, 197, 0.20) 0%, rgba(25, 211, 197, 0.06) 100%)',
-    emerald: 'linear-gradient(135deg, rgba(16, 185, 129, 0.20) 0%, rgba(16, 185, 129, 0.06) 100%)',
-    coral: 'linear-gradient(135deg, rgba(255, 77, 94, 0.20) 0%, rgba(255, 77, 94, 0.06) 100%)',
+    purple: 'color-mix(in srgb, var(--ai-violet) 12%, var(--color-surface-1))',
+    blue: 'color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-1))',
+    cyan: 'color-mix(in srgb, var(--focus-cyan) 12%, var(--color-surface-1))',
+    emerald: 'color-mix(in srgb, var(--color-success) 12%, var(--color-surface-1))',
+    coral: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-surface-1))',
   }
 
   const iconColors = {
-    purple: '#A86EFB',
-    blue: '#6E90FB',
-    cyan: '#19D3C5',
-    emerald: '#10B981',
-    coral: '#FF4D5E',
+    purple: 'var(--ai-violet)',
+    blue: 'var(--color-primary)',
+    cyan: 'var(--focus-cyan)',
+    emerald: 'var(--color-success)',
+    coral: 'var(--color-danger)',
   }
 
   return (
@@ -82,7 +82,7 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: `1px solid ${iconColors[accentColor]}33`,
+            border: `1px solid color-mix(in srgb, ${iconColors[accentColor]} 35%, transparent)`,
           }}
         >
           <Icon name={iconName} size={18} />
@@ -128,8 +128,8 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
                 borderRadius: '6px',
                 fontSize: 12,
                 fontWeight: 600,
-                background: trendPositive ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 77, 94, 0.14)',
-                color: trendPositive ? '#10B981' : '#FF4D5E',
+                background: trendPositive ? 'var(--status-success-subtle)' : 'var(--status-danger-subtle)',
+                color: trendPositive ? 'var(--color-success)' : 'var(--color-danger)',
               }}
             >
               {trendPositive ? '↑' : '↓'} {trend}

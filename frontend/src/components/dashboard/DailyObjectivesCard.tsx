@@ -1,27 +1,22 @@
 import React from 'react'
 import { Icon } from '../common/Icon'
-import type { Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
 import { computeDailyObjectives } from '../../utils/progressionEngine'
 
 export interface DailyObjectivesCardProps {
-  missions: Mission[]
   sessions: FocusSession[]
   currentStreak?: number
   onOpenAchievements?: () => void
-  onNavigateToTasks?: () => void
   onNavigateToFocus?: () => void
 }
 
 export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
-  missions,
   sessions,
   currentStreak = 0,
   onOpenAchievements,
-  onNavigateToTasks,
   onNavigateToFocus,
 }) => {
-  const summary = computeDailyObjectives(missions, sessions)
+  const summary = computeDailyObjectives(sessions)
 
   const isStreakVisible = (() => {
     try {
@@ -56,7 +51,7 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
               className={`streak-capsule ${currentStreak > 0 ? 'is-active' : ''}`}
               title="Consecutive days with completed focus work"
             >
-              <span className="streak-flame">🔥</span>
+              <Icon name="zap" size={14} className="streak-flame" />
               <span className="streak-text">{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</span>
             </div>
           )}
@@ -76,7 +71,10 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
       </div>
 
       <div className="daily-objectives-list">
-        {summary.objectives.map((obj) => (
+        {summary.objectives.map((obj) => {
+          const progress = Math.min(1, Math.max(0, obj.current / Math.max(1, obj.target)))
+          const circumference = 56.55
+          return (
           <div
             key={obj.id}
             className={`objective-item ${obj.isCompleted ? 'is-completed' : ''}`}
@@ -84,9 +82,7 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
             tabIndex={0}
             aria-label={`${obj.title}: ${obj.current} of ${obj.target} ${obj.unit}`}
             onClick={() => {
-              if (obj.id === 'daily_task' && onNavigateToTasks) {
-                onNavigateToTasks()
-              } else if (onNavigateToFocus) {
+              if (onNavigateToFocus) {
                 onNavigateToFocus()
               }
             }}
@@ -98,10 +94,12 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
             }}
           >
             <div className="objective-left">
-              <div className={`objective-checkbox ${obj.isCompleted ? 'checked' : ''}`}>
-                {obj.isCompleted ? <Icon name="check" size={12} /> : null}
-              </div>
-              <div className="objective-text">
+              <svg className={`microkit-progress-ring${obj.isCompleted ? ' is-complete' : ''}`} viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="microkit-progress-track" cx="12" cy="12" r="9" />
+                <circle className="microkit-progress-arc" cx="12" cy="12" r="9" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} />
+                {obj.isCompleted && <path className="microkit-progress-check" d="m8.5 12.25 2.3 2.3 4.8-5.1" />}
+              </svg>
+              <div className={`objective-text${obj.isCompleted ? ' microkit-objective-done' : ''}`}>
                 <span className="objective-title">{obj.title}</span>
                 <span className="objective-desc">{obj.description}</span>
               </div>
@@ -121,7 +119,8 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

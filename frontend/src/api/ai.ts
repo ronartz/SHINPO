@@ -10,9 +10,11 @@ export type GoalDecomposition = {
   analysis: string
   proposedMissions: ProposedMission[]
   suggestionId?: number
+  confirmationToken?: string
 }
 
 export type SuggestionCommitRequest = {
+  confirmationToken?: string
   targetGoalId?: number
   selectedMissions?: ProposedMission[]
 }
@@ -25,9 +27,9 @@ export type SuggestionCommitResponse = {
     id: number
     goalId: number
     title: string
-    description?: string
+    description?: string | null
     scheduledDate?: string
-    estimatedMinutes?: number
+    estimatedMinutes?: number | null
     status?: string
   }>
 }
@@ -68,9 +70,11 @@ export type DailyPlan = {
   userEstimationBiasPct?: number
   hasConflictsResolved?: boolean
   suggestionId?: number | null
+  confirmationToken?: string
 }
 
 export type CommitDailyPlanRequest = {
+  confirmationToken?: string
   suggestionId?: number
   selectedItems?: DailyPlanItem[]
 }
@@ -193,10 +197,21 @@ export type AiProviderStatus = {
   message: string
 }
 
-import { authHeaders, getAuthenticatedUserId } from './auth.ts'
+import { authHeaders, getAuthenticatedUserId, isLocalVaultSession } from './auth.ts'
 import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
+import { invokeTauriCommand } from './tauri.ts'
 
 const API_BASE = `${getBackendBaseUrl()}/api/ai`
+
+function usesNativeAi(): boolean {
+  return isLocalVaultSession() || (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('shinpo_local_vault_account')))
+}
+
+function requireBackendAi(): void {
+  if (usesNativeAi()) {
+    throw new Error('This EONPAI operation is not available in local mode yet.')
+  }
+}
 
 async function parseResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -215,6 +230,7 @@ async function parseResponse<T>(res: Response): Promise<T> {
 }
 
 export async function getActiveConversation(): Promise<Conversation> {
+  if (usesNativeAi()) return invokeTauriCommand<Conversation>('local_eonpai_get_active')
   const res = await fetchWithoutRedirects(`${API_BASE}/conversation/active`, {
     headers: {
       ...authHeaders(),
@@ -225,6 +241,7 @@ export async function getActiveConversation(): Promise<Conversation> {
 }
 
 export async function clearActiveConversation(): Promise<Conversation> {
+  if (usesNativeAi()) return invokeTauriCommand<Conversation>('local_eonpai_clear_active')
   const res = await fetchWithoutRedirects(`${API_BASE}/conversation/active`, {
     method: 'DELETE',
     headers: authHeaders(),
@@ -241,6 +258,9 @@ export async function sendAiChat(
   conversationId?: string,
 ): Promise<AiChatResponse> {
   const effectiveUserId = userId ?? getAuthenticatedUserId() ?? 0
+  if (usesNativeAi()) {
+    return invokeTauriCommand<AiChatResponse>('local_eonpai_send', { request: { message, conversationId, contextualGoalId, contextualMissionId, contextualSessionId } })
+  }
   const res = await fetchWithoutRedirects(`${API_BASE}/chat`, {
     method: 'POST',
     headers: authHeaders(),
@@ -261,6 +281,8 @@ export async function decomposeGoal(
   goalId: number,
   _userId?: number,
 ): Promise<GoalDecomposition> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'decompose', recordId: goalId })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/decompose-goal/${goalId}`, {
     method: 'POST',
     headers: authHeaders(),
@@ -269,6 +291,8 @@ export async function decomposeGoal(
 }
 
 export async function getNextAction(_userId?: number): Promise<NextAction> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'next-action', recordId: undefined })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/next-action`, {
     headers: authHeaders(),
   })
@@ -276,6 +300,8 @@ export async function getNextAction(_userId?: number): Promise<NextAction> {
 }
 
 export async function getDailyPlan(_userId?: number): Promise<DailyPlan> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'daily-plan', recordId: undefined })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/daily-plan`, {
     headers: authHeaders(),
   })
@@ -286,6 +312,8 @@ export async function getSessionRecovery(
   sessionId?: number,
   _userId?: number,
 ): Promise<SessionRecovery> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'recovery', recordId: sessionId })
+  requireBackendAi()
   const url = sessionId ? `${API_BASE}/recovery/${sessionId}` : `${API_BASE}/recovery/latest`
   const res = await fetchWithoutRedirects(url, {
     headers: authHeaders(),
@@ -296,6 +324,8 @@ export async function getSessionRecovery(
 export async function analyzeSessionDebrief(
   sessionId?: number,
 ): Promise<SessionDebriefAnalysis> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'debrief', recordId: sessionId })
+  requireBackendAi()
   const url = sessionId ? `${API_BASE}/debrief-analysis/${sessionId}` : `${API_BASE}/debrief-analysis/latest`
   const res = await fetchWithoutRedirects(url, {
     headers: authHeaders(),
@@ -307,6 +337,15 @@ export async function commitSuggestion(
   suggestionId: number,
   request?: SuggestionCommitRequest,
 ): Promise<SuggestionCommitResponse> {
+  if (usesNativeAi()) {
+    if (!request?.confirmationToken) throw new Error('Review the native task proposal again before confirming.')
+    if (request.selectedMissions) throw new Error('Confirm the complete native proposal; partial task selection is not supported.')
+    const response = await invokeTauriCommand<AiActionExecutionResponse & { result: { taskIds: number[] } }>('local_eonpai_commit_plan', { suggestionId, confirmationToken: request.confirmationToken, targetGoalId: request.targetGoalId })
+    const { getMissions } = await import('./goalsAndMissions.ts')
+    const committedMissions = (await getMissions()).filter((task) => response.result.taskIds.includes(task.id))
+    return { suggestionId, goalId: committedMissions[0]?.goalId ?? 0, committedMissionsCount: committedMissions.length, committedMissions }
+  }
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/suggestions/${suggestionId}/commit`, {
     method: 'POST',
     headers: authHeaders(),
@@ -330,6 +369,8 @@ export type UserExecutionProfile = {
 }
 
 export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'profile', recordId: undefined })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/profile`, {
     headers: authHeaders(),
   })
@@ -339,6 +380,12 @@ export async function getUserExecutionProfile(): Promise<UserExecutionProfile> {
 export async function commitDailyPlan(
   request?: CommitDailyPlanRequest,
 ): Promise<CommitDailyPlanResponse> {
+  if (usesNativeAi()) {
+    if (!request?.suggestionId || !request.confirmationToken) throw new Error('Review the native schedule proposal again before confirming.')
+    const response = await invokeTauriCommand<AiActionExecutionResponse & { result: { sessionIds: number[]; totalScheduledMinutes: number } }>('local_eonpai_commit_plan', { suggestionId: request.suggestionId, confirmationToken: request.confirmationToken })
+    return { scheduledSessionsCount: response.result.sessionIds.length, totalScheduledMinutes: response.result.totalScheduledMinutes, createdSessionIds: response.result.sessionIds, statusMessage: response.resultSummary }
+  }
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/daily-plan/commit`, {
     method: 'POST',
     headers: authHeaders(),
@@ -363,6 +410,8 @@ export type ExecutiveBriefing = {
 }
 
 export async function getExecutiveBriefing(): Promise<ExecutiveBriefing> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_read', { operation: 'briefing', recordId: undefined })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/briefing`, {
     headers: authHeaders(),
   })
@@ -373,6 +422,7 @@ export type AiActionStatus = 'PROPOSED' | 'APPROVED' | 'COMPLETED' | 'FAILED' | 
 
 export type AiActionDto = {
   actionId: string
+  confirmationToken?: string
   actionType: string
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
   status: AiActionStatus
@@ -397,6 +447,8 @@ export async function proposeAiAction(
   description: string,
   payload: Record<string, unknown>
 ): Promise<AiActionDto> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_propose', { request: { actionType, description, payload } })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/actions/propose`, {
     method: 'POST',
     headers: authHeaders(),
@@ -405,7 +457,12 @@ export async function proposeAiAction(
   return parseResponse<AiActionDto>(res)
 }
 
-export async function confirmAiAction(actionId: string): Promise<AiActionExecutionResponse> {
+export async function confirmAiAction(actionId: string, confirmationToken?: string): Promise<AiActionExecutionResponse> {
+  if (usesNativeAi()) {
+    if (!confirmationToken) throw new Error('Review the native action preview before confirming.')
+    return invokeTauriCommand('local_eonpai_confirm', { actionId, confirmationToken })
+  }
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/actions/${actionId}/confirm`, {
     method: 'POST',
     headers: authHeaders(),
@@ -414,6 +471,8 @@ export async function confirmAiAction(actionId: string): Promise<AiActionExecuti
 }
 
 export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_reject', { actionId })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/actions/${actionId}/reject`, {
     method: 'POST',
     headers: authHeaders(),
@@ -422,6 +481,8 @@ export async function rejectAiAction(actionId: string): Promise<AiActionDto> {
 }
 
 export async function getPendingAiActions(): Promise<AiActionDto[]> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_actions', { recent: false })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/actions/pending`, {
     headers: authHeaders(),
   })
@@ -429,6 +490,8 @@ export async function getPendingAiActions(): Promise<AiActionDto[]> {
 }
 
 export async function getRecentAiActions(): Promise<AiActionDto[]> {
+  if (usesNativeAi()) return invokeTauriCommand('local_eonpai_actions', { recent: true })
+  requireBackendAi()
   const res = await fetchWithoutRedirects(`${API_BASE}/actions/recent`, {
     headers: authHeaders(),
   })
@@ -436,8 +499,34 @@ export async function getRecentAiActions(): Promise<AiActionDto[]> {
 }
 
 export async function getAiProviderStatus(): Promise<AiProviderStatus> {
+  if (usesNativeAi()) return invokeTauriCommand<AiProviderStatus>('local_eonpai_provider_status')
   const res = await fetchWithoutRedirects(`${API_BASE}/status`, {
     headers: authHeaders(),
   })
   return parseResponse<AiProviderStatus>(res)
+}
+
+export async function listLocalConversations(): Promise<Omit<Conversation, 'messages'>[]> {
+  if (!usesNativeAi()) return []
+  return invokeTauriCommand('local_eonpai_list')
+}
+export async function openLocalConversation(conversationId: string): Promise<Conversation> {
+  if (!usesNativeAi()) throw new Error('Local conversation history requires a local vault.')
+  return invokeTauriCommand('local_eonpai_open', { conversationId })
+}
+export async function deleteLocalConversation(conversationId: string): Promise<void> {
+  if (!usesNativeAi()) throw new Error('Local conversation history requires a local vault.')
+  return invokeTauriCommand('local_eonpai_delete', { conversationId })
+}
+
+export type NativeAiProviderConfig = { provider: 'none' | 'ollama' | 'openai'; model: string; endpoint: string; allowCloudContext: boolean; hasApiKey?: boolean }
+export async function getNativeAiProviderConfig(): Promise<NativeAiProviderConfig> {
+  return invokeTauriCommand('local_eonpai_provider_config')
+}
+export async function configureNativeAiProvider(config: NativeAiProviderConfig, apiKey?: string): Promise<void> {
+  const { provider, model, endpoint, allowCloudContext } = config
+  return invokeTauriCommand('local_eonpai_configure_provider', { config: { provider, model, endpoint, allowCloudContext }, apiKey })
+}
+export async function cancelNativeAiRequest(): Promise<void> {
+  return invokeTauriCommand('local_eonpai_cancel', {})
 }

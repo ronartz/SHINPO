@@ -41,7 +41,7 @@ export const AuroraDialog: React.FC<AuroraDialogProps> = ({
         backdrop: {
           sx: {
             backdropFilter: 'blur(8px)',
-            backgroundColor: 'rgba(10, 15, 32, 0.65)',
+            backgroundColor: 'color-mix(in srgb, var(--brand-yale-blue) 65.0%, transparent)',
           },
         },
       }}

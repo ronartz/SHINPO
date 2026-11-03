@@ -23,6 +23,8 @@ export interface SidebarProps {
   graceSecondsLeft?: number
   sentinelStatus?: SentinelStatus | null
   userProgress: ProgressResponse | null
+  topSearchQuery: string
+  onSearchChange: (query: string) => void
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -41,26 +43,44 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   graceSecondsLeft = 0,
   sentinelStatus,
   userProgress,
+  topSearchQuery,
+  onSearchChange,
 }) => {
   trackRender('Sidebar')
   const navRef = useRef<HTMLElement>(null)
   const activeIndicatorRef = useRef<HTMLSpanElement>(null)
   const hoverDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const pendingSearchFocusRef = useRef(false)
   const [isPointerHovered, setIsPointerHovered] = useState(false)
   const [isKeyboardFocused, setIsKeyboardFocused] = useState(false)
   const isVisuallyExpanded = sidebarExpanded || isPointerHovered || isKeyboardFocused
   const isHoverExpanded = isVisuallyExpanded && !sidebarExpanded
   const wasExpandedRef = useRef(sidebarExpanded)
+  const rewardsItem = NAVIGATION_ITEMS.find((item) => item.id === 'Rewards')
 
   useEffect(() => () => {
     if (hoverDelayRef.current) clearTimeout(hoverDelayRef.current)
   }, [])
 
+  useEffect(() => {
+    if (isVisuallyExpanded && pendingSearchFocusRef.current) {
+      pendingSearchFocusRef.current = false
+      searchInputRef.current?.focus()
+    }
+  }, [isVisuallyExpanded])
+
   useLayoutEffect(() => {
     const nav = navRef.current
     const indicator = activeIndicatorRef.current
     const active = nav?.querySelector<HTMLElement>('.sidebar-btn.active')
-    if (!nav || !indicator || !active) return
+    if (!nav || !indicator) return
+    if (!active) {
+      indicator.style.opacity = '0'
+      wasExpandedRef.current = isVisuallyExpanded
+      return
+    }
+    indicator.style.opacity = '1'
     const expansionChanged = wasExpandedRef.current !== isVisuallyExpanded
     if (expansionChanged) indicator.style.transition = 'none'
     indicator.style.transform = `translateY(${active.offsetTop}px)`
@@ -75,7 +95,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   // Truthful Protection Status Computation
   const isWarning = !!pendingWarning
   const isGrace = !isWarning && !!activeGraceWarning
-  const isSessionActive = !isWarning && !isGrace && !!activeSession
+  const isSessionActive = !isWarning && !isGrace && activeSession?.status === 'ACTIVE'
+  const isSessionPaused = !isWarning && !isGrace && activeSession?.status === 'PAUSED'
   const isDaemonConnected = Boolean(sentinelStatus?.daemonConnected)
   const sentinelState = sentinelStatus?.status
   const enforcementMode = sentinelStatus?.enforcementMode
@@ -101,11 +122,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   } else if (isSessionActive) {
     if (isDaemonConnected) {
       const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY'
-      statusTitle = isMonitoringOnly ? 'Protection monitoring' : 'Focus protection active'
-      statusSub = isMonitoringOnly ? 'Apps are not blocked' : 'Distracting apps are blocked'
+      statusTitle = sentinelStatus?.warningOnly ? 'Guardian monitoring' : isMonitoringOnly ? 'Protection monitoring' : 'Focus protection active'
+      statusSub = sentinelStatus?.warningOnly ? `${sentinelStatus.guardianMode ?? 'Standard'} · apps are never closed` : isMonitoringOnly ? 'Apps are not blocked' : 'Distracting apps are blocked'
       dotClass = 'focus-engaged'
       shieldStateClass = 'shield-active'
-      statusTooltip = isMonitoringOnly
+      statusTooltip = sentinelStatus?.warningOnly
+        ? `Automatic ${sentinelStatus.guardianMode ?? 'Standard'} Guardian records recognized app names. Apps are never closed; site rules depend on Browser Companion.`
+        : isMonitoringOnly
         ? 'Focus protection is monitoring only; no applications are blocked.'
         : 'Focus protection is connected and blocking distracting apps. Browser protection is reported separately.'
     } else {
@@ -115,14 +138,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       shieldStateClass = 'shield-offline'
       statusTooltip = 'Focus protection is limited because its background service is offline.'
     }
+  } else if (isSessionPaused) {
+    statusTitle = 'Focus paused'
+    statusSub = 'Guardian app observation is paused'
+    dotClass = 'status-dot-ready'
+    shieldStateClass = 'shield-ready'
+    statusTooltip = 'The Focus session is paused. Automatic app observations resume when Focus resumes.'
   } else {
     if (isDaemonConnected) {
       const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY'
-      statusTitle = isMonitoringOnly ? 'Protection monitoring' : sentinelState === 'STANDBY' ? 'Protection on standby' : 'Protection ready'
-      statusSub = isMonitoringOnly ? 'Apps are not blocked' : 'No active focus session'
+      statusTitle = sentinelStatus?.warningOnly ? 'Guardian ready' : isMonitoringOnly ? 'Protection monitoring' : sentinelState === 'STANDBY' ? 'Protection on standby' : 'Protection ready'
+      statusSub = sentinelStatus?.warningOnly ? 'Warnings begin with a Focus session' : isMonitoringOnly ? 'Apps are not blocked' : 'No active focus session'
       dotClass = 'status-dot-ready'
       shieldStateClass = 'shield-ready'
-      statusTooltip = isMonitoringOnly
+      statusTooltip = sentinelStatus?.warningOnly
+        ? 'App observations run during Focus only; browser policy is managed by Browser Companion.'
+        : isMonitoringOnly
         ? 'Focus protection is monitoring only; no applications are blocked.'
         : 'Focus protection is connected and ready. Browser protection is reported separately.'
     } else {
@@ -175,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="sidebar-header">
         <div className="brand-badge">
           <span className="sidebar-brand-mark"><ShinpoLogo size={24} variant="icon" /></span>
-          <span className="sidebar-brand-name">SHINPO <span>進歩</span></span>
+          <span className="sidebar-brand-name">SHINPO</span>
         </div>
         <button
           type="button"
@@ -207,33 +238,48 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           </p>
       </div>
 
+      <div className={`sidebar-search ${isVisuallyExpanded ? 'is-expanded' : ''}`} role="search">
+        <Icon name="search" size={16} />
+        <input
+          ref={searchInputRef}
+          type="search"
+          value={topSearchQuery}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search tasks and goals"
+          aria-label="Search dashboard tasks and goals"
+          tabIndex={isVisuallyExpanded ? 0 : -1}
+        />
+        {!isVisuallyExpanded && <button
+          type="button"
+          aria-label="Search tasks and goals"
+          title="Search tasks and goals"
+          onClick={() => {
+            pendingSearchFocusRef.current = true
+            setIsKeyboardFocused(true)
+          }}
+        />}
+        {isVisuallyExpanded && topSearchQuery && <button type="button" className="sidebar-search-clear" onClick={() => onSearchChange('')} aria-label="Clear search"><Icon name="close" size={14} /></button>}
+      </div>
+
       <nav className="sidebar-nav-stack has-active-marker" ref={navRef}>
         <span className="sidebar-active-indicator" ref={activeIndicatorRef} aria-hidden="true" />
         <div className="sidebar-section-header"><span>Navigation</span></div>
-        {NAVIGATION_ITEMS.map((item) => (
+        {NAVIGATION_ITEMS.filter((item) => item.id !== 'Rewards').map((item) => (
           <button
             key={item.id}
             type="button"
             className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => onSelectTab(item.id)}
-            title={item.id === 'Rewards' && userProgress ? `${item.label} · Level ${userProgress.level} · ${userProgress.totalProgress} XP` : item.label}
-            aria-label={item.id === 'Rewards' && userProgress ? `${item.label}, level ${userProgress.level}, ${userProgress.totalProgress} XP` : item.hasBadge && scheduledCount > 0 ? `${item.label}, ${scheduledCount} scheduled sessions` : item.label}
+            title={item.hasBadge && scheduledCount > 0 ? `${item.label} · ${scheduledCount} scheduled sessions` : item.label}
+            aria-label={item.hasBadge && scheduledCount > 0 ? `${item.label}, ${scheduledCount} scheduled sessions` : item.label}
+            aria-current={activeTab === item.id ? 'page' : undefined}
             data-tab={item.id}
             data-tutorial={item.tut}
-            data-rewards={item.id === 'Rewards' ? 'true' : undefined}
           >
             <span className="sidebar-btn-icon">
               <Icon name={item.icon} size={19} />
             </span>
-            {item.id === 'Rewards' ? (
-              <span className="sidebar-btn-label sidebar-rewards-copy">
-                <span>{item.label}</span>
-                {userProgress && <>
-                  <small>Level {userProgress.level} · {userProgress.totalProgress} XP</small>
-                  <span className="sidebar-rewards-track" aria-hidden="true"><span style={{ width: `${Math.min(100, Math.max(0, userProgress.progressPercent))}%` }} /></span>
-                </>}
-              </span>
-            ) : <span className="sidebar-btn-label">{item.label}</span>}
+            <span className="sidebar-btn-label">{item.label}</span>
             {item.hasBadge && scheduledCount > 0 && (
               <span className="sidebar-nav-badge" aria-label={`${scheduledCount} scheduled sessions`}>
                 {scheduledCount}
@@ -254,8 +300,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <div className="protection-panel-titles">
                 <span className="protection-title">{statusTitle}</span>
                 <span className="protection-sub-text">{statusSub}</span>
-                {enforcementMode && isDaemonConnected && (
-                  <span className="protection-mode-badge">{enforcementMode}</span>
+                {isDaemonConnected && (sentinelStatus?.guardianMode || enforcementMode) && (
+                  <span className="protection-mode-badge">{sentinelStatus?.guardianMode ?? enforcementMode}</span>
                 )}
               </div>
             </div>
@@ -293,6 +339,26 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             </div>
           </div>
         )}
+
+        <button
+          type="button"
+          className={`sidebar-rewards-card ${activeTab === 'Rewards' ? 'active' : ''}`}
+          onClick={() => onSelectTab('Rewards')}
+          data-tab="Rewards"
+          data-tutorial={rewardsItem?.tut}
+          aria-label={userProgress ? `Rewards and progress, level ${userProgress.level}, ${userProgress.totalProgress} XP` : 'Rewards and progress'}
+          aria-current={activeTab === 'Rewards' ? 'page' : undefined}
+          title={!isVisuallyExpanded ? `Rewards · ${userProgress?.totalProgress ?? 0} XP` : undefined}
+        >
+          <span className="sidebar-rewards-emblem"><Icon name="rewards" size={19} /></span>
+          <span className="sidebar-rewards-details">
+            <span className="sidebar-rewards-level">Level {userProgress?.level ?? 1}</span>
+            <strong>{userProgress?.levelTitle ?? 'Rewards & Progress'}</strong>
+            <span className="sidebar-rewards-meter" aria-hidden="true"><span style={{ width: `${Math.min(100, Math.max(0, userProgress?.progressPercent ?? 0))}%` }} /></span>
+            <small>{userProgress?.totalProgress ?? 0} / {userProgress?.nextLevelThreshold ?? 100} XP</small>
+          </span>
+        </button>
+
       </div>
     </aside>
   )

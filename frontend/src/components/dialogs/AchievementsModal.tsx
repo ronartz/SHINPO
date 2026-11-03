@@ -60,11 +60,11 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
     isOnboardingVerified,
   )
 
-  const dailySummary = computeDailyObjectives(missions, sessions)
+  const dailySummary = computeDailyObjectives(sessions)
   const currentStreak = analyticsData?.summary?.currentStreak || 0
   const totalXp = userProgress?.totalProgress || 0
   const level = userProgress?.level || 1
-  const levelTitle = userProgress?.levelTitle || 'Focus Initiate'
+  const levelTitle = userProgress?.levelTitle || `Level ${level}`
   const currentLevelXp = userProgress?.currentLevelXp || 0
   const nextLevelThreshold = userProgress?.nextLevelThreshold || 100
   const progressPercent = userProgress?.progressPercent || 0
@@ -125,7 +125,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
           <div className="summary-strip-card">
             <span className="strip-label">Consistency Streak</span>
             <div className="strip-value">
-              <span className="flame-icon">🔥</span>
+              <Icon name="zap" size={16} className="flame-icon" />
               <span>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</span>
             </div>
             <span className="strip-hint">Productive days logged without stress</span>
@@ -137,7 +137,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
               <span>{dailySummary.completedCount} / {dailySummary.totalCount} Met</span>
             </div>
             <span className="strip-hint">
-              {dailySummary.isAllCompleted ? 'Daily execution fulfilled ✨' : 'Work in progress today'}
+              {dailySummary.isAllCompleted ? 'Daily objectives complete' : 'Work in progress today'}
             </span>
           </div>
         </div>

@@ -66,6 +66,7 @@ export function useAuth() {
     try {
       const response = await register(authIdentifier.trim(), authEmail.trim(), authPassword)
       setCurrentUser(response.user)
+      if (response.recoveryKey) window.alert(`Save this SHINPO recovery key somewhere safe. It is shown only once and is required if you forget your password:\n\n${response.recoveryKey}`)
       setAuthPassword('')
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : 'Registration failed')

@@ -10,11 +10,14 @@ export type AuthResponse = {
   tokenType: string
   expiresInSeconds: number
   user: AuthUser
+  recoveryKey?: string
 }
 
 const TOKEN_KEY = 'shinpo_access_token'
 const REFRESH_KEY = 'shinpo_refresh_token'
 const USER_KEY = 'shinpo_auth_user'
+const LOCAL_VAULT_KEY = 'shinpo_local_vault_account'
+const LOCAL_VAULT_EMAIL_KEY = 'shinpo_local_vault_email'
 let nativeAccessToken: string | null = null
 let authRefreshTimer: number | null = null
 
@@ -35,12 +38,14 @@ function scheduleTokenRefresh(delayMs: number): void {
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null
+  if (isLocalVaultSession()) return null
   if (isTauriEnvironment()) return nativeAccessToken
   return localStorage.getItem(TOKEN_KEY)
 }
 
 export async function getRefreshToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null
+  if (isLocalVaultSession()) return null
   if (isTauriEnvironment()) {
     let stored: string | null
     try {
@@ -87,6 +92,16 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
+export function isLocalVaultSession(): boolean {
+  return isTauriEnvironment() && typeof window !== 'undefined' && Boolean(localStorage.getItem(LOCAL_VAULT_KEY))
+}
+
+export async function touchLocalVaultActivity(): Promise<void> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    await invokeTauriCommand<void>('touch_local_vault_activity')
+  }
+}
+
 export function getAuthenticatedUser(): AuthUser | null {
   return getStoredUser()
 }
@@ -97,6 +112,14 @@ export function getAuthenticatedUserId(): number | null {
 }
 
 export async function setAuthSession(response: AuthResponse): Promise<void> {
+  if (isTauriEnvironment() && response.accessToken === 'local-vault') {
+    localStorage.setItem(LOCAL_VAULT_KEY, response.user.username)
+    localStorage.setItem(LOCAL_VAULT_EMAIL_KEY, response.user.email)
+    localStorage.setItem(USER_KEY, JSON.stringify(response.user))
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+    return
+  }
   if (isTauriEnvironment()) {
     await invokeTauriCommand<void>('set_secure_refresh_token', { token: response.refreshToken })
     nativeAccessToken = response.accessToken
@@ -120,7 +143,9 @@ export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(REFRESH_KEY)
   localStorage.removeItem(USER_KEY)
-  if (isTauriEnvironment()) await invokeTauriCommand<void>('delete_secure_refresh_token')
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    await invokeTauriCommand<void>('lock_local_account')
+  } else if (isTauriEnvironment()) await invokeTauriCommand<void>('delete_secure_refresh_token')
 }
 
 export async function setCustomServerUrl(url: string): Promise<void> {
@@ -168,6 +193,19 @@ async function persistAuthResponse(response: AuthResponse): Promise<void> {
 }
 
 export async function login(usernameOrEmail: string, password: string): Promise<AuthResponse> {
+  if (isTauriEnvironment() && localStorage.getItem(LOCAL_VAULT_KEY)) {
+    const stored = getStoredUser()
+    const localEmail = localStorage.getItem(LOCAL_VAULT_EMAIL_KEY)
+    const username = usernameOrEmail.includes('@') && (stored?.email ?? localEmail)?.toLowerCase() === usernameOrEmail.toLowerCase()
+      ? stored?.username ?? localStorage.getItem(LOCAL_VAULT_KEY)!
+      : usernameOrEmail.trim().replace(/@local\.shinpo$/i, '')
+    const status = await invokeTauriCommand<{ unlocked: boolean; username: string | null }>('unlock_local_account', { username, password })
+    await invokeTauriCommand('local_sync_browser_policy').catch(() => undefined)
+    const user: AuthUser = { id: 1, username: status.username || username, email: stored?.email || localEmail || `${username}@local.shinpo` }
+    const response: AuthResponse = { accessToken: 'local-vault', refreshToken: '', tokenType: 'Local', expiresInSeconds: Number.MAX_SAFE_INTEGER, user }
+    await setAuthSession(response)
+    return response
+  }
   const res = await fetchWithoutRedirects(`${apiBase()}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,6 +229,15 @@ export async function login(usernameOrEmail: string, password: string): Promise<
 }
 
 export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
+  if (isTauriEnvironment()) {
+    const created = await invokeTauriCommand<{ username: string; recoveryKey: string }>('create_local_account', { username, password })
+    const response: AuthResponse = {
+      accessToken: 'local-vault', refreshToken: '', tokenType: 'Local', expiresInSeconds: Number.MAX_SAFE_INTEGER,
+      user: { id: 1, username: created.username, email }, recoveryKey: created.recoveryKey,
+    }
+    await setAuthSession(response)
+    return response
+  }
   const res = await fetchWithoutRedirects(`${apiBase()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -213,7 +260,49 @@ export async function register(username: string, email: string, password: string
   return data
 }
 
+export async function recoverLocalAccount(
+  username: string,
+  recoveryKey: string,
+  newPassword: string,
+): Promise<AuthResponse> {
+  if (!isTauriEnvironment() || !localStorage.getItem(LOCAL_VAULT_KEY)) {
+    throw new Error('Local account recovery is available only for an existing desktop vault.')
+  }
+  const normalizedUsername = username.trim().toLowerCase()
+  await invokeTauriCommand<void>('recover_local_account', {
+    username: normalizedUsername,
+    recoveryKey: recoveryKey.trim(),
+    newPassword,
+  })
+  const status = await invokeTauriCommand<{ unlocked: boolean; username: string | null }>('local_vault_status')
+  if (!status.unlocked || status.username !== normalizedUsername) {
+    throw new Error('Recovery completed, but the local vault did not unlock. Sign in with the new password.')
+  }
+  const existingUser = getStoredUser()
+  const user: AuthUser = {
+    id: 1,
+    username: status.username,
+    email: existingUser?.email ?? localStorage.getItem(LOCAL_VAULT_EMAIL_KEY) ?? `${normalizedUsername}@local.shinpo`,
+  }
+  const response: AuthResponse = {
+    accessToken: 'local-vault',
+    refreshToken: '',
+    tokenType: 'Local',
+    expiresInSeconds: Number.MAX_SAFE_INTEGER,
+    user,
+  }
+  await setAuthSession(response)
+  return response
+}
+
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
+  if (isLocalVaultSession()) {
+    try {
+      const status = await invokeTauriCommand<{ unlocked: boolean; username: string | null }>('local_vault_status')
+      const user = getStoredUser()
+      return status.unlocked && user?.username === status.username ? user : null
+    } catch { return null }
+  }
   if (!getAuthToken() && !(await refreshAccessToken())) return null
 
   try {
@@ -235,6 +324,10 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 }
 
 export async function logout(): Promise<void> {
+  if (isLocalVaultSession()) {
+    await clearAuthSession()
+    return
+  }
   const refreshToken = await getRefreshToken().catch(() => null)
   if (refreshToken) {
     try {
@@ -251,6 +344,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function refreshAccessToken(): Promise<string | null> {
+  if (isLocalVaultSession()) return null
   const refreshToken = await getRefreshToken().catch(() => null)
   if (!refreshToken) return null
   try {
@@ -272,6 +366,12 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const username = localStorage.getItem(LOCAL_VAULT_KEY)
+    if (!username) throw new Error('Local account is unavailable')
+    await invokeTauriCommand<void>('change_local_password', { username, currentPassword, newPassword })
+    return { message: 'Password successfully updated.' }
+  }
   const res = await fetchWithoutRedirects(`${apiBase()}/auth/change-password`, {
     method: 'POST',
     headers: {
@@ -288,6 +388,9 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function updateUsername(username: string): Promise<AuthUser> {
+  if (isLocalVaultSession()) {
+    throw new Error('Local vault usernames are fixed because they are part of the encrypted account identity.')
+  }
   const res = await fetchWithoutRedirects(`${apiBase()}/users/me/username`, {
     method: 'PUT',
     headers: authHeaders(),
@@ -303,6 +406,15 @@ export async function updateUsername(username: string): Promise<AuthUser> {
 }
 
 export async function deleteAccount(): Promise<void> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const username = localStorage.getItem(LOCAL_VAULT_KEY)
+    if (!username) throw new Error('Local account is unavailable')
+    await invokeTauriCommand<void>('delete_local_account', { username })
+    await clearAuthSession()
+    localStorage.removeItem(LOCAL_VAULT_KEY)
+    localStorage.removeItem(LOCAL_VAULT_EMAIL_KEY)
+    return
+  }
   const res = await fetchWithoutRedirects(`${apiBase()}/users/me`, {
     method: 'DELETE',
     headers: authHeaders(),

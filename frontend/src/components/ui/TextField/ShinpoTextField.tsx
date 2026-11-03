@@ -43,7 +43,7 @@ export const ShinpoTextField: React.FC<ShinpoTextFieldProps> = ({
               left: 12,
               display: 'flex',
               alignItems: 'center',
-              color: 'var(--text-3, #9096A4)',
+              color: 'var(--text-3, #4e4e4e)',
               pointerEvents: 'none',
             }}
           >
@@ -60,7 +60,7 @@ export const ShinpoTextField: React.FC<ShinpoTextFieldProps> = ({
           style={{
             paddingLeft: leftIcon ? 36 : 14,
             paddingRight: rightIcon ? 36 : 14,
-            borderColor: errorMessage ? 'var(--brand-red, #F87171)' : undefined,
+            borderColor: errorMessage ? 'var(--brand-red, var(--brand-primary))' : undefined,
           }}
           {...props}
         />
@@ -72,7 +72,7 @@ export const ShinpoTextField: React.FC<ShinpoTextFieldProps> = ({
               right: 12,
               display: 'flex',
               alignItems: 'center',
-              color: 'var(--text-3, #9096A4)',
+              color: 'var(--text-3, #4e4e4e)',
               pointerEvents: 'none',
             }}
           >

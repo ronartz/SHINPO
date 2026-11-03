@@ -30,6 +30,8 @@
       : 'UNKNOWN'
     const phaseRemainingSeconds = normalizeVersion(rawPolicy.phaseRemainingSeconds ?? 0)
     const phaseDeadlineAtMs = timestamp(rawPolicy.phaseDeadlineAt)
+    const breakDeadlineAtMs = timestamp(rawPolicy.breakDeadlineAt)
+    const graceDeadlineAtMs = timestamp(rawPolicy.graceDeadlineAt)
     const leaseExpiresAtMs = timestamp(
       rawPolicy._hostLeaseExpiresAtMs ?? rawPolicy.leaseExpiresAt ?? rawPolicy.expiresAt,
     )
@@ -55,10 +57,14 @@
       sessionId,
       status,
       mode,
+      allowTemporaryExceptions: rawPolicy.allowTemporaryExceptions !== false,
       policyVersion,
+      catalogVersions: normalizeCatalogVersions(rawPolicy.catalogVersions),
       currentPhase,
       phaseRemainingSeconds,
       phaseDeadlineAtMs,
+      breakDeadlineAtMs,
+      graceDeadlineAtMs,
       taskId: scalarString(rawPolicy.taskId),
       taskTitle: safeText(rawPolicy.taskTitle || rawPolicy.sessionName || 'Current Focus session', 180),
       issuedAtMs,
@@ -66,6 +72,14 @@
       returnUrl: normalizedReturnUrl?.ok ? normalizedReturnUrl.url : null,
       resources,
       adapterSettings: normalizeAdapterSettings(rawPolicy.adapterSettings),
+    }
+  }
+
+  function normalizeCatalogVersions(raw) {
+    if (!raw || typeof raw !== 'object') return { applications: null, domains: null }
+    return {
+      applications: safeText(raw.applications || '', 64) || null,
+      domains: safeText(raw.domains || '', 64) || null,
     }
   }
 
@@ -89,6 +103,7 @@
       matchType,
       disposition,
       breakOnly: rawResource.breakOnly === true,
+      automaticGuardian: rawResource.automaticGuardian === true,
       value: value.trim(),
       destination: typeof rawResource.destination === 'string' ? rawResource.destination.trim() : null,
       expiresAtMs: timestamp(rawResource.expiresAt),
@@ -123,11 +138,13 @@
     if (!breakPhase && policy.resources.some((resource) => resource.breakOnly
       && (!resource.expiresAtMs || resource.expiresAtMs > now)
       && resourceMatches(resource, target.url))) {
-      return decision(DECISIONS.RESTRICT, 'This resource is only permitted during the configured break', target.url, evaluationPolicy)
+      return decision(evaluationPolicy.mode === 'GUIDED' ? DECISIONS.WARN : DECISIONS.RESTRICT,
+        'This resource is only permitted during the configured break', target.url, evaluationPolicy)
     }
 
     const matches = policy.resources
       .filter((resource) => !resource.expiresAtMs || resource.expiresAtMs > now)
+      .filter((resource) => !breakPhase || resource.automaticGuardian || resource.breakOnly)
       .filter((resource) => resource.disposition === 'BLOCKED' || (breakPhase ? resource.breakOnly : !resource.breakOnly))
       .filter((resource) => resourceMatches(resource, target.url))
 
@@ -141,14 +158,13 @@
 
     const blocked = matches.find((resource) => resource.disposition === 'BLOCKED')
     if (blocked) {
-      const outcome = breakPhase
-        ? DECISIONS.RESTRICT
-        : evaluationPolicy.mode === 'GUIDED' ? DECISIONS.WARN : DECISIONS.RESTRICT
+      const outcome = evaluationPolicy.mode === 'GUIDED' ? DECISIONS.WARN : DECISIONS.RESTRICT
       return decision(outcome, 'This destination is outside your configured Focus rules', target.url, evaluationPolicy, blocked)
     }
 
     if (breakPhase) {
-      return decision(DECISIONS.RESTRICT, 'This destination is not on the approved break-resource list', target.url, evaluationPolicy)
+      return decision(evaluationPolicy.mode === 'GUIDED' ? DECISIONS.ALLOW : DECISIONS.RESTRICT,
+        'This destination is not approved for the scheduled break', target.url, evaluationPolicy)
     }
 
     const youtube = canonical.parseYouTubeResource(target.url)
@@ -164,8 +180,10 @@
       return decision(DECISIONS.ALLOW, 'Guided Focus keeps ordinary browsing available', target.url, evaluationPolicy)
     }
     return decision(
-      DECISIONS.UNCERTAIN,
-      'This destination has no explicit Focus rule and was not blocked',
+      evaluationPolicy.mode === 'STRICT' ? DECISIONS.RESTRICT : DECISIONS.UNCERTAIN,
+      evaluationPolicy.mode === 'STRICT'
+        ? 'This destination is not in the trusted Guardian catalog or your approved resources'
+        : 'This destination has no explicit Focus rule and was not blocked',
       target.url,
       evaluationPolicy,
     )
@@ -198,9 +216,34 @@
   }
 
   function effectivePhase(policy, now) {
+    if (policy.currentPhase === 'FOCUS' && policy.phaseDeadlineAtMs > 0 && policy.phaseDeadlineAtMs <= now) {
+      if (policy.breakDeadlineAtMs > now) return 'BREAK'
+      if (policy.graceDeadlineAtMs > now) return 'GRACE'
+      if (policy.graceDeadlineAtMs > 0) return 'RETURN_REQUIRED'
+    }
+    if (policy.currentPhase === 'BREAK' && policy.phaseDeadlineAtMs > 0 && policy.phaseDeadlineAtMs <= now) {
+      if (policy.graceDeadlineAtMs > now) return 'GRACE'
+      if (policy.graceDeadlineAtMs > 0) return 'RETURN_REQUIRED'
+    }
     return BREAK_PHASES.has(policy.currentPhase) && policy.phaseDeadlineAtMs > 0 && policy.phaseDeadlineAtMs <= now
       ? 'RETURN_REQUIRED'
       : policy.currentPhase
+  }
+
+  function effectiveDeadlineAt(policy, now) {
+    const phase = effectivePhase(policy, now)
+    if (phase === 'FOCUS') return policy.phaseDeadlineAtMs
+    if (phase === 'BREAK') {
+      return policy.currentPhase === 'FOCUS'
+        ? policy.breakDeadlineAtMs
+        : policy.phaseDeadlineAtMs
+    }
+    if (phase === 'GRACE') {
+      return policy.currentPhase === 'GRACE'
+        ? policy.phaseDeadlineAtMs
+        : policy.graceDeadlineAtMs
+    }
+    return 0
   }
 
   function degradedPolicy(previous, reason) {
@@ -355,6 +398,7 @@
       status: 'INACTIVE',
       mode: 'GUIDED',
       policyVersion: 0,
+      catalogVersions: { applications: null, domains: null },
       currentPhase: 'UNKNOWN',
       phaseRemainingSeconds: 0,
       phaseDeadlineAtMs: 0,
@@ -414,6 +458,7 @@
     normalizePolicy,
     normalizeResource,
     effectivePhase,
+    effectiveDeadlineAt,
     degradedPolicy,
     evaluateUrl,
     resourceMatches,

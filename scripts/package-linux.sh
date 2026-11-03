@@ -12,15 +12,9 @@ RELEASE_DIR="${1:-${RELEASE_DIR:-${PROJECT_ROOT}/release/rc}}"
 
 echo "======================================================================"
 echo "  進歩 (SHINPO) Linux Desktop Package Builder"
-echo "  Targets: Standalone AppImage, Debian (.deb), Native Binaries"
-echo "  Architecture: Tauri v2 + React 19 + Native Rust Shield & Companion"
+echo "  Targets: RPM, AppImage, Debian (.deb), portable archive"
+echo "  Architecture: Tauri v2 + React 19 + local Rust Browser Companion"
 echo "======================================================================"
-
-SERVER_URL="${VITE_SHINPO_SERVER_URL:-}"
-if [[ ! "${SERVER_URL}" =~ ^https://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ || "${SERVER_URL}" == *"@"* || "${SERVER_URL}" == https://localhost* || "${SERVER_URL}" == https://127.* || "${SERVER_URL}" == https://\[::1\]* ]]; then
-    echo "ERROR: Set VITE_SHINPO_SERVER_URL to the deployed remote HTTPS server before packaging." >&2
-    exit 1
-fi
 
 mkdir -p "${RELEASE_DIR}"
 
@@ -29,15 +23,20 @@ echo ""
 echo "[1/4] Building React Cockpit production bundle..."
 (cd "${PROJECT_ROOT}/frontend" && npm run build)
 
-# 2. Build Native Companion Crates (shinpo-shield, shinpo-browser-host)
+echo ""
+echo "[1/4] Building standalone Browser Companion archives..."
+(cd "${PROJECT_ROOT}/browser-extension" && npm run package)
+
+# 2. Build the native Browser Host (Sentinel observation is linked into Tauri).
 echo ""
 echo "[2/4] Building native companion binaries (release)..."
-(cd "${PROJECT_ROOT}/crates/shinpo-shield" && cargo build --release)
 (cd "${PROJECT_ROOT}/crates/shinpo-browser-host" && cargo build --release)
 
-cp -f "${PROJECT_ROOT}/crates/shinpo-shield/target/release/shinpo-shield" "${RELEASE_DIR}/"
 cp -f "${PROJECT_ROOT}/crates/shinpo-browser-host/target/release/shinpo-browser-host" "${RELEASE_DIR}/"
-echo "  [OK] Staged native shield & browser-host binaries."
+cp -f "${PROJECT_ROOT}/browser-extension/artifacts/"*.zip "${RELEASE_DIR}/"
+cp -f "${PROJECT_ROOT}/scripts/register-browser-companion.sh" "${RELEASE_DIR}/"
+cp -f "${PROJECT_ROOT}/docs/Browser-Companion-Install.md" "${RELEASE_DIR}/"
+echo "  [OK] Staged native browser-host binary."
 
 # 3. Build Tauri Linux Bundles
 echo ""
@@ -75,7 +74,7 @@ echo ""
 echo "Creating portable Linux tarball..."
 (
     cd "${RELEASE_DIR}"
-    tar -czf SHINPO_1.0.0_linux_x86_64.tar.gz shinpo-desktop shinpo-shield shinpo-browser-host
+    tar -czf SHINPO_1.0.0_linux_x86_64.tar.gz shinpo-desktop shinpo-browser-host shinpo-browser-companion-chromium.zip shinpo-browser-companion-firefox.zip register-browser-companion.sh Browser-Companion-Install.md
 )
 echo "  [OK] Created SHINPO_1.0.0_linux_x86_64.tar.gz"
 
@@ -88,7 +87,7 @@ echo "======================================================================"
     cd "${RELEASE_DIR}"
     rm -f SHA256SUMS
     shopt -s nullglob
-    sha256sum SHINPO*.rpm SHINPO*.AppImage SHINPO*.deb SHINPO*.tar.gz shinpo-desktop shinpo-shield shinpo-browser-host > SHA256SUMS
+    sha256sum SHINPO*.rpm SHINPO*.AppImage SHINPO*.deb SHINPO*.tar.gz shinpo-desktop shinpo-browser-host shinpo-browser-companion-*.zip register-browser-companion.sh Browser-Companion-Install.md > SHA256SUMS
     shopt -u nullglob
     cat SHA256SUMS
 
@@ -107,7 +106,6 @@ echo "======================================================================"
     "SHINPO_1.0.0_amd64.deb",
     "SHINPO_1.0.0_linux_x86_64.tar.gz",
     "shinpo-desktop",
-    "shinpo-shield",
     "shinpo-browser-host"
   ]
 }

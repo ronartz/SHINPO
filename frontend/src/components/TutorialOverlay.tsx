@@ -3,6 +3,7 @@ import type { TutorialStepDef } from '../tutorial/tutorialSteps'
 import { Icon } from './common/Icon'
 import { recordOnboardingStep } from '../api/onboarding'
 import { NAVIGATION_ITEMS } from '../types/navigation'
+import { getCoachmarkPosition } from '../utils/coachmarkPosition'
 
 export type TutorialOverlayProps = {
   step: TutorialStepDef
@@ -16,6 +17,30 @@ export type TutorialOverlayProps = {
   onSkipTour?: () => void
   onNavigateTab?: (tab: string) => void
 }
+
+export type OnboardingWelcomeProps = {
+  onStart: () => void
+  onExplore: () => void
+  onDismiss: () => void
+}
+
+export const OnboardingWelcome: React.FC<OnboardingWelcomeProps> = ({ onStart, onExplore, onDismiss }) => (
+  <div className="shinpo-tutorial-portal" role="region" aria-labelledby="onboarding-welcome-title">
+    <section className="shinpo-onboarding-welcome" aria-describedby="onboarding-welcome-description">
+      <button type="button" className="coachmark-close-btn" onClick={onDismiss} aria-label="Dismiss welcome">
+        <Icon name="close" size={15} />
+      </button>
+      <h2 id="onboarding-welcome-title">Make time for what matters</h2>
+      <p id="onboarding-welcome-description">
+        Turn a goal into a small task, reserve Focus time, then see what you accomplished. You decide when to start a session.
+      </p>
+      <div className="onboarding-welcome-actions">
+        <button type="button" className="btn-coachmark primary" onClick={onStart}>Show me the workflow</button>
+        <button type="button" className="btn-coachmark secondary" onClick={onExplore}>Explore on my own</button>
+      </div>
+    </section>
+  </div>
+)
 
 type TargetRect = {
   top: number
@@ -39,7 +64,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   onNavigateTab,
 }) => {
   const [rect, setRect] = useState<TargetRect | null>(null)
-  const [coachmarkPos, setCoachmarkPos] = useState<{ top: number; left: number }>({ top: 120, left: 100 })
+  const [coachmarkPos, setCoachmarkPos] = useState<{ top: number; left: number } | null>(null)
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false)
   const coachmarkRef = useRef<HTMLDivElement>(null)
   const lastRecordedStep = useRef(stepIndex)
@@ -60,114 +85,26 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
     const winW = typeof window !== 'undefined' ? window.innerWidth : 1440
     const winH = typeof window !== 'undefined' ? window.innerHeight : 900
     const margin = 16
-    const gap = 14
-    const padVal = 8
-
-    const boxW = coachmarkRef.current ? Math.min(380, coachmarkRef.current.offsetWidth) : 380
+    const boxW = coachmarkRef.current ? Math.min(400, coachmarkRef.current.offsetWidth) : 400
     const boxH = coachmarkRef.current ? Math.min(coachmarkRef.current.offsetHeight, winH - margin * 2) : 340
 
     if (!el) {
-      const fallbackW = Math.min(420, winW - margin * 2)
       setRect(null)
-      const fallbackPos = {
-        top: Math.max(margin, (winH - boxH) / 2),
-        left: Math.max(margin, (winW - fallbackW) / 2),
-      }
-      setCoachmarkPos(fallbackPos)
+      setCoachmarkPos({ top: Math.max(margin, (winH - boxH) / 2), left: Math.max(margin, (winW - boxW) / 2) })
       return false
     }
 
     const r = el.getBoundingClientRect()
-    // Bound spotlight target rect so it never balloons over giant background containers
-    const maxTargetW = Math.min(650, winW - 32)
-    const maxTargetH = Math.min(460, winH - 60)
-    const clampedW = Math.min(r.width, maxTargetW)
-    const clampedH = Math.min(r.height, maxTargetH)
-
     const targetRect: TargetRect = {
       top: r.top,
       left: r.left,
-      width: clampedW,
-      height: clampedH,
-      bottom: r.top + clampedH,
-      right: r.left + clampedW,
+      width: r.width,
+      height: r.height,
+      bottom: r.bottom,
+      right: r.right,
     }
     setRect(targetRect)
-
-    // Calculate clearances
-    const spaceBelow = winH - (targetRect.bottom + padVal) - gap - margin
-    const spaceAbove = (targetRect.top - padVal) - gap - margin
-    const spaceRight = winW - (targetRect.right + padVal) - gap - margin
-    const spaceLeft = (targetRect.left - padVal) - gap - margin
-
-    let resolvedPlacement = step.placement
-
-    if (resolvedPlacement === 'bottom') {
-      if (spaceBelow < boxH && spaceAbove >= boxH) {
-        resolvedPlacement = 'top'
-      } else if (spaceBelow < boxH && spaceAbove < boxH) {
-        if (spaceRight >= boxW) resolvedPlacement = 'right'
-        else if (spaceLeft >= boxW) resolvedPlacement = 'left'
-        else {
-          resolvedPlacement = spaceBelow >= spaceAbove ? 'bottom' : 'top'
-        }
-      }
-    } else if (resolvedPlacement === 'top') {
-      if (spaceAbove < boxH && spaceBelow >= boxH) {
-        resolvedPlacement = 'bottom'
-      } else if (spaceAbove < boxH && spaceBelow < boxH) {
-        if (spaceRight >= boxW) resolvedPlacement = 'right'
-        else if (spaceLeft >= boxW) resolvedPlacement = 'left'
-        else {
-          resolvedPlacement = spaceAbove >= spaceBelow ? 'top' : 'bottom'
-        }
-      }
-    } else if (resolvedPlacement === 'right') {
-      if (spaceRight < boxW && spaceLeft >= boxW) {
-        resolvedPlacement = 'left'
-      } else if (spaceRight < boxW && spaceLeft < boxW) {
-        if (spaceBelow >= boxH) resolvedPlacement = 'bottom'
-        else if (spaceAbove >= boxH) resolvedPlacement = 'top'
-        else {
-          resolvedPlacement = spaceRight >= spaceLeft ? 'right' : 'left'
-        }
-      }
-    } else if (resolvedPlacement === 'left') {
-      if (spaceLeft < boxW && spaceRight >= boxW) {
-        resolvedPlacement = 'right'
-      } else if (spaceLeft < boxW && spaceRight < boxW) {
-        if (spaceBelow >= boxH) resolvedPlacement = 'bottom'
-        else if (spaceAbove >= boxH) resolvedPlacement = 'top'
-        else {
-          resolvedPlacement = spaceLeft >= spaceRight ? 'left' : 'right'
-        }
-      }
-    }
-
-    let top = targetRect.bottom + padVal + gap
-    let left = targetRect.left + (targetRect.width - boxW) / 2
-
-    if (resolvedPlacement === 'top') {
-      top = targetRect.top - padVal - gap - boxH
-      left = targetRect.left + (targetRect.width - boxW) / 2
-    } else if (resolvedPlacement === 'bottom') {
-      top = targetRect.bottom + padVal + gap
-      left = targetRect.left + (targetRect.width - boxW) / 2
-    } else if (resolvedPlacement === 'right') {
-      left = targetRect.right + padVal + gap
-      top = targetRect.top + (targetRect.height - boxH) / 2
-    } else if (resolvedPlacement === 'left') {
-      left = targetRect.left - padVal - gap - boxW
-      top = targetRect.top + (targetRect.height - boxH) / 2
-    }
-
-    // Strict clamping within window viewport
-    const maxLeft = Math.max(margin, winW - boxW - margin)
-    const maxTop = Math.max(margin, winH - boxH - margin)
-    left = Math.max(margin, Math.min(maxLeft, left))
-    top = Math.max(margin, Math.min(maxTop, top))
-
-    setCoachmarkPos({ top, left })
+    setCoachmarkPos(getCoachmarkPosition(targetRect, { width: boxW, height: boxH }, { width: winW, height: winH }, step.placement))
     return true
   }, [step])
 
@@ -216,6 +153,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         e.preventDefault()
         setIsExitConfirmOpen((prev) => !prev)
       } else if (!isExitConfirmOpen) {
+        if (target instanceof HTMLElement && target.closest('button, [role="button"]')) return
         if (e.key === 'ArrowRight') {
           e.preventDefault()
           onNext()
@@ -247,18 +185,11 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
     if (!target && step.fallbackSelector) target = document.querySelector(step.fallbackSelector)
     if (!(target instanceof HTMLElement)) return
 
-    const previousPosition = target.style.position
-    const previousZIndex = target.style.zIndex
     const previousOutline = target.style.outline
     const previousOutlineOffset = target.style.outlineOffset
-    if (getComputedStyle(target).position === 'static') target.style.position = 'relative'
-    // Outline the real target instead of masking the app and hiding its content.
-    target.style.zIndex = '10002'
-    target.style.outline = '2px solid var(--accent-purple)'
-    target.style.outlineOffset = '4px'
+    target.style.outline = '2px solid var(--brand-primary)'
+    target.style.outlineOffset = '3px'
     return () => {
-      target.style.position = previousPosition
-      target.style.zIndex = previousZIndex
       target.style.outline = previousOutline
       target.style.outlineOffset = previousOutlineOffset
     }
@@ -283,8 +214,9 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         ref={coachmarkRef}
         className="shinpo-coachmark-card"
         style={{
-          top: coachmarkPos.top,
-          left: coachmarkPos.left,
+          top: coachmarkPos?.top ?? 16,
+          left: coachmarkPos?.left ?? 16,
+          visibility: coachmarkPos ? 'visible' : 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -296,15 +228,12 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
           aria-valuemax={totalSteps}
           aria-valuenow={stepIndex + 1}
         >
-          <span style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }} />
+          <span style={{ transform: `scaleX(${(stepIndex + 1) / totalSteps})` }} />
         </div>
         <div className="coachmark-header">
           <div className="coachmark-identity">
-            <span className="coachmark-eonpai-avatar">
-              <Icon name="sparkle" size={16} />
-            </span>
             <div>
-              <span className="coachmark-eonpai-name">EONPAI GUIDE</span>
+              <span className="coachmark-eonpai-name">GUIDED WALKTHROUGH</span>
               <span className="coachmark-step-counter">
                 Step {step.number} of {totalSteps} • {tabLabel}
               </span>
@@ -313,7 +242,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
           <button
             className="coachmark-close-btn"
             onClick={() => setIsExitConfirmOpen(true)}
-            title="Pause Tour (Esc)"
+            title="Pause walkthrough (Esc)"
             aria-label="Pause Walkthrough"
           >
             ✕
@@ -322,23 +251,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
 
         <div className="coachmark-body">
           <h4 id="coachmark-title" className="coachmark-title">{step.title}</h4>
-          <p className="coachmark-value-line">
-            Build your first reliable execution loop.
-          </p>
-          <blockquote className="coachmark-dialogue">
-            &ldquo;{step.eonpaiDialogue}&rdquo;
-          </blockquote>
-          <p className="coachmark-instruction">
-            <span className="instruction-arrow">→</span> <strong>Try it now:</strong> {step.instruction}
-          </p>
-
-          {/* Why It Matters Callout */}
-          {step.whyItMatters && (
-            <div className="coachmark-why-box">
-              <span className="coachmark-why-icon">💡</span>
-              <span><strong>Why it matters:</strong> {step.whyItMatters}</span>
-            </div>
-          )}
+          <p className="coachmark-instruction">{step.instruction}</p>
 
           {/* Navigation Recovery Button when target element is not mounted */}
           {!rect && onNavigateTab && (
@@ -354,17 +267,12 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         </div>
 
         <div className="coachmark-footer">
-          <div className="coachmark-dots">
-            {Array.from({ length: totalSteps }).map((_, idx) => (
-              <span
-                key={idx}
-                className={`coachmark-dot ${idx === stepIndex ? 'active' : ''}`}
-                title={`Step ${idx + 1}`}
-              />
-            ))}
-          </div>
-
           <div className="coachmark-actions">
+            {onSkipTour && (
+              <button type="button" className="btn-coachmark secondary" onClick={onSkipTour}>
+                Skip
+              </button>
+            )}
             {stepIndex > 0 && (
               <button id="tutorial-btn-prev" className="btn-coachmark secondary" onClick={onPrev}>
                 Back
@@ -375,7 +283,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
               className="btn-coachmark primary"
               onClick={onNext}
             >
-              {stepIndex === totalSteps - 1 ? 'Finish & View Progress' : 'Continue →'}
+              {stepIndex === totalSteps - 1 ? 'Finish tour' : 'Next'}
             </button>
           </div>
         </div>
@@ -386,12 +294,15 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
         <div
           id="tutorial-exit-confirm-overlay"
           className="shinpo-exit-confirm-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tutorial-exit-confirm-title"
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 10005,
             pointerEvents: 'auto',
-            background: 'rgba(0, 0, 0, 0.65)',
+            background: 'rgba(0,0,0, 0.65)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -409,21 +320,21 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             style={{
               maxWidth: '420px',
               width: '100%',
-              background: 'var(--surface-card, #1D1E24)',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+              background: 'var(--surface-card, #030303)',
+              border: '1px solid var(--border-subtle, rgba(255,255,255, 0.12))',
               borderRadius: '16px',
               padding: '22px 24px',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-              color: 'var(--text-primary, #F5F7FF)',
+              boxShadow: '0 20px 50px rgba(0,0,0, 0.6)',
+              color: 'var(--text-primary, #eeeeee)',
               pointerEvents: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '17px', fontWeight: 700 }}>
-              Pause Guided Walkthrough?
+            <h3 id="tutorial-exit-confirm-title" style={{ margin: '0 0 8px 0', fontSize: '17px', fontWeight: 700 }}>
+              Leave the walkthrough?
             </h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.5 }}>
-              Your progress is saved up to Step {step.number} ({step.title}). You can resume anytime from the EONPAI assistant or help menu.
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-secondary, #5c5c5c)', lineHeight: 1.5 }}>
+              Your place is saved. Resume from EONPAI or Settings whenever you’re ready.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
@@ -436,7 +347,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
                   setIsExitConfirmOpen(false)
                 }}
               >
-                Resume Walkthrough
+                Continue walkthrough
               </button>
               <button
                 id="tutorial-confirm-pause-btn"
@@ -449,7 +360,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
                   onExit()
                 }}
               >
-                Pause & Exit to App
+                Pause and leave
               </button>
               {onSkipTour && (
                 <button
@@ -458,7 +369,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-secondary, #94a3b8)',
+                    color: 'var(--text-secondary, #5c5c5c)',
                     fontSize: '12px',
                     padding: '6px',
                     cursor: 'pointer',
@@ -471,7 +382,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
                     onSkipTour()
                   }}
                 >
-                  Skip Entire Tour (No Rewards Awarded)
+                  Skip walkthrough
                 </button>
               )}
             </div>

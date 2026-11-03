@@ -43,6 +43,13 @@ export function calculateRemainingSeconds(
 
   // 3. ACTIVE state:
   if (session.status === 'ACTIVE') {
+    if (session.phaseDeadlineAt !== undefined && session.phaseDeadlineAt !== null) {
+      const serverAnchorMs = session.serverTime ? new Date(session.serverTime).getTime() : timerNowMs
+      if (!Number.isNaN(serverAnchorMs)) {
+        const elapsedSinceServerMs = Math.max(0, timerNowMs - serverAnchorMs)
+        return Math.max(0, Math.floor((session.phaseDeadlineAt - serverAnchorMs - elapsedSinceServerMs) / 1000))
+      }
+    }
     // Preferred server-authoritative path: anchor from serverTime + remainingSeconds
     if (
       session.serverTime &&

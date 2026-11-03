@@ -8,6 +8,7 @@ import type { Mission, Goal } from '../api/goalsAndMissions'
 import type { FocusSession } from '../api/focusSessions'
 import type { ProgressResponse } from '../api/progress'
 import type { AnalyticsDashboardResponse } from '../api/analytics'
+import type { AppView } from '../types/navigation'
 
 export interface DailyObjective {
   id: string
@@ -35,6 +36,11 @@ export interface AchievementItem {
   icon: string
   unlocked: boolean
   progressLabel: string
+  progress: number | null
+  target: number
+  unit: string
+  evidence: 'persisted' | 'current' | 'unavailable'
+  nextActionTab?: AppView
 }
 
 export interface CelebrationPayload {
@@ -64,50 +70,29 @@ export function getLocalDateString(date: Date = new Date()): string {
 /**
  * Compute the 3 daily consistency objectives based on actual backend data today.
  */
+function completedActiveSeconds(session: FocusSession): number {
+  if (session.status !== 'COMPLETED') return 0
+  const seconds = session.pomodoroEnabled
+    ? session.focusActiveSeconds ?? session.activeSeconds
+    : session.activeSeconds
+  return Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+}
+
+function completedOnLocalDate(session: FocusSession, date: string): boolean {
+  if (!session.endedAt) return false
+  const completedAt = new Date(session.endedAt)
+  return !Number.isNaN(completedAt.getTime()) && getLocalDateString(completedAt) === date
+}
+
 export function computeDailyObjectives(
-  missions: Mission[],
   sessions: FocusSession[],
   todayStr: string = getLocalDateString(),
 ): DailyObjectivesSummary {
-  // 1. Task Objective: Complete 1 planned task today
-  // A mission is completed today if status is COMPLETED
-  const completedMissionsToday = missions.filter((m) => {
-    if (m.status !== 'COMPLETED') return false
-    // If mission has an updated or created timestamp from today, or completed status
-    return true
-  }).length
-
-  // 2. Focus Sprint Objective: Complete 1 verified focus sprint (>= 15 active min)
-  const completedSprintsToday = sessions.filter((s) => {
-    if (s.status !== 'COMPLETED') return false
-    const sessionDate = s.startedAt ? s.startedAt.slice(0, 10) : ''
-    if (sessionDate && sessionDate !== todayStr) return false
-    const activeMins = Math.floor((s.activeSeconds || 0) / 60)
-    return activeMins >= 15
-  }).length
-
-  // 3. Focus Duration Target: Reach 25 verified active minutes today
-  const activeFocusMinutesToday = sessions
-    .filter((s) => {
-      if (s.status !== 'COMPLETED') return false
-      const sessionDate = s.startedAt ? s.startedAt.slice(0, 10) : ''
-      return !sessionDate || sessionDate === todayStr
-    })
-    .reduce((sum, s) => {
-      const activeMins = Math.floor((s.activeSeconds || 0) / 60)
-      return sum + Math.min(activeMins, s.durationMinutes || 25)
-    }, 0)
+  const completedToday = sessions.filter((session) => completedOnLocalDate(session, todayStr))
+  const completedSprintsToday = completedToday.filter((session) => completedActiveSeconds(session) >= 15 * 60).length
+  const activeFocusMinutesToday = Math.floor(completedToday.reduce((total, session) => total + completedActiveSeconds(session), 0) / 60)
 
   const objectives: DailyObjective[] = [
-    {
-      id: 'daily_task',
-      title: 'Complete 1 Task',
-      target: 1,
-      current: Math.min(1, completedMissionsToday),
-      unit: 'task',
-      isCompleted: completedMissionsToday >= 1,
-      description: 'Execute and conclude one prioritized mission.',
-    },
     {
       id: 'daily_focus_sprint',
       title: 'Complete 1 Focus Sprint',
@@ -154,9 +139,12 @@ export function deriveAchievements(
   const level = userProgress?.level || 1
   const completedMissions = missions.filter((m) => m.status === 'COMPLETED').length
   const completedGoals = goals.filter((g) => g.status === 'COMPLETED').length
-  const completedSessions = sessions.filter((s) => s.status === 'COMPLETED').length
-  const totalFocusMinutes = analytics?.summary?.totalFocusMinutes || 0
+  const completedSessions = sessions.filter((s) => s.status === 'COMPLETED')
+  const totalFocusSeconds = completedSessions.reduce((total, session) => total + completedActiveSeconds(session), 0)
+  const longestSprintSeconds = Math.max(0, ...completedSessions.map(completedActiveSeconds))
+  const totalFocusMinutes = Math.floor(totalFocusSeconds / 60)
   const currentStreak = analytics?.summary?.currentStreak || 0
+  const onboardingEventRecorded = (userProgress?.recentEvents || []).some((e) => e.eventType === 'ONBOARDING_COMPLETED')
 
   return [
     {
@@ -167,42 +155,47 @@ export function deriveAchievements(
       icon: 'check',
       unlocked: completedMissions >= 1,
       progressLabel: completedMissions >= 1 ? 'Unlocked' : `${completedMissions}/1 tasks`,
+      progress: Math.min(1, completedMissions), target: 1, unit: 'task', evidence: 'current',
     },
     {
       id: 'first_sprint',
-      title: 'Focus Initiate',
+      title: 'Focus Session Complete',
       category: 'focus',
-      description: 'Complete a verified focus sprint of 15+ minutes.',
+      description: 'Complete a verified focus session of 15 or more minutes.',
       icon: 'focus',
-      unlocked: completedSessions >= 1,
-      progressLabel: completedSessions >= 1 ? 'Unlocked' : `${completedSessions}/1 sprint`,
+      unlocked: longestSprintSeconds >= 15 * 60,
+      progressLabel: longestSprintSeconds >= 15 * 60 ? 'Unlocked' : `${Math.floor(longestSprintSeconds / 60)}/15 min`,
+      progress: Math.min(15, Math.floor(longestSprintSeconds / 60)), target: 15, unit: 'min', evidence: 'persisted', nextActionTab: 'Focus Engine',
     },
     {
       id: 'deep_flow_hour',
-      title: 'Deep Flow Hour',
+      title: 'Focused Hour',
       category: 'focus',
       description: 'Log 60+ minutes of verified deep focus time.',
       icon: 'clock',
-      unlocked: totalFocusMinutes >= 60,
+      unlocked: totalFocusSeconds >= 60 * 60,
       progressLabel: totalFocusMinutes >= 60 ? 'Unlocked' : `${totalFocusMinutes}/60m`,
+      progress: Math.min(60, totalFocusMinutes), target: 60, unit: 'min', evidence: 'persisted', nextActionTab: 'Focus Engine',
     },
     {
       id: 'level_2_practitioner',
       title: 'Disciplined Mind',
       category: 'mastery',
-      description: 'Attain Level 2: Disciplined Practitioner (100 XP).',
+      description: 'Reach Level 2 by earning 100 XP.',
       icon: 'sparkle',
       unlocked: level >= 2 || totalXp >= 100,
       progressLabel: totalXp >= 100 ? 'Unlocked' : `${totalXp}/100 XP`,
+      progress: Math.min(100, totalXp), target: 100, unit: 'XP', evidence: 'persisted', nextActionTab: 'Focus Engine',
     },
     {
       id: 'goal_concluded',
-      title: 'Milestone Breaker',
+      title: 'Goal Complete',
       category: 'goals',
-      description: 'Complete all tasks in a strategic goal.',
+      description: 'Complete all tasks linked to a goal.',
       icon: 'target',
       unlocked: completedGoals >= 1,
       progressLabel: completedGoals >= 1 ? 'Unlocked' : `${completedGoals}/1 goal`,
+      progress: Math.min(1, completedGoals), target: 1, unit: 'goal', evidence: 'current', nextActionTab: 'Goals & Missions',
     },
     {
       id: 'momentum_streak',
@@ -212,26 +205,35 @@ export function deriveAchievements(
       icon: 'sparkle',
       unlocked: currentStreak >= 3,
       progressLabel: currentStreak >= 3 ? 'Unlocked' : `${currentStreak}/3 days`,
+      progress: Math.min(3, currentStreak), target: 3, unit: 'days', evidence: 'persisted', nextActionTab: 'Focus Engine',
     },
     {
       id: 'onboarding_certified',
-      title: 'Certified Operator',
+      title: 'Onboarding Complete',
       category: 'mastery',
-      description: 'Complete the SHINPO interactive execution walkthrough.',
+      description: 'Complete a verified goal-to-focus workflow.',
       icon: 'check',
-      unlocked: isOnboardingVerified || (userProgress?.recentEvents || []).some((e) => e.eventType === 'ONBOARDING_COMPLETED'),
-      progressLabel: (isOnboardingVerified || (userProgress?.recentEvents || []).some((e) => e.eventType === 'ONBOARDING_COMPLETED')) ? 'Unlocked' : 'Tour required',
+      unlocked: isOnboardingVerified || onboardingEventRecorded,
+      progressLabel: isOnboardingVerified || onboardingEventRecorded ? 'Unlocked' : 'Awaiting verified workflow',
+      progress: isOnboardingVerified || onboardingEventRecorded ? 1 : null, target: 1, unit: 'workflow', evidence: onboardingEventRecorded ? 'persisted' : isOnboardingVerified ? 'current' : 'unavailable', nextActionTab: 'AI Assistant',
     },
     {
       id: 'level_4_architect',
-      title: 'Flow Architect',
+      title: 'Consistent Progress',
       category: 'mastery',
-      description: 'Attain Level 4: High-Flow Architect (500 XP).',
+      description: 'Reach Level 4 by earning 500 XP.',
       icon: 'sparkle',
       unlocked: level >= 4 || totalXp >= 500,
       progressLabel: totalXp >= 500 ? 'Unlocked' : `${totalXp}/500 XP`,
+      progress: Math.min(500, totalXp), target: 500, unit: 'XP', evidence: 'persisted', nextActionTab: 'Focus Engine',
     },
   ]
+}
+
+export function findNewProgressEvents(previous: ProgressResponse | null, current: ProgressResponse | null) {
+  if (!previous || !current) return []
+  const seen = new Set(previous.recentEvents.map((event) => event.id))
+  return current.recentEvents.filter((event) => !seen.has(event.id))
 }
 
 /**
@@ -263,7 +265,7 @@ export function spawnCelebrationSparkles(sourceRect?: DOMRect | null): void {
   const originX = sourceRect ? sourceRect.left + sourceRect.width / 2 : window.innerWidth / 2
   const originY = sourceRect ? sourceRect.top + sourceRect.height / 2 : window.innerHeight / 2
 
-  const colors = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#A78BFA']
+  const colors = ['#2788F5', '#66B8FF', '#18395F', '#112541', '#2788F5', '#66B8FF']
   const particleCount = sourceRect ? 18 : 28
 
   for (let i = 0; i < particleCount; i++) {

@@ -108,6 +108,22 @@ test('calculateRemainingSeconds uses the full budget for PAUSED sessions without
   assert.equal(calculateRemainingSeconds(session, Date.now()), 1200)
 })
 
+test('calculateRemainingSeconds follows persisted native phase deadlines', () => {
+  const serverTime = '2026-10-28T10:00:00.000Z'
+  const deadline = new Date(serverTime).getTime() + 15 * 60 * 1000
+  const remaining = calculateRemainingSeconds(
+    createMockSession({
+      status: 'ACTIVE',
+      currentPhase: 'BREAK',
+      serverTime,
+      phaseDeadlineAt: deadline,
+      remainingSeconds: 60 * 60,
+    }),
+    new Date(serverTime).getTime() + 90_000,
+  )
+  assert.equal(remaining, 810)
+})
+
 test('calculateRemainingSeconds falls back to startedAt when serverTime is invalid', () => {
   const startedAt = '2026-10-10T12:00:00.000Z'
   const session = createMockSession({

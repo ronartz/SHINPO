@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   proposeAiAction,
   confirmAiAction,
@@ -8,6 +9,12 @@ import {
   getRecentAiActions,
   getExecutiveBriefing,
   getAiProviderStatus,
+  getActiveConversation,
+  clearActiveConversation,
+  sendAiChat,
+  decomposeGoal, getDailyPlan, getNextAction, analyzeSessionDebrief, getSessionRecovery, getUserExecutionProfile,
+  listLocalConversations, openLocalConversation, deleteLocalConversation,
+  configureNativeAiProvider, getNativeAiProviderConfig, cancelNativeAiRequest,
 } from './ai.ts'
 
 // Setup mock window and localStorage for Node test runner
@@ -234,5 +241,80 @@ test('AI Actions API contracts - exact URLs, methods, headers, and lifecycle', a
       async () => confirmAiAction('act_expired'),
       /Action expired or ownership violation/
     )
+  })
+
+  await t.test('local vault EONPAI uses native persistence and does not request the backend', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    const calls: Array<[string, Record<string, unknown> | undefined]> = []
+    nativeWindow.__TAURI_INTERNALS__ = {
+      invoke: async (command, args) => {
+        calls.push([command, args])
+        if (command === 'local_eonpai_provider_status') {
+          return { enabled: false, available: false, provider: 'none', model: '', status: 'OFFLINE', message: 'No model configured' }
+        }
+        if (command === 'local_eonpai_actions' || command === 'local_eonpai_list') return []
+        if (command === 'local_eonpai_send') {
+          return { reply: 'Local summary', suggestionType: 'TACTICAL_ASSISTANT', structuredCard: null, conversationId: 'local-1' }
+        }
+        return { conversationId: 'local-1', title: 'New conversation', status: 'ACTIVE', messages: [], updatedAt: '2026-11-01T00:00:00Z' }
+      },
+    }
+    storage.set('shinpo_local_vault_account', 'local-user')
+    globalThis.fetch = (() => { throw new Error('Local EONPAI attempted a server request') }) as typeof fetch
+    try {
+      assert.equal((await getAiProviderStatus()).available, false)
+      assert.equal((await getActiveConversation()).conversationId, 'local-1')
+      assert.equal((await clearActiveConversation()).status, 'ACTIVE')
+      assert.equal((await sendAiChat(1, 'plan my tasks', undefined, undefined, undefined, 'local-1')).reply, 'Local summary')
+      assert.deepEqual(await getPendingAiActions(), [])
+      await assert.rejects(confirmAiAction('native-action'), /Review the native action preview/)
+      await confirmAiAction('native-action', 'exact-preview-proof')
+      await rejectAiAction('native-action')
+      await proposeAiAction('RESCHEDULE_TASK', 'Move a task', { kind: 'RESCHEDULE_TASK', taskId: 1, scheduledDate: '2026-11-05' })
+      await decomposeGoal(1)
+      await getNextAction()
+      await getDailyPlan()
+      await analyzeSessionDebrief(4)
+      await getSessionRecovery(4)
+      await getUserExecutionProfile()
+      await getExecutiveBriefing()
+      await listLocalConversations()
+      await openLocalConversation('opaque-conversation')
+      await deleteLocalConversation('opaque-conversation')
+      await configureNativeAiProvider({ provider: 'none', model: '', endpoint: '', allowCloudContext: false })
+      await getNativeAiProviderConfig()
+      await cancelNativeAiRequest()
+      await sendAiChat(1, 'Break down my goal')
+      const fixture = JSON.parse(readFileSync(new URL('./fixtures/eonpai-chat.json', import.meta.url), 'utf8'))
+      assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)?.[1])), fixture)
+      assert.deepEqual(calls.find(([command]) => command === 'local_eonpai_confirm'), ['local_eonpai_confirm', { actionId: 'native-action', confirmationToken: 'exact-preview-proof' }])
+      assert.equal(calls.filter(([command]) => command === 'local_eonpai_read').length, 7)
+    } finally {
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('local vault never falls back to HTTP if the Tauri bridge is missing', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: unknown; __TAURI__?: unknown }
+    const previousInternals = nativeWindow.__TAURI_INTERNALS__
+    const previousTauri = nativeWindow.__TAURI__
+    let fetches = 0
+    delete nativeWindow.__TAURI_INTERNALS__
+    delete nativeWindow.__TAURI__
+    storage.set('shinpo_local_vault_account', 'local-user')
+    globalThis.fetch = (async () => {
+      fetches += 1
+      throw new Error('Local EONPAI attempted a backend fallback')
+    }) as typeof fetch
+    try {
+      await assert.rejects(sendAiChat(1, 'Summarize my progress'), /Tauri invoke not found/)
+      assert.equal(fetches, 0)
+    } finally {
+      if (previousInternals) nativeWindow.__TAURI_INTERNALS__ = previousInternals
+      if (previousTauri) nativeWindow.__TAURI__ = previousTauri
+      storage.delete('shinpo_local_vault_account')
+    }
   })
 })

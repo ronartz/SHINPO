@@ -10,7 +10,6 @@ import {
   addSentinelRule,
   deleteSentinelRule,
   fetchSentinelStatus,
-  triggerSentinelSweep,
   updateSentinelMode,
   emergencyOverride,
 } from '../api/device'
@@ -20,7 +19,6 @@ import type { SelectOption } from '../components/ui/Select/types'
 import {
   mapEnforcementOutcome,
   deriveOverallProtectionStatus,
-  formatEnforcementMode,
   groupQuarantineEvents,
 } from '../utils/focusProtectionStatus'
 
@@ -35,6 +33,8 @@ const OVERRIDE_MODE_OPTIONS: SelectOption<'CONTAINMENT' | 'AUDIT_ONLY'>[] = [
 ]
 
 export interface TaskManagerViewProps {
+  isAurora?: boolean
+  localVaultMode?: boolean
   deviceSnapshot: ProcessSnapshot | null
   tmLoading: boolean
   tmSearch: string
@@ -46,7 +46,6 @@ export interface TaskManagerViewProps {
   setSentinelStatus: React.Dispatch<React.SetStateAction<SentinelStatus | null>>
   sentinelRules: PolicyRule[]
   setSentinelRules: React.Dispatch<React.SetStateAction<PolicyRule[]>>
-  handleTerminateProcess: (proc: ProcessInfo) => void
   tamperEvents: SentinelTamperEventItem[]
   setTamperEvents?: React.Dispatch<React.SetStateAction<SentinelTamperEventItem[]>>
   tamperEventsExpanded: boolean
@@ -56,11 +55,14 @@ export interface TaskManagerViewProps {
   loadSentinelTamperEvents?: () => Promise<void>
   tmToast: string | null
   setTmToast: React.Dispatch<React.SetStateAction<string | null>>
+  onOpenCompanionSettings?: () => void
 }
 
 import { trackRender } from '../utils/renderTracker'
 
 export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
+  isAurora = false,
+  localVaultMode = false,
   deviceSnapshot,
   tmLoading,
   tmSearch,
@@ -72,7 +74,6 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   setSentinelStatus,
   sentinelRules,
   setSentinelRules,
-  handleTerminateProcess,
   tamperEvents,
   setTamperEvents: _setTamperEvents,
   tamperEventsExpanded,
@@ -82,9 +83,11 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   loadSentinelTamperEvents,
   tmToast,
   setTmToast,
+  onOpenCompanionSettings,
 }) => {
   trackRender('TaskManagerView')
-  const [sentinelSweeping, setSentinelSweeping] = useState(false)
+  const [ruleSearch, setRuleSearch] = useState('')
+  const [ruleFilter, setRuleFilter] = useState<'ALL' | 'BLOCKED' | 'ALLOWED' | 'PROTECTED'>('ALL')
   const [showAddRuleModal, setShowAddRuleModal] = useState(false)
   const [newRulePattern, setNewRulePattern] = useState('')
   const [newRuleType, setNewRuleType] = useState<'BLOCKED' | 'ALLOWED'>('BLOCKED')
@@ -120,26 +123,17 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showAddRuleModal, showOverrideModal, overrideLoading])
 
-  const handleSentinelSweep = async () => {
-    setSentinelSweeping(true)
-    try {
-      const res = await triggerSentinelSweep()
-      setTmToast(res.message)
-      setTimeout(() => setTmToast(null), 4500)
-      const st = await fetchSentinelStatus().catch(() => null)
-      if (st) setSentinelStatus(st)
-      void loadDeviceProcesses?.()
-    } catch (err: unknown) {
-      setTmToast(err instanceof Error ? err.message : 'Focus protection check failed')
-      setTimeout(() => setTmToast(null), 4000)
-    } finally {
-      setSentinelSweeping(false)
-    }
-  }
-
+  const protectionInfo = deriveOverallProtectionStatus(sentinelStatus)
+  const monitoringOnly = sentinelStatus?.enforcementMode.toUpperCase() === 'AUDIT_ONLY'
+  const enforcementAvailable = protectionInfo.shieldConnected && !monitoringOnly
   const handleToggleSentinelMode = async () => {
     if (!sentinelStatus) return
     if (sentinelStatus.isPolicyLocked) {
+      if (!protectionInfo.shieldConnected) {
+        setTmToast('This policy is locked. Emergency override is unavailable while desktop protection is disconnected.')
+        setTimeout(() => setTmToast(null), 4500)
+        return
+      }
       setTmToast('Focus protection is locked during an active session. Use Emergency Override to change it.')
       setShowOverrideModal(true)
       setTimeout(() => setTmToast(null), 4500)
@@ -172,7 +166,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       setSentinelRules((prev) => [created, ...prev.filter((r) => r.id !== created.id)])
       setNewRulePattern('')
       setShowAddRuleModal(false)
-      setTmToast(`Added "${created.processNamePattern}" to Sentinel distraction blocklist`)
+      setTmToast(`Added "${created.processNamePattern}" to blocked applications`)
       setTimeout(() => setTmToast(null), 3500)
       void loadDeviceProcesses?.()
     } catch (err: unknown) {
@@ -185,7 +179,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     try {
       await deleteSentinelRule(ruleId)
       setSentinelRules((prev) => prev.filter((r) => r.id !== ruleId))
-      setTmToast(`Removed "${pattern}" from Sentinel blocklist`)
+      setTmToast(`Removed "${pattern}" from blocked applications`)
       setTimeout(() => setTmToast(null), 3500)
       void loadDeviceProcesses?.()
     } catch (err: unknown) {
@@ -198,6 +192,10 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
 
   const handleEmergencyOverrideSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!protectionInfo.shieldConnected) {
+      setOverrideError('Emergency override is unavailable while desktop protection is disconnected.')
+      return
+    }
     if (!overridePassword) {
       setOverrideError('Administrator password is required')
       return
@@ -232,170 +230,62 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     }
   }
 
+  const visibleRules = sentinelRules.filter((rule) => {
+    const matchesSearch = rule.processNamePattern.toLowerCase().includes(ruleSearch.trim().toLowerCase())
+    const matchesFilter = ruleFilter === 'ALL'
+      || (ruleFilter === 'PROTECTED' ? !rule.isCustom : rule.policyType === ruleFilter)
+    return matchesSearch && matchesFilter
+  })
+
   return (
     <div className="task-manager-view">
-      {/* Top Telemetry Grid */}
-      <div className="tm-telemetry-grid">
-        {/* CPU Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">SYSTEM CPU</span>
-            <div className="tm-metric-icon">
-              <Icon name="focus" size={16} />
-            </div>
-          </div>
+      {localVaultMode && <p role="status" className="tm-local-limit-note">
+        Automatic Guardian records recognized distracting app names in your encrypted vault during Focus. It is warning-only and never closes apps; application inventory and custom app rules are not available. Local mode does not contact a backend.
+      </p>}
+      <section className={`protection-hero status-${protectionInfo.statusKey.toLowerCase()}`} aria-labelledby="protection-hero-title">
+        <div className="protection-hero-main">
+          <span className="protection-shield-emblem"><Icon name="shield" size={23} /></span>
           <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot?.systemInfo.availableProcessors ?? 4} Hardware Threads Active
-            </div>
-            <div className="tm-bar-track">
-              <div
-                className="tm-bar-fill terracotta"
-                style={{
-                  transform: `scaleX(${Math.min(1, Math.max(0, (deviceSnapshot?.systemInfo.systemCpuLoad ?? 0) / 100))})`,
-                }}
-              />
-            </div>
+            <span className="protection-eyebrow">WORKSPACE SECURITY</span>
+            <h1 id="protection-hero-title">Focus Protection</h1>
+            <p>Review Guardian warnings, website policy state, and Browser Companion setup.</p>
           </div>
         </div>
-
-        {/* Memory Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">SYSTEM MEMORY</span>
-            <div className="tm-metric-icon">
-              <Icon name="apps" size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot
-                ? `${(
-                  (deviceSnapshot.systemInfo.totalMemoryBytes -
-                    deviceSnapshot.systemInfo.freeMemoryBytes) /
-                  (1024 * 1024 * 1024)
-                ).toFixed(1)} GB`
-                : '0 GB'}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot
-                ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 * 1024 * 1024)).toFixed(1)} GB Physical RAM`
-                : 'Allocating'}
-            </div>
-            <div className="tm-bar-track">
-              <div
-                className="tm-bar-fill emerald"
-                style={{
-                  transform: `scaleX(${deviceSnapshot && deviceSnapshot.systemInfo.totalMemoryBytes > 0
-                    ? Math.min(
-                      1,
-                      Math.max(
-                        0.05,
-                        (deviceSnapshot.systemInfo.totalMemoryBytes -
-                          deviceSnapshot.systemInfo.freeMemoryBytes) /
-                        deviceSnapshot.systemInfo.totalMemoryBytes,
-                      ),
-                    )
-                    : 0
-                    })`,
-                }}
-              />
-            </div>
-          </div>
+        <div className="protection-hero-actions">
+          <span className={`protection-live-state ${protectionInfo.shieldConnected && !monitoringOnly ? 'is-active' : protectionInfo.shieldConnected ? 'is-monitoring' : 'is-offline'}`}>
+            <i aria-hidden="true" />{protectionInfo.badgeText}
+          </span>
+          {onOpenCompanionSettings && <button type="button" className="protection-secondary-action" onClick={onOpenCompanionSettings}>Browser setup</button>}
         </div>
+      </section>
 
-        {/* Process Count Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">RUNNING APPS</span>
-            <div className="tm-metric-icon">
-              <Icon name="schedule" size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot?.systemInfo.processCount == null
-                ? 'Server process scanning is disabled'
-                : `${deviceSnapshot.processes.length} inspected in viewport`}
-            </div>
-            <div className="tm-bar-track">
-              <div className="tm-bar-fill emerald" style={{ transform: 'scaleX(1)' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Sentinel Active Status Card */}
-        <div className="tm-metric-card" data-tutorial="sentinel-status-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">FOCUS PROTECTION</span>
-            <div className={`sentinel-radar-container ${sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE' ? 'active-pulse' : ''}`}>
-              <div className="sentinel-radar-core" />
-              <div className="sentinel-radar-ring" />
-            </div>
-          </div>
-          {(() => {
-            const isDefending = sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE'
-            const isStandby = sentinelStatus?.status === 'STANDBY' || sentinelStatus?.status === 'READY'
-            const isUnavailable = !sentinelStatus || sentinelStatus.status === 'UNAVAILABLE' || !sentinelStatus.daemonConnected
-
-            const statusColor = isDefending
-              ? 'var(--primary-coral)'
-              : isStandby
-                ? 'var(--primary-green)'
-                : 'var(--text-3)'
-
-            const barFillClass = isDefending ? 'terracotta' : isStandby ? 'emerald' : ''
-
-            return (
-              <div>
-                <div
-                  className="tm-metric-val"
-                  style={{
-                    fontSize: 18,
-                    color: statusColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <span>{sentinelStatus ? sentinelStatus.status.replace('_', ' ') : 'UNAVAILABLE'}</span>
-                  <button
-                    type="button"
-                    className="sentinel-mode-badge"
-                    title={sentinelStatus?.isPolicyLocked ? "Protection Locked: Click to request Emergency Override" : "Click to cycle mode: Strict → Monitoring Only → Containment"}
-                    onClick={handleToggleSentinelMode}
-                  >
-                    {formatEnforcementMode(sentinelStatus?.enforcementMode)}
-                  </button>
-                  {sentinelStatus?.isPolicyLocked && (
-                    <span className="sentinel-policy-locked-badge" title="Focus protection is locked during an active session">
-                      <Icon name="lock" size={11} />
-                      <span>PROTECTION LOCKED</span>
-                    </span>
-                  )}
-                </div>
-                <div className="tm-metric-sub">
-                  {sentinelStatus?.activeFocusSessionName
-                    ? `Protecting: "${sentinelStatus.activeFocusSessionName}"`
-                    : `${sentinelStatus?.totalInterceptedToday ?? 0} Distractions Blocked Today`}
-                </div>
-                <div className="tm-bar-track">
-                  <div
-                    className={`tm-bar-fill ${barFillClass}`}
-                    style={{ transform: `scaleX(${isUnavailable ? 0 : 1})` }}
-                  />
-                </div>
-              </div>
-            )
-          })()}
-        </div>
-      </div>
+      {isAurora ? <div className="tm-telemetry-grid tm-aurora-metrics">
+        <article className={`tm-metric-card tm-shield-metric ${protectionInfo.shieldConnected ? 'is-connected' : 'is-offline'}`} data-tutorial="sentinel-status-card">
+          <span className="tm-metric-icon"><Icon name="shield-check" size={21} /></span>
+          <span className="tm-reference-metric-copy"><span className="tm-metric-label">PROTECTION STATUS</span><strong className="tm-metric-val">{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring' : 'Active' : 'Unavailable'}</strong><small className="tm-metric-sub">{protectionInfo.shieldConnected ? protectionInfo.description : 'Native Shield is disconnected'}</small></span>
+        </article>
+        <article className="tm-metric-card">
+          <span className="tm-metric-icon"><Icon name="journal" size={21} /></span>
+          <span className="tm-reference-metric-copy"><span className="tm-metric-label">SAVED RULES</span><strong className="tm-metric-val">{localVaultMode ? 'Unavailable' : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small className="tm-metric-sub">{localVaultMode ? 'Local rule storage is not integrated' : enforcementAvailable ? 'Available to the connected Shield' : 'Saved rules are not currently enforced'}</small></span>
+        </article>
+        <article className="tm-metric-card">
+          <span className="tm-metric-icon"><Icon name="close" size={21} /></span>
+          <span className="tm-reference-metric-copy"><span className="tm-metric-label">APP WARNINGS TODAY</span><strong className="tm-metric-val">{localVaultMode ? sentinelStatus?.guardianWarningCount ?? '—' : sentinelStatus?.totalInterceptedToday ?? 0}</strong><small className="tm-metric-sub">{localVaultMode ? 'Observed process names · no apps closed' : 'Reported by Focus Protection'}</small></span>
+        </article>
+        <article className="tm-metric-card">
+          <span className="tm-metric-icon"><Icon name="focus" size={21} /></span>
+          <span className="tm-reference-metric-copy"><span className="tm-metric-label">CURRENT FOCUS</span><strong className="tm-metric-val">{localVaultMode ? sentinelStatus?.activeFocusSessionId ? sentinelStatus.focusPhase ?? 'Active' : 'No session' : sentinelStatus?.activeFocusSessionId ? 'Active' : 'No session'}</strong><small className="tm-metric-sub">{localVaultMode ? sentinelStatus?.activeFocusSessionName || sentinelStatus?.guardianMode || 'Start a session to enable Guardian' : sentinelStatus?.activeFocusSessionName || 'Start a session to protect focus'}</small></span>
+        </article>
+      </div> : <div className="tm-telemetry-grid">
+        <article className={`tm-metric-card tm-shield-metric ${protectionInfo.shieldConnected ? 'is-connected' : 'is-offline'}`} data-tutorial="sentinel-status-card">
+          <div className="tm-metric-top"><span className="tm-metric-label">NATIVE SHIELD</span><span className="tm-metric-icon"><Icon name="shield-check" size={17} /></span></div>
+          <strong className="tm-metric-val">{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring' : 'Connected' : 'Unavailable'}</strong>
+          <small className="tm-metric-sub">{protectionInfo.shieldConnected ? protectionInfo.description : 'Native protection service is disconnected.'}</small>
+        </article>
+        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL CPU' : 'SERVER HOST CPU'}</span><span className="tm-metric-icon"><Icon name="focus" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}</strong><small className="tm-metric-sub">{localVaultMode ? 'Local telemetry is not integrated' : `${deviceSnapshot?.systemInfo.availableProcessors ?? 'Unavailable'} hardware threads`}</small></div></article>
+        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL MEMORY' : 'SERVER HOST MEMORY'}</span><span className="tm-metric-icon"><Icon name="apps" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot ? `${((deviceSnapshot.systemInfo.totalMemoryBytes - deviceSnapshot.systemInfo.freeMemoryBytes) / (1024 ** 3)).toFixed(1)} GB` : 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 ** 3)).toFixed(1)} GB physical RAM` : localVaultMode ? 'Local telemetry is not integrated' : 'Host telemetry is unavailable.'}</small></div></article>
+        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL PROCESS SCAN' : 'SERVER PROCESS SCAN'}</span><span className="tm-metric-icon"><Icon name="journal" size={17} /></span></div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot?.systemInfo.processCount == null ? localVaultMode ? 'Local process inventory is not integrated' : 'Server process scanning is disabled' : `${deviceSnapshot.processes.length} ${localVaultMode ? 'local' : 'server-host'} processes · read only`}</small></article>
+      </div>}
 
       {/* Notification Toast if present */}
       {tmToast && (
@@ -419,15 +309,16 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       )}
 
-      {/* Controls Bar */}
-      <div className="tm-controls-card">
+      <div className="tm-controls-card tm-controls-toolbar" role="group" aria-label="Focus protection controls">
         <div className="tm-search-box">
           <Icon name="search" size={15} />
           <input
             type="text"
             className="tm-search-input"
-            placeholder="Search process name, PID, or path..."
+            placeholder={localVaultMode ? 'Local process inventory is not available' : 'Search process name, PID, or path...'}
+            aria-label="Search server-host process snapshot"
             value={tmSearch}
+            disabled={localVaultMode}
             onChange={(e) => {
               setTmSearch(e.target.value)
             }}
@@ -440,6 +331,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               key={pol}
               type="button"
               className={`tm-filter-chip ${tmPolicy === pol ? 'active' : ''}`}
+              disabled={localVaultMode}
               onClick={() => {
                 setTmPolicy(pol)
               }}
@@ -450,54 +342,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
 
         <div className="tm-actions-group">
-          <button
-            type="button"
-            className="emergency-override-btn"
-            onClick={() => {
-              setOverrideError(null)
-              setShowOverrideModal(true)
-              setShowAddRuleModal(false)
-            }}
-            title="Authorize temporary protection override"
-          >
-            <Icon name="shield" size={14} />
-            <span>Emergency Override</span>
-          </button>
-
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={handleSentinelSweep}
-            disabled={sentinelSweeping}
-            style={{
-              background: 'var(--accent-red-subtle)',
-              borderColor: 'var(--accent-red-border)',
-              color: 'var(--accent-red)',
-            }}
-            title="Close open distraction applications"
-          >
-            <Icon name="sparkle" size={14} />
-            <span>{sentinelSweeping ? 'Closing...' : 'Close Distractions'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={() => {
-              setShowAddRuleModal(true)
-              setShowOverrideModal(false)
-            }}
-            title="Add application to blocked list"
-          >
-            <Icon name="plus" size={14} />
-            <span>Block App</span>
-          </button>
-
+          <button type="button" className="tm-refresh-btn" disabled={localVaultMode} title={localVaultMode ? 'Local application rule storage is not integrated' : undefined} onClick={() => setShowAddRuleModal(true)}><Icon name="plus" size={14} /><span>Add app rule</span></button>
+          <button type="button" className="emergency-override-btn microkit-danger-invert" disabled={localVaultMode || !protectionInfo.shieldConnected} title={localVaultMode ? 'Local Guardian is warning-only; no destructive override is available' : !protectionInfo.shieldConnected ? 'Unavailable while desktop protection is disconnected' : 'Advanced action: requires administrator credentials and a reason'} onClick={() => { setOverrideError(null); setShowOverrideModal(true); setShowAddRuleModal(false) }}><Icon name="shield" size={14} /><span>Emergency override</span></button>
           <button
             type="button"
             className="tm-refresh-btn btn-spring"
             onClick={() => setTmRefreshKey((key) => key + 1)}
-            disabled={tmLoading}
+            disabled={tmLoading || localVaultMode}
           >
             <Icon name="refresh" size={14} />
             <span>{tmLoading ? 'Scanning...' : 'Refresh Processes'}</span>
@@ -505,164 +356,55 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       </div>
 
+      <section className="protection-overview-panel" aria-labelledby="protection-overview-title">
+        <header><span className="protection-shield-emblem"><Icon name="shield-check" size={18} /></span><div><h2 id="protection-overview-title">Protection overview</h2><p>Native application protection and current policy state.</p></div><button type="button" className="protection-mode-control" disabled={localVaultMode} onClick={handleToggleSentinelMode} title={localVaultMode ? 'Local Sentinel mode control is not integrated' : sentinelStatus?.isPolicyLocked ? 'Protection is locked during this Focus session. Request an emergency override to change mode.' : 'Change protection mode'}><span className={`protection-live-state ${protectionInfo.shieldConnected && !monitoringOnly ? 'is-active' : protectionInfo.shieldConnected ? 'is-monitoring' : 'is-offline'}`}><i aria-hidden="true" />{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring only' : 'Shield online' : 'Shield offline'}</span><span>{protectionInfo.mode} <Icon name="chevron" size={13} /></span></button></header>
+        <div className="protection-overview-stats">
+          <div><span>Saved application rules</span><strong>{localVaultMode ? 'Unavailable' : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small>{localVaultMode ? 'Local rule storage is not integrated' : enforcementAvailable ? 'Available to the connected native Shield' : 'Saved policies are not proof of active enforcement'}</small></div>
+          <div><span>{localVaultMode ? 'App warnings today' : 'Applications intercepted'}</span><strong>{localVaultMode ? sentinelStatus?.guardianWarningCount ?? '—' : sentinelStatus?.totalInterceptedToday ?? 0}</strong><small>{localVaultMode ? 'Encrypted name observations; warning-only' : 'Reported today by the protection service'}</small></div>
+          <div><span>Protection mode</span><strong>{localVaultMode ? sentinelStatus?.guardianMode === 'GUIDED' ? 'Light' : sentinelStatus?.guardianMode === 'PROTECTED' ? 'Standard' : sentinelStatus?.guardianMode === 'STRICT' ? 'Strict' : 'Ready' : protectionInfo.mode}</strong><small>{localVaultMode ? `${sentinelStatus?.applicationPolicyStatus?.replaceAll('_', ' ').toLowerCase() ?? 'ready'} · application handling is warning-only` : sentinelStatus?.isPolicyLocked ? 'Locked during the active Focus session' : 'Select Emergency Override to request a protected change'}</small></div>
+          <div><span>Current Focus session</span><strong>{sentinelStatus?.activeFocusSessionName || 'No active session'}</strong><small>{sentinelStatus?.activeFocusSessionId ? `Persisted phase: ${sentinelStatus.focusPhase ?? 'Focus'}` : 'Guardian is ready when a Focus session starts'}</small></div>
+        </div>
+      </section>
+
       {/* Focus Protection Policy Rules & Activity Feed */}
       {(() => {
-        const protectionInfo = deriveOverallProtectionStatus(sentinelStatus)
         const groupedActivities = groupQuarantineEvents(sentinelStatus?.recentQuarantines ?? [])
-        const customRules = sentinelRules.filter((r) => r.isCustom)
 
         return (
           <div className="sentinel-panel">
-            {/* Header: Title, Description, Operational Badges */}
-            <div className="sentinel-panel-header">
-              <div className="sentinel-title-block">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Icon name="shield" size={18} />
-                  <h3 className="sentinel-panel-title">Focus Protection</h3>
-                </div>
-                <p className="sentinel-panel-subtitle">
-                  Real-time workstation distraction defense and process containment.
-                </p>
-              </div>
-
-              <div className="sentinel-header-badges">
-                {/* Overall Operational Status Pill */}
-                <div
-                  className={`sentinel-status-pill ${protectionInfo.badgeVariant}`}
-                  title={protectionInfo.description}
-                >
-                  <span
-                    className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
-                  />
-                  <span>{protectionInfo.badgeText}</span>
-                </div>
-
-                {/* Mode Selector Pill */}
-                <button
-                  type="button"
-                  className="sentinel-mode-badge"
-                  title={
-                    sentinelStatus?.isPolicyLocked
-                      ? 'Protection Locked: Click to request Emergency Override'
-                      : 'Click to cycle mode: Strict → Monitoring Only → Containment'
-                  }
-                  onClick={handleToggleSentinelMode}
-                >
-                  <span>{protectionInfo.mode}</span>
-                  {sentinelStatus?.isPolicyLocked && <Icon name="lock" size={11} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Overview Summary Strip */}
-            <div className="sentinel-overview-strip">
-              <div className="sentinel-overview-item">
-                <span
-                  className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
-                />
-                <span>
-                  Native Shield:{' '}
-                  <strong style={{ color: protectionInfo.shieldConnected ? 'var(--text-1)' : 'var(--text-3)' }}>
-                    {protectionInfo.shieldConnected ? 'Connected (Verified)' : 'Disconnected (Offline)'}
-                  </strong>
-                </span>
-              </div>
-
-              <div className="sentinel-overview-item">
-                <Icon name="target" size={14} />
-                <span>
-                  <strong style={{ color: 'var(--text-1)' }}>{customRules.length}</strong> Custom Rule
-                  {customRules.length === 1 ? '' : 's'} Active
-                </span>
-              </div>
-
-              <div className="sentinel-overview-item">
-                <Icon name="sparkle" size={14} />
-                <span>
-                  <strong style={{ color: 'var(--text-1)' }}>{sentinelStatus?.totalInterceptedToday ?? 0}</strong> Intercepted Today
-                </span>
-              </div>
-
-              {sentinelStatus?.isPolicyLocked && (
-                <button
-                  type="button"
-                  className="emergency-override-btn"
-                  style={{ padding: '5px 12px', fontSize: 12 }}
-                  onClick={() => {
-                    setOverrideError(null)
-                    setShowOverrideModal(true)
-                    setShowAddRuleModal(false)
-                  }}
-                  title="Protection is locked during sprint. Click to request override."
-                >
-                  <Icon name="lock" size={12} />
-                  <span>Override Locked</span>
-                </button>
-              )}
-            </div>
-
             {/* Protection Rules Section */}
             <div className="sentinel-section-box">
-              <div className="sentinel-section-top">
-                <div className="sentinel-section-heading">Configured Distraction Rules</div>
-                <button
-                  type="button"
-                  className="tm-refresh-btn btn-spring"
-                  style={{ padding: '4px 12px', fontSize: 12, height: 'auto' }}
-                  onClick={() => {
-                    setShowAddRuleModal(true)
-                    setShowOverrideModal(false)
-                  }}
-                  title="Add custom application rule"
-                >
-                  <Icon name="plus" size={12} />
-                  <span>Block App</span>
-                </button>
-              </div>
+                <div className="sentinel-section-top"><div className="sentinel-section-heading">{localVaultMode ? 'Recognized distraction catalog' : 'Application rules'}</div><span className="protection-section-count">{localVaultMode ? `${sentinelStatus?.guardianApplicationCatalog?.length ?? 0} built-in apps` : `${sentinelRules.length} configured`}</span></div>
+
+                {!localVaultMode && <div className="sentinel-rule-controls">
+                  <label className="sentinel-rule-search"><Icon name="search" size={15} /><input value={ruleSearch} onChange={(event) => setRuleSearch(event.target.value)} placeholder={localVaultMode ? 'Local application rules are unavailable' : 'Search application rules'} aria-label="Search application rules" disabled={localVaultMode} /></label>
+                  <div className="sentinel-rule-filters" role="group" aria-label="Filter application rules">
+                    {(['ALL', 'BLOCKED', 'ALLOWED', 'PROTECTED'] as const).map((filter) => <button key={filter} type="button" aria-pressed={ruleFilter === filter} className={ruleFilter === filter ? 'active' : ''} disabled={localVaultMode} onClick={() => setRuleFilter(filter)}>{filter === 'ALL' ? 'All' : filter === 'PROTECTED' ? 'Protected' : filter === 'BLOCKED' ? 'Blocked' : 'Allowed'}</button>)}
+                  </div>
+                </div>}
 
               <div className="sentinel-rules-explainer">
-                Built-in protection automatically suppresses known gaming platforms (Steam, Lutris, Epic). Custom rules target specific distracting workstation apps during active Focus sprints. Essential development, accessibility, and recording tools (OBS, IDEs, Terminal, Git) are never blocked by default.
+                {localVaultMode
+                  ? `Version ${sentinelStatus?.guardianAppCatalogVersion ?? 'unavailable'} · recognized app names are observed during Focus and logged locally. Apps are never blocked or closed.`
+                  : 'Protected entries are built-in. Blocked and allowed entries are saved policies; the SHINPO desktop app must be connected and protection enabled to enforce them.'}
               </div>
 
               <div className="sentinel-rules-list">
-                {customRules.length > 0 ? (
-                  customRules.map((rule) => (
-                    <span
-                      key={rule.id}
-                      className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}
-                    >
-                      <span className="sentinel-rule-action-tag">
-                        {rule.policyType}
-                      </span>
-                      <span>{rule.processNamePattern}</span>
-                      {sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? (
-                        <span
-                          className="sentinel-rule-locked-indicator"
-                          title="Focus protection rules are locked during an active session."
-                          onClick={() => {
-                            setTmToast('Focus protection rules are locked during active sessions. Use Emergency Override if needed.')
-                            setTimeout(() => setTmToast(null), 4000)
-                          }}
-                        >
-                          <Icon name="lock" size={11} />
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="sentinel-rule-del-btn"
-                          onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
-                          title={`Remove rule "${rule.processNamePattern}"`}
-                          aria-label={`Remove rule "${rule.processNamePattern}"`}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))
+                {localVaultMode ? (sentinelStatus?.guardianApplicationCatalog?.map((entry) => (
+                  <article key={entry.processName} className="sentinel-rule-row is-protected">
+                    <span className="sentinel-rule-icon"><Icon name="shield-check" size={16} /></span>
+                    <span className="sentinel-rule-copy"><strong>{entry.processName}</strong><small>{entry.rationale}</small></span>
+                    <span className="sentinel-rule-action-tag protected">{entry.category}</span>
+                  </article>
+                )) ?? <div className="sentinel-rules-empty"><Icon name="shield" size={19} /><strong>Catalog unavailable</strong><span>Guardian could not read the built-in application catalog.</span></div>) : visibleRules.length > 0 ? (
+                  visibleRules.map((rule) => <article key={rule.id} className={`sentinel-rule-row ${rule.isCustom ? 'is-custom' : 'is-protected'}`}>
+                    <span className="sentinel-rule-icon"><Icon name={rule.isCustom ? 'apps' : 'shield-check'} size={16} /></span>
+                    <span className="sentinel-rule-copy"><strong>{rule.processNamePattern}</strong><small>{rule.isCustom ? 'Custom policy' : 'Built-in protected application'}</small></span>
+                    <span className={`sentinel-rule-action-tag ${rule.policyType.toLowerCase()}`}>{rule.isCustom ? rule.policyType : 'PROTECTED'}</span>
+                    {rule.isCustom && <button type="button" className="sentinel-rule-del-btn" disabled={Boolean(sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED')} onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)} title={sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? 'Blocking rules are locked during an active Focus session' : `Remove rule ${rule.processNamePattern}`} aria-label={`Remove rule ${rule.processNamePattern}`}><Icon name={sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? 'lock' : 'trash'} size={14} /></button>}
+                  </article>)
                 ) : (
-                  <span style={{ fontSize: 12.5, color: 'var(--text-3)', padding: '4px 0' }}>
-                    No custom application rules configured yet. Click "+ Block App" to target specific workstation apps.
-                  </span>
+                  <div className="sentinel-rules-empty"><Icon name="shield" size={19} /><strong>{sentinelRules.length ? 'No rules match this filter' : 'No application rules have been returned'}</strong><span>{sentinelRules.length ? 'Try another filter or search term.' : 'Add a custom rule when you are ready to configure workstation policy.'}</span></div>
                 )}
               </div>
             </div>
@@ -670,28 +412,49 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             {/* Recent Activity Section */}
             <div className="sentinel-section-box" style={{ marginTop: 4 }}>
               <div className="sentinel-section-top">
-                <div className="sentinel-section-heading">Recent Enforcement Activity</div>
+                <div className="sentinel-section-heading">{localVaultMode ? 'Recent Guardian observations' : 'Recent Enforcement Activity'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                  {groupedActivities.length} Unique Event{groupedActivities.length === 1 ? '' : 's'}
+                  {localVaultMode ? `${sentinelStatus?.guardianObservations?.length ?? 0} session observations` : `${groupedActivities.length} Unique Event${groupedActivities.length === 1 ? '' : 's'}`}
                 </div>
               </div>
 
-              {groupedActivities.length === 0 ? (
+              {localVaultMode ? (sentinelStatus?.guardianObservations?.length ? <div className="sentinel-activity-timeline">
+                {sentinelStatus.guardianObservations.map((observation) => (
+                  <article key={observation.id} className="sentinel-activity-card">
+                    <div className="sentinel-activity-main">
+                      <div className="sentinel-activity-left">
+                        <strong className="sentinel-activity-app-name">{observation.processName}</strong>
+                        <span className="sentinel-activity-badge warned">Observed</span>
+                      </div>
+                      <div className="sentinel-activity-summary">{observation.category} · {observation.outcome.replaceAll('_', ' ').toLowerCase()} · warning only</div>
+                      <div className="sentinel-activity-right"><span>{new Date(observation.observedAt).toLocaleString()}</span></div>
+                    </div>
+                    <div className="sentinel-activity-details-panel">
+                      <div className="activity-detail-field"><span className="activity-detail-label">PROCESS ID</span><span className="activity-detail-val">{observation.pid}</span></div>
+                      <div className="activity-detail-field"><span className="activity-detail-label">FOCUS SESSION</span><span className="activity-detail-val">#{observation.sessionId}</span></div>
+                      <div className="activity-detail-field"><span className="activity-detail-label">EFFECTIVE MODE · PHASE</span><span className="activity-detail-val">{observation.guardianMode} · {observation.focusPhase}</span></div>
+                      <div className="activity-detail-field"><span className="activity-detail-label">CATALOG</span><span className="activity-detail-val">{observation.catalogVersion}</span></div>
+                      <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}><span className="activity-detail-label">REASON</span><span className="activity-detail-val">{observation.rationale}</span></div>
+                    </div>
+                  </article>
+                ))}
+              </div> : <div className="sentinel-activity-empty"><Icon name="shield" size={15} /><span>{sentinelStatus?.observerStatus === 'DEGRADED' ? 'Guardian observer is unavailable. App warnings may be incomplete.' : sentinelStatus?.activeFocusSessionId ? 'No recognized distraction apps have been observed in this Focus session.' : 'App observation starts when a Focus session is active.'}</span></div>) : groupedActivities.length === 0 ? (
                 <div
+                  className="sentinel-activity-empty"
                   style={{
                     fontSize: 12.5,
                     color: 'var(--text-3)',
                     padding: '14px 16px',
-                    background: 'rgba(255, 255, 255, 0.02)',
+                    background: 'rgba(255,255,255, 0.02)',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                    border: '1px solid var(--border-subtle, rgba(255,255,255, 0.05))',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                   }}
                 >
-                  <Icon name="check-circle" size={15} />
-                  <span>No distracting apps were blocked recently. Your focus workspace is clear.</span>
+                  <Icon name="shield" size={15} />
+                  <span>{protectionInfo.shieldConnected ? 'No enforcement activity has been recorded in the recent activity window.' : 'No enforcement activity can be confirmed while the native Shield is disconnected.'}</span>
                 </div>
               ) : (
                 <div className="sentinel-activity-timeline">
@@ -807,25 +570,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             </div>
 
             {/* Technical Security & Tamper Audit Log Section */}
-            <div className="sentinel-tamper-section">
-              <div
-                className="sentinel-tamper-header"
-                onClick={() => setTamperEventsExpanded((prev) => !prev)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setTamperEventsExpanded((prev) => !prev)
-                  }
-                }}
-                aria-expanded={tamperEventsExpanded}
-              >
+            <details className="sentinel-tamper-section" open={tamperEventsExpanded} onToggle={(event) => setTamperEventsExpanded(event.currentTarget.open)}>
+              <summary className="sentinel-tamper-header">
                 <div className="sentinel-tamper-title">
                   <Icon name="shield" size={15} />
                   <span>Technical Security & Tamper Audit Log</span>
                   <span
-                    className={`sentinel-tamper-badge-count ${tamperEvents.length === 0 ? 'clean' : 'alert'
+                    className={`sentinel-tamper-badge-count ${tamperEvents.length === 0 ? 'neutral' : 'alert'
                       }`}
                   >
                     {tamperEvents.length === 0
@@ -833,25 +584,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                       : `${tamperEvents.length} Event${tamperEvents.length > 1 ? 's' : ''}`}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  aria-expanded={tamperEventsExpanded}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-3)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                  tabIndex={-1}
-                >
-                  <span>{tamperEventsExpanded ? 'Collapse' : 'Expand Audit Log'}</span>
-                  <Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} />
-                </button>
-              </div>
+                <span className="sentinel-tamper-disclosure">{tamperEventsExpanded ? 'Collapse' : 'Expand audit log'}<Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} /></span>
+              </summary>
 
               {tamperEventsExpanded && (
                 <div className="sentinel-tamper-timeline">
@@ -865,9 +599,9 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                         fontSize: 12,
                         color: 'var(--text-2)',
                         padding: '10px 14px',
-                        background: 'rgba(255, 255, 255, 0.02)',
+                        background: 'rgba(255,255,255, 0.02)',
                         borderRadius: 'var(--radius-sm, 8px)',
-                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                        border: '1px solid var(--border-subtle, rgba(255,255,255, 0.05))',
                       }}
                     >
                       No administrative override or policy tamper events recorded in current audit window.
@@ -912,7 +646,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   )}
                 </div>
               )}
-            </div>
+            </details>
           </div>
         )
       })()}
@@ -985,13 +719,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: 'min(500px, calc(100vw - 32px))',
-              borderTop: '3px solid var(--accent-coral, #FF4D5E)',
+              borderTop: '3px solid var(--accent-coral, var(--brand-primary))',
             }}
           >
             <div className="quick-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="shield" size={18} />
-                <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)' }}>
+                <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, var(--brand-primary))' }}>
                   Confirm Protection Change
                 </h3>
               </div>
@@ -1061,7 +795,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                       right: '8px',
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--text-secondary, #94a3b8)',
+                      color: 'var(--text-secondary, #5c5c5c)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -1116,9 +850,9 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   style={{
                     background:
                       overrideReason.trim().length >= 15 && overridePassword
-                        ? 'linear-gradient(135deg, #FF4D5E 0%, #D92B3E 100%)'
+                        ? 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary) 100%)'
                         : undefined,
-                    borderColor: '#FF4D5E',
+                    borderColor: 'var(--brand-primary)',
                   }}
                 >
                   {overrideLoading ? 'Confirming...' : 'Confirm Protection Change'}
@@ -1129,13 +863,14 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       )}
 
-      {/* Process Table Card */}
+      <details className="tm-advanced-processes" open>
+        <summary><span>{localVaultMode ? 'Local process snapshot' : 'Server process snapshot'}</span><small>{localVaultMode ? 'Native process inventory is not yet integrated' : 'Read-only process data from the SHINPO server host'}</small></summary>
       <div className="tm-table-card">
         <div className="tm-table-header">
           <div>
-            <h3 className="tm-table-title">Live Process Table</h3>
+            <h3 className="tm-table-title">{localVaultMode ? 'Local process snapshot' : 'Backend-host process snapshot'}</h3>
             <span className="tm-table-count">
-              Showing {deviceSnapshot?.processes.length ?? 0} processes on {deviceSnapshot?.systemInfo.deviceName || 'Local Device'}
+              {deviceSnapshot ? `Showing ${deviceSnapshot.processes.length} ${localVaultMode ? 'local' : 'server-host'} processes · read-only` : localVaultMode ? 'Local process inventory unavailable' : 'Server process snapshot unavailable'}
             </span>
           </div>
         </div>
@@ -1149,7 +884,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 <th style={{ width: 110 }}>CPU (%)</th>
                 <th style={{ width: 130 }}>Memory</th>
                 <th style={{ width: 140 }}>Policy Status</th>
-                <th style={{ width: 130, textAlign: 'right' }}>Action</th>
+                <th style={{ width: 130, textAlign: 'right' }}>Access</th>
               </tr>
             </thead>
             <tbody>
@@ -1198,27 +933,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                         {proc.shinpoPolicyState === 'UNKNOWN' && 'Monitored'}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {proc.canControl && proc.shinpoPolicyState !== 'PROTECTED' ? (
-                        <button
-                          type="button"
-                          className="tm-btn-terminate btn-spring"
-                          onClick={() => handleTerminateProcess(proc)}
-                        >
-                          Terminate
-                        </button>
-                      ) : (
-                        <span className="tm-protected-label">
-                          Protected
-                        </span>
-                      )}
-                    </td>
+                    <td style={{ textAlign: 'right' }}><span className="tm-protected-label">Read only</span></td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: 'var(--text-3)' }}>
-                    {tmLoading ? 'Enumerating device processes...' : 'No matching processes found.'}
+                    {tmLoading ? 'Enumerating device processes...' : localVaultMode ? 'Native process inventory is not integrated; no backend scan was requested.' : 'No matching processes found.'}
                   </td>
                 </tr>
               )}
@@ -1226,6 +947,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           </table>
         </div>
       </div>
+      </details>
     </div>
   )
 }

@@ -1,4 +1,6 @@
 import { apiClient } from './client.ts'
+import { isLocalVaultSession } from './auth.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
 
 export type OnboardingStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'SKIPPED' | 'COMPLETED'
 
@@ -17,6 +19,7 @@ export type OnboardingResponse = {
  * Fetch authenticated user's current onboarding state from PostgreSQL ledger.
  */
 export async function getOnboardingState(): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_get_onboarding_state')
   return apiClient.get<OnboardingResponse>('/onboarding')
 }
 
@@ -24,6 +27,7 @@ export async function getOnboardingState(): Promise<OnboardingResponse> {
  * Begin or resume guided onboarding from a specific step.
  */
 export async function startOnboarding(fromStep?: number): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_start_onboarding', { fromStep })
   return apiClient.post<OnboardingResponse>('/onboarding/start', { fromStep: fromStep ?? 0 })
 }
 
@@ -33,10 +37,12 @@ export async function startOnboarding(fromStep?: number): Promise<OnboardingResp
 export async function recordOnboardingStep(
   stepIndex: number
 ): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_record_onboarding_step', { stepIndex })
   return apiClient.post<OnboardingResponse>('/onboarding/step', { stepIndex })
 }
 
 export async function finishOnboarding(): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_finish_onboarding')
   return apiClient.post<OnboardingResponse>('/onboarding/finish', {})
 }
 
@@ -44,6 +50,7 @@ export async function finishOnboarding(): Promise<OnboardingResponse> {
  * Explicitly pause onboarding with current step index persisted.
  */
 export async function pauseOnboarding(stepIndex: number): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_pause_onboarding', { stepIndex })
   return apiClient.post<OnboardingResponse>('/onboarding/pause', { stepIndex })
 }
 
@@ -51,6 +58,7 @@ export async function pauseOnboarding(stepIndex: number): Promise<OnboardingResp
  * Explicitly skip onboarding. Sets status to SKIPPED and guarantees 0 reward XP.
  */
 export async function skipOnboarding(): Promise<OnboardingResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_skip_onboarding')
   return apiClient.post<OnboardingResponse>('/onboarding/skip', {})
 }
 

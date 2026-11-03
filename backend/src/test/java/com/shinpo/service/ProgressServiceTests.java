@@ -30,7 +30,7 @@ class ProgressServiceTests {
     }
 
     @Test
-    @DisplayName("Should return Level 1 Focus Initiate for new user with 0 XP")
+    @DisplayName("Should return Level 1 Getting Started for new user with 0 XP")
     void testNewUserLevel1() {
         when(progressEventRepository.getTotalProgressByUserId(1L)).thenReturn(0);
         when(progressEventRepository.findTop10ByUser_IdOrderByCreatedAtDesc(1L)).thenReturn(List.of());
@@ -40,7 +40,7 @@ class ProgressServiceTests {
         assertThat(response.userId()).isEqualTo(1L);
         assertThat(response.totalProgress()).isEqualTo(0);
         assertThat(response.level()).isEqualTo(1);
-        assertThat(response.levelTitle()).isEqualTo("Focus Initiate");
+        assertThat(response.levelTitle()).isEqualTo("Getting Started");
         assertThat(response.currentLevelXp()).isEqualTo(0);
         assertThat(response.nextLevelThreshold()).isEqualTo(100);
         assertThat(response.progressPercent()).isEqualTo(0.0);
@@ -48,7 +48,7 @@ class ProgressServiceTests {
     }
 
     @Test
-    @DisplayName("Should correctly transition to Level 2 Disciplined Practitioner at 100 XP")
+    @DisplayName("Should correctly transition to Level 2 Focused Learner at 100 XP")
     void testLevel2Transition() {
         when(progressEventRepository.getTotalProgressByUserId(2L)).thenReturn(145);
         when(progressEventRepository.findTop10ByUser_IdOrderByCreatedAtDesc(2L)).thenReturn(List.of());
@@ -56,7 +56,7 @@ class ProgressServiceTests {
         ProgressResponse response = progressService.getUserProgress(2L);
 
         assertThat(response.level()).isEqualTo(2);
-        assertThat(response.levelTitle()).isEqualTo("Disciplined Practitioner");
+        assertThat(response.levelTitle()).isEqualTo("Focused Learner");
         assertThat(response.currentLevelXp()).isEqualTo(45);
         assertThat(response.nextLevelThreshold()).isEqualTo(150);
         assertThat(response.progressPercent()).isEqualTo(30.0);
@@ -66,13 +66,13 @@ class ProgressServiceTests {
     @DisplayName("Should correctly calculate Level 3, 4, and 5 tiers")
     void testHigherLevelCalculations() {
         assertThat(ProgressResponse.calculateLevel(250)).isEqualTo(3);
-        assertThat(ProgressResponse.calculateLevelTitle(3)).isEqualTo("Execution Specialist");
+        assertThat(ProgressResponse.calculateLevelTitle(3)).isEqualTo("Steady Builder");
 
         assertThat(ProgressResponse.calculateLevel(500)).isEqualTo(4);
-        assertThat(ProgressResponse.calculateLevelTitle(4)).isEqualTo("High-Flow Architect");
+        assertThat(ProgressResponse.calculateLevelTitle(4)).isEqualTo("Deep Work Practitioner");
 
         assertThat(ProgressResponse.calculateLevel(1000)).isEqualTo(5);
-        assertThat(ProgressResponse.calculateLevelTitle(5)).isEqualTo("Master of Flow");
+        assertThat(ProgressResponse.calculateLevelTitle(5)).isEqualTo("Sustained Focus");
     }
 
     @Test

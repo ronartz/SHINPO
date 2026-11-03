@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { ProgressResponse } from '../api/progress'
 import type { AnalyticsDashboardResponse } from '../api/analytics'
 import type { Goal, Mission } from '../api/goalsAndMissions'
 import type { FocusSession } from '../api/focusSessions'
+import type { AppView, IconName } from '../types/navigation'
 import { Icon } from '../components/common/Icon'
-import type { IconName } from '../types/navigation'
-import { deriveAchievements } from '../utils/progressionEngine'
+import { ShinpoLogo } from '../components/ShinpoLogo'
+import { computeDailyObjectives, deriveAchievements, findNewProgressEvents, type AchievementItem } from '../utils/progressionEngine'
 
 interface RewardsViewProps {
   progress: ProgressResponse | null
@@ -14,6 +15,18 @@ interface RewardsViewProps {
   missions: Mission[]
   sessions: FocusSession[]
   onboardingVerified: boolean
+  onNavigate: (tab: AppView) => void
+}
+
+const achievementIcons: Record<string, IconName> = {
+  first_task: 'check',
+  first_sprint: 'focus',
+  deep_flow_hour: 'clock',
+  level_2_practitioner: 'sparkle',
+  goal_concluded: 'target',
+  momentum_streak: 'zap',
+  onboarding_certified: 'shield-check',
+  level_4_architect: 'rewards',
 }
 
 const eventTitle = (type: string) => ({
@@ -22,47 +35,187 @@ const eventTitle = (type: string) => ({
   GOAL_COMPLETED: 'Goal completed',
   STREAK_MILESTONE: 'Consistency milestone',
   ONBOARDING_COMPLETED: 'Getting started',
+  LATE_RETURN_PENALTY: 'Late return XP adjustment',
 }[type] ?? type.replaceAll('_', ' ').toLowerCase().replace(/^./, (letter) => letter.toUpperCase()))
 
-export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, goals, missions, sessions, onboardingVerified }) => {
-  const achievements = deriveAchievements(progress, analytics, missions, goals, sessions, onboardingVerified)
+const eventIcons: Record<string, IconName> = {
+  FOCUS_SESSION_COMPLETED: 'focus',
+  MISSION_COMPLETED: 'check',
+  GOAL_COMPLETED: 'target',
+  STREAK_MILESTONE: 'zap',
+  ONBOARDING_COMPLETED: 'shield-check',
+  LATE_RETURN_PENALTY: 'clock',
+}
+const eventIcon = (type: string): IconName => eventIcons[type] ?? 'check'
+
+const eventDate = (value: string | null) => {
+  if (!value) return 'Date unavailable'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function evidenceDescription(item: AchievementItem) {
+  if (item.evidence === 'persisted') return 'Verified from SHINPO’s saved Focus, XP, or streak records.'
+  if (item.evidence === 'current') return 'Based on current app state; this may change if that state is reopened or reset.'
+  return 'The required historical record is not available, so SHINPO will not claim this milestone as earned.'
+}
+
+export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, goals, missions, sessions, onboardingVerified, onNavigate }) => {
+  const achievements = useMemo(
+    () => deriveAchievements(progress, analytics, missions, goals, sessions, onboardingVerified),
+    [progress, analytics, missions, goals, sessions, onboardingVerified],
+  )
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showAllEvents, setShowAllEvents] = useState(false)
+  const [freshEventIds, setFreshEventIds] = useState<number[]>([])
+  const [freshAchievementIds, setFreshAchievementIds] = useState<string[]>([])
+  const previousRewardState = useRef<{ progress: ProgressResponse; achievements: AchievementItem[] } | null>(null)
+  const freshTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!progress) return
+    const previous = previousRewardState.current
+    if (previous) {
+      const newEvents = findNewProgressEvents(previous.progress, progress)
+      if (newEvents.length) {
+        setFreshEventIds(newEvents.map((event) => event.id))
+        const wasUnlocked = new Set(previous.achievements.filter((item) => item.unlocked).map((item) => item.id))
+        setFreshAchievementIds(achievements.filter((item) => item.unlocked && !wasUnlocked.has(item.id)).map((item) => item.id))
+        if (freshTimer.current !== null) window.clearTimeout(freshTimer.current)
+        freshTimer.current = window.setTimeout(() => {
+          setFreshEventIds([])
+          setFreshAchievementIds([])
+          freshTimer.current = null
+        }, 2200)
+      }
+    }
+    previousRewardState.current = { progress, achievements }
+  }, [progress, achievements])
+
+  useEffect(() => () => {
+    if (freshTimer.current !== null) window.clearTimeout(freshTimer.current)
+  }, [])
+
+  const currentLevelXp = progress?.currentLevelXp ?? 0
+  const nextLevelThreshold = progress?.nextLevelThreshold ?? 100
   const percent = Math.min(100, Math.max(0, progress?.progressPercent ?? 0))
-  const remaining = Math.max(0, (progress?.nextLevelThreshold ?? 0) - (progress?.currentLevelXp ?? 0))
+  const remaining = Math.max(0, nextLevelThreshold - currentLevelXp)
   const streak = analytics?.summary.currentStreak ?? 0
+  const nextMilestone = achievements.find((item) => !item.unlocked && item.progress !== null) ?? achievements.find((item) => !item.unlocked)
+  const selected = achievements.find((item) => item.id === selectedId) ?? nextMilestone ?? achievements[0]
+  const unlockedCount = achievements.filter((item) => item.unlocked).length
+  const daily = useMemo(() => computeDailyObjectives(sessions), [sessions])
+  const objectives = daily.objectives
+  const circumference = 2 * Math.PI * 54
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  const recentEvents = progress?.recentEvents ?? []
+  const visibleEvents = showAllEvents ? recentEvents : recentEvents.slice(0, 3)
 
   return (
     <main className="rewards-view">
       <header className="rewards-heading">
-        <div><span className="rewards-eyebrow">Your progress</span><h1>Rewards &amp; Progress</h1><p>Real milestones earned through the work you complete in SHINPO.</p></div>
-      </header>
-      <section className="rewards-overview" aria-label="Current level progress">
-        <div className="rewards-level-mark" aria-hidden="true"><Icon name="rewards" size={25} /></div>
-        <div className="rewards-level-copy"><span>LEVEL {progress?.level ?? 1}</span><h2>{progress?.levelTitle ?? 'Focus Initiate'}</h2><p>{progress?.totalProgress ?? 0} XP earned · {remaining} XP to next level</p>
-          <div className="rewards-progress-track" role="progressbar" aria-label="Progress to next level" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${percent}%` }} /></div>
-          <div className="rewards-progress-caption"><span>{progress?.currentLevelXp ?? 0} XP</span><span>{progress?.nextLevelThreshold ?? 100} XP</span></div>
+        <div>
+          <span className="rewards-eyebrow">Progress built through real work</span>
+          <h1>Rewards &amp; Progress</h1>
+          <p>See what you’ve earned, what’s within reach, and the work behind every milestone.</p>
         </div>
-        <div className="rewards-streak"><Icon name="sparkle" size={18} /><strong>{streak}</strong><span>{streak === 1 ? 'day' : 'days'} current streak</span></div>
+        <span className="rewards-ledger-trust"><Icon name="shield-check" size={18} /><span><strong>Verified progress</strong><small>Synced from your sessions</small></span></span>
+      </header>
+
+      <section className={`rewards-hero${freshEventIds.length ? ' has-new-xp' : ''}`} aria-label="Current level progress">
+        <div className="rewards-hero-orbit" aria-hidden="true"><i /><i /><i /><i /></div>
+        <div className="rewards-level-ring" role="img" aria-label={`Level ${progress?.level ?? 1}, ${Math.round(percent)} percent of the way to the next level`}>
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle className="rewards-ring-track" cx="60" cy="60" r="54" />
+            <circle className="rewards-ring-progress" cx="60" cy="60" r="54" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - percent / 100)} />
+          </svg>
+          <div className="rewards-level-emblem"><ShinpoLogo size={58} variant="icon" monochrome /><span>LVL {progress?.level ?? 1}</span></div>
+        </div>
+        <div className="rewards-hero-copy">
+          <span className="rewards-eyebrow">Level {progress?.level ?? 1}</span>
+          <h2>{progress?.levelTitle ?? `Level ${progress?.level ?? 1}`}</h2>
+          <p className="rewards-hero-summary">{progress?.totalProgress ?? 0} XP earned from completed work</p>
+          <div className="rewards-hero-progress" role="progressbar" aria-label="Progress toward next level" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+            <span style={{ width: `${percent}%` }} />
+          </div>
+          <div className="rewards-hero-progress-labels"><span>{currentLevelXp} XP</span><span>{remaining} XP to next level</span><span>{nextLevelThreshold} XP</span></div>
+          <div className="rewards-hero-next"><span>Next milestone</span><strong>{nextMilestone?.title ?? 'All milestones met'}</strong><span>{nextMilestone?.progressLabel ?? 'Keep building your practice'}</span></div>
+        </div>
+        <div className="rewards-streak-card">
+          <span className="rewards-streak-icon"><Icon name="zap" size={18} /></span>
+          <strong>{streak}</strong>
+          <span>{streak === 1 ? 'day' : 'days'} streak</span>
+          <small>Complete a Focus session today to keep your streak.</small>
+        </div>
       </section>
-      <div className="rewards-content-grid">
-        <section className="rewards-panel" aria-labelledby="rewards-ledger-title">
-          <div className="rewards-panel-heading"><div><span className="rewards-eyebrow">Server-recorded activity</span><h2 id="rewards-ledger-title">XP activity</h2></div></div>
-          {progress?.recentEvents.length ? <ol className="rewards-ledger">
-            {progress.recentEvents.map((event) => (
-              <li key={event.id}><span className="rewards-event-mark"><Icon name="check" size={15} /></span><div className="rewards-event-copy"><strong>{eventTitle(event.eventType)}</strong><time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : 'Recorded'}</time></div><b>+{event.amount} XP</b></li>
-            ))}
-          </ol> : <p className="rewards-empty">Progress events will appear here when you complete a qualifying task or focus session.</p>}
-        </section>
-        <section className="rewards-panel" aria-labelledby="rewards-achievements-title">
-          <div className="rewards-panel-heading"><div><span className="rewards-eyebrow">Earned milestones</span><h2 id="rewards-achievements-title">Achievements</h2></div><span className="rewards-count">{achievements.filter((item) => item.unlocked).length} / {achievements.length}</span></div>
-          <ul className="rewards-achievements">
-            {achievements.map((achievement) => <li key={achievement.id} className={achievement.unlocked ? 'is-unlocked' : ''}>
-              <span className="rewards-achievement-icon"><Icon name={achievement.icon as IconName} size={16} /></span>
-              <span><strong>{achievement.title}</strong><small>{achievement.unlocked ? achievement.description : achievement.progressLabel}</small></span>
-              <span className="rewards-achievement-state">{achievement.unlocked ? 'Earned' : 'In progress'}</span>
-            </li>)}
-          </ul>
-        </section>
-      </div>
+
+      <section className="rewards-daily" aria-labelledby="rewards-daily-title">
+        <div className="rewards-section-heading">
+          <div><h2 id="rewards-daily-title">Today’s progress</h2></div>
+          <div className="rewards-daily-meta"><time>{todayLabel}</time><span className="rewards-count">{daily.completedCount} / {daily.totalCount} complete</span></div>
+        </div>
+        <div className="rewards-objectives-grid">
+          {objectives.map((objective) => {
+            const value = Math.min(100, Math.round(objective.current / objective.target * 100))
+            return <button key={objective.id} type="button" className={`rewards-objective${objective.isCompleted ? ' is-complete' : ''}`} onClick={() => onNavigate('Focus Engine')}>
+              <span className="rewards-objective-icon"><Icon name={objective.isCompleted ? 'check' : 'focus'} size={17} /></span>
+              <span className="rewards-objective-copy"><strong>{objective.title}</strong><small>{objective.description}</small><span className="rewards-objective-track"><i style={{ width: `${value}%` }} /></span></span>
+              <span className="rewards-objective-value">{objective.current} / {objective.target}<small> {objective.unit}</small></span>
+            </button>
+          })}
+        </div>
+      </section>
+
+      <section className="rewards-journey" aria-labelledby="rewards-journey-title">
+        <div className="rewards-section-heading">
+          <div><span className="rewards-eyebrow">Eight milestones · earned through verified progress</span><h2 id="rewards-journey-title">Your achievement journey</h2><p>Choose a milestone to see what counts and where to continue.</p></div>
+          <span className="rewards-count">{unlockedCount} / {achievements.length} met</span>
+        </div>
+        <div className="rewards-journey-grid">
+          {achievements.map((item, index) => {
+            const amount = item.progress === null ? 0 : Math.min(item.target, item.progress)
+            const ratio = item.target > 0 ? amount / item.target : 0
+            return <button
+              type="button"
+              key={item.id}
+              aria-pressed={selected?.id === item.id}
+              className={`rewards-milestone ${item.unlocked ? 'is-earned' : item.evidence === 'unavailable' ? 'is-unknown' : 'is-locked'}${selected?.id === item.id ? ' is-selected' : ''}${freshAchievementIds.includes(item.id) ? ' is-newly-earned' : ''}`}
+              style={{ '--milestone-order': index } as React.CSSProperties}
+              onClick={() => setSelectedId(item.id)}
+            >
+              <span className={`rewards-badge badge-${item.id}`}><Icon name={achievementIcons[item.id]} size={22} />{item.unlocked && <i><Icon name="check" size={10} /></i>}</span>
+              <span className="rewards-milestone-content"><strong>{item.title}</strong><small>{item.description}</small></span>
+              <span className="rewards-milestone-progress"><i><span style={{ width: item.progress === null ? '0%' : `${ratio * 100}%` }} /></i><small>{item.unlocked ? 'Record met' : item.progressLabel}</small></span>
+              <span className="rewards-milestone-state">{item.unlocked ? item.evidence === 'persisted' ? 'Earned' : 'Currently met' : item.evidence === 'unavailable' ? 'Unverified' : 'In progress'}</span>
+            </button>
+          })}
+        </div>
+        {selected && <aside className="rewards-detail-panel" aria-live="polite" aria-labelledby="rewards-detail-title">
+          <span className={`rewards-detail-badge badge-${selected.id}`}><Icon name={achievementIcons[selected.id]} size={27} /></span>
+          <div className="rewards-detail-copy">
+            <span className="rewards-eyebrow">{selected.unlocked ? selected.evidence === 'persisted' ? 'Milestone earned' : 'Currently met' : selected.evidence === 'unavailable' ? 'Verification unavailable' : 'Next steps'}</span>
+            <h3 id="rewards-detail-title">{selected.title}</h3>
+            <p>{selected.description}</p>
+            <p className="rewards-evidence-note">{evidenceDescription(selected)}</p>
+            {selected.progress !== null && <div className="rewards-detail-progress"><span>{selected.progressLabel}</span><span>{selected.unlocked ? 'Complete' : `${Math.max(0, selected.target - selected.progress)} ${selected.unit} remaining`}</span><i><b style={{ width: `${Math.min(100, selected.progress / selected.target * 100)}%` }} /></i></div>}
+          </div>
+          {selected.nextActionTab && <button type="button" className="rewards-continue-button" onClick={() => onNavigate(selected.nextActionTab!)}>{selected.unlocked ? 'Keep going' : selected.evidence === 'unavailable' ? 'Open guide' : 'Continue progress'}<Icon name="arrow-up-right" size={15} /></button>}
+        </aside>}
+      </section>
+
+      <section className="rewards-history" aria-labelledby="rewards-history-title">
+        <header className="rewards-history-heading"><span><strong id="rewards-history-title">Recent activity</strong><small>Verified rewards and progress updates from your sessions.</small></span>
+          {recentEvents.length > 3 && <button type="button" aria-expanded={showAllEvents} onClick={() => setShowAllEvents((show) => !show)}>{showAllEvents ? 'Show recent' : 'View all activity'}<Icon name="arrow-up-right" size={14} /></button>}
+        </header>
+        {visibleEvents.length ? <ol className="rewards-ledger">
+          {visibleEvents.map((event) => <li key={event.id} className={freshEventIds.includes(event.id) ? 'is-new-event' : ''}>
+            <span className="rewards-event-mark"><Icon name={eventIcon(event.eventType)} size={15} /></span>
+            <span className="rewards-event-copy"><strong>{eventTitle(event.eventType)}</strong><small>{eventTitle(event.eventType)} recorded in your progress ledger.</small></span>
+            <b>{event.amount >= 0 ? '+' : ''}{event.amount} XP</b>
+            <time dateTime={event.createdAt ?? undefined}>{eventDate(event.createdAt)}</time>
+          </li>)}
+        </ol> : <p className="rewards-empty">Your XP activity will appear here after SHINPO records a qualifying action.</p>}
+      </section>
     </main>
   )
 }

@@ -38,8 +38,10 @@
 
 /* 6. System Animations, Glass Finishes & Telemetry */
 @import './styles/foundations/animations.css';
+@import './styles/foundations/microkit-motion.css';
 @import './styles/components/glass-surfaces.css';
 @import './styles/components/telemetry-toasts.css';
 
 /* 7. V2 Aurora Stylesheet */
 @import './v2/theme/aurora.css';
+@import './styles/app-shell-refinement.css';

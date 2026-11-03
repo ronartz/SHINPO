@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   computeDailyObjectives,
   deriveAchievements,
+  findNewProgressEvents,
   getLocalDateString,
   spawnCelebrationSparkles,
 } from './progressionEngine.ts'
@@ -36,33 +37,18 @@ function createMockSession(overrides: Partial<FocusSession> = {}): FocusSession 
 }
 
 test('computeDailyObjectives correctly evaluates zero progress on a fresh day', () => {
-  const summary = computeDailyObjectives([], [], '2026-10-21')
+  const summary = computeDailyObjectives([], '2026-10-21')
 
-  assert.equal(summary.totalCount, 3)
+  assert.equal(summary.totalCount, 2)
   assert.equal(summary.completedCount, 0)
   assert.equal(summary.isAllCompleted, false)
-  assert.equal(summary.objectives[0].id, 'daily_task')
+  assert.equal(summary.objectives[0].id, 'daily_focus_sprint')
   assert.equal(summary.objectives[0].isCompleted, false)
-  assert.equal(summary.objectives[1].id, 'daily_focus_sprint')
+  assert.equal(summary.objectives[1].id, 'daily_focus_duration')
   assert.equal(summary.objectives[1].isCompleted, false)
-  assert.equal(summary.objectives[2].id, 'daily_focus_duration')
-  assert.equal(summary.objectives[2].isCompleted, false)
 })
 
-test('computeDailyObjectives completes tasks and focus objectives based on verified data', () => {
-  const mockMissions: Mission[] = [
-    {
-      id: 1,
-      goalId: 10,
-      title: 'Review Ship Matrix',
-      description: '',
-      status: 'COMPLETED',
-      estimatedMinutes: 20,
-      scheduledDate: '2026-10-21',
-      createdAt: '2026-10-21T09:00:00Z',
-    },
-  ]
-
+test('computeDailyObjectives completes focus objectives from same-day completed session evidence', () => {
   const mockSessions: FocusSession[] = [
     createMockSession({
       id: 101,
@@ -74,14 +60,13 @@ test('computeDailyObjectives completes tasks and focus objectives based on verif
     }),
   ]
 
-  const summary = computeDailyObjectives(mockMissions, mockSessions, '2026-10-21')
+  const summary = computeDailyObjectives(mockSessions, '2026-10-21')
 
-  assert.equal(summary.completedCount, 3)
+  assert.equal(summary.completedCount, 2)
   assert.equal(summary.isAllCompleted, true)
   assert.equal(summary.objectives[0].isCompleted, true)
   assert.equal(summary.objectives[1].isCompleted, true)
-  assert.equal(summary.objectives[2].isCompleted, true)
-  assert.equal(summary.objectives[2].current, 25) // clamped to target 25m
+  assert.equal(summary.objectives[1].current, 25)
 })
 
 test('computeDailyObjectives ignores sessions under 15 active minutes for sprint objective', () => {
@@ -96,11 +81,19 @@ test('computeDailyObjectives ignores sessions under 15 active minutes for sprint
     }),
   ]
 
-  const summary = computeDailyObjectives([], mockSessions, '2026-10-21')
+  const summary = computeDailyObjectives(mockSessions, '2026-10-21')
 
+  assert.equal(summary.objectives[0].isCompleted, false)
+  assert.equal(summary.objectives[1].current, 10)
   assert.equal(summary.objectives[1].isCompleted, false)
-  assert.equal(summary.objectives[2].current, 10)
-  assert.equal(summary.objectives[2].isCompleted, false)
+})
+
+test('daily objectives exclude completed sessions without completion-date evidence or from another day', () => {
+  const summary = computeDailyObjectives([
+    createMockSession({ endedAt: null, activeSeconds: 3600 }),
+    createMockSession({ endedAt: '2026-10-20T10:00:00Z', activeSeconds: 3600 }),
+  ], '2026-10-21')
+  assert.equal(summary.completedCount, 0)
 })
 
 test('deriveAchievements truthfully reports unlocked milestones from backend stats', () => {
@@ -108,7 +101,7 @@ test('deriveAchievements truthfully reports unlocked milestones from backend sta
     userId: 1,
     totalProgress: 120,
     level: 2,
-    levelTitle: 'Disciplined Practitioner',
+    levelTitle: 'Focused Learner',
     currentLevelXp: 20,
     nextLevelThreshold: 150,
     progressPercent: 13.3,
@@ -143,9 +136,11 @@ test('deriveAchievements truthfully reports unlocked milestones from backend sta
   ]
   const mockSessions: FocusSession[] = [
     createMockSession({ id: 1, name: 'S1', durationMinutes: 25, activeSeconds: 1500, status: 'COMPLETED', startedAt: '2026-10-21T10:00:00Z' }),
+    createMockSession({ id: 2, name: 'S2', durationMinutes: 25, activeSeconds: 1500, status: 'COMPLETED', startedAt: '2026-10-22T10:00:00Z' }),
+    createMockSession({ id: 3, name: 'S3', durationMinutes: 25, activeSeconds: 1500, status: 'COMPLETED', startedAt: '2026-10-23T10:00:00Z' }),
   ]
 
-  const achievements = deriveAchievements(mockProgress, mockAnalytics, mockMissions, mockGoals, mockSessions, true)
+  const achievements = deriveAchievements(mockProgress, mockAnalytics, mockMissions, mockGoals, mockSessions)
 
   const firstStep = achievements.find((a) => a.id === 'first_task')
   assert.equal(firstStep?.unlocked, true)
@@ -164,6 +159,38 @@ test('deriveAchievements truthfully reports unlocked milestones from backend sta
 
   const onboarding = achievements.find((a) => a.id === 'onboarding_certified')
   assert.equal(onboarding?.unlocked, true)
+})
+
+test('onboarding achievement requires its server-recorded workflow event', () => {
+  const onboarding = deriveAchievements(null, null, [], [], [])
+    .find((item) => item.id === 'onboarding_certified')
+  assert.equal(onboarding?.unlocked, false)
+  assert.equal(onboarding?.evidence, 'unavailable')
+})
+
+test('focus-session achievement requires at least 15 active minutes in one completed session', () => {
+  const make = (activeSeconds: number) => deriveAchievements(null, null, [], [], [
+    createMockSession({ status: 'COMPLETED', activeSeconds }),
+  ]).find((item) => item.id === 'first_sprint')!
+
+  assert.equal(make(60).unlocked, false)
+  assert.equal(make(899).unlocked, false)
+  assert.equal(make(900).unlocked, true)
+})
+
+test('new progress events are detected by stable ledger IDs exactly once', () => {
+  const previous: ProgressResponse = {
+    userId: 1, totalProgress: 10, level: 1, levelTitle: 'Getting Started', currentLevelXp: 10,
+    nextLevelThreshold: 100, progressPercent: 10,
+    recentEvents: [{ id: 7, eventType: 'MISSION_COMPLETED', amount: 10, createdAt: '2026-10-20T10:00:00Z' }],
+  }
+  const current = { ...previous, totalProgress: 25, recentEvents: [
+    { id: 9, eventType: 'FOCUS_SESSION_COMPLETED', amount: 15, createdAt: '2026-10-20T11:00:00Z' },
+    ...previous.recentEvents,
+  ] }
+  assert.deepEqual(findNewProgressEvents(previous, current).map((event) => event.id), [9])
+  assert.deepEqual(findNewProgressEvents(current, current), [])
+  assert.deepEqual(findNewProgressEvents(null, current), [])
 })
 
 test('celebration visuals execute safely in non-browser or test environments', () => {

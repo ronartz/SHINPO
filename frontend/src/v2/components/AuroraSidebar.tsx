@@ -30,7 +30,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
 }) => {
   const isShieldActive = sentinelStatus ? (sentinelStatus.status === 'ACTIVE' || sentinelStatus.status === 'ACTIVE_DEFENSE') : false
   const violationsToday = sentinelStatus?.totalInterceptedToday ?? 0
-
+  const activeIndex = Math.max(0, NAVIGATION_ITEMS.findIndex((item) => item.id === activeTab))
 
   return (
     <Box
@@ -92,7 +92,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                   borderRadius: '10px',
                   '&:hover': {
                     color: 'text.primary',
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                    background: isDarkMode ? 'rgba(255,255,255, 0.06)' : 'rgba(0,0,0, 0.04)',
                   },
                 }}
               >
@@ -109,18 +109,18 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
               p: '14px 16px',
               borderRadius: '12px',
               background: isDarkMode
-                ? 'rgba(45, 30, 26, 0.65)'
-                : 'linear-gradient(145deg, #FFF7F2 0%, #FEEFE6 100%)',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 178, 140, 0.18)' : 'rgba(235, 130, 80, 0.22)'}`,
+                ? 'color-mix(in srgb, var(--brand-baltic-blue) 65.0%, transparent)'
+                : 'linear-gradient(145deg, #f0f0f0 0%, #e2e2e2 100%)',
+              border: `1px solid ${isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 18.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 22.0%, transparent)'}`,
               boxShadow: isDarkMode
-                ? '0 2px 8px rgba(0, 0, 0, 0.15)'
-                : '0 2px 8px rgba(224, 109, 83, 0.08)',
+                ? '0 2px 8px rgba(0,0,0, 0.15)'
+                : '0 2px 8px color-mix(in srgb, var(--brand-highlight) 8.0%, transparent)',
               display: 'flex',
               flexDirection: 'column',
               gap: 1,
               transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               '&:hover': {
-                borderColor: 'rgba(249, 115, 22, 0.35)',
+                borderColor: 'color-mix(in srgb, var(--brand-highlight) 35.0%, transparent)',
               },
             }}
             role="region"
@@ -134,7 +134,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                   fontWeight: 800,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
-                  color: isDarkMode ? '#F97316' : '#D9532F',
+                  color: isDarkMode ? 'var(--brand-primary)' : 'var(--brand-primary)',
                 }}
               >
                 PERSPECTIVE
@@ -148,7 +148,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                   sx={{
                     background: 'transparent',
                     border: 'none',
-                    color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(45, 30, 26, 0.6)',
+                    color: isDarkMode ? 'rgba(255,255,255, 0.6)' : 'color-mix(in srgb, var(--brand-baltic-blue) 60.0%, transparent)',
                     cursor: 'pointer',
                     p: 0.4,
                     borderRadius: '6px',
@@ -157,8 +157,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                     justifyContent: 'center',
                     transition: 'all 0.15s ease',
                     '&:hover': {
-                      color: isDarkMode ? '#FFFFFF' : '#2D1E18',
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                      color: isDarkMode ? '#ffffff' : 'var(--brand-baltic-blue)',
+                      background: isDarkMode ? 'rgba(255,255,255, 0.08)' : 'rgba(0,0,0, 0.05)',
                     },
                   }}
                 >
@@ -174,7 +174,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                 fontStyle: 'italic',
                 lineHeight: 1.45,
                 letterSpacing: '-0.01em',
-                color: isDarkMode ? '#F8FAFC' : '#2D1E18',
+                color: isDarkMode ? '#f3f3f3' : 'var(--brand-baltic-blue)',
               }}
             >
               “{shinpoMessage.text}”
@@ -183,7 +183,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
         )}
 
         {/* Navigation Item Stack */}
-        <Box component="nav" sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+        <Box component="nav" className="aurora-nav-stack" sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+          <Box component="span" className="aurora-nav-spotlight" aria-hidden="true" sx={{ transform: `translateY(${activeIndex * 50.4}px)` }} />
           {NAVIGATION_ITEMS.map((item) => {
             const isActive = activeTab === item.id
             return (
@@ -216,49 +217,28 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                     fontSize: 14.5,
                     fontWeight: isActive ? 700 : 500,
                     position: 'relative',
+                    zIndex: 1,
+                    boxSizing: 'border-box',
+                    minHeight: 44,
                     transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-                    background: isActive
-                      ? isDarkMode
-                        ? 'linear-gradient(135deg, rgba(49, 86, 216, 0.22) 0%, rgba(59, 130, 246, 0.16) 100%)'
-                        : 'linear-gradient(135deg, rgba(49, 86, 216, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%)'
-                      : 'transparent',
+                    background: 'transparent',
                     color: isActive
                       ? isDarkMode
-                        ? '#FFFFFF'
-                        : '#3563F6'
+                        ? '#ffffff'
+                        : 'var(--brand-primary)'
                       : 'text.secondary',
-                    boxShadow: isActive
-                      ? isDarkMode
-                        ? 'inset 0 0 0 1px rgba(49, 86, 216, 0.35), 0 4px 16px rgba(59, 130, 246, 0.15)'
-                        : 'inset 0 0 0 1px rgba(59, 130, 246, 0.25), 0 4px 12px rgba(59, 130, 246, 0.08)'
-                      : 'none',
+                    boxShadow: 'none',
                     '&:hover': {
                       color: 'text.primary',
                       background: isActive
                         ? undefined
                         : isDarkMode
-                          ? 'rgba(255, 255, 255, 0.05)'
-                          : 'rgba(59, 130, 246, 0.04)',
+                          ? 'rgba(255,255,255, 0.05)'
+                          : 'color-mix(in srgb, var(--brand-highlight) 4.0%, transparent)',
                       transform: 'translateX(2px)',
                     },
                   }}
                 >
-                  {/* Left Active Glow Indicator */}
-                  {isActive && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '20%',
-                        bottom: '20%',
-                        width: 4,
-                        borderRadius: '0 4px 4px 0',
-                        background: 'linear-gradient(180deg, #3156D8 0%, #19D3C5 100%)',
-                        boxShadow: '0 0 10px #3156D8',
-                      }}
-                    />
-                  )}
-
                   <Box
                     sx={{
                       display: 'flex',
@@ -266,8 +246,8 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                       justifyContent: 'center',
                       color: isActive
                         ? isDarkMode
-                          ? '#A86EFB'
-                          : '#3B82F6'
+                          ? 'var(--brand-primary)'
+                          : 'var(--brand-primary)'
                         : 'inherit',
                       fontSize: 18,
                     }}
@@ -304,9 +284,9 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
             p: 2,
             borderRadius: '16px',
             background: isDarkMode
-              ? 'rgba(25, 37, 65, 0.5)'
-              : 'rgba(240, 244, 255, 0.8)',
-            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(59, 130, 246, 0.12)'}`,
+              ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)'
+              : 'rgba(231,231,231, 0.8)',
+            border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.08)' : 'color-mix(in srgb, var(--brand-highlight) 12.0%, transparent)'}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -318,7 +298,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                 width: 9,
                 height: 9,
                 borderRadius: '50%',
-                backgroundColor: isShieldActive ? '#10B981' : '#F59E0B',
+                backgroundColor: isShieldActive ? 'var(--brand-primary)' : 'var(--brand-primary)',
                 boxShadow: 'none',
               }}
             />
@@ -329,7 +309,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                   display: 'block',
                   fontWeight: 700,
                   fontSize: 12,
-                  color: isShieldActive ? '#10B981' : '#F59E0B',
+                  color: isShieldActive ? 'var(--brand-primary)' : 'var(--brand-primary)',
                 }}
               >
                 Shield {isShieldActive ? 'Active' : 'Standby'}
@@ -356,7 +336,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                backgroundColor: isShieldActive ? '#10B981' : '#F59E0B',
+                backgroundColor: isShieldActive ? 'var(--brand-primary)' : 'var(--brand-primary)',
                 boxShadow: 'none',
               }}
             />

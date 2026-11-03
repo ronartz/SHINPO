@@ -15,9 +15,9 @@ import type {
   StudyResource,
 } from '../api/contextualFocus'
 import {
-  getNativeShieldStatus,
-  isTauriEnvironment,
+  getNativeGuardianStatus,
 } from '../api/nativeShield'
+import { isLocalVaultSession } from '../api/auth'
 
 export interface UseStudyResourcesOptions {
   missionId?: number
@@ -48,27 +48,29 @@ export function useStudyResources({
 
   const applyLocalShieldStatus = useCallback(
     async (baseStatus: ContextualFocusStatus): Promise<ContextualFocusStatus> => {
-      if (!isTauriEnvironment()) return baseStatus
+      if (!isLocalVaultSession()) return baseStatus
 
-      const localStatus = await getNativeShieldStatus()
-      if (!localStatus) {
+      let localStatus
+      try {
+        localStatus = await getNativeGuardianStatus()
+      } catch {
         return {
           ...baseStatus,
           nativeShield: {
             state: 'DISCONNECTED',
-            detail: 'The desktop app could not reach the Native Shield service.',
+            detail: 'The desktop app could not read the encrypted Guardian status.',
           },
         }
       }
+      if (!localStatus) return baseStatus
 
       return {
         ...baseStatus,
         nativeShield: {
-          state: localStatus.isConnected ? 'CONNECTED' : 'DISCONNECTED',
-          detail: localStatus.lastError ||
-            (localStatus.isConnected
-              ? `Process protection is ${localStatus.enforcementMode ?? 'active'}.`
-              : 'Native Shield is not connected.'),
+          state: localStatus.status === 'LOCKED' ? 'DISCONNECTED' : 'CONNECTED',
+          detail: localStatus.status === 'LOCKED'
+            ? 'Guardian monitoring is paused while the encrypted vault is locked.'
+            : `Automatic ${localStatus.guardianMode ?? 'Standard'} Guardian · ${localStatus.focusPhase ?? 'idle'} · warning only; apps are never closed.`,
         },
       }
     },

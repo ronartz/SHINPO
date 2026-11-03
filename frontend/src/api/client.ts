@@ -4,7 +4,7 @@
  * unified error handling, and timeout safeguards.
  */
 
-import { authHeaders } from './auth.ts'
+import { authHeaders, isLocalVaultSession } from './auth.ts'
 import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
 
 /**
@@ -70,6 +70,10 @@ export interface RequestOptions extends RequestInit {
  */
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { timeoutMs = 15000, skipAuth = false, params, ...fetchOptions } = options
+
+  if (isLocalVaultSession()) {
+    throw new ApiError({ message: `This feature is not yet connected to the local vault: ${endpoint}`, status: 503, code: 'LOCAL_FEATURE_UNAVAILABLE' })
+  }
 
   // 1. Build Target URL
   const baseUrl = `${getBackendBaseUrl()}/api`
