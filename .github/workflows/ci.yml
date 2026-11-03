@@ -91,6 +91,9 @@ jobs:
       - name: Browser Companion tests
         run: npm test
         working-directory: browser-extension
+      - name: Prepare Tauri embedded resources
+        run: node ../scripts/prepare-desktop-bundle.mjs
+        working-directory: frontend
       - name: Tauri Rust tests
         run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
       - name: Tauri strict Clippy
@@ -146,6 +149,9 @@ jobs:
       - name: Browser Companion tests
         run: npm test
         working-directory: browser-extension
+      - name: Prepare Tauri embedded resources
+        run: node ../scripts/prepare-desktop-bundle.mjs
+        working-directory: frontend
       - name: Tauri Rust tests
         run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
       - name: Tauri strict Clippy
