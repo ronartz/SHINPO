@@ -4,11 +4,8 @@ fn main() {
     {
         let manifest = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap())
             .join("windows-app-manifest.xml");
-        println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");
-        println!(
-            "cargo:rustc-link-arg-tests=/MANIFESTINPUT:{}",
-            manifest.display()
-        );
+        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+        println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
         println!("cargo:rerun-if-changed={}", manifest.display());
     }
     tauri_build::build()
