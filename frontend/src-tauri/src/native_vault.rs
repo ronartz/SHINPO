@@ -6195,6 +6195,7 @@ mod tests {
         )
         .is_err());
         assert!(invoke("local_get_guardian_observations", serde_json::json!({})).is_err());
+        drop(webview);
         drop(app);
         fs::remove_dir_all(root).unwrap();
     }
