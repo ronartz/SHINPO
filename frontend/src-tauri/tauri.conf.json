@@ -32,7 +32,7 @@
         "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' asset: http://asset.localhost data: blob:",
         "font-src": "'self' data:",
-        "connect-src": "ipc: http://ipc.localhost https: wss:"
+        "connect-src": "ipc: http://ipc.localhost"
       },
       "devCsp": {
         "default-src": "'self' asset: http://asset.localhost",
@@ -42,7 +42,7 @@
         "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' asset: http://asset.localhost data: blob:",
         "font-src": "'self' data:",
-        "connect-src": "ipc: http://ipc.localhost https: wss: ws://localhost:5173"
+        "connect-src": "ipc: http://ipc.localhost ws://localhost:5173"
       }
     }
   },

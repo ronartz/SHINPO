@@ -1,5 +1,6 @@
-// Dynamic Backend Endpoint configuration for SHINPO Desktop (Tauri) & Local Dev
-// In desktop mode, connects to the remote cloud server or local server via HTTPS/WSS.
+import { isTauriEnvironment } from './tauri.ts'
+
+// Backend URL configuration is used by legacy web mode; standalone vault traffic uses Tauri IPC.
 
 export function getBackendBaseUrl(): string {
   const buildUrl = import.meta.env?.VITE_SHINPO_SERVER_URL || import.meta.env?.VITE_API_BASE_URL
@@ -111,6 +112,9 @@ export function isValidWebSocketUrl(raw: string): { valid: boolean; reason?: str
 }
 
 export function fetchWithoutRedirects(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account')) {
+    return Promise.reject(new Error('Direct network requests are disabled for local vault sessions'))
+  }
   return fetch(input, { ...init, redirect: 'error' })
 }
 

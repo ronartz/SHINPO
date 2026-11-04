@@ -67,6 +67,32 @@ describe('Config & Settings Validation Contracts', () => {
     }
   })
 
+  it('rejects direct network access from a local Tauri vault session', async () => {
+    const originalFetch = globalThis.fetch
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    let fetchCalled = false
+    globalThis.fetch = async () => {
+      fetchCalled = true
+      return new Response(null, { status: 200 })
+    }
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } })
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: { getItem: (key: string) => key === 'shinpo_local_vault_account' ? 'disposable-account' : null },
+    })
+    try {
+      await assert.rejects(fetchWithoutRedirects('http://localhost:8080/api/tasks'), /disabled for local vault/)
+      assert.strictEqual(fetchCalled, false)
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+      if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+      else Reflect.deleteProperty(globalThis, 'localStorage')
+    }
+  })
+
   it('requires WSS for remote WebSocket endpoints', () => {
     assert.strictEqual(isValidWebSocketUrl('ws://localhost:8080/ws').valid, true)
     assert.strictEqual(isValidWebSocketUrl('ws://[::1]:8080/ws').valid, true)

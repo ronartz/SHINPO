@@ -1,11 +1,11 @@
 import { Client } from '@stomp/stompjs'
-import { getAuthToken, getAuthenticatedUserId } from './auth'
-import { getWsBaseUrl } from './config'
+import { getAuthToken, getAuthenticatedUserId, isLocalVaultSession } from './auth.ts'
+import { getWsBaseUrl } from './config.ts'
 import {
   normalizeFocusSessionEvent,
   normalizeSentinelQuarantineEvent,
   normalizeSentinelStatusEvent,
-} from './eventNormalizer'
+} from './eventNormalizer.ts'
 
 export interface SentinelQuarantineEvent {
   id: number
@@ -57,6 +57,11 @@ class ShinpoWebSocketClient {
   private isConnecting = false
 
   public connect(userId?: number) {
+    if (isLocalVaultSession()) {
+      this.disconnect()
+      return
+    }
+
     const targetUserId = userId ?? getAuthenticatedUserId()
     if (!targetUserId) {
       console.warn('[STOMP] Cannot connect without authenticated user ID')
