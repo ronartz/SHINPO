@@ -30,13 +30,12 @@ subtle = "2.6"
 time = { version = "0.3", features = ["formatting", "parsing"] }
 url = "2.5"
 unicode-normalization = "0.1.25"
+# Used by the cross-platform EONPAI provider and cancellation state.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+tokio = { version = "1", features = ["sync", "time", "macros"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus = "0.9.12"
-
-# Existing locked dependencies: async HTTPS provider transport and bounded cancellation. MIT/Apache-2.0.
-reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
-tokio = { version = "1", features = ["sync", "time", "macros"] }
 
 [dev-dependencies]
 tauri = { version = "2.12.1", features = ["test"] }
