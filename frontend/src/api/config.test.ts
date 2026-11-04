@@ -67,7 +67,7 @@ describe('Config & Settings Validation Contracts', () => {
     }
   })
 
-  it('rejects direct network access from a local Tauri vault session', async () => {
+  it('rejects direct network access from any Tauri window, even before vault unlock', async () => {
     const originalFetch = globalThis.fetch
     const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
     const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
@@ -79,10 +79,10 @@ describe('Config & Settings Validation Contracts', () => {
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } })
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
-      value: { getItem: (key: string) => key === 'shinpo_local_vault_account' ? 'disposable-account' : null },
+      value: { getItem: () => null },
     })
     try {
-      await assert.rejects(fetchWithoutRedirects('http://localhost:8080/api/tasks'), /disabled for local vault/)
+      await assert.rejects(fetchWithoutRedirects('http://localhost:8080/api/tasks'), /standalone desktop app/)
       assert.strictEqual(fetchCalled, false)
     } finally {
       globalThis.fetch = originalFetch

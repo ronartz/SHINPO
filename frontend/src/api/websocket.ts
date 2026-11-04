@@ -1,6 +1,7 @@
 import { Client } from '@stomp/stompjs'
 import { getAuthToken, getAuthenticatedUserId, isLocalVaultSession } from './auth.ts'
 import { getWsBaseUrl } from './config.ts'
+import { isTauriEnvironment } from './tauri.ts'
 import {
   normalizeFocusSessionEvent,
   normalizeSentinelQuarantineEvent,
@@ -57,7 +58,7 @@ class ShinpoWebSocketClient {
   private isConnecting = false
 
   public connect(userId?: number) {
-    if (isLocalVaultSession()) {
+    if (isTauriEnvironment() || isLocalVaultSession()) {
       this.disconnect()
       return
     }

@@ -2986,7 +2986,7 @@ export function App() {
             )}
 
             {/* Server Endpoint Configuration for Desktop Distribution */}
-            <div className="auth-server-config-section" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
+            {!isTauriEnvironment() && <div className="auth-server-config-section" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
               <button
                 type="button"
                 className="auth-server-toggle-btn"
@@ -3063,7 +3063,7 @@ export function App() {
                   )}
                 </div>
               )}
-            </div>
+            </div>}
           </form>
         </div>
       </div>

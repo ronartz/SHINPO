@@ -266,7 +266,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </article>
         <article className="tm-metric-card">
           <span className="tm-metric-icon"><Icon name="journal" size={21} /></span>
-          <span className="tm-reference-metric-copy"><span className="tm-metric-label">SAVED RULES</span><strong className="tm-metric-val">{localVaultMode ? 'Unavailable' : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small className="tm-metric-sub">{localVaultMode ? 'Local rule storage is not integrated' : enforcementAvailable ? 'Available to the connected Shield' : 'Saved rules are not currently enforced'}</small></span>
+          <span className="tm-reference-metric-copy"><span className="tm-metric-label">{localVaultMode ? 'BUILT-IN APP CATALOG' : 'SAVED RULES'}</span><strong className="tm-metric-val">{localVaultMode ? sentinelStatus?.guardianApplicationCatalog?.length ?? 0 : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small className="tm-metric-sub">{localVaultMode ? `${sentinelStatus?.guardianAppCatalogVersion ?? 'Catalog version unavailable'} · observations only` : enforcementAvailable ? 'Available to the connected Shield' : 'Saved rules are not currently enforced'}</small></span>
         </article>
         <article className="tm-metric-card">
           <span className="tm-metric-icon"><Icon name="close" size={21} /></span>
@@ -282,9 +282,11 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           <strong className="tm-metric-val">{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring' : 'Connected' : 'Unavailable'}</strong>
           <small className="tm-metric-sub">{protectionInfo.shieldConnected ? protectionInfo.description : 'Native protection service is disconnected.'}</small>
         </article>
-        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL CPU' : 'SERVER HOST CPU'}</span><span className="tm-metric-icon"><Icon name="focus" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}</strong><small className="tm-metric-sub">{localVaultMode ? 'Local telemetry is not integrated' : `${deviceSnapshot?.systemInfo.availableProcessors ?? 'Unavailable'} hardware threads`}</small></div></article>
-        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL MEMORY' : 'SERVER HOST MEMORY'}</span><span className="tm-metric-icon"><Icon name="apps" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot ? `${((deviceSnapshot.systemInfo.totalMemoryBytes - deviceSnapshot.systemInfo.freeMemoryBytes) / (1024 ** 3)).toFixed(1)} GB` : 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 ** 3)).toFixed(1)} GB physical RAM` : localVaultMode ? 'Local telemetry is not integrated' : 'Host telemetry is unavailable.'}</small></div></article>
-        <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">{localVaultMode ? 'LOCAL PROCESS SCAN' : 'SERVER PROCESS SCAN'}</span><span className="tm-metric-icon"><Icon name="journal" size={17} /></span></div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot?.systemInfo.processCount == null ? localVaultMode ? 'Local process inventory is not integrated' : 'Server process scanning is disabled' : `${deviceSnapshot.processes.length} ${localVaultMode ? 'local' : 'server-host'} processes · read only`}</small></article>
+        {!localVaultMode && <>
+          <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">SERVER HOST CPU</span><span className="tm-metric-icon"><Icon name="focus" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}</strong><small className="tm-metric-sub">{deviceSnapshot?.systemInfo.availableProcessors ?? 'Unavailable'} hardware threads</small></div></article>
+          <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">SERVER HOST MEMORY</span><span className="tm-metric-icon"><Icon name="apps" size={17} /></span></div><div><strong className="tm-metric-val">{deviceSnapshot ? `${((deviceSnapshot.systemInfo.totalMemoryBytes - deviceSnapshot.systemInfo.freeMemoryBytes) / (1024 ** 3)).toFixed(1)} GB` : 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 ** 3)).toFixed(1)} GB physical RAM` : 'Host telemetry is unavailable.'}</small></div></article>
+          <article className="tm-metric-card"><div className="tm-metric-top"><span className="tm-metric-label">SERVER PROCESS SCAN</span><span className="tm-metric-icon"><Icon name="journal" size={17} /></span></div><strong className="tm-metric-val">{deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}</strong><small className="tm-metric-sub">{deviceSnapshot?.systemInfo.processCount == null ? 'Server process scanning is disabled' : `${deviceSnapshot.processes.length} server-host processes · read only`}</small></article>
+        </>}
       </div>}
 
       {/* Notification Toast if present */}
@@ -309,7 +311,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       )}
 
-      <div className="tm-controls-card tm-controls-toolbar" role="group" aria-label="Focus protection controls">
+      {!localVaultMode && <div className="tm-controls-card tm-controls-toolbar" role="group" aria-label="Focus protection controls">
         <div className="tm-search-box">
           <Icon name="search" size={15} />
           <input
@@ -354,12 +356,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             <span>{tmLoading ? 'Scanning...' : 'Refresh Processes'}</span>
           </button>
         </div>
-      </div>
+      </div>}
 
       <section className="protection-overview-panel" aria-labelledby="protection-overview-title">
-        <header><span className="protection-shield-emblem"><Icon name="shield-check" size={18} /></span><div><h2 id="protection-overview-title">Protection overview</h2><p>Native application protection and current policy state.</p></div><button type="button" className="protection-mode-control" disabled={localVaultMode} onClick={handleToggleSentinelMode} title={localVaultMode ? 'Local Sentinel mode control is not integrated' : sentinelStatus?.isPolicyLocked ? 'Protection is locked during this Focus session. Request an emergency override to change mode.' : 'Change protection mode'}><span className={`protection-live-state ${protectionInfo.shieldConnected && !monitoringOnly ? 'is-active' : protectionInfo.shieldConnected ? 'is-monitoring' : 'is-offline'}`}><i aria-hidden="true" />{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring only' : 'Shield online' : 'Shield offline'}</span><span>{protectionInfo.mode} <Icon name="chevron" size={13} /></span></button></header>
+        <header><span className="protection-shield-emblem"><Icon name="shield-check" size={18} /></span><div><h2 id="protection-overview-title">Protection overview</h2><p>Native application protection and current policy state.</p></div>{localVaultMode ? <span className="protection-live-state is-monitoring"><i aria-hidden="true" />{protectionInfo.badgeText} · {protectionInfo.mode}</span> : <button type="button" className="protection-mode-control" onClick={handleToggleSentinelMode} title={sentinelStatus?.isPolicyLocked ? 'Protection is locked during this Focus session. Request an emergency override to change mode.' : 'Change protection mode'}><span className={`protection-live-state ${protectionInfo.shieldConnected && !monitoringOnly ? 'is-active' : protectionInfo.shieldConnected ? 'is-monitoring' : 'is-offline'}`}><i aria-hidden="true" />{protectionInfo.shieldConnected ? monitoringOnly ? 'Monitoring only' : 'Shield online' : 'Shield offline'}</span><span>{protectionInfo.mode} <Icon name="chevron" size={13} /></span></button>}</header>
         <div className="protection-overview-stats">
-          <div><span>Saved application rules</span><strong>{localVaultMode ? 'Unavailable' : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small>{localVaultMode ? 'Local rule storage is not integrated' : enforcementAvailable ? 'Available to the connected native Shield' : 'Saved policies are not proof of active enforcement'}</small></div>
+          <div><span>{localVaultMode ? 'Built-in app catalog' : 'Saved application rules'}</span><strong>{localVaultMode ? sentinelStatus?.guardianApplicationCatalog?.length ?? 0 : sentinelStatus?.activePolicyRulesCount ?? sentinelRules.length}</strong><small>{localVaultMode ? `${sentinelStatus?.guardianAppCatalogVersion ?? 'Version unavailable'} · warning-only` : enforcementAvailable ? 'Available to the connected native Shield' : 'Saved policies are not proof of active enforcement'}</small></div>
           <div><span>{localVaultMode ? 'App warnings today' : 'Applications intercepted'}</span><strong>{localVaultMode ? sentinelStatus?.guardianWarningCount ?? '—' : sentinelStatus?.totalInterceptedToday ?? 0}</strong><small>{localVaultMode ? 'Encrypted name observations; warning-only' : 'Reported today by the protection service'}</small></div>
           <div><span>Protection mode</span><strong>{localVaultMode ? sentinelStatus?.guardianMode === 'GUIDED' ? 'Light' : sentinelStatus?.guardianMode === 'PROTECTED' ? 'Standard' : sentinelStatus?.guardianMode === 'STRICT' ? 'Strict' : 'Ready' : protectionInfo.mode}</strong><small>{localVaultMode ? `${sentinelStatus?.applicationPolicyStatus?.replaceAll('_', ' ').toLowerCase() ?? 'ready'} · application handling is warning-only` : sentinelStatus?.isPolicyLocked ? 'Locked during the active Focus session' : 'Select Emergency Override to request a protected change'}</small></div>
           <div><span>Current Focus session</span><strong>{sentinelStatus?.activeFocusSessionName || 'No active session'}</strong><small>{sentinelStatus?.activeFocusSessionId ? `Persisted phase: ${sentinelStatus.focusPhase ?? 'Focus'}` : 'Guardian is ready when a Focus session starts'}</small></div>
@@ -863,7 +865,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       )}
 
-      <details className="tm-advanced-processes" open>
+      {!localVaultMode && <details className="tm-advanced-processes" open>
         <summary><span>{localVaultMode ? 'Local process snapshot' : 'Server process snapshot'}</span><small>{localVaultMode ? 'Native process inventory is not yet integrated' : 'Read-only process data from the SHINPO server host'}</small></summary>
       <div className="tm-table-card">
         <div className="tm-table-header">
@@ -947,7 +949,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           </table>
         </div>
       </div>
-      </details>
+      </details>}
     </div>
   )
 }

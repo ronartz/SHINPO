@@ -286,3 +286,34 @@ test('contextual Focus API client uses the authenticated contract', async (t) =>
     assert.equal(status.browserCompanion.state, 'DISCONNECTED')
   })
 })
+
+test('standalone contextual status distinguishes saved pairing from live connection', async () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const originalFetch = globalThis.fetch
+  const tauriWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string) => Promise<unknown> } }
+  const previousBridge = tauriWindow.__TAURI_INTERNALS__
+  let fetchCalled = false
+  storage.clear()
+  storage.set('shinpo_local_vault_account', 'disposable-user')
+  tauriWindow.__TAURI_INTERNALS__ = { invoke: async (cmd) => {
+    if (cmd === 'browser_companion_local_status') return { paired: true, state: 'PAIRED', detail: 'Saved locally; live connection not verified.' }
+    if (cmd === 'local_sync_browser_policy') return { status: 'ACTIVE', mode: 'PROTECTED', policyVersion: 4 }
+    if (cmd === 'local_get_study_resources') return []
+    if (cmd === 'local_set_browser_focus_mode') return undefined
+    throw new Error(`Unexpected native command: ${cmd}`)
+  } }
+  globalThis.fetch = async () => { fetchCalled = true; throw new Error('standalone status attempted HTTP') }
+  try {
+    const status = await getContextualFocusStatus(12)
+    assert.equal(status.browserCompanion.state, 'DISCONNECTED')
+    assert.equal(status.browserCompanion.adapterCoverage, 'LIMITED')
+    assert.equal(status.browserCompanion.detail, 'Saved locally; live connection not verified.')
+    assert.equal(fetchCalled, false)
+  } finally {
+    storage.clear()
+    globalThis.fetch = originalFetch
+    if (previousBridge) tauriWindow.__TAURI_INTERNALS__ = previousBridge
+    else delete tauriWindow.__TAURI_INTERNALS__
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+  }
+})

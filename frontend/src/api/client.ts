@@ -4,8 +4,9 @@
  * unified error handling, and timeout safeguards.
  */
 
-import { authHeaders, isLocalVaultSession } from './auth.ts'
+import { authHeaders } from './auth.ts'
 import { fetchWithoutRedirects, getBackendBaseUrl } from './config.ts'
+import { isTauriEnvironment } from './tauri.ts'
 
 /**
  * Standardized API Error matching backend ApiErrorResponse
@@ -71,7 +72,7 @@ export interface RequestOptions extends RequestInit {
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { timeoutMs = 15000, skipAuth = false, params, ...fetchOptions } = options
 
-  if (isLocalVaultSession()) {
+  if (isTauriEnvironment()) {
     throw new ApiError({ message: `This feature is not yet connected to the local vault: ${endpoint}`, status: 503, code: 'LOCAL_FEATURE_UNAVAILABLE' })
   }
 

@@ -64,7 +64,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   missions = [],
   sessions = [],
 }) => {
-  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection)
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
+    isTauriEnvironment() && initialSection === 'connection' ? 'appearance' : initialSection,
+  )
 
   // Appearance - Time Format state
   const [is24Hour, setIs24Hour] = useState<boolean>(() => {
@@ -161,7 +163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchCompanionInfo = useCallback(async () => {
     setCompanionLoading(true)
     try {
-      if (isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account')) {
+      if (isTauriEnvironment()) {
         const data = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
         setCompanionStatus({
           state: data.state,
@@ -691,7 +693,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               { id: 'protection', label: 'Focus Protection', icon: 'shield' as const },
               { id: 'companion', label: 'Browser Companion', icon: 'apps' as const },
               { id: 'eonpai', label: 'EONPAI (AI)', icon: 'zap' as const },
-              { id: 'connection', label: 'Cloud Connection', icon: 'arrow-up-right' as const },
+              ...(!isTauriEnvironment() ? [{ id: 'connection', label: 'Cloud Connection', icon: 'arrow-up-right' as const }] : []),
               { id: 'privacy', label: 'Privacy & Data', icon: 'lock' as const },
               { id: 'about', label: 'About & Health', icon: 'dashboard' as const },
             ].map((tab) => {
@@ -1530,7 +1532,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
 
             {/* 6. CLOUD CONNECTION SECTION */}
-            {activeSection === 'connection' && (
+            {activeSection === 'connection' && !isTauriEnvironment() && (
               <div>
                 <h3 className="settings-section-title">
                   Cloud Connectivity & Synchronization
@@ -1720,13 +1722,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span style={{ color: 'var(--text-primary)' }}>
                       {isTauriEnvironment() ? 'Tauri desktop app' : 'Browser app (Chromium/Gecko)'}
                     </span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Decoupled State:</span>
-                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>✓ Verified Device-Independent</span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Data model:</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isTauriEnvironment() ? 'Encrypted local vault' : 'Server-backed workspace'}</span>
                   </div>
                 </div>
 
                 {/* Diagnostics Runner */}
-                <div className="settings-group-card">
+                {!isTauriEnvironment() && <div className="settings-group-card">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <div>
                       <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1771,7 +1773,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ))}
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
             )}
           </div>

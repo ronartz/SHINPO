@@ -403,7 +403,7 @@ export async function updateStudyFocusMode(
     const [status, resources] = await Promise.all([invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status'), getStudyResources({ sessionId })])
     return normalizeContextualFocusStatus({
       sessionId, sessionStatus: 'ACTIVE', mode, policyRevision: null,
-      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: 'LIMITED', adapterName: 'Native messaging', detail: status.detail },
+      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: status.paired ? 'LIMITED' : 'NONE', adapterName: 'Native messaging', detail: status.detail },
       nativeShield: { state: 'UNAVAILABLE', detail: 'Local Focus Protection is not connected to the browser host.' },
       restrictions: resources,
     }, sessionId)
@@ -425,7 +425,7 @@ export async function getContextualFocusStatus(
     ])
     return normalizeContextualFocusStatus({
       sessionId, sessionStatus: policy.status ?? null, mode: policy.mode ?? null, policyRevision: policy.policyVersion ?? null,
-      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: 'LIMITED', adapterName: 'Native messaging', detail: local.detail },
+      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: local.paired ? 'LIMITED' : 'NONE', adapterName: 'Native messaging', detail: local.detail },
       nativeShield: { state: 'UNAVAILABLE', detail: 'Native process protection is not connected to local browser policy.' },
       restrictions: await getStudyResources({ sessionId }),
     }, sessionId)

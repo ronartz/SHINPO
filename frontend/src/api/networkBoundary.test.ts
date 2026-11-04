@@ -4,6 +4,8 @@ import { readFile, readdir } from 'node:fs/promises'
 import { resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { wsClient } from './websocket.ts'
+import { getBackendBaseUrl, getWsBaseUrl } from './config.ts'
+import { apiClient } from './client.ts'
 
 const frontendRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const sourceRoot = resolve(frontendRoot, 'src')
@@ -35,7 +37,7 @@ describe('standalone WebView network boundary', () => {
     }
   })
 
-  it('keeps frontend network primitives centralized and local vault sockets disabled', async () => {
+  it('keeps frontend network primitives centralized and standalone sockets disabled', async () => {
     const files = await sourceFiles(sourceRoot)
     const violations: string[] = []
     const directNetwork = /\bfetch\s*\(|\bnew\s+(?:WebSocket|EventSource)\s*\(|\bXMLHttpRequest\b|\baxios\s*(?:\.|\()/
@@ -54,18 +56,40 @@ describe('standalone WebView network boundary', () => {
     assert.deepEqual(violations, [])
 
     const websocket = await readFile(resolve(sourceRoot, 'api/websocket.ts'), 'utf8')
-    const localGuard = websocket.indexOf('if (isLocalVaultSession())')
+    const localGuard = websocket.indexOf('if (isTauriEnvironment() || isLocalVaultSession())')
     const stompClient = websocket.indexOf('this.client = new Client(')
     assert.ok(localGuard >= 0 && stompClient > localGuard, 'local-vault guard must precede STOMP client creation')
   })
 
-  it('does not create a STOMP connection for a local Tauri account', () => {
+  it('rejects the shared HTTP client and server URLs in Tauri before fetch', async () => {
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    const originalFetch = globalThis.fetch
+    let fetchCalled = false
+    globalThis.fetch = async () => { fetchCalled = true; throw new Error('unexpected fetch') }
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } })
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => null, removeItem: () => undefined } })
+    try {
+      assert.equal(getBackendBaseUrl(), '')
+      assert.equal(getWsBaseUrl(), '')
+      await assert.rejects(apiClient.get('/goals'), /not yet connected to the local vault/)
+      assert.equal(fetchCalled, false)
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+      if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+      else Reflect.deleteProperty(globalThis, 'localStorage')
+    }
+  })
+
+  it('does not create a STOMP connection for a locked Tauri window', () => {
     const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
     const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } })
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
-      value: { getItem: (key: string) => key === 'shinpo_local_vault_account' ? 'disposable-account' : null },
+      value: { getItem: () => null },
     })
     try {
       wsClient.connect(7)

@@ -304,35 +304,12 @@ test('Auth API - updateUsername and session contracts', async (t) => {
       await clearAuthSession()
       secureRefreshToken = 'legacy-refresh'
 
-      let refreshed = false
-      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input)
-        if (url.endsWith('/api/auth/refresh')) {
-          refreshed = JSON.parse(String(init?.body)).refreshToken === 'legacy-refresh'
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              accessToken: 'restored-access',
-              refreshToken: 'rotated-refresh',
-              tokenType: 'Bearer',
-              expiresInSeconds: 3600,
-              user: { id: 2, username: 'native-user', email: 'native@shinpo.dev' },
-            }),
-          } as unknown as Response
-        }
-        assert.equal(url.endsWith('/api/auth/me'), true)
-        assert.equal((init?.headers as Record<string, string>).Authorization, 'Bearer restored-access')
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ id: 2, username: 'native-user', email: 'native@shinpo.dev' }),
-        } as unknown as Response
-      }) as typeof fetch
+      let fetchCalled = false
+      globalThis.fetch = async () => { fetchCalled = true; throw new Error('standalone auth attempted HTTP') }
       const restoredUser = await fetchCurrentUser()
-      assert.equal(refreshed, true)
-      assert.equal(restoredUser?.username, 'native-user')
-      assert.equal(await getRefreshToken(), 'rotated-refresh')
+      assert.equal(restoredUser, null)
+      assert.equal(fetchCalled, false)
+      assert.equal(await getRefreshToken(), 'legacy-refresh')
       assert.equal(localStorage.getItem('shinpo_access_token'), null)
 
       await clearAuthSession()
@@ -342,7 +319,7 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     }
   })
 
-  await t.test('native access token refreshes before expiry and reschedules after rotation', async () => {
+  await t.test('standalone auth never refreshes a legacy server token over HTTP', async () => {
     const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
     const previousBridge = nativeWindow.__TAURI_INTERNALS__
     let secureRefreshToken: string | null = null
@@ -356,20 +333,7 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     }
 
     let refreshRequests = 0
-    globalThis.fetch = (async () => {
-      refreshRequests += 1
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          accessToken: 'rotated-access',
-          refreshToken: 'rotated-refresh',
-          tokenType: 'Bearer',
-          expiresInSeconds: 3600,
-          user: { id: 3, username: 'long-session', email: 'long@shinpo.dev' },
-        }),
-      } as unknown as Response
-    }) as typeof fetch
+    globalThis.fetch = async () => { refreshRequests += 1; throw new Error('standalone refresh attempted HTTP') }
 
     try {
       await setAuthSession({
@@ -380,9 +344,9 @@ test('Auth API - updateUsername and session contracts', async (t) => {
         user: { id: 3, username: 'long-session', email: 'long@shinpo.dev' },
       })
       await new Promise((resolve) => setTimeout(resolve, 1100))
-      assert.equal(refreshRequests, 1)
-      assert.equal(authHeaders().Authorization, 'Bearer rotated-access')
-      assert.equal(await getRefreshToken(), 'rotated-refresh')
+      assert.equal(refreshRequests, 0)
+      assert.equal(authHeaders().Authorization, 'Bearer short-lived-access')
+      assert.equal(await getRefreshToken(), 'starting-refresh')
     } finally {
       await clearAuthSession()
       if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
@@ -436,6 +400,39 @@ test('Auth API - updateUsername and session contracts', async (t) => {
     } finally {
       if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
       else delete nativeWindow.__TAURI_INTERNALS__
+    }
+  })
+
+  await t.test('locked desktop auth stays native and never falls back to HTTP', async () => {
+    const nativeWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> } }
+    const previousBridge = nativeWindow.__TAURI_INTERNALS__
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    const unlock = { called: false }
+    let fetchCalled = false
+    storage.clear()
+    nativeWindow.__TAURI_INTERNALS__ = { invoke: async (cmd) => {
+      if (cmd === 'unlock_local_account') { unlock.called = true; return { unlocked: true, username: 'offline-user' } }
+      if (cmd === 'lock_local_account' || cmd === 'delete_secure_refresh_token' || cmd === 'local_sync_browser_policy' || cmd === 'delete_local_account') return undefined
+      throw new Error(`Unexpected native command: ${cmd}`)
+    } }
+    globalThis.fetch = async () => { fetchCalled = true; throw new Error('unexpected HTTP request') }
+    try {
+      assert.equal(await fetchCurrentUser(), null)
+      assert.equal(unlock.called, false)
+      await login('offline-user', 'disposable-password')
+      assert.equal(unlock.called, true)
+      assert.equal(fetchCalled, false)
+      await clearAuthSession()
+      await deleteAccount()
+      assert.equal(storage.get('shinpo_local_vault_account'), undefined)
+      await assert.rejects(updateUsername('renamed-user'), /fixed/)
+      assert.equal(fetchCalled, false)
+    } finally {
+      storage.clear()
+      if (previousBridge) nativeWindow.__TAURI_INTERNALS__ = previousBridge
+      else delete nativeWindow.__TAURI_INTERNALS__
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      globalThis.fetch = originalFetch
     }
   })
 })

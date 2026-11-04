@@ -3,6 +3,8 @@ import { isTauriEnvironment } from './tauri.ts'
 // Backend URL configuration is used by legacy web mode; standalone vault traffic uses Tauri IPC.
 
 export function getBackendBaseUrl(): string {
+  if (isTauriEnvironment()) return ''
+
   const buildUrl = import.meta.env?.VITE_SHINPO_SERVER_URL || import.meta.env?.VITE_API_BASE_URL
   if (buildUrl) {
     if (isValidServerUrl(buildUrl).valid) return buildUrl.replace(/\/+$/, '')
@@ -17,11 +19,6 @@ export function getBackendBaseUrl(): string {
       clearPersistedSession()
       return ''
     }
-  }
-
-  // An unsafe legacy endpoint is ignored; relative requests cannot leak credentials to it.
-  if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
-    return 'http://localhost:8080'
   }
 
   return ''
@@ -68,6 +65,8 @@ export function isValidServerUrl(url: string): { valid: boolean; reason?: string
 }
 
 export function getWsBaseUrl(): string {
+  if (isTauriEnvironment()) return ''
+
   const configuredUrl = import.meta.env?.VITE_SHINPO_SERVER_URL || import.meta.env?.VITE_API_BASE_URL || getCustomServerUrl()
   if (configuredUrl && !isValidServerUrl(configuredUrl).valid) return ''
   if (import.meta.env?.VITE_SHINPO_WS_URL) {
@@ -83,7 +82,6 @@ export function getWsBaseUrl(): string {
     return backendBase.replace('https://', 'wss://') + '/ws'
   }
   if (typeof window !== 'undefined') {
-    if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) return 'ws://localhost:8080/ws'
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${protocol}//${window.location.host}/ws`
   }
@@ -112,8 +110,8 @@ export function isValidWebSocketUrl(raw: string): { valid: boolean; reason?: str
 }
 
 export function fetchWithoutRedirects(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  if (isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account')) {
-    return Promise.reject(new Error('Direct network requests are disabled for local vault sessions'))
+  if (isTauriEnvironment()) {
+    return Promise.reject(new Error('Direct WebView network requests are disabled in the standalone desktop app'))
   }
   return fetch(input, { ...init, redirect: 'error' })
 }
