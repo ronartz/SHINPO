@@ -1,3 +1,0 @@
-[env]
-# Tauri test executables need the Windows common-controls manifest.
-__TAURI_WORKSPACE__ = "true"
