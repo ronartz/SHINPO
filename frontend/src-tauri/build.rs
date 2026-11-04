@@ -7,6 +7,12 @@ fn main() {
         println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
         println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
         println!("cargo:rerun-if-changed={}", manifest.display());
+        tauri_build::try_build(
+            tauri_build::Attributes::new()
+                .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest()),
+        )
+        .unwrap_or_else(|error| panic!("failed to run tauri-build: {error:#}"));
+    } else {
+        tauri_build::build();
     }
-    tauri_build::build()
 }
