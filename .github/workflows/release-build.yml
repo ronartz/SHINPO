@@ -87,7 +87,6 @@ jobs:
       - name: Validate release tag or internal branch build
         shell: pwsh
         env:
-          EVENT_NAME: ${{ github.event_name }}
           REF_TYPE: ${{ github.ref_type }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -106,11 +105,51 @@ jobs:
         with:
           toolchain: 1.99.0
           components: clippy, rustfmt
-      - name: Confirm MSVC compiler
+      - name: Confirm MSVC toolchain
         shell: pwsh
         run: |
           rustc -vV
-          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw "MSVC compiler cl.exe is unavailable" }
+          cargo -V
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "Visual Studio locator vswhere.exe is unavailable" }
+          $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsPath) { throw "Visual Studio C++ x64 build tools are unavailable" }
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+          if (-not (Test-Path $vcvars)) { throw "MSVC environment script is unavailable: $vcvars" }
+          $vcEnvironment = & $env:ComSpec /d /s /c "call `"$vcvars`" >nul && set"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to initialize the MSVC x64 environment" }
+          $msvcPath = $null
+          $requiredVariables = @('INCLUDE', 'LIB', 'LIBPATH', 'VSINSTALLDIR', 'VCINSTALLDIR', 'VCToolsInstallDir', 'VCToolsVersion', 'WindowsSdkDir', 'WindowsSDKVersion', 'UniversalCRTSdkDir', 'UCRTVersion', 'VisualStudioVersion', 'VSCMD_ARG_TGT_ARCH', 'VSCMD_ARG_HOST_ARCH')
+          $existingPath = $env:PATH -split ';'
+          foreach ($line in $vcEnvironment) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              $name = $Matches[1]
+              $value = $Matches[2]
+              if ($name -ieq 'PATH') {
+                $msvcPath = $value
+                $value -split ';' | Where-Object { $_ -and $_ -notin $existingPath } | Add-Content -Path $env:GITHUB_PATH -Encoding utf8
+              } elseif ($name -in $requiredVariables) {
+                Add-Content -Path $env:GITHUB_ENV -Value "$name=$value" -Encoding utf8
+              }
+            }
+          }
+          $clPath = $msvcPath -split ';' | ForEach-Object { Join-Path $_ 'cl.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $clPath) { throw "MSVC compiler cl.exe is unavailable after initializing vcvars64.bat" }
+      - name: Install static SQLCipher OpenSSL dependency
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:VCPKG_INSTALLATION_ROOT 'vcpkg.exe'
+          & $vcpkg install openssl:x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg failed to install SQLCipher's OpenSSL dependency" }
+          $openssl = Join-Path $env:VCPKG_INSTALLATION_ROOT 'installed\x64-windows-static-md'
+          $include = Join-Path $openssl 'include'
+          $lib = Join-Path $openssl 'lib'
+          if (-not (Test-Path (Join-Path $include 'openssl\opensslv.h')) -or -not (Test-Path (Join-Path $lib 'libcrypto.lib'))) {
+            throw "The installed OpenSSL headers or x64 static library are missing"
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$openssl" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$include" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$lib" -Encoding utf8
       - name: Install locked frontend dependencies
         run: npm ci
         working-directory: frontend
