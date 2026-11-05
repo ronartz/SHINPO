@@ -49,6 +49,10 @@ test('focus plan preview distinguishes total focus from midpoint break and grace
     describeFocusPlan(31, true, 15, 10),
     '15 min 30 sec focus → 15 min midpoint break → 15 min 30 sec focus · 31 min total focus · up to 10 min grace',
   )
+  assert.equal(
+    describeFocusPlan(1, true, 1, 1),
+    '30 sec focus → 1 min midpoint break → 30 sec focus · 1 min total focus · up to 1 min grace',
+  )
   assert.equal(describeFocusPlan(30, false, 15, 10), '30 min continuous focus · 30 min total focus · no break')
 })
 

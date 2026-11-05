@@ -113,6 +113,7 @@ export function describeFocusPlan(
   const formatBlock = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
+    if (minutes === 0) return `${remainingSeconds} sec`
     return remainingSeconds ? `${minutes} min ${remainingSeconds} sec` : `${minutes} min`
   }
 
