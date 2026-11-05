@@ -177,7 +177,8 @@ jobs:
             }
           }
           Write-Output 'Prepared resources and Tauri destination mappings:'
-          Get-Item $hostPath, $extensionInputs | Select-Object FullName, Length | Format-Table -AutoSize
+          $allInputs = @($hostPath) + $extensionInputs
+          Get-Item -Path $allInputs | Select-Object FullName, Length | Format-Table -AutoSize
 
           $output = 'release-artifacts/windows-x64'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
