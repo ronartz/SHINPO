@@ -2,7 +2,9 @@ name: SHINPO tagged installer build
 
 on:
   push:
+    branches: ["codex/final-completion-20261031"]
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +16,7 @@ concurrency:
 jobs:
   linux-installers:
     name: Linux installers and checksums
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -81,16 +84,24 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Validate tag matches the Tauri application version
+      - name: Validate release tag or internal branch build
         shell: pwsh
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$' -or $env:RELEASE_TAG -ne "v$($config.version)") {
-            throw "Release tag must exactly match v$($config.version)"
+          if ($env:REF_TYPE -eq 'tag') {
+            if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$' -or $env:RELEASE_TAG -ne "v$($config.version)") {
+              throw "Release tag must exactly match v$($config.version)"
+            }
+            Write-Output "Building tagged SHINPO $($config.version)"
+          } else {
+            if ($env:REF_TYPE -ne 'branch') { throw 'Internal QA builds must run from a branch, never a tag' }
+            if ($env:RELEASE_TAG -ne 'codex/final-completion-20261031') { throw 'Internal installer builds are limited to the approved qualification branch' }
+            Write-Output "Building internal unsigned QA installer from branch $env:RELEASE_TAG (SHINPO $($config.version))"
           }
-          Write-Output "Building SHINPO $($config.version)"
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
         with:
           toolchain: 1.99.0
@@ -106,17 +117,37 @@ jobs:
       - name: Build Windows NSIS installer
         run: npm run tauri:build -- --bundles nsis
         working-directory: frontend
-      - name: Generate and display checksum
+      - name: Verify bundled Browser Companion inputs and report installer checksum
         shell: pwsh
         run: |
-          $output = "release-artifacts/windows-x64"
+          $hostPath = 'frontend/src-tauri/target/bundle-input/shinpo-browser-host.exe'
+          $extensionInputs = @(
+            'browser-extension/dist/chromium/manifest.json',
+            'browser-extension/dist/firefox/manifest.json',
+            'scripts/register-browser-companion.ps1',
+            'docs/Browser-Companion-Install.md'
+          )
+          if (-not (Test-Path $hostPath)) { throw "Prepared Browser Host is missing: $hostPath" }
+          foreach ($path in $extensionInputs) {
+            if (-not (Test-Path $path)) { throw "Browser Companion resource is missing: $path" }
+          }
+          $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          foreach ($required in @('target/bundle-input/*', '../../browser-extension/dist/chromium/*', '../../browser-extension/dist/firefox/*', '../../scripts/register-browser-companion.ps1')) {
+            if (-not ($config.bundle.resources.PSObject.Properties.Name -contains $required)) {
+              throw "Tauri bundle resource mapping is missing: $required"
+            }
+          }
+          Write-Output 'Prepared resources and Tauri destination mappings:'
+          Get-Item $hostPath, $extensionInputs | Select-Object FullName, Length | Format-Table -AutoSize
+
+          $output = 'release-artifacts/windows-x64'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Filter *.exe -File -ErrorAction SilentlyContinue)
-          if ($installers.Count -eq 0) { throw "No Windows NSIS installer was produced" }
+          if ($installers.Count -eq 0) { throw 'No Windows NSIS installer was produced' }
           foreach ($installer in $installers) { Copy-Item $installer.FullName $output }
           $lines = Get-ChildItem $output -File | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($_.Name)"
+            "${hash}  $($_.Name)  $($_.Length) bytes"
           }
           $lines | Set-Content "$output/SHA256SUMS" -Encoding ascii
           Get-Content "$output/SHA256SUMS"
