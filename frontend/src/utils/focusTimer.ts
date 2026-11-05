@@ -97,6 +97,28 @@ export interface PomodoroPlan {
   schedule: string
 }
 
+export function describeFocusPlan(
+  totalFocusMinutes: number,
+  midpointBreakEnabled: boolean,
+  breakMinutes: number,
+  graceMinutes: number,
+): string {
+  if (!midpointBreakEnabled) {
+    return `${totalFocusMinutes} min continuous focus · ${totalFocusMinutes} min total focus · no break`
+  }
+
+  const totalSeconds = totalFocusMinutes * 60
+  const firstBlockSeconds = Math.floor(totalSeconds / 2)
+  const secondBlockSeconds = totalSeconds - firstBlockSeconds
+  const formatBlock = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return remainingSeconds ? `${minutes} min ${remainingSeconds} sec` : `${minutes} min`
+  }
+
+  return `${formatBlock(firstBlockSeconds)} focus → ${breakMinutes} min midpoint break → ${formatBlock(secondBlockSeconds)} focus · ${totalFocusMinutes} min total focus · up to ${graceMinutes} min grace`
+}
+
 export const durationPresets = [15, 30, 60, 90]
 
 export const pomodoroPlans: PomodoroPlan[] = [

@@ -5,6 +5,7 @@ import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
 import {
   formatTimerDigits,
+  describeFocusPlan,
   durationPresets,
   pomodoroPlans,
 } from '../utils/focusTimer'
@@ -430,7 +431,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
             <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
             <label>Grace<input type="number" min={1} max={10} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} /></label>
           </div>}
-          {pomodoroEnabled && <p className="pomodoro-config-summary">{selectedDuration} min total focus in 2 blocks · {pomodoroLongBreakMinutes} min midpoint break + up to {pomodoroGraceMinutes} min grace</p>}
+          <p className="pomodoro-config-summary"><strong>Plan preview:</strong> {describeFocusPlan(selectedDuration, pomodoroEnabled, pomodoroLongBreakMinutes, pomodoroGraceMinutes)}</p>
           {pomodoroEnabled && <div className="pomodoro-config-fields">
             <label className="pomodoro-toggle"><input type="checkbox" checked={latePenaltyEnabled} onChange={(event) => setLatePenaltyEnabled(event.target.checked)} />Deduct XP only if I miss the return deadline</label>
             {latePenaltyEnabled && <>

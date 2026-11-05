@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateRemainingSeconds, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
+import { calculateRemainingSeconds, describeFocusPlan, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
 import type { FocusSession } from '../api/focusSessions.ts'
 
 function createMockSession(overrides: Partial<FocusSession> = {}): FocusSession {
@@ -38,6 +38,18 @@ test('formatTimerDigits formats minutes and seconds correctly', () => {
 test('focus presets describe the actual single-session behavior without promising breaks', () => {
   assert.deepEqual(pomodoroPlans.map(({ totalMinutes }) => totalMinutes), [55, 60, 90])
   assert.ok(pomodoroPlans.every(({ schedule }) => schedule === 'One continuous focus session'))
+})
+
+test('focus plan preview distinguishes total focus from midpoint break and grace', () => {
+  assert.equal(
+    describeFocusPlan(30, true, 5, 10),
+    '15 min focus → 5 min midpoint break → 15 min focus · 30 min total focus · up to 10 min grace',
+  )
+  assert.equal(
+    describeFocusPlan(31, true, 15, 10),
+    '15 min 30 sec focus → 15 min midpoint break → 15 min 30 sec focus · 31 min total focus · up to 10 min grace',
+  )
+  assert.equal(describeFocusPlan(30, false, 15, 10), '30 min continuous focus · 30 min total focus · no break')
 })
 
 test('calculateRemainingSeconds returns fallback duration when no active session exists', () => {
