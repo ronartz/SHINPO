@@ -98,12 +98,22 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
     setTilt({ x: rotX, y: rotY })
     e.currentTarget.style.setProperty('--auth-tilt-x', `${rotX}deg`)
     e.currentTarget.style.setProperty('--auth-tilt-y', `${rotY}deg`)
+    const authCard = e.currentTarget.querySelector('.auth-card') as HTMLElement | null
+    if (authCard) {
+      authCard.style.setProperty('--auth-tilt-x', `${rotX}deg`)
+      authCard.style.setProperty('--auth-tilt-y', `${rotY}deg`)
+    }
   }
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
     setTilt({ x: 0, y: 0 })
     e.currentTarget.style.setProperty('--auth-tilt-x', '0deg')
     e.currentTarget.style.setProperty('--auth-tilt-y', '0deg')
+    const authCard = e.currentTarget.querySelector('.auth-card') as HTMLElement | null
+    if (authCard) {
+      authCard.style.setProperty('--auth-tilt-x', '0deg')
+      authCard.style.setProperty('--auth-tilt-y', '0deg')
+    }
   }
 
   // Titles and descriptions
@@ -136,7 +146,7 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
   return (
     <div className="animated-login-stage">
       <div
-        className="animated-card-tilt-wrapper auth-card"
+        className="animated-card-tilt-wrapper"
         style={{
           transform: `perspective(1500px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${tilt.y.toFixed(2)}deg)`,
         }}
@@ -170,7 +180,7 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
             {/* Header & Logo Section */}
             <div className="animated-header-section">
               <div className="animated-logo-badge">
-                <ShinpoLogo size={24} variant="icon" />
+                <ShinpoLogo size={28} variant="icon" />
                 <div className="animated-logo-badge__inner-light" />
               </div>
               <h1 className="animated-card-title">{headingTitle}</h1>
