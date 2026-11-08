@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-11-08T11:41:03Z",
+  "commit": "21244694469cfc9b85b6b877744aa458ddaa188d",
+  "branch": "feature/separate-desktop-mobile-architecture",
+  "worktree": "DIRTY (231 modified/untracked files strictly preserved)",
+  "mode": "quick",
+  "binary": {
+    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
+    "sha256": "df44f1927caeddf824fb3bd12f61ae436cb249fd6b693fcac5a0dfde83ace85d"
+  },
+  "packageRpm": {
+    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm",
+    "sha256": "0b370a28c92c221c170cbe99d00ad6c6065ed415a7df912b3dfee92ee07864b8"
+  },
+  "verdicts": {
+    "overall": "PARTIAL_RUN (Executed mode 'quick')",
+    "linux": "PARTIAL_RUN (Executed mode 'quick')",
+    "windows": "NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
+  },
+  "failedGatesCount": 0,
+  "gates": {
+    "quick": "PASS",
+    "security": "NOT_RUN",
+    "visualAndThemes": "NOT_RUN",
+    "linuxPackageRpm": "NOT_RUN",
+    "nativeDesktop": "NOT_RUN",
+    "windowsDesktop": "NOT_TESTED"
+  }
+}

@@ -1,0 +1,383 @@
+{
+  "username": "aurora_ui_1793014850395",
+  "results": [
+    {
+      "aurora": true,
+      "route": "Dashboard",
+      "theme": "dark",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1910,
+        "clientWidth": 1910
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 0,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/dashboard-aurora-dark-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Focus Engine",
+      "theme": "dark",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1910,
+        "clientWidth": 1910
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 5,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-aurora-dark-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Analytics",
+      "theme": "dark",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 0,
+      "chartEmpty": true,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/analytics-aurora-dark-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "AI Assistant",
+      "theme": "dark",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "workspace": {
+        "x": 316,
+        "y": 96,
+        "w": 1580,
+        "h": 968
+      },
+      "utility": {
+        "x": 316,
+        "y": 96,
+        "w": 314,
+        "h": 454
+      },
+      "conversation": {
+        "x": 642,
+        "y": 96,
+        "w": 864,
+        "h": 968
+      },
+      "context": {
+        "x": 1518,
+        "y": 96,
+        "w": 378,
+        "h": 555
+      },
+      "composer": {
+        "x": 643,
+        "y": 992,
+        "w": 862,
+        "h": 71
+      },
+      "historyRows": 0,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-aurora-dark-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Dashboard",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1910,
+        "clientWidth": 1910
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 0,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/dashboard-aurora-light-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Focus Engine",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1910,
+        "clientWidth": 1910
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 5,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-aurora-light-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Analytics",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "workspace": null,
+      "utility": null,
+      "conversation": null,
+      "context": null,
+      "composer": null,
+      "historyRows": 0,
+      "chartEmpty": true,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/analytics-aurora-light-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "AI Assistant",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "workspace": {
+        "x": 316,
+        "y": 96,
+        "w": 1580,
+        "h": 968
+      },
+      "utility": {
+        "x": 316,
+        "y": 96,
+        "w": 314,
+        "h": 454
+      },
+      "conversation": {
+        "x": 642,
+        "y": 96,
+        "w": 864,
+        "h": 968
+      },
+      "context": {
+        "x": 1518,
+        "y": 96,
+        "w": 378,
+        "h": 555
+      },
+      "composer": {
+        "x": 643,
+        "y": 992,
+        "w": 862,
+        "h": 71
+      },
+      "historyRows": 0,
+      "chartEmpty": false,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-aurora-light-1920x1080.png"
+    },
+    {
+      "aurora": true,
+      "route": "Dashboard",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "doc": {
+        "scrollWidth": 1270,
+        "clientWidth": 1270
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/dashboard-aurora-dark-1280x720.png"
+    },
+    {
+      "aurora": true,
+      "route": "Focus Engine",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "doc": {
+        "scrollWidth": 1270,
+        "clientWidth": 1270
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-aurora-dark-1280x720.png"
+    },
+    {
+      "aurora": true,
+      "route": "Analytics",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "doc": {
+        "scrollWidth": 1270,
+        "clientWidth": 1270
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/analytics-aurora-dark-1280x720.png"
+    },
+    {
+      "aurora": true,
+      "route": "AI Assistant",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "doc": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-aurora-dark-1280x720.png"
+    },
+    {
+      "aurora": true,
+      "route": "Dashboard",
+      "viewport": {
+        "w": 900,
+        "h": 650
+      },
+      "doc": {
+        "scrollWidth": 890,
+        "clientWidth": 890
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/dashboard-aurora-dark-900x650.png"
+    },
+    {
+      "aurora": true,
+      "route": "Focus Engine",
+      "viewport": {
+        "w": 900,
+        "h": 650
+      },
+      "doc": {
+        "scrollWidth": 890,
+        "clientWidth": 890
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-aurora-dark-900x650.png"
+    },
+    {
+      "aurora": true,
+      "route": "Analytics",
+      "viewport": {
+        "w": 900,
+        "h": 650
+      },
+      "doc": {
+        "scrollWidth": 890,
+        "clientWidth": 890
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/analytics-aurora-dark-900x650.png"
+    },
+    {
+      "aurora": true,
+      "route": "AI Assistant",
+      "viewport": {
+        "w": 900,
+        "h": 650
+      },
+      "doc": {
+        "scrollWidth": 900,
+        "clientWidth": 900
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-aurora-dark-900x650.png"
+    },
+    {
+      "aurora": false,
+      "route": "Focus Engine",
+      "scrollWidth": 1910,
+      "clientWidth": 1910,
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-classic-dark-1920x1080.png"
+    },
+    {
+      "viewport": {
+        "w": 900,
+        "h": 650
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-classic-dark-900x650.png"
+    },
+    {
+      "aurora": false,
+      "route": "AI Assistant",
+      "theme": "dark",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-classic-dark-1920x1080.png"
+    },
+    {
+      "aurora": false,
+      "route": "AI Assistant",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/eonpai-classic-light-1920x1080.png"
+    },
+    {
+      "aurora": false,
+      "route": "Focus Engine",
+      "theme": "light",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "doc": {
+        "scrollWidth": 1910,
+        "clientWidth": 1910
+      },
+      "screenshot": "/home/eonx/Projects/SHINPO/docs/qa/screenshots/aurora-refoundation-20261026/focus-classic-light-1920x1080.png"
+    }
+  ]
+}

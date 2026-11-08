@@ -1,0 +1,282 @@
+ M .github/workflows/ci.yml
+ M .github/workflows/release-build.yml
+ M AGENTS.md
+ M backend/src/main/java/com/shinpo/ai/orchestrator/AiGateway.java
+ M backend/src/main/java/com/shinpo/ai/planning/DailyPlanningService.java
+ M backend/src/main/java/com/shinpo/service/ContextualEnforcementDecisionService.java
+ M backend/src/main/java/com/shinpo/service/ContextualFocusPolicyService.java
+ M backend/src/test/java/com/shinpo/service/GoalRewardConcurrencyTests.java
+ M backend/src/test/java/com/shinpo/service/GoalServiceRewardTests.java
+ M backend/src/test/java/com/shinpo/service/OnboardingServiceTests.java
+ M browser-extension/src/background-core.js
+ M browser-extension/src/pages/options.html
+ M browser-extension/src/pages/options.js
+ M browser-extension/tests/native-registration.test.js
+ M crates/shinpo-browser-host/src/config.rs
+ M crates/shinpo-shield/Cargo.lock
+ M crates/shinpo-shield/Cargo.toml
+ M crates/shinpo-shield/src/lib.rs
+ M crates/shinpo-shield/src/observer.rs
+ M frontend/package-lock.json
+ M frontend/package.json
+ M frontend/src-tauri/Cargo.lock
+ M frontend/src-tauri/src/lib.rs
+ M frontend/src-tauri/src/native_eonpai.rs
+ M frontend/src-tauri/src/native_vault.rs
+ M frontend/src-tauri/tauri.conf.json
+ M frontend/src/App.css
+ M frontend/src/App.tsx
+ M frontend/src/api/device.test.ts
+ M frontend/src/api/device.ts
+ M frontend/src/api/focusSessions.ts
+ M frontend/src/api/nativeIpcContracts.test.ts
+ M frontend/src/api/tauri.ts
+ M frontend/src/components/TutorialOverlay.tsx
+ M frontend/src/components/common/Icon.tsx
+ M frontend/src/components/dashboard/DailyObjectivesCard.tsx
+ M frontend/src/components/dashboard/DashboardInsights.tsx
+ M frontend/src/components/dialogs/AchievementsModal.tsx
+ M frontend/src/components/dialogs/CelebrationModal.tsx
+ M frontend/src/components/dialogs/CreateGoalModal.tsx
+ M frontend/src/components/dialogs/SettingsModal.tsx
+ M frontend/src/components/layout/Sidebar.tsx
+ M frontend/src/components/layout/TopBar.tsx
+ M frontend/src/components/ui/DatePicker/ShinpoDatePicker.tsx
+ M frontend/src/components/ui/Toast/ShinpoToast.tsx
+ M frontend/src/hooks/useAuth.ts
+ M frontend/src/index.css
+ M frontend/src/main.tsx
+ M frontend/src/styles/app-shell-refinement.css
+ M frontend/src/styles/components/glass-surfaces.css
+ M frontend/src/styles/components/progression-rewards.css
+ M frontend/src/styles/components/salutation.css
+ M frontend/src/styles/components/session-reflection.css
+ M frontend/src/styles/components/settings-modal.css
+ M frontend/src/styles/components/telemetry-toasts.css
+ M frontend/src/styles/foundations/animations.css
+ M frontend/src/styles/responsive.css
+ M frontend/src/styles/shell.css
+ M frontend/src/styles/tokens.css
+ M frontend/src/styles/views/analytics.css
+ M frontend/src/styles/views/auth.css
+ M frontend/src/styles/views/cockpit-panels.css
+ M frontend/src/styles/views/eonpai.css
+ M frontend/src/styles/views/focus-engine.css
+ M frontend/src/styles/views/goals.css
+ M frontend/src/styles/views/overview-bento.css
+ M frontend/src/styles/views/schedule.css
+ M frontend/src/styles/views/study-resources.css
+ M frontend/src/styles/views/task-manager.css
+ M frontend/src/types/navigation.ts
+ M frontend/src/utils/focusProtectionStatus.test.ts
+ M frontend/src/utils/focusProtectionStatus.ts
+ M frontend/src/utils/progressionEngine.ts
+ M frontend/src/v2/components/AuroraStatCard.tsx
+ M frontend/src/v2/components/AuroraTopbar.tsx
+ M frontend/src/v2/dashboard/AuroraDashboardView.tsx
+ M frontend/src/v2/theme/aurora.css
+ M frontend/src/v2/theme/auroraTheme.test.ts
+ M frontend/src/v2/theme/auroraTheme.ts
+ M frontend/src/v2/theme/auroraTokens.ts
+ M frontend/src/views/AnalyticsView.tsx
+ M frontend/src/views/EonpaiView.tsx
+ M frontend/src/views/FocusView.tsx
+ M frontend/src/views/GoalsView.tsx
+ M frontend/src/views/OverviewView.tsx
+ M frontend/src/views/RewardsView.tsx
+ M frontend/src/views/ScheduleView.tsx
+ M frontend/src/views/TaskManagerView.tsx
+ M frontend/tsconfig.test.json
+ M scripts/register-browser-companion.sh
+?? .commitlintrc.json
+?? .cursorrules
+?? .github/copilot-instructions.md
+?? .github/workflows/commit-lint.yml
+?? .github/workflows/pr-coverage.yml
+?? .github/workflows/pr-sonar.yml
+?? .github/workflows/stale-deps.yml
+?? .github/workflows/triage.yml
+?? .planning/agentic-awesome-skills/
+?? CLAUDE.md
+?? DESIGN.md
+?? GEMINI.md
+?? SHA256SUMS
+?? SHINPO_FRONTEND_QUALITY_AUDIT.md
+?? crates/shinpo-shield/src/app_discovery.rs
+?? crates/shinpo-shield/src/process_identity.rs
+?? docs/audits/
+?? docs/qa/AUDIT_20261103.md
+?? docs/qa/AUDIT_20261103_SUMMARY.md
+?? docs/qa/EONPAI_INTERFACE_ACCEPTANCE_20261106.md
+?? docs/qa/FINAL_ACCEPTANCE_20261107.md
+?? docs/qa/FINAL_ACCEPTANCE_20261107_FOLLOWUP_WORKTREE_STATUS.txt
+?? docs/qa/FINAL_ACCEPTANCE_20261107_WORKTREE_STATUS.txt
+?? docs/qa/FINAL_FOCUS_PROTECTION_ACCEPTANCE_20261107.md
+?? docs/qa/FINAL_NATIVE_VISUAL_ACCEPTANCE.md
+?? docs/qa/FINAL_PARTICLES_VISUAL_ACCEPTANCE_20261107.md
+?? docs/qa/FINAL_SCREEN_COMPOSITION_ACCEPTANCE_20261107.md
+?? docs/qa/FINAL_UI_DEFECT_REGISTER.md
+?? docs/qa/FINAL_UI_RELEASE_GATE.md
+?? docs/qa/OWNER_ACTIONS.md
+?? docs/qa/PRE_SEPARATION_WORKTREE_STATUS_20261108.txt
+?? docs/qa/RELEASE-GATE_20261103.md
+?? docs/qa/SHINPO_BROWSER_COMPANION_STANDALONE_ACCEPTANCE.md
+?? docs/qa/SHINPO_DENSITY_AND_TYPOGRAPHY_ACCEPTANCE.md
+?? docs/qa/SHINPO_FINAL_A_TO_Z_AUDIT.md
+?? docs/qa/SHINPO_FINAL_RELEASE_AUDIT_20261107.md
+?? docs/qa/SHINPO_FINAL_RELEASE_READINESS_20261028.md
+?? docs/qa/SHINPO_UNATTENDED_PROGRESS_20261028.md
+?? docs/qa/latest-release-gate.json
+?? docs/qa/latest-release-gate.md
+?? docs/qa/screenshots/aurora-refoundation-20261026/
+?? docs/qa/screenshots/aurora-token-consolidation-20261026/
+?? docs/qa/screenshots/auth-redesign-20261106/
+?? docs/qa/screenshots/auth-ripple-20261107/
+?? docs/qa/screenshots/auth-warp-20261107/
+?? docs/qa/screenshots/authenticated-particles-20261107/
+?? docs/qa/screenshots/browser-companion/
+?? docs/qa/screenshots/design_system_final_20261025/
+?? docs/qa/screenshots/eonpai-acceptance-20261106/
+?? docs/qa/screenshots/eonpai-visual-acceptance-20261025/
+?? docs/qa/screenshots/final-ui-repair-20261107/
+?? docs/qa/screenshots/final_ui_recovery/
+?? docs/qa/screenshots/focus-protection/
+?? docs/qa/screenshots/particles-layering-20261107/
+?? docs/qa/screenshots/particles/
+?? docs/qa/screenshots/rc_qualification/browser_companion_focus_block_20261024.png
+?? docs/qa/screenshots/remaining-checks-20261025-rerun/
+?? docs/qa/screenshots/remaining-checks-20261025/
+?? docs/qa/screenshots/rewards-navbar-20261025/
+?? docs/qa/screenshots/tauri-native-acceptance-20261106/
+?? docs/qa/screenshots/tauri-native-focus-20261106/
+?? docs/qa/screenshots/tauri-native-focus-eonpai-20261107/
+?? docs/qa/screenshots/tauri-native-goal-task-20261106/
+?? docs/qa/screenshots/ui-density-20261025/
+?? docs/security/
+?? frontend/@/
+?? frontend/analytics-preview.html
+?? frontend/backstop.json
+?? frontend/docs/
+?? frontend/e2e/
+?? frontend/eonpai-preview.html
+?? frontend/playwright.config.ts
+?? frontend/scripts/
+?? frontend/src/components/auth/
+?? frontend/src/components/background/
+?? frontend/src/components/microkit/focus-input.tsx
+?? frontend/src/components/tutorial/
+?? frontend/src/e2e/
+?? frontend/src/styles/classicPalette.test.ts
+?? frontend/src/styles/components/interactive-tutorial.css
+?? frontend/src/utils/dashboardTaskState.test.ts
+?? frontend/src/utils/dashboardTaskState.ts
+?? frontend/src/utils/guardianAlerts.test.ts
+?? frontend/src/utils/guardianAlerts.ts
+?? frontend/src/utils/guardianCapability.test.ts
+?? frontend/src/utils/guardianCapability.ts
+?? frontend/src/utils/liveFocusElapsed.test.ts
+?? frontend/src/utils/liveFocusElapsed.ts
+?? frontend/src/utils/pluralize.test.ts
+?? frontend/src/utils/pluralize.ts
+?? frontend/test-results/
+?? frontend/verify_aurora_rework.mjs
+?? frontend/wdio.tauri.conf.js
+?? package.json
+?? scripts/qa-browser-companion.mjs
+?? scripts/qa-package-linux.sh
+?? scripts/qa-release.sh
+?? scripts/qa-security.mjs
+?? scripts/qa-standalone-acceptance.mjs
+?? scripts/verify_aurora_rework.mjs
+?? scripts/verify_composition_repair.mjs
+ .github/workflows/ci.yml                           |     3 +-
+ .github/workflows/release-build.yml                |    32 +-
+ AGENTS.md                                          |    13 +
+ .../java/com/shinpo/ai/orchestrator/AiGateway.java |    12 +-
+ .../shinpo/ai/planning/DailyPlanningService.java   |     4 +-
+ .../ContextualEnforcementDecisionService.java      |     2 +-
+ .../service/ContextualFocusPolicyService.java      |    24 +-
+ .../shinpo/service/GoalRewardConcurrencyTests.java |     2 -
+ .../com/shinpo/service/GoalServiceRewardTests.java |     1 -
+ .../com/shinpo/service/OnboardingServiceTests.java |     3 +-
+ browser-extension/src/background-core.js           |    16 +-
+ browser-extension/src/pages/options.html           |     2 +-
+ browser-extension/src/pages/options.js             |     7 +
+ .../tests/native-registration.test.js              |     4 +-
+ crates/shinpo-browser-host/src/config.rs           |     2 +-
+ crates/shinpo-shield/Cargo.lock                    |     1 +
+ crates/shinpo-shield/Cargo.toml                    |     3 +
+ crates/shinpo-shield/src/lib.rs                    |     2 +
+ crates/shinpo-shield/src/observer.rs               |    57 +-
+ frontend/package-lock.json                         | 12212 +++++++++++++++----
+ frontend/package.json                              |    19 +
+ frontend/src-tauri/Cargo.lock                      |     1 +
+ frontend/src-tauri/src/lib.rs                      |     7 +
+ frontend/src-tauri/src/native_eonpai.rs            |     1 +
+ frontend/src-tauri/src/native_vault.rs             |  1360 ++-
+ frontend/src-tauri/tauri.conf.json                 |     4 +-
+ frontend/src/App.css                               |     2 +
+ frontend/src/App.tsx                               |  1430 ++-
+ frontend/src/api/device.test.ts                    |   115 +
+ frontend/src/api/device.ts                         |   111 +-
+ frontend/src/api/focusSessions.ts                  |    49 +-
+ frontend/src/api/nativeIpcContracts.test.ts        |    16 +-
+ frontend/src/api/tauri.ts                          |    18 +-
+ frontend/src/components/TutorialOverlay.tsx        |    10 +-
+ frontend/src/components/common/Icon.tsx            |    40 +
+ .../components/dashboard/DailyObjectivesCard.tsx   |     4 +-
+ .../src/components/dashboard/DashboardInsights.tsx |     2 +-
+ .../src/components/dialogs/AchievementsModal.tsx   |    48 +-
+ .../src/components/dialogs/CelebrationModal.tsx    |    23 +-
+ .../src/components/dialogs/CreateGoalModal.tsx     |     8 +-
+ frontend/src/components/dialogs/SettingsModal.tsx  |   181 +-
+ frontend/src/components/layout/Sidebar.tsx         |    92 +-
+ frontend/src/components/layout/TopBar.tsx          |     3 +-
+ .../components/ui/DatePicker/ShinpoDatePicker.tsx  |     5 +-
+ frontend/src/components/ui/Toast/ShinpoToast.tsx   |     7 +-
+ frontend/src/hooks/useAuth.ts                      |     7 +-
+ frontend/src/index.css                             |    13 +-
+ frontend/src/main.tsx                              |    14 +
+ frontend/src/styles/app-shell-refinement.css       |    40 -
+ frontend/src/styles/components/glass-surfaces.css  |   113 +-
+ .../src/styles/components/progression-rewards.css  |   340 +-
+ frontend/src/styles/components/salutation.css      |     4 +-
+ .../src/styles/components/session-reflection.css   |    13 -
+ frontend/src/styles/components/settings-modal.css  |    81 +-
+ .../src/styles/components/telemetry-toasts.css     |    31 +-
+ frontend/src/styles/foundations/animations.css     |    15 -
+ frontend/src/styles/responsive.css                 |    52 +-
+ frontend/src/styles/shell.css                      |    34 +-
+ frontend/src/styles/tokens.css                     |   252 +-
+ frontend/src/styles/views/analytics.css            |    72 +-
+ frontend/src/styles/views/auth.css                 |   355 +-
+ frontend/src/styles/views/cockpit-panels.css       |     1 -
+ frontend/src/styles/views/eonpai.css               |   553 +-
+ frontend/src/styles/views/focus-engine.css         |   426 +-
+ frontend/src/styles/views/goals.css                |    56 +-
+ frontend/src/styles/views/overview-bento.css       |   172 +-
+ frontend/src/styles/views/schedule.css             |  2158 +++-
+ frontend/src/styles/views/study-resources.css      |    60 +-
+ frontend/src/styles/views/task-manager.css         |  2322 +++-
+ frontend/src/types/navigation.ts                   |     7 +
+ frontend/src/utils/focusProtectionStatus.test.ts   |    35 +
+ frontend/src/utils/focusProtectionStatus.ts        |    63 +-
+ frontend/src/utils/progressionEngine.ts            |     4 +-
+ frontend/src/v2/components/AuroraStatCard.tsx      |     3 +-
+ frontend/src/v2/components/AuroraTopbar.tsx        |    28 +-
+ frontend/src/v2/dashboard/AuroraDashboardView.tsx  |   134 +-
+ frontend/src/v2/theme/aurora.css                   |   688 +-
+ frontend/src/v2/theme/auroraTheme.test.ts          |    10 +-
+ frontend/src/v2/theme/auroraTheme.ts               |     6 +-
+ frontend/src/v2/theme/auroraTokens.ts              |    60 +-
+ frontend/src/views/AnalyticsView.tsx               |    19 +-
+ frontend/src/views/EonpaiView.tsx                  |   208 +-
+ frontend/src/views/FocusView.tsx                   |   752 +-
+ frontend/src/views/GoalsView.tsx                   |    25 +-
+ frontend/src/views/OverviewView.tsx                |    69 +-
+ frontend/src/views/RewardsView.tsx                 |    52 +-
+ frontend/src/views/ScheduleView.tsx                |    64 +-
+ frontend/src/views/TaskManagerView.tsx             |   671 +-
+ frontend/tsconfig.test.json                        |     2 +-
+ scripts/register-browser-companion.sh              |    54 +-
+ 90 files changed, 21134 insertions(+), 4962 deletions(-)

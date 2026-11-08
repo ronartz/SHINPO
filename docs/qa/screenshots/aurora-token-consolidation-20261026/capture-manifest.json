@@ -1,0 +1,11 @@
+{
+  "account": "palette_qa_1792958631068",
+  "userId": 174,
+  "profile": "fresh disposable; PostgreSQL container uses tmpfs",
+  "viewport": "1920x1080 except named widths",
+  "errors": {
+    "url": "http://127.0.0.1:5174/?theme=light&v2=false",
+    "root": "app-shell shinpo-glass-ui theme-light  ",
+    "theme": "light"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "shinpo-root",
+  "private": true,
+  "scripts": {
+    "qa:release": "./scripts/qa-release.sh release",
+    "qa:quick": "./scripts/qa-release.sh quick",
+    "qa:visual": "./scripts/qa-release.sh visual",
+    "qa:visual:desktop": "npm --prefix frontend run qa:visual:desktop",
+    "qa:security": "./scripts/qa-release.sh security",
+    "qa:native": "./scripts/qa-release.sh native",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "test:a11y": "npm --prefix frontend run test:a11y",
+    "visual:test": "npm --prefix frontend run visual:test",
+    "visual:reference": "npm --prefix frontend run visual:reference",
+    "test": "npm --prefix frontend test",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint"
+  }
+}
+

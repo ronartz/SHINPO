@@ -29,4 +29,17 @@ Take the first option that fully works:
 
 Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
 
+## Mandatory Agent Skills Protocol
+All 73 skills from `mattpocock/skills`, `obra/superpowers`, and `anthropics/skills` are installed machine-wide and workspace-wide. Always automatically consult and apply them across every agent, IDE, and extension, even when not explicitly named in the prompt:
+1. **Investigation & Debugging (`systematic-debugging`, `diagnosing-bugs`, `research`, `brownfield-chat`):**
+   - For any failure, error, or regression: isolate and reproduce with a minimal failing command, trace root cause backward to the origin before touching code, and fix once in shared logic without guesswork.
+2. **Specification, Architecture & Planning (`to-spec`, `to-tickets`, `writing-plans`, `codebase-design`, `domain-modeling`, `improve-codebase-architecture`):**
+   - Define concrete specs, keep module interfaces deep and implementation hidden, preserve domain models in `GLOSSARY.md`/ADRs, and break work into blocker-aware tracer tickets.
+3. **Execution & Implementation (`implement`, `implement-spec`, `tdd`, `test-driven-development`, `executing-plans`, `subagent-driven-development`):**
+   - Build test-first (red-green-refactor), produce the shortest working diffs without bloated abstractions, and commit atomically with conventional commits (`git-os`).
+4. **Verification & Code Review (`verification-before-completion`, `empirical-validation`, `code-review`, `receiving-code-review`, `pr`, `retro`):**
+   - Never mark a task complete or claim a feature works without fresh empirical evidence: execute the test/build commands, inspect the output, and report exact counts. Close builds with retrospectives on the agent environment.
+5. **Frontend Craft & Design Excellence (`frontend-design`, `awesome-design-md`, `impeccable`, `webapp-testing`):**
+   - Avoid generic AI templates (floating rounded cards, ungrounded gradients, arbitrary uppercase labels). Enforce the canonical Aurora tokens (`DESIGN.md`), 44×44px mobile touch targets, WCAG AA contrast (≥ 4.5:1), and automated testing via Playwright and axe-core.
+
 (Yes, this file also applies to agents working on the ponytail repo itself. Especially to them.)

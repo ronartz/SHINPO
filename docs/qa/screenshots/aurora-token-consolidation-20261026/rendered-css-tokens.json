@@ -1,0 +1,12 @@
+{
+  "theme": "light",
+  "values": {
+    "--color-background": "#F8FAFC",
+    "--color-surface-1": "#FFFFFF",
+    "--color-surface-2": "#F1F5F9",
+    "--color-surface-3": "#E9EFF7",
+    "--color-primary": "#2563EB",
+    "--color-focus": "#0E7490",
+    "--color-ai": "#6D5BD0"
+  }
+}
