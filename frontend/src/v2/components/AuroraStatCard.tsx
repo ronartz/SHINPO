@@ -132,7 +132,8 @@ export const AuroraStatCard: React.FC<AuroraStatCardProps> = ({
                 color: trendPositive ? 'var(--color-success)' : 'var(--color-danger)',
               }}
             >
-              {trendPositive ? '↑' : '↓'} {trend}
+              <Icon name={trendPositive ? 'arrow-up-right' : 'chevron-down'} size={12} />
+              <Box component="span" sx={{ ml: 0.3 }}>{trend}</Box>
             </Box>
           </Box>
         )}

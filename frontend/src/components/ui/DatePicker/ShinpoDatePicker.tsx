@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useId, useMemo } from 'react'
 import { ShinpoPopover } from '../Popover/ShinpoPopover'
+import { Icon } from '../../common/Icon'
 import type { ShinpoDatePickerProps } from './types'
 
 const MONTH_NAMES = [
@@ -258,7 +259,7 @@ export const ShinpoDatePicker: React.FC<ShinpoDatePickerProps> = ({
               onClick={handlePrevMonth}
               aria-label="Previous Month"
             >
-              ‹
+              <Icon name="chevron-left" size={14} />
             </button>
             <div className="shinpo-calendar-title">
               {MONTH_NAMES[viewMonth]} {viewYear}
@@ -269,7 +270,7 @@ export const ShinpoDatePicker: React.FC<ShinpoDatePickerProps> = ({
               onClick={handleNextMonth}
               aria-label="Next Month"
             >
-              ›
+              <Icon name="chevron-right" size={14} />
             </button>
           </div>
 

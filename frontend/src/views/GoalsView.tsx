@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Goal, Mission } from '../api/goalsAndMissions'
 import type { FocusSession } from '../api/focusSessions'
 import type { GoalDecomposition, ProposedMission } from '../api/ai'
-import type { ProgressResponse } from '../api/progress'
 import { Icon } from '../components/common/Icon'
 import { StudyResourcesPanel } from '../components/focus'
 
@@ -10,8 +9,6 @@ export interface GoalsViewProps {
   userId: number | null
   goals: Goal[]
   missions: Mission[]
-  progress: ProgressResponse | null
-  currentStreak: number
   activeSession?: FocusSession | null
   aiDecompResult: GoalDecomposition | null
   setAiDecompResult: (res: GoalDecomposition | null) => void
@@ -57,8 +54,6 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   userId,
   goals,
   missions,
-  progress,
-  currentStreak,
   activeSession,
   aiDecompResult,
   setAiDecompResult,
@@ -82,6 +77,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
   setMissionsFilter: propSetMissionsFilter,
 }) => {
   trackRender('GoalsView')
+  const completedTaskCount = missions.filter((mission) => mission.status === 'COMPLETED').length
+  const taskProgressPercent = missions.length ? Math.round(completedTaskCount / missions.length * 100) : 0
 
   // Status Filter State (Default ALL; synchronized with prop if passed)
   const [internalStatusFilter, setInternalStatusFilter] = useState<TaskStatusFilter>('ALL')
@@ -444,11 +441,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           <p>Turn your goals into focused action. Plan, track, and complete the work that matters.</p>
         </div>
         <div className="goals-page-actions">
-          <div className="goals-progress-summary" aria-label={progress ? `Level ${progress.level}, ${progress.currentLevelXp} of ${progress.nextLevelThreshold} XP, ${currentStreak} day streak` : 'Progress unavailable'}>
-            <span className="goals-level-ring" style={{ '--goals-progress': `${progress?.progressPercent ?? 0}%` } as React.CSSProperties}><Icon name="zap" size={20} /></span>
-            <span className="goals-level-copy"><strong>{progress ? `Level ${progress.level}` : 'Progress unavailable'}</strong><small>{progress ? `${progress.currentLevelXp} / ${progress.nextLevelThreshold} XP` : 'XP will appear when synced'}</small></span>
-            <span className="goals-streak-divider" />
-            <span className="goals-streak"><Icon name="zap" size={21} /><strong>{currentStreak}</strong><small>Day streak</small></span>
+          <div className="goals-progress-summary" aria-label={`${completedTaskCount} of ${missions.length} tasks completed`}>
+            <span className="goals-level-ring" style={{ '--goals-progress': `${taskProgressPercent}%` } as React.CSSProperties}><Icon name="check-circle" size={20} /></span>
+            <span className="goals-level-copy"><strong>Task completion</strong><small>{completedTaskCount} of {missions.length} tasks</small></span>
           </div>
           <button
             type="button"
@@ -811,7 +806,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
       {/* =========================================================================
           SECTION 2: TASKS AREA (Primary List View with Status Tabs, Search & Sort)
           ========================================================================= */}
-      <section className="goals-task-area" aria-label="Tasks">
+      <section className={`goals-task-area ${taskViewMode === 'board' ? 'is-board-mode' : ''}`} aria-label="Tasks">
       <div className="deck-section-header" data-tutorial="missions-queue">
         <div className="deck-section-title">
           <Icon name="target" size={17} />
@@ -820,10 +815,8 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
         </div>
       </div>
 
-      {/* Task Filters, Search, Sort, and View Switcher */}
-      <div className={`tasks-filter-bar ${taskViewMode === 'board' ? 'is-board-mode' : ''}`}>
-        {/* Status Filter Tabs with Real Counts (List Mode Only) */}
-        {taskViewMode === 'list' && (
+      {/* Status filters and task actions occupy separate, predictable grid cells. */}
+      {taskViewMode === 'list' && (
           <div className="tasks-status-tabs">
             <button
               type="button"
@@ -863,7 +856,6 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           </div>
         )}
 
-        {/* Search, Sort & View Mode Toggle */}
         <div className="tasks-controls-right">
           <div className="tasks-search-box">
             <Icon name="search" size={14} />
@@ -959,7 +951,6 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
             </div>
           )}
         </div>
-      </div>
 
       {/* Task Content: Primary List View OR Board Mode */}
       {taskViewMode === 'list' ? (

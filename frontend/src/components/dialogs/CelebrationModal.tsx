@@ -39,8 +39,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
   if (!payload) return null
 
-  const isLevelUp = payload.type === 'LEVEL_UP'
-
   return (
     <div
       className="celebration-modal-overlay"
@@ -51,20 +49,15 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className={`celebration-card ${isLevelUp ? 'is-level-up' : ''}`}>
+      <div className="celebration-card">
         {/* Glow Shimmer Background */}
         <div className="celebration-glow" aria-hidden="true" />
 
         {/* Header Icon / Badge */}
         <div className="celebration-badge-container">
           <div className="celebration-badge-burst">
-            <Icon name={isLevelUp ? 'sparkle' : 'check'} size={32} />
+            <Icon name="check" size={32} />
           </div>
-          {payload.xpEarned > 0 && (
-            <div className="celebration-xp-pill">
-              +{payload.xpEarned} XP
-            </div>
-          )}
         </div>
 
         {/* Content */}
@@ -76,18 +69,6 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
             {payload.detail}
           </p>
 
-          {isLevelUp && payload.newLevel && (
-            <div className="celebration-level-announcement">
-              <span className="level-number">Level {payload.newLevel}</span>
-              <span className="level-title">{payload.levelTitle || `Level ${payload.newLevel}`}</span>
-            </div>
-          )}
-
-          {payload.streakDays !== undefined && payload.streakDays > 1 && (
-            <div className="celebration-streak-note">
-              <span><Icon name="zap" size={14} /> {payload.streakDays}-day streak</span>
-            </div>
-          )}
         </div>
 
         {/* Action Controls */}

@@ -1,4 +1,5 @@
 import type { SentinelStatus, SentinelQuarantineItem } from '../api/device'
+import { guardianCapabilityLabel, guardianModeLabel } from './guardianCapability.ts'
 
 export type EnforcementStatusType =
   | 'confirmed'
@@ -132,12 +133,12 @@ export interface ProtectionStatusInfo {
  * Specifically maps AUDIT_ONLY to "Monitoring Only" and CONTAINMENT to "Containment".
  */
 export function formatEnforcementMode(mode?: string | null): string {
-  if (!mode) return 'Strict'
+  if (!mode) return 'Status unavailable'
   const normalized = mode.trim().toUpperCase()
   if (normalized === 'AUDIT_ONLY') return 'Monitoring Only'
   if (normalized === 'CONTAINMENT') return 'Containment'
   if (normalized === 'STRICT') return 'Strict'
-  return mode
+  return 'Configured mode'
 }
 
 /**
@@ -145,6 +146,62 @@ export function formatEnforcementMode(mode?: string | null): string {
  * daemon heartbeat connectivity, and enforcement mode.
  */
 export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | null): ProtectionStatusInfo {
+  if (sentinelStatus?.interventionCapability !== undefined) {
+    const mode = guardianModeLabel(sentinelStatus.guardianMode)
+    const capability = guardianCapabilityLabel(sentinelStatus.interventionCapability)
+    const sessionName = sentinelStatus.activeFocusSessionName || null
+    const isActive = sentinelStatus.status === 'ACTIVE'
+
+    if (sentinelStatus.interventionCapability === 'LOCKED') {
+      return {
+        statusKey: 'DISCONNECTED', badgeText: 'Vault Locked', badgeVariant: 'offline',
+        headline: 'Guardian unavailable', description: 'Unlock the local vault to view Guardian status.',
+        shieldConnected: false, mode, isPolicyLocked: false, activeSessionName: null,
+      }
+    }
+    if (sentinelStatus.observerStatus === 'DEGRADED') {
+      return {
+        statusKey: 'DEGRADED', badgeText: 'Observer unavailable', badgeVariant: 'degraded',
+        headline: 'App observer unavailable', description: `${capability}. No application action is taken while the observer is unavailable.`,
+        shieldConnected: false, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: sessionName,
+      }
+    }
+    if (sentinelStatus.status === 'STANDBY') {
+      return {
+        statusKey: 'STANDBY', badgeText: 'Focus paused', badgeVariant: 'standby',
+        headline: 'Guardian paused with Focus', description: 'App observation and intervention are paused with this Focus session.',
+        shieldConnected: false, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: null,
+      }
+    }
+    if (isActive && sentinelStatus.interventionCapability === 'MONITORING_DISABLED') {
+      return {
+        statusKey: 'READY', badgeText: 'App observation off', badgeVariant: 'standby',
+        headline: 'App observation is off', description: 'This Focus session is not observing applications. Website restrictions require a connected Browser Companion.',
+        shieldConnected: false, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: sessionName,
+      }
+    }
+    if (isActive && sentinelStatus.observerStatus === 'MONITORING') {
+      return {
+        statusKey: 'READY', badgeText: 'Observing apps', badgeVariant: 'ready',
+        headline: sessionName ? `Focus: "${sessionName}"` : 'Focus is active',
+        description: `${capability}. Website restrictions require a connected Browser Companion.`,
+        shieldConnected: true, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: sessionName,
+      }
+    }
+    if (isActive) {
+      return {
+        statusKey: 'READY', badgeText: 'Observer starting', badgeVariant: 'standby',
+        headline: 'Guardian is starting', description: `${capability}. No app action is taken until observation is available.`,
+        shieldConnected: false, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: sessionName,
+      }
+    }
+    return {
+      statusKey: 'READY', badgeText: 'Guardian idle', badgeVariant: 'ready',
+      headline: 'Guardian ready when Focus starts',
+      description: 'App observation starts only during an opted-in Focus session. Website policy requires a connected Browser Companion.',
+      shieldConnected: false, mode, isPolicyLocked: Boolean(sentinelStatus.isPolicyLocked), activeSessionName: null,
+    }
+  }
   if (sentinelStatus?.warningOnly) {
     const connected = Boolean(sentinelStatus.daemonConnected)
     const active = sentinelStatus.status === 'ACTIVE'
@@ -193,7 +250,7 @@ export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | n
   }
   const isSessionActive = Boolean(sentinelStatus?.activeFocusSessionId)
   const shieldConnected = Boolean(sentinelStatus?.daemonConnected)
-  const rawMode = sentinelStatus?.enforcementMode || 'STRICT'
+  const rawMode = sentinelStatus?.enforcementMode || 'UNKNOWN'
   const isAuditOnly = rawMode.toUpperCase() === 'AUDIT_ONLY'
   const mode = formatEnforcementMode(rawMode)
   const isPolicyLocked = Boolean(sentinelStatus?.isPolicyLocked)

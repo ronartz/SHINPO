@@ -59,6 +59,15 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    if (calendarScrollRef.current) {
+      const currentHour = calendarNow.getHours()
+      const targetHour = currentHour >= 7 && currentHour <= 22 ? Math.max(0, currentHour - 1) : 8
+      calendarScrollRef.current.scrollTop = targetHour * 62
+    }
+  }, [])
+
   const weekDays = useMemo(() => {
     const monday = dayStart(new Date(`${selectedScheduleDate}T00:00:00`))
     return Array.from({ length: 7 }, (_, index) => {
@@ -92,8 +101,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   const weekSummary = summarizeSchedule(allWeekSessions)
   const flexibleSessions = weekSessions.filter(session => !session.scheduledAt && !session.startedAt)
   const timedSessions = weekSessions.filter(session => session.scheduledAt || session.startedAt)
-  const startHour = 8
-  const endHour = 20
+  const startHour = 0
+  const endHour = 24
   const hours = Array.from({ length: endHour - startHour }, (_, index) => index + startHour)
   const weekLabel = `${weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   const monthLabel = miniMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -133,36 +142,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
     if (date) selectDate(date)
   }
 
-  useEffect(() => {
-    const calendar = calendarScrollRef.current
-    if (!calendar) return
 
-    const handleWheel = (event: WheelEvent) => {
-      const current = calendar.scrollTop
-      const maximum = calendar.scrollHeight - calendar.clientHeight
-      const next = Math.max(0, Math.min(maximum, current + event.deltaY))
-      let remainder = event.deltaY - (next - current)
-      if (Math.abs(remainder) < 1) return
-
-      event.preventDefault()
-      calendar.scrollTop = next
-
-      for (let parent = calendar.parentElement; parent; parent = parent.parentElement) {
-        const canScroll = ['auto', 'scroll'].includes(getComputedStyle(parent).overflowY)
-        if (canScroll && parent.scrollHeight > parent.clientHeight + 1) {
-          const before = parent.scrollTop
-          parent.scrollTop = Math.max(0, Math.min(parent.scrollHeight - parent.clientHeight, before + remainder))
-          remainder -= parent.scrollTop - before
-          if (Math.abs(remainder) < 1) return
-        }
-      }
-
-      window.scrollBy(0, remainder)
-    }
-
-    calendar.addEventListener('wheel', handleWheel, { passive: false })
-    return () => calendar.removeEventListener('wheel', handleWheel)
-  }, [])
 
   const renderActions = (session: FocusSession) => (
     <div className="schedule-session-actions">
@@ -231,6 +211,24 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
         <button type="button" className="schedule-sidebar-book schedule-sidebar-book-primary" onClick={() => handleOpenBookingModal(selectedScheduleDate)}><Icon name="plus" size={14} />Book focus session</button>
       </div>
 
+      <div className="schedule-sidebar-summary-card">
+        <div className="schedule-sidebar-section-title"><span>PLANNING RHYTHM</span></div>
+        <div className="schedule-rhythm-metrics">
+          <div className="schedule-rhythm-stat">
+            <span>Target focus</span>
+            <strong>{weekSummary.plannedMinutes > 0 ? formatScheduleDuration(weekSummary.plannedMinutes) : '0m'}</strong>
+            <small>{weekSummary.plannedCount} session{weekSummary.plannedCount === 1 ? '' : 's'} planned</small>
+          </div>
+          <div className="schedule-rhythm-stat">
+            <span>Recorded focus</span>
+            <strong>{formatScheduleDuration(weekSummary.actualSeconds / 60)}</strong>
+            <small>{weekSummary.completed} completed</small>
+          </div>
+        </div>
+        <p className="schedule-rhythm-note">
+          Plan recurring focus blocks throughout the week to protect deep flow time.
+        </p>
+      </div>
     </aside>
 
     <div className="schedule-calendar-main">
@@ -265,13 +263,13 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
         <div className="schedule-week-grid" style={{
           '--schedule-hours': hours.length,
           '--schedule-grid-height': `${hours.length * 62}px`,
-          gridTemplateColumns: `72px ${weekDays.map((day) => `minmax(${Math.max(96, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 96)}px, 1fr)`).join(' ')}`,
+          gridTemplateColumns: `72px ${weekDays.map((day) => `minmax(${Math.max(84, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 84)}px, 1fr)`).join(' ')}`,
         } as React.CSSProperties}>
           <div className="schedule-grid-corner">LOCAL TIME</div>
           {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => selectDate(day.dateStr)}>
             <span>{day.dayName}</span><strong>{day.dayNum}</strong><small>{day.date.toLocaleDateString('en-US', { month: 'short' })}</small>
           </button>)}
-          <div className="schedule-time-axis">{hours.map(hour => <div className="schedule-time-label" key={hour}>{String(hour).padStart(2, '0')}:00</div>)}<div className="schedule-time-label-end" aria-hidden="true">18:00</div></div>
+          <div className="schedule-time-axis">{hours.map(hour => <div className="schedule-time-label" key={hour}>{String(hour).padStart(2, '0')}:00</div>)}<div className="schedule-time-label-end" aria-hidden="true">{String(endHour).padStart(2, '0')}:00</div></div>
           {weekDays.map(day => {
             const daySessions = timedSessions.filter(session => sessionDate(session) === day.dateStr).filter(session => {
               const date = new Date(session.scheduledAt || session.startedAt!)

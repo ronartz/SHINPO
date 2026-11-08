@@ -41,7 +41,7 @@
 
 .objective-checkbox.checked,
 .task-checkbox-btn.is-completed {
-  animation: shinpoCheckPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: shinpoCheckPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Subtle button active microinteraction */
@@ -898,7 +898,7 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) { .rewards-progress-track span { transition: none; } }
 
 /* Interactive progression experience */
-.rewards-view { width: min(100%, 1360px); max-width: 1360px; gap: clamp(18px, 2.1vw, 28px); padding: clamp(14px, 2vw, 26px) clamp(8px, 1.2vw, 16px) 48px; color: var(--text-primary); }
+.rewards-view { width: 100%; max-width: none; min-width: 0; gap: clamp(18px, 2.1vw, 28px); padding: clamp(14px, 2vw, 26px) clamp(8px, 1.2vw, 16px) 48px; color: var(--text-primary); }
 .rewards-heading, .rewards-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .rewards-heading h1 { margin: 4px 0 5px; font-size: clamp(25px, 2.4vw, 34px); }
 .rewards-heading p, .rewards-section-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
@@ -926,7 +926,7 @@ button:not(:disabled):active {
 .rewards-hero-progress-labels { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; color: #c4d9ef; font-size: 10px; font-variant-numeric: tabular-nums; }
 .rewards-hero-next { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 8px; margin-top: 20px; padding-top: 13px; border-top: 1px solid #ffffff23; color: #c4d9ef; font-size: 11px; }
 .rewards-hero-next strong { min-width: 0; color: white; font-size: 13px; }
-.rewards-streak-card { display: grid; justify-items: center; gap: 6px; padding: 18px 14px; color: #e6f2ff; background: #0d1a2c5c; border: 1px solid #ffffff25; border-radius: 18px; text-align: center; }
+.rewards-streak-card { display: grid; justify-items: center; gap: 4px; padding: 12px 14px; color: #e6f2ff; background: transparent; border: 0; border-left: 1px solid #ffffff25; border-radius: inherit; text-align: center; }
 .rewards-streak-icon { display: grid; width: 35px; height: 35px; place-items: center; color: #66B8FF; background: color-mix(in srgb, var(--brand-primary) 11.0%, transparent); border: 1px solid color-mix(in srgb, var(--brand-highlight) 20.8%, transparent); border-radius: 12px; }
 .rewards-streak-card > strong { color: #fff; font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
 .rewards-streak-card > span:not(.rewards-streak-icon) { font-size: 12px; font-weight: 750; }
@@ -935,7 +935,7 @@ button:not(:disabled):active {
 .rewards-section-heading h2 { margin: 3px 0 2px; font-size: clamp(19px, 1.8vw, 24px); letter-spacing: -.02em; }
 .rewards-count { white-space: nowrap; color: var(--text-secondary); }
 .rewards-objectives-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.rewards-objective { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 16px; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--border); border-radius: 16px; text-align: left; cursor: pointer; transition: transform .16s ease, border-color .18s ease, background .18s ease; }
+.rewards-objective { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--border); border-radius: 14px; text-align: left; cursor: pointer; transition: transform .16s ease, border-color .18s ease, background .18s ease; }
 .rewards-objective:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--brand-primary) 47.8%, transparent); background: color-mix(in srgb, #2788F5 5%, var(--surface-card)); }
 .rewards-objective:focus-visible, .rewards-milestone:focus-visible, .rewards-continue-button:focus-visible { outline: 3px solid #2788F5; outline-offset: 3px; }
 .rewards-objective-icon { display: grid; width: 38px; height: 38px; place-items: center; color: #2788F5; background: color-mix(in srgb, #2788F5 12%, var(--surface-card)); border: 1px solid color-mix(in srgb, #2788F5 25%, var(--border)); border-radius: 12px; }
@@ -947,10 +947,10 @@ button:not(:disabled):active {
 .rewards-objective-track i, .rewards-milestone-progress > i span, .rewards-detail-progress > i b { display: block; height: 100%; background: linear-gradient(90deg, #18395F, #2788F5, #66B8FF); border-radius: inherit; transition: width .4s ease; }
 .rewards-objective-value { color: var(--text-primary); white-space: nowrap; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rewards-objective-value small { color: var(--text-secondary); font-size: 10px; }
-.rewards-journey { min-width: 0; padding: clamp(16px, 2.1vw, 26px); background: color-mix(in srgb, var(--surface-card) 84%, #112541 16%); border: 1px solid var(--border); border-radius: 22px; }
+.rewards-journey { min-width: 0; padding: 16px 18px; background: color-mix(in srgb, var(--surface-card) 84%, #112541 16%); border: 1px solid var(--border); border-radius: 18px; }
 .rewards-journey .rewards-section-heading { margin-bottom: 18px; }
 .rewards-journey-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.rewards-milestone { position: relative; display: grid; grid-template-columns: 54px minmax(0,1fr); align-items: center; gap: 10px; min-width: 0; min-height: 115px; padding: 13px; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--border); border-radius: 16px; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease, opacity .18s ease; animation: rewards-node-enter .28s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--milestone-order, 0) * 20ms); }
+.rewards-milestone { position: relative; display: grid; grid-template-columns: 50px minmax(0,1fr); align-items: center; gap: 10px; min-width: 0; min-height: 98px; padding: 11px 12px; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--border); border-radius: 14px; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease, opacity .18s ease; animation: rewards-node-enter .28s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--milestone-order, 0) * 20ms); }
 .rewards-milestone:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--brand-primary) 50.2%, transparent); }
 .rewards-milestone.is-selected { border-color: #2788F5; box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 11.0%, transparent); }
 .rewards-milestone.is-locked .rewards-badge { filter: saturate(.35); opacity: .78; }
@@ -983,24 +983,348 @@ button:not(:disabled):active {
 .theme-light .rewards-hero-copy > .rewards-eyebrow, html[data-theme='light'] .rewards-hero-copy > .rewards-eyebrow { color: #18395F; }
 .theme-light .rewards-hero-summary, html[data-theme='light'] .rewards-hero-summary, .theme-light .rewards-hero-progress-labels, html[data-theme='light'] .rewards-hero-progress-labels, .theme-light .rewards-hero-next, html[data-theme='light'] .rewards-hero-next { color: #18395F; }
 .theme-light .rewards-hero-next strong, html[data-theme='light'] .rewards-hero-next strong { color: #091629; }
-.theme-light .rewards-streak-card, html[data-theme='light'] .rewards-streak-card { color: #112541; background: #ffffffa6; border-color: color-mix(in srgb, var(--brand-baltic-blue) 25.1%, transparent); }.theme-light .rewards-streak-card small, html[data-theme='light'] .rewards-streak-card small { color: #18395F; }
+.theme-light .rewards-streak-card, html[data-theme='light'] .rewards-streak-card { color: #112541; background: transparent; border-color: color-mix(in srgb, var(--brand-baltic-blue) 25.1%, transparent); }.theme-light .rewards-streak-card small, html[data-theme='light'] .rewards-streak-card small { color: #18395F; }
+
+/* Classic Light Semantic Warm Recolor (Eliminates blue/cyan contamination) */
+.app-shell:not(.theme-aurora).theme-light .rewards-hero,
+.theme-light:not(.theme-aurora) .rewards-hero,
+html[data-brand='classic'][data-theme='light'] .rewards-hero,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero {
+  color: #1e293b !important;
+  background: radial-gradient(ellipse at 12% 12%, rgba(77, 124, 15, 0.08), transparent 50%),
+              linear-gradient(122deg, #FFFDF9, #F5EFE4 60%, #EBDDC8) !important;
+  border-color: #DACBB0 !important;
+  box-shadow: 0 10px 28px rgba(45, 35, 20, 0.08) !important;
+  grid-template-columns: 130px minmax(0, 1fr) minmax(160px, 200px);
+  gap: 24px;
+  padding: 22px 28px;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-level-ring,
+.theme-light:not(.theme-aurora) .rewards-level-ring,
+html[data-brand='classic'][data-theme='light'] .rewards-level-ring,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-level-ring {
+  width: 120px !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-level-emblem,
+.theme-light:not(.theme-aurora) .rewards-level-emblem,
+html[data-brand='classic'][data-theme='light'] .rewards-level-emblem,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-level-emblem {
+  background: radial-gradient(circle at 35% 25%, #4D7C0F, #365314 68%, #1C1917) !important;
+  box-shadow: inset 0 1px 8px rgba(255, 255, 255, 0.25), 0 6px 16px rgba(45, 35, 20, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-level-emblem span,
+.theme-light:not(.theme-aurora) .rewards-level-emblem span,
+html[data-brand='classic'][data-theme='light'] .rewards-level-emblem span,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-level-emblem span {
+  color: #F7FEE7 !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-ledger-trust,
+.theme-light:not(.theme-aurora) .rewards-ledger-trust,
+html[data-brand='classic'][data-theme='light'] .rewards-ledger-trust,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-ledger-trust {
+  color: #4D7C0F !important;
+  background: rgba(77, 124, 15, 0.08) !important;
+  border-color: rgba(77, 124, 15, 0.25) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-objective-icon,
+.theme-light:not(.theme-aurora) .rewards-objective-icon,
+html[data-brand='classic'][data-theme='light'] .rewards-objective-icon,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-objective-icon {
+  color: #4D7C0F !important;
+  background: rgba(77, 124, 15, 0.1) !important;
+  border-color: rgba(77, 124, 15, 0.25) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-orbit,
+.theme-light:not(.theme-aurora) .rewards-hero-orbit,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-orbit,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-orbit {
+  width: 210px !important;
+  height: 210px !important;
+  opacity: 0.55 !important;
+  border-color: rgba(77, 124, 15, 0.16) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-copy h2,
+.theme-light:not(.theme-aurora) .rewards-hero-copy h2,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-copy h2,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-copy h2,
+.app-shell:not(.theme-aurora).theme-light .rewards-streak-card > strong,
+.theme-light:not(.theme-aurora) .rewards-streak-card > strong,
+html[data-brand='classic'][data-theme='light'] .rewards-streak-card > strong,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-streak-card > strong {
+  color: #1c1917 !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-copy > .rewards-eyebrow,
+.theme-light:not(.theme-aurora) .rewards-hero-copy > .rewards-eyebrow,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-copy > .rewards-eyebrow,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-copy > .rewards-eyebrow {
+  color: #4D7C0F !important;
+  font-weight: 700 !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-summary,
+.theme-light:not(.theme-aurora) .rewards-hero-summary,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-summary,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-summary,
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-progress-labels,
+.theme-light:not(.theme-aurora) .rewards-hero-progress-labels,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-progress-labels,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-progress-labels,
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-next,
+.theme-light:not(.theme-aurora) .rewards-hero-next,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-next,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-next {
+  color: #57534e !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-next strong,
+.theme-light:not(.theme-aurora) .rewards-hero-next strong,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-next strong,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-next strong {
+  color: #1c1917 !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-progress,
+.theme-light:not(.theme-aurora) .rewards-hero-progress,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-progress,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-progress {
+  background: rgba(0, 0, 0, 0.07) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-progress span,
+.theme-light:not(.theme-aurora) .rewards-hero-progress span,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-progress span,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-progress span {
+  background: linear-gradient(90deg, #4D7C0F, #65A30D) !important;
+  box-shadow: 0 0 12px rgba(77, 124, 15, 0.28) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-hero-orbit i,
+.theme-light:not(.theme-aurora) .rewards-hero-orbit i,
+html[data-brand='classic'][data-theme='light'] .rewards-hero-orbit i,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-hero-orbit i {
+  background: #65A30D !important;
+  box-shadow: 0 0 10px rgba(101, 163, 13, 0.4) !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-ring-progress,
+.theme-light:not(.theme-aurora) .rewards-ring-progress,
+html[data-brand='classic'][data-theme='light'] .rewards-ring-progress,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-ring-progress {
+  stroke: #4D7C0F !important;
+}
+
+.app-shell:not(.theme-aurora).theme-light .rewards-streak-card,
+.theme-light:not(.theme-aurora) .rewards-streak-card,
+html[data-brand='classic'][data-theme='light'] .rewards-streak-card,
+html:not([data-brand='aurora'])[data-theme='light'] .rewards-streak-card {
+  color: #1c1917 !important;
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: #DACBB0 !important;
+}
 @media (max-width: 1000px) { .rewards-hero { grid-template-columns: 132px minmax(0,1fr); gap: 22px; }.rewards-level-ring { width: 132px; }.rewards-streak-card { grid-column: 2; grid-template-columns: auto auto 1fr; justify-items: start; padding: 11px 13px; text-align: left; }.rewards-streak-card small { grid-column: 2 / -1; }.rewards-journey-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 650px) { .rewards-view { gap: 16px; padding: 12px 2px 30px; }.rewards-heading { align-items: flex-start; }.rewards-heading p { max-width: 36ch; font-size: 12px; }.rewards-ledger-trust { padding: 7px; font-size: 0; }.rewards-hero { grid-template-columns: 82px minmax(0,1fr); gap: 13px; padding: 17px 14px; border-radius: 18px; }.rewards-level-ring { width: 82px; }.rewards-ring-track, .rewards-ring-progress { stroke-width: 7; }.rewards-level-emblem { inset: 10px; gap: 1px; }.rewards-level-emblem svg { width: 22px; height: 22px; }.rewards-level-emblem span { font-size: 9px; }.rewards-hero-copy h2 { font-size: 21px; }.rewards-hero-summary { margin-bottom: 12px; font-size: 11px; }.rewards-hero-progress-labels { font-size: 9px; }.rewards-hero-next { grid-template-columns: 1fr auto; margin-top: 12px; padding-top: 9px; }.rewards-hero-next strong { grid-column: 1; }.rewards-hero-next span:last-child { grid-column: 2; grid-row: 1 / 3; text-align: right; }.rewards-streak-card { grid-column: 1 / -1; grid-template-columns: auto auto 1fr; gap: 8px; }.rewards-streak-card > strong { font-size: 22px; }.rewards-streak-card small { grid-column: 3; }.rewards-section-heading { align-items: flex-start; gap: 8px; }.rewards-section-heading p { font-size: 11px; }.rewards-objectives-grid { grid-template-columns: 1fr; }.rewards-objective { padding: 12px; }.rewards-journey { padding: 14px 11px; border-radius: 17px; }.rewards-journey-grid { grid-template-columns: 1fr; gap: 8px; }.rewards-milestone { grid-template-columns: 44px minmax(0,1fr); min-height: 92px; padding: 11px; }.rewards-badge { width: 42px; height: 42px; border-radius: 14px; }.rewards-detail-panel { grid-template-columns: 44px minmax(0,1fr); gap: 10px; padding: 12px; }.rewards-detail-badge { width: 42px; height: 42px; border-radius: 14px; }.rewards-continue-button { grid-column: 1 / -1; justify-self: start; }.rewards-history > summary { padding: 14px; }.rewards-ledger { padding: 0 14px 10px; }.rewards-ledger li { grid-template-columns: 32px minmax(0,1fr) auto; gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .rewards-view *, .rewards-view *::before, .rewards-view *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 
 /* Rewards page composition from the approved progress reference. */
 .app-shell.theme-aurora .rewards-view { width: 100%; max-width: none; margin: 0; gap: 16px; padding: 12px 0 28px; }
-.app-shell.theme-aurora .rewards-hero { grid-template-columns: 142px minmax(0, 1fr) minmax(168px, 205px); gap: 24px; padding: 20px 26px; border-radius: 18px; }
+.app-shell.theme-aurora .rewards-hero { grid-template-columns: 142px minmax(0, 1fr) minmax(168px, 205px); gap: 24px; padding: 20px 26px; border-radius: var(--radius-lg); }
 .app-shell.theme-aurora .rewards-hero-summary { margin-bottom: 12px; }
 .app-shell.theme-aurora .rewards-hero-next { margin-top: 12px; padding-top: 9px; }
-.app-shell.theme-aurora .rewards-streak-card { padding: 13px 12px; border-radius: 14px; }
-.app-shell.theme-aurora .rewards-journey { padding: 18px; border-radius: 16px; }
+.app-shell.theme-aurora .rewards-streak-card { padding: 13px 12px; border-radius: inherit; }
+.app-shell.theme-aurora .rewards-journey { padding: 18px; border-radius: var(--radius-lg); }
 .app-shell.theme-aurora .rewards-journey-grid { gap: 10px; }
 .app-shell.theme-aurora .rewards-milestone { min-height: 84px; }
 .app-shell.theme-aurora .rewards-detail-panel { margin-top: 10px; padding: 14px; }
+
+/* Aurora-specific Rewards theme styling */
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero {
+  color: var(--color-text-primary);
+  background: radial-gradient(ellipse at 12% 12%, rgba(151, 87, 250, 0.22), transparent 48%),
+              radial-gradient(ellipse at 88% 88%, rgba(77, 119, 249, 0.16), transparent 52%),
+              linear-gradient(125deg, #131B2E 0%, #1A233A 60%, #162035 100%);
+  border: 1px solid rgba(151, 87, 250, 0.32);
+  box-shadow: 0 16px 40px rgba(5, 8, 17, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-copy > .rewards-eyebrow,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-copy > .rewards-eyebrow {
+  color: #B9A1FF;
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-copy h2,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-copy h2 {
+  color: #F8FAFC;
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-summary,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-summary {
+  color: #CBD5E1;
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-progress-labels,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-progress-labels {
+  color: #94A3B8;
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-next,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-next {
+  border-top-color: rgba(151, 87, 250, 0.18);
+  color: #CBD5E1;
+}
+.app-shell.theme-aurora:not(.theme-light) .rewards-hero-next strong,
+html[data-brand='aurora'][data-theme='dark'] .rewards-hero-next strong {
+  color: #F8FAFC;
+}
+
+.app-shell.theme-aurora.theme-light .rewards-hero,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero {
+  color: #0F172A;
+  background: radial-gradient(ellipse at 12% 12%, rgba(151, 87, 250, 0.14), transparent 50%),
+              radial-gradient(ellipse at 88% 88%, rgba(77, 119, 249, 0.10), transparent 52%),
+              linear-gradient(125deg, #FFFFFF 0%, #F8FAFC 55%, #F1F5F9 100%);
+  border: 1px solid rgba(151, 87, 250, 0.24);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-copy > .rewards-eyebrow,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-copy > .rewards-eyebrow {
+  color: #7C3AED;
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-copy h2,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-copy h2 {
+  color: #0F172A;
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-summary,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-summary {
+  color: #334155;
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-progress-labels,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-progress-labels {
+  color: #64748B;
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-next,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-next {
+  border-top-color: rgba(151, 87, 250, 0.14);
+  color: #334155;
+}
+.app-shell.theme-aurora.theme-light .rewards-hero-next strong,
+html[data-brand='aurora'][data-theme='light'] .rewards-hero-next strong {
+  color: #0F172A;
+}
+
+.app-shell.theme-aurora .rewards-hero-orbit {
+  border-color: rgba(151, 87, 250, 0.16);
+}
+.app-shell.theme-aurora .rewards-hero-orbit::before,
+.app-shell.theme-aurora .rewards-hero-orbit::after {
+  border-color: rgba(77, 119, 249, 0.14);
+}
+.app-shell.theme-aurora .rewards-hero-orbit i {
+  background: #9757FA;
+  box-shadow: 0 0 10px rgba(151, 87, 250, 0.6);
+}
+.app-shell.theme-aurora .rewards-hero-progress {
+  background: rgba(151, 87, 250, 0.12);
+  border-color: rgba(151, 87, 250, 0.20);
+}
+.app-shell.theme-aurora .rewards-hero-progress span {
+  background: linear-gradient(90deg, #9757FA, #4D77F9, #1BC9DE);
+  box-shadow: 0 0 16px rgba(151, 87, 250, 0.45);
+}
+.app-shell.theme-aurora .rewards-streak-icon {
+  color: #9757FA;
+  background: rgba(151, 87, 250, 0.12);
+  border-color: rgba(151, 87, 250, 0.28);
+}
+.app-shell.theme-aurora .rewards-objective-icon {
+  color: #9757FA;
+  background: rgba(151, 87, 250, 0.10);
+  border-color: rgba(151, 87, 250, 0.22);
+}
+.app-shell.theme-aurora .rewards-objective.is-complete .rewards-objective-icon {
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+.app-shell.theme-aurora .rewards-objective:hover {
+  border-color: rgba(151, 87, 250, 0.45);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--surface-card));
+}
+.app-shell.theme-aurora .rewards-objective-track i,
+.app-shell.theme-aurora .rewards-milestone-progress > i span,
+.app-shell.theme-aurora .rewards-detail-progress > i b {
+  background: linear-gradient(90deg, #9757FA, #4D77F9, #1BC9DE);
+}
+.app-shell.theme-aurora .rewards-badge,
+.app-shell.theme-aurora .rewards-detail-badge {
+  background: linear-gradient(145deg, #9757FA, #4D77F9);
+  border-color: rgba(151, 87, 250, 0.40);
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.3), 0 4px 12px rgba(151, 87, 250, 0.25);
+}
+.app-shell.theme-aurora .badge-first_task { background: linear-gradient(145deg, #9757FA, #4D77F9); }
+.app-shell.theme-aurora .badge-first_sprint { background: linear-gradient(145deg, #4D77F9, #1BC9DE); }
+.app-shell.theme-aurora .badge-deep_flow_hour { background: linear-gradient(145deg, #9757FA, #1BC9DE); }
+.app-shell.theme-aurora .badge-level_2_practitioner { background: linear-gradient(145deg, #7C3AED, #4D77F9); }
+.app-shell.theme-aurora .badge-goal_concluded { background: linear-gradient(145deg, #9757FA, #06B6D4); }
+.app-shell.theme-aurora .badge-momentum_streak { background: linear-gradient(145deg, #4D77F9, #9757FA); }
+.app-shell.theme-aurora .badge-onboarding_certified { background: linear-gradient(145deg, #8B5CF6, #3B82F6); }
+.app-shell.theme-aurora .badge-level_4_architect { background: linear-gradient(145deg, #9757FA, #10B981); }
+.app-shell.theme-aurora .rewards-milestone:hover {
+  border-color: rgba(151, 87, 250, 0.45);
+}
+.app-shell.theme-aurora .rewards-milestone.is-selected {
+  border-color: #9757FA;
+  box-shadow: 0 0 0 2px rgba(151, 87, 250, 0.22);
+}
+.app-shell.theme-aurora .rewards-detail-panel {
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--color-primary) 32%, var(--border));
+}
+.app-shell.theme-aurora .rewards-continue-button {
+  background: linear-gradient(110deg, #7C3AED, #9757FA);
+  border-color: rgba(151, 87, 250, 0.5);
+}
+.app-shell.theme-aurora .rewards-event-mark {
+  color: #9757FA;
+  background: rgba(151, 87, 250, 0.12);
+  border-color: rgba(151, 87, 250, 0.24);
+}
+
+.app-shell.theme-aurora .rewards-level-emblem {
+  background: radial-gradient(circle at 35% 25%, #9757FA, #6D28D9 68%, #131B2E);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 12px rgba(255, 255, 255, 0.2), 0 8px 24px rgba(10, 15, 30, 0.5);
+}
+
+.app-shell.theme-aurora.theme-light .rewards-level-emblem {
+  background: radial-gradient(circle at 35% 25%, #7C3AED, #6D28D9 68%, #4C1D95);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 8px rgba(255, 255, 255, 0.25), 0 6px 16px rgba(124, 58, 237, 0.2);
+}
+
+.app-shell.theme-aurora .rewards-ring-progress {
+  stroke: #9757FA;
+  filter: drop-shadow(0 0 6px rgba(151, 87, 250, 0.5));
+}
+
+.app-shell.theme-aurora.theme-light .rewards-ring-progress {
+  stroke: #7C3AED;
+  filter: none;
+}
+.rewards-view .rewards-hero,
+.rewards-view .rewards-journey,
+.rewards-view .rewards-objective,
+.rewards-view .rewards-milestone,
+.rewards-view .rewards-detail-panel,
+.rewards-view .rewards-history { border-radius: var(--radius-lg); }
 @media (max-width: 1000px) {
   .app-shell.theme-aurora .rewards-hero { grid-template-columns: 120px minmax(0, 1fr); gap: 18px; }
-  .app-shell.theme-aurora .rewards-streak-card { grid-column: 1 / -1; }
+  .app-shell.theme-aurora .rewards-streak-card { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); }
 }
 @media (max-width: 650px) {
   .app-shell.theme-aurora .rewards-hero { grid-template-columns: 82px minmax(0, 1fr); gap: 13px; padding: 16px 13px; }

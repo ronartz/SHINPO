@@ -127,21 +127,6 @@
   transform: scale(1.02);
 }
 
-.needle-inner-dot {
-  animation: needleGlow 2s infinite ease-in-out;
-}
-
-@keyframes needleGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.15);
-  }
-}
-
 .bento-timeline-interactive-bar {
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);

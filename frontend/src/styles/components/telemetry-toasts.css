@@ -13,24 +13,6 @@
   }
 }
 
-@keyframes pulseGlowRed {
-  0%, 100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-highlight) 40.0%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-highlight) 0.0%, transparent);
-  }
-}
-
-@keyframes pulseGlowGreen {
-  0%, 100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-highlight) 40.0%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-highlight) 0.0%, transparent);
-  }
-}
-
 .shinpo-toast-container {
   position: fixed;
   bottom: 24px;
@@ -124,13 +106,11 @@ html[data-theme='light'] .shinpo-toast-item.toast-reward {
 .toast-quarantine .shinpo-toast-icon {
   background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
   color: var(--brand-coral, var(--brand-primary));
-  animation: pulseGlowRed 2s infinite;
 }
 
 .toast-focus .shinpo-toast-icon {
   background: color-mix(in srgb, var(--brand-highlight) 20.0%, transparent);
   color: var(--brand-primary);
-  animation: pulseGlowGreen 2s infinite;
 }
 
 .toast-sentinel .shinpo-toast-icon {
@@ -509,11 +489,12 @@ html[data-theme='light'] .shinpo-toast-dismiss:hover,
 /* EONPAI Controlled Action Cards (Semantic Tokens & Both Themes) */
 .ai-action-card {
   margin-top: var(--space-3);
-  padding: var(--space-4) var(--space-4);
-  border-radius: 12px;
-  background: var(--surface-card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
+  padding: var(--space-3) 0 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);

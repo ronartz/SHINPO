@@ -49,6 +49,14 @@ export type IconName =
   | 'lock'
   | 'eye'
   | 'eye-off'
+  | 'copy'
+  | 'star'
+  | 'x'
+  | 'arrow-down'
+  | 'arrow-up'
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'minimize'
 
 
 export interface NavItemConfig {

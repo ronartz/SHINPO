@@ -2,9 +2,9 @@ import type { FocusSession } from '../api/focusSessions'
 
 export function summarizeSchedule(sessions: FocusSession[]) {
   return sessions.reduce((summary, session) => {
-    summary.actualSeconds += Math.max(0, session.activeSeconds)
+    summary.actualSeconds += Math.max(0, Number(session.activeSeconds) || 0)
     if (session.status === 'CANCELLED' || session.status === 'EXPIRED' || session.status === 'FAILED') return summary
-    summary.plannedMinutes += session.durationMinutes
+    summary.plannedMinutes += Number(session.durationMinutes) || 0
     summary.plannedCount += 1
     if (session.status === 'COMPLETED') summary.completed += 1
     if (session.status === 'SCHEDULED') summary.upcoming += 1
@@ -13,6 +13,7 @@ export function summarizeSchedule(sessions: FocusSession[]) {
 }
 
 export function formatScheduleDuration(minutes: number) {
+  if (!Number.isFinite(minutes) || isNaN(minutes) || minutes <= 0) return '0m'
   const wholeMinutes = Math.max(0, Math.floor(minutes))
   const hours = Math.floor(wholeMinutes / 60)
   const remainder = wholeMinutes % 60

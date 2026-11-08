@@ -1,4 +1,5 @@
 import React from 'react'
+import { Icon } from '../../common/Icon'
 
 export interface ShinpoToastProps {
   type?: 'success' | 'info' | 'warning' | 'error'
@@ -38,8 +39,8 @@ export const ShinpoToast: React.FC<ShinpoToastProps> = ({
         padding: '12px 16px',
         backgroundColor: 'var(--surface-elevated, #050505)',
         border: '1px solid var(--border-strong, rgba(255,255,255, 0.14))',
-        borderLeft: `4px solid ${getBorderColor()}`,
-        borderRadius: 10,
+        borderLeft: `2px solid ${getBorderColor()}`,
+        borderRadius: 'var(--radius-md)',
         boxShadow: '0 8px 24px rgba(0,0,0, 0.4)',
         minWidth: 280,
         maxWidth: 400,
@@ -72,7 +73,7 @@ export const ShinpoToast: React.FC<ShinpoToastProps> = ({
             alignItems: 'center',
           }}
         >
-          ✕
+          <Icon name="close" size={15} />
         </button>
       )}
     </div>

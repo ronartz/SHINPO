@@ -26,9 +26,9 @@ import { isLocalVaultSession } from '../api/auth'
 import { Icon } from '../components/common/Icon'
 import { MarkdownRenderer } from '../components/common'
 import { trackRender } from '../utils/renderTracker'
-import { trackMicrokitPointer } from '../components/microkit/pointerGlow'
 import type { Goal, Mission } from '../api/goalsAndMissions'
 import type { FocusSession } from '../api/focusSessions'
+import { formatCount } from '../utils/pluralize'
 
 export interface ChatMessage {
   id?: string
@@ -308,6 +308,9 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   const [localInput, setLocalInput] = useState('')
   const [conversations, setConversations] = useState<Omit<Conversation, 'messages'>[]>([])
   const [historyError, setHistoryError] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
+  const [showContextPanel, setShowContextPanel] = useState(false)
+  const [copyFeedback, setCopyFeedback] = useState<{ id: string; message: string } | null>(null)
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [pendingActions, setPendingActions] = useState<AiActionDto[]>([])
@@ -322,6 +325,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const aiFeedRef = useRef<HTMLDivElement | null>(null)
   const aiContentRef = useRef<HTMLDivElement | null>(null)
+  const contextPanelRef = useRef<HTMLElement | null>(null)
+  const contextToggleRef = useRef<HTMLButtonElement | null>(null)
   const autoFollowEnabledRef = useRef(true)
   const lastScrollTopRef = useRef(0)
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
@@ -334,8 +339,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
     const date = new Date(now)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   })()
-  const activeGoals = goals.filter((goal) => !['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(goal.status.toUpperCase()))
-  const todayTasks = missions.filter((mission) => mission.scheduledDate.slice(0, 10) === todayKey && !['COMPLETED', 'CANCELLED'].includes(mission.status.toUpperCase()))
+  const activeGoals = goals.filter((goal) => !['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes((goal.status || '').toUpperCase()))
+  const todayTasks = missions.filter((mission) => Boolean(mission.scheduledDate && mission.scheduledDate.slice(0, 10) === todayKey) && !['COMPLETED', 'CANCELLED'].includes((mission.status || '').toUpperCase()))
   const upcomingSessions = sessions
     .filter((session) => now !== null && session.status === 'SCHEDULED' && session.scheduledAt && Date.parse(session.scheduledAt) >= now)
     .sort((a, b) => Date.parse(a.scheduledAt!) - Date.parse(b.scheduledAt!))
@@ -368,32 +373,22 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
   const loadPendingActions = useCallback(async () => {
     try {
       const list = await getPendingAiActions()
-      setPendingActions(list)
+      setPendingActions(Array.isArray(list) ? list : [])
     } catch {
-      // Ignore background error
+      setPendingActions([])
     }
   }, [])
 
   useEffect(() => {
     const task = window.setTimeout(() => void loadPendingActions(), 0)
     return () => window.clearTimeout(task)
-  }, [chatMessages.length, loadPendingActions])
+  }, [chatMessages?.length, loadPendingActions])
 
   useEffect(() => {
     let current = true
-    listLocalConversations().then((items) => { if (current) setConversations(items) }).catch(() => {})
+    listLocalConversations().then((items) => { if (current) setConversations(Array.isArray(items) ? items : []) }).catch(() => { if (current) setConversations([]) })
     return () => { current = false }
   }, [aiLoading])
-
-  const changeConversation = async (id: string, remove = false) => {
-    setHistoryError('')
-    try {
-      if (remove) await deleteLocalConversation(id)
-      else await openLocalConversation(id)
-      await onConversationChange?.()
-      setConversations(await listLocalConversations())
-    } catch (error) { setHistoryError(error instanceof Error ? error.message : 'Could not change conversation') }
-  }
 
   const providerLabel = aiProviderStatus?.provider === 'gemini'
     ? 'Cloud'
@@ -416,6 +411,27 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
     : aiProviderStatusLoaded && aiProviderStatus
       ? 'offline'
       : 'unknown'
+
+  const safeChatMessages = Array.isArray(chatMessages) ? chatMessages : []
+  const safePendingActions = Array.isArray(pendingActions) ? pendingActions : []
+
+  const showWelcomeSuggestions = safeChatMessages.length === 1
+    && safeChatMessages[0]?.role === 'assistant'
+    && safeChatMessages[0]?.suggestionType === 'GREETING'
+    && safePendingActions.length === 0
+
+  useEffect(() => {
+    if (!showContextPanel) return
+    contextPanelRef.current?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowContextPanel(false)
+        requestAnimationFrame(() => contextToggleRef.current?.focus())
+      }
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [showContextPanel])
 
   useEffect(() => {
     let isCancelled = false
@@ -457,6 +473,15 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
     }
   }, [loadPendingActions, onActionExecuted, pendingActions])
 
+  const handleCopyMessage = useCallback(async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyFeedback({ id, message: 'Message copied' })
+    } catch {
+      setCopyFeedback({ id, message: 'Clipboard unavailable; select the message to copy it' })
+    }
+  }, [])
+
   const handleRejectAction = useCallback(async (actionId: string) => {
     setActionLoadingId(actionId)
     try {
@@ -475,6 +500,8 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
   const handleSend = useCallback(() => {
     if (!localInput.trim() || aiLoading) return
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
     handleAiSend(localInput.trim())
     setLocalInput('')
     if (textareaRef.current) {
@@ -541,7 +568,9 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
     setLocalInput(e.target.value)
     const el = e.target
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+    const contentHeight = el.scrollHeight
+    el.style.height = `${Math.min(contentHeight, 120)}px`
+    el.style.overflowY = contentHeight > 120 ? 'auto' : 'hidden'
   }
 
   const handleChatScroll = useCallback(() => {
@@ -598,11 +627,38 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
   // Auto-follow when chat messages or loading state change
   useEffect(() => {
+    if (chatMessages[chatMessages.length - 1]?.role === 'user') {
+      autoFollowEnabledRef.current = true
+    }
     if (autoFollowEnabledRef.current && aiFeedRef.current) {
       aiFeedRef.current.scrollTop = aiFeedRef.current.scrollHeight
       lastScrollTopRef.current = aiFeedRef.current.scrollTop
     }
   }, [chatMessages, aiLoading])
+
+  const handleConversationChange = async (id: string, remove = false) => {
+    setHistoryError('')
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
+    try {
+      if (remove) await deleteLocalConversation(id)
+      else await openLocalConversation(id)
+      await onConversationChange?.()
+      setConversations(await listLocalConversations())
+      setShowHistory(false)
+      requestAnimationFrame(() => handleScrollToBottom())
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : 'Could not change conversation')
+    }
+  }
+
+  const handleNewConversation = async () => {
+    autoFollowEnabledRef.current = true
+    setShowScrollBottomBtn(false)
+    setShowHistory(false)
+    await handleClearChat()
+    requestAnimationFrame(() => handleScrollToBottom())
+  }
 
   return (
     <div className={`eonpai-workspace${isAurora ? ' eonpai-aurora-workspace' : ''}`}>
@@ -610,21 +666,18 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       <aside className="eonpai-utility-panel" aria-label="EONPAI Supporting Tools">
         <div className="eonpai-utility-header">
           <span className="eonpai-utility-title">Quick Actions</span>
-          <span className="eonpai-utility-count">6</span>
         </div>
 
         <nav className="eonpai-command-list" aria-label="Quick Actions">
           <button
             type="button"
-            className="eonpai-command-row microkit-staggered-label"
+            className="eonpai-command-row"
             onClick={() => handleTriggerPresetAction('Plan my day based on scheduled tasks')}
             aria-label="Plan my day"
           >
             <div className="command-row-main">
               <Icon name="schedule" size={14} />
-              <span aria-hidden="true">{'Plan my day'.split('').map((letter, index) => (
-                <span className="microkit-letter" key={`${letter}-${index}`} style={{ '--letter-index': index } as React.CSSProperties}>{letter === ' ' ? '\u00a0' : letter}</span>
-              ))}</span>
+              <span>Plan my day</span>
             </div>
             <Icon name="arrow-up-right" size={12} className="command-arrow" />
           </button>
@@ -643,9 +696,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
           <button
             type="button"
-            className="eonpai-command-row microkit-pointer-glow"
-            data-microkit-glow
-            onPointerMove={trackMicrokitPointer}
+            className="eonpai-command-row"
             onClick={() => handleTriggerPresetAction('Break down my top priority goal into tasks')}
           >
             <div className="command-row-main">
@@ -722,32 +773,16 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
           <button
             type="button"
-            className="eonpai-toggle-more-btn microkit-text-swap"
+            className="eonpai-toggle-more-btn"
             onClick={() => setShowMoreActions((prev) => !prev)}
             aria-expanded={showMoreActions}
-            aria-label={showMoreActions ? 'Show fewer EONPAI actions' : 'Show more EONPAI actions'}
           >
-            <span className="microkit-text-swap-window" aria-hidden="true">
-              <span className={`microkit-text-swap-track${showMoreActions ? ' is-expanded' : ''}`}>
-                <span>More actions (2)</span>
-                <span>Show less</span>
-              </span>
-            </span>
+            <span>{showMoreActions ? 'Show fewer actions' : 'More actions (2)'}</span>
             <Icon className={showMoreActions ? 'is-expanded' : ''} name="chevron" size={12} />
           </button>
         </nav>
 
         <div className="eonpai-utility-footer">
-          {isLocalVaultSession() && <details>
-            <summary>Conversation history ({conversations.length})</summary>
-            {conversations.map((conversation) => <div key={conversation.conversationId}>
-              <button className="eonpai-command-row" type="button" disabled={aiLoading} onClick={() => void changeConversation(conversation.conversationId)}>{conversation.title}</button>
-              <button type="button" disabled={aiLoading} aria-label={`Delete conversation: ${conversation.title}`} onClick={() => {
-                requestConversationDelete?.(conversation.title, () => changeConversation(conversation.conversationId, true))
-              }}>Delete</button>
-            </div>)}
-            {historyError && <p role="alert">{historyError}</p>}
-          </details>}
           {aiLoading && isLocalVaultSession() && <button type="button" onClick={() => void cancelNativeAiRequest().catch((error: unknown) => setHistoryError(error instanceof Error ? error.message : 'Could not cancel request'))}>Stop response</button>}
 
           <div className="eonpai-tip-box">
@@ -760,31 +795,63 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       </aside>
 
       {/* Primary Conversation Panel */}
-      <section className="eonpai-conversation-card" aria-label="EONPAI Conversation">
+      <section className="eonpai-conversation-card" aria-label="EONPAI Conversation" aria-busy={aiLoading}>
         {/* Restrained Single Workspace Header */}
         <header className="eonpai-chat-header">
+          <span className="eonpai-sr-only" role="status" aria-live="polite">
+            {aiLoading ? 'EONPAI is responding.' : ''}
+          </span>
           <div className="eonpai-identity-wrap">
             <div className={`eonpai-avatar-badge${aiLoading ? ' is-thinking' : ''}`} data-presence={aiLoading ? 'thinking' : 'idle'}>
               <Icon name="sparkle" size={15} />
             </div>
             <div className="eonpai-title-meta">
-              <span className="eonpai-session-title">Executive Session</span>
-              <span className="eonpai-subtitle">Personal execution assistant</span>
+              <span className="eonpai-session-title">EONPAI</span>
+              <span className="eonpai-subtitle">Your SHINPO productivity assistant</span>
             </div>
             <div className="eonpai-status-badge" title={aiProviderStatus?.message || 'AI provider status has not been reported'}>
-              <span className={`eonpai-status-dot ${providerStatusTone}`} aria-hidden="true" />
+              <span className={`eonpai-provider-status-dot ${providerStatusTone}`} aria-hidden="true" />
               <span className="eonpai-status-text" aria-live="polite">{providerStatusLabel}</span>
             </div>
           </div>
+          <div className="eonpai-header-actions">
+            {isLocalVaultSession() && (
+              <details className="eonpai-history-menu" open={showHistory} onToggle={(event) => setShowHistory(event.currentTarget.open)}>
+                <summary aria-label={`Conversation history, ${conversations.length} conversations`}>
+                  <Icon name="clock" size={14} /><span>History</span>
+                </summary>
+                <div className="eonpai-history-popover" aria-label="Conversation history">
+                  <strong>Recent conversations</strong>
+                  {conversations.length ? conversations.map((conversation) => (
+                    <div className="eonpai-history-item" key={conversation.conversationId}>
+                      <button type="button" disabled={aiLoading} onClick={() => void handleConversationChange(conversation.conversationId)}>{conversation.title}</button>
+                      <button type="button" disabled={aiLoading} aria-label={`Delete conversation: ${conversation.title}`} onClick={() => {
+                        requestConversationDelete?.(conversation.title, () => handleConversationChange(conversation.conversationId, true))
+                      }}>Delete</button>
+                    </div>
+                  )) : <p>No saved conversations yet.</p>}
+                  {historyError && <p role="alert">{historyError}</p>}
+                </div>
+              </details>
+            )}
+            {isAurora && <button
+              ref={contextToggleRef}
+              type="button"
+              className="eonpai-context-toggle"
+              aria-controls="eonpai-context-panel"
+              aria-expanded={showContextPanel}
+              onClick={() => setShowContextPanel((open) => !open)}
+            ><Icon name="target" size={14} /><span>Today’s context</span></button>}
           <button
             type="button"
             className="eonpai-new-chat-btn"
-            onClick={handleClearChat}
+            onClick={() => void handleNewConversation()}
             title="Start fresh conversation"
           >
             <Icon name="refresh" size={13} />
             <span>New Chat</span>
           </button>
+          </div>
         </header>
 
         {/* Scrollable Message Feed */}
@@ -794,9 +861,10 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
           onScroll={handleChatScroll}
           tabIndex={0}
           role="region"
-          aria-label="Message Feed"
+          aria-label="Conversation messages"
+          aria-live="off"
         >
-          <div className={`eonpai-chat-content-wrap${chatMessages.length === 1 && chatMessages[0]?.role === 'assistant' && pendingActions.length === 0 ? ' is-welcome' : ''}`} ref={aiContentRef}>
+          <div className={`eonpai-chat-content-wrap${showWelcomeSuggestions ? ' is-welcome' : ''}`} ref={aiContentRef}>
             {/* Pending Controlled Actions Queue Banner */}
             {pendingActions.length > 0 && (
               <div className="eonpai-pending-banner">
@@ -811,13 +879,13 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
 
             {providerStatusTone === 'offline' && (
               <aside className="eonpai-offline-guidance" role="status">
-                <div><strong>AI provider unavailable</strong><p>Quick Actions and SHINPO’s built-in planning tools are still available. Check the provider connection and setup in Settings → EONPAI.</p></div>
+                <div><strong>{aiProviderStatus?.enabled ? 'AI provider unavailable' : 'Offline planning mode'}</strong><p>{aiProviderStatus?.enabled ? 'Quick Actions and SHINPO’s built-in planning tools are still available. Check the provider connection and setup in Settings → EONPAI.' : 'EONPAI can organize goals, tasks and Focus sessions using local data. It does not generate open-ended AI responses. Configure a supported model or provider in Settings for full AI conversation.'}</p></div>
                 {onOpenAiSettings && <button type="button" onClick={onOpenAiSettings}>Open AI settings</button>}
               </aside>
             )}
 
             {/* Pending Controlled Actions */}
-            {pendingActions.map((act) => (
+            {safePendingActions.map((act) => (
               <div key={act.actionId} className="ai-bubble assistant">
                 <div className="ai-bubble-text">
                   <strong>Controlled Action Proposed:</strong> Awaiting your review and explicit approval.
@@ -871,21 +939,41 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               </div>
             ))}
 
-            {/* Main Chat Stream */}
-            {chatMessages.map((msg, index) => (
+            {showWelcomeSuggestions ? (
+              <section className="eonpai-empty-state" aria-labelledby="eonpai-empty-title">
+                <div className="eonpai-empty-mark" aria-hidden="true"><Icon name="sparkle" size={20} /></div>
+                <h1 id="eonpai-empty-title">What are we working on?</h1>
+                <p>Plan your next action, review progress, or work through a difficult task.</p>
+                <div className="eonpai-prompt-grid">
+                  <button type="button" onClick={() => handleTriggerPresetAction('Plan my day based on scheduled tasks and active goals')}><Icon name="schedule" size={16} /><span>Plan my day</span></button>
+                  <button type="button" onClick={() => handleTriggerPresetAction('Break down my highest-priority active goal into practical tasks')}><Icon name="goals" size={16} /><span>Break down a goal</span></button>
+                  <button type="button" onClick={() => handleTriggerPresetAction('Review my recent focus progress and completed work')}><Icon name="analytics" size={16} /><span>Review progress</span></button>
+                  <button type="button" onClick={() => handleTriggerPresetAction('Help me choose a focused next step from my open tasks')}><Icon name="target" size={16} /><span>Help me focus</span></button>
+                </div>
+              </section>
+            ) : safeChatMessages.map((msg, index) => (
               <div
                 key={msg.id ?? index}
-                className={`ai-bubble ${msg.role === 'user' ? 'user' : 'assistant'}${isAurora && index === 0 && msg.role === 'assistant' && msg.suggestionType === 'GREETING' ? ' eonpai-greeting-bubble' : ''}`}
+                className={`ai-bubble ${msg.role === 'user' ? 'user' : 'assistant'}${msg.suggestionType === 'ERROR' ? ' eonpai-error-message' : ''}${isAurora && index === 0 && msg.role === 'assistant' && msg.suggestionType === 'GREETING' ? ' eonpai-greeting-bubble' : ''}`}
+                role={msg.suggestionType === 'ERROR' ? 'alert' : undefined}
               >
                 {isAurora && index === 0 && msg.role === 'assistant' && msg.suggestionType === 'GREETING' && (
                   <div className="eonpai-welcome-hero">
-                    <div className="eonpai-welcome-orb" aria-hidden="true"><span /></div>
+                    <div className="eonpai-welcome-orb" aria-hidden="true"><Icon name="sparkle" size={21} /></div>
                     <div><span className="eonpai-welcome-label">EONPAI</span><h1>Your execution partner.</h1></div>
                   </div>
                 )}
                 <div className="ai-bubble-text">
                   <MarkdownRenderer content={msg.text} />
                 </div>
+                {msg.text.trim() && !(msg.role === 'assistant' && aiLoading && index === chatMessages.length - 1) && (
+                  <div className="ai-bubble-actions">
+                    <button type="button" onClick={() => void handleCopyMessage(msg.id ?? `${index}`, msg.text)} aria-label="Copy message" title="Copy message">
+                      <Icon name="copy" size={13} />
+                    </button>
+                    {copyFeedback?.id === (msg.id ?? `${index}`) && <span role="status">{copyFeedback.message}</span>}
+                  </div>
+                )}
 
                 {/* Controlled Action Proposal Card */}
                 {msg.actionProposal && (
@@ -1079,7 +1167,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
                     </div>
 
                     <div className="eonpai-tasks-list">
-                      {msg.missions.map((m, mIdx) => (
+                      {msg.missions?.map((m, mIdx) => (
                         <div key={mIdx} className="eonpai-task-row" role="group" aria-label={`Task: ${m.title}`}>
                           <div className="eonpai-task-idx">{mIdx + 1}</div>
                           <div className="eonpai-task-details">
@@ -1224,7 +1312,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
             ))}
 
             {aiLoading && (
-              <div className="ai-bubble assistant eonpai-thinking-bubble">
+              <div className="ai-bubble assistant eonpai-thinking-bubble" aria-hidden="true">
                 <span className="thinking-dot-pulse" />
                 <span>EONPAI is formulating a response...</span>
               </div>
@@ -1252,7 +1340,7 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
               ref={textareaRef}
               rows={1}
               className="eonpai-composer-input"
-              placeholder="Ask EONPAI to plan your day, decompose a goal, or review focus..."
+              placeholder="Ask EONPAI a question..."
               value={localInput}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
@@ -1274,13 +1362,14 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
             )}
             <button
               type="button"
-              className="eonpai-composer-send-btn microkit-sliding-send"
+              className="eonpai-composer-send-btn"
               onClick={handleSend}
               disabled={aiLoading || !localInput.trim()}
               title="Send Message"
+              aria-label="Send message"
             >
               <span>Send</span>
-              <span className="microkit-send-icon"><Icon name="arrow-up-right" size={13} /></span>
+              <Icon name="arrow-up-right" size={13} />
             </button>
           </div>
           {isAurora && speechError && <p className="eonpai-speech-status" role="status">{speechError}</p>}
@@ -1288,15 +1377,25 @@ export const EonpaiView: React.FC<EonpaiViewProps> = React.memo(({
       </section>
 
       {isAurora && (
-        <aside className="eonpai-context-panel" aria-label="Today’s SHINPO context">
+        <aside
+          id="eonpai-context-panel"
+          ref={contextPanelRef}
+          tabIndex={-1}
+          className={`eonpai-context-panel${showContextPanel ? ' is-open' : ''}`}
+          aria-label="Today’s SHINPO context"
+        >
           <header className="eonpai-context-header">
             <div><h2>Today’s Context</h2><p>{now === null ? ' ' : new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(now))}</p></div>
+            <button type="button" className="eonpai-context-close" onClick={() => {
+              setShowContextPanel(false)
+              requestAnimationFrame(() => contextToggleRef.current?.focus())
+            }} aria-label="Close today’s context"><Icon name="close" size={15} /></button>
           </header>
           <div className="eonpai-context-stats">
             <div className="eonpai-context-stat"><Icon name="clock" size={16} /><span>Focus</span><strong>{activeSession ? activeSession.status === 'PAUSED' ? 'Paused' : 'In progress' : 'Ready'}</strong><small>{activeSession?.name ?? 'No active session'}</small></div>
             <div className="eonpai-context-stat"><Icon name="goals" size={16} /><span>Active goals</span><strong>{activeGoals.length}</strong><small>On your plan</small></div>
             <div className="eonpai-context-stat"><Icon name="check" size={16} /><span>Tasks today</span><strong>{todayTasks.length}</strong><small>Still to complete</small></div>
-            <div className="eonpai-context-stat"><Icon name="rewards" size={16} /><span>Focus streak</span><strong>{focusStreak} <small>days</small></strong><small>Keep your rhythm</small></div>
+            <div className="eonpai-context-stat"><Icon name="clock" size={16} /><span>Focus consistency</span><strong>{formatCount(focusStreak, 'day')}</strong><small>Consecutive days with recorded focus</small></div>
           </div>
 
           <section className="eonpai-context-section">

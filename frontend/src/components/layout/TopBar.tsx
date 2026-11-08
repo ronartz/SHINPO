@@ -5,6 +5,8 @@ import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
 import type { ProgressResponse } from '../../api/progress'
 import type { SettingsSection } from '../dialogs/SettingsModal'
+import { AccountDropdown } from './AccountDropdown'
+import { PowerDropdown } from './PowerDropdown'
 
 export interface TopBarProps {
   activeTab: AppView
@@ -25,6 +27,8 @@ export interface TopBarProps {
   onLogout: () => void
   onToggleV2Preview?: () => void
   isV2Preview?: boolean
+  isFocusActive?: boolean
+  onStartTutorial?: () => void
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -44,15 +48,25 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   isRefreshing = false,
   onOpenSettings,
   currentUser,
-  userProgress,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview,
+  isFocusActive = false,
+  onStartTutorial,
 }) => {
   trackRender('TopBar')
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
+  const [isPowerMenuOpen, setIsPowerMenuOpen] = useState(false)
   const mobileNavigationControlRef = useRef<HTMLDivElement>(null)
-  useEffect(() => setMobileNavigationOpen(false), [activeTab])
+  const profileButtonRef = useRef<HTMLButtonElement>(null)
+  const powerButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    setMobileNavigationOpen(false)
+    setIsAccountMenuOpen(false)
+    setIsPowerMenuOpen(false)
+  }, [activeTab])
   useEffect(() => {
     if (!mobileNavigationOpen) return
     mobileNavigationControlRef.current?.querySelector<HTMLElement>(`[data-mobile-nav-tab="${activeTab}"]`)?.focus()
@@ -148,43 +162,69 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
         >
           <Icon name="refresh" size={16} />
         </button>
-        <button
-          className="action-btn-circle"
-          onClick={() => onOpenSettings('appearance')}
-          title="Settings"
-          aria-label="Settings"
-          data-tutorial="topbar-settings-btn"
-        >
-          <Icon name="settings" size={17} />
-        </button>
         {currentUser && (
-          <button
-            type="button"
-            className="profile-badge-card"
-            data-tutorial="profile-badge-card"
-            onClick={() => onOpenSettings('account')}
-            title={`Account settings for ${currentUser.username}`}
-            aria-label={`Account settings for ${currentUser.username}`}
-          >
-            <span className="profile-avatar-circle" aria-hidden="true">
-              {currentUser.username.charAt(0).toUpperCase()}
-            </span>
-            <span className="profile-text-wrap">
-              <span className="profile-username">{currentUser.username}</span>
-              <span className="profile-role">
-                {userProgress ? `Lvl ${userProgress.level} • ${userProgress.totalProgress} XP` : 'Account settings'}
+          <div className="topbar-menu-anchor">
+            <button
+              ref={profileButtonRef}
+              type="button"
+              className={`profile-badge-card ${isAccountMenuOpen ? 'is-active' : ''}`}
+              data-tutorial="profile-badge-card"
+              onClick={() => {
+                setIsAccountMenuOpen((open) => !open)
+                setIsPowerMenuOpen(false)
+              }}
+              title={`Account menu for ${currentUser.username}`}
+              aria-label={`Account menu for ${currentUser.username}`}
+              aria-haspopup="menu"
+              aria-expanded={isAccountMenuOpen}
+              aria-controls="account-dropdown-menu"
+            >
+              <span className="profile-avatar-circle" aria-hidden="true">
+                {currentUser.username.charAt(0).toUpperCase()}
               </span>
-            </span>
-          </button>
+              <span className="profile-text-wrap">
+                <span className="profile-username">{currentUser.username}</span>
+                <span className="profile-role">
+                  Personal workspace
+                </span>
+              </span>
+            </button>
+            <AccountDropdown
+              isOpen={isAccountMenuOpen}
+              onClose={() => setIsAccountMenuOpen(false)}
+              currentUser={currentUser}
+              onOpenSettings={onOpenSettings}
+              onStartTutorial={onStartTutorial}
+              onLogout={onLogout}
+              anchorRef={profileButtonRef}
+            />
+          </div>
         )}
-        <button
-          className="action-btn-circle"
-          onClick={onLogout}
-          title="Sign Out"
-          aria-label="Sign Out"
-        >
-          <Icon name="power" size={15} />
-        </button>
+        <div className="topbar-menu-anchor">
+          <button
+            ref={powerButtonRef}
+            type="button"
+            className={`action-btn-circle ${isPowerMenuOpen ? 'is-active' : ''}`}
+            onClick={() => {
+              setIsPowerMenuOpen((open) => !open)
+              setIsAccountMenuOpen(false)
+            }}
+            title="System controls and application power menu"
+            aria-label="Power menu"
+            aria-haspopup="menu"
+            aria-expanded={isPowerMenuOpen}
+            aria-controls="power-dropdown-menu"
+          >
+            <Icon name="power" size={15} />
+          </button>
+          <PowerDropdown
+            isOpen={isPowerMenuOpen}
+            onClose={() => setIsPowerMenuOpen(false)}
+            isFocusActive={Boolean(isFocusActive)}
+            onLogout={onLogout}
+            anchorRef={powerButtonRef}
+          />
+        </div>
       </div>
     </header>
   )

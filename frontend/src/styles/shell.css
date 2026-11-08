@@ -15,6 +15,16 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 
+.shinpo-particles {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
 /* ==========================================================================
    COLLAPSIBLE SIDEBAR
    ========================================================================== */
@@ -844,7 +854,6 @@
 .status-dot-active.focus-engaged {
   background: var(--focus-cyan);
   box-shadow: none;
-  animation: pulse-indicator 2s infinite ease-in-out;
 }
 
 .status-dot-active.status-dot-ready {
@@ -855,7 +864,6 @@
 .status-dot-active.status-dot-degraded {
   background: var(--accent-amber, var(--brand-primary));
   box-shadow: none;
-  animation: pulse-indicator 2s infinite ease-in-out;
 }
 
 .status-dot-active.status-dot-unavailable {
@@ -867,13 +875,11 @@
 .status-dot-active.warning-engaged {
   background: var(--status-warning);
   box-shadow: none;
-  animation: pulse-indicator 1.5s infinite ease-in-out;
 }
 
 .status-dot-active.grace-engaged {
   background: var(--brand-primary);
   box-shadow: none;
-  animation: pulse-indicator 1.5s infinite ease-in-out;
 }
 
 @keyframes pulse-indicator {
@@ -923,6 +929,8 @@ html[data-theme='light'] .protection-shield-box.shield-ready,
    APP MAIN CONTENT
    ========================================================================== */
 .app-main {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
   width: calc(100% - var(--sidebar-w-collapsed) - 32px);
@@ -982,13 +990,13 @@ html[data-theme='light'] .protection-shield-box.shield-ready,
    TOP BAR (CLEAN EXECUTIVE STATUS BAR — RESTRAINED 56PX)
    ========================================================================== */
 .cockpit-top-bar {
+  position: relative;
+  z-index: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  height: 70px;
   min-height: 70px;
-  max-height: 70px;
   margin-bottom: 24px;
   padding: 0 24px;
   border-radius: var(--radius-lg, 16px);
@@ -1116,7 +1124,6 @@ html[data-theme='light'] .protection-shield-box.shield-ready,
   border-radius: 50%;
   background: var(--accent-green);
   box-shadow: none;
-  animation: liveBlink 2s infinite ease-in-out;
 }
 
 @keyframes liveBlink {
@@ -1511,6 +1518,23 @@ html[data-theme='light'] .sidebar-btn:hover:not(.active) {
   background: linear-gradient(112deg, var(--brand-primary) 0%, var(--brand-deep) 100%);
   box-shadow: 0 6px 16px color-mix(in srgb, var(--brand-primary) 27.0%, transparent), 0 2px 5px rgba(0,0,0, 0.16);
   transition: transform 260ms var(--ease-kinetic), height 190ms ease, left 220ms var(--ease-kinetic), width 220ms var(--ease-kinetic), border-radius 220ms ease, opacity 120ms ease;
+}
+
+.theme-light .sidebar-btn.active,
+html[data-theme='light'] .sidebar-btn.active {
+  color: #0F172A !important;
+}
+
+.theme-light .sidebar-btn.active svg,
+html[data-theme='light'] .sidebar-btn.active svg {
+  stroke: #0F172A !important;
+}
+
+.theme-light .sidebar-active-indicator,
+html[data-theme='light'] .sidebar-active-indicator {
+  background: color-mix(in srgb, var(--color-primary, #2788F5) 16%, #ffffff) !important;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #2788F5) 36%, transparent) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
 .sidebar-active-indicator::before { display: none; }

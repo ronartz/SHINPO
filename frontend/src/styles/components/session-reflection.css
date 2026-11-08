@@ -18,18 +18,6 @@
   background: var(--primary-coral);
   margin-right: var(--space-1);
   box-shadow: none;
-  animation: debrief-pulse 2s infinite ease-in-out;
-}
-
-@keyframes debrief-pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scale(0.8);
-  }
 }
 
 .ai-debrief-card {
@@ -361,7 +349,6 @@
   background: var(--brand-coral);
   box-shadow: none;
   display: inline-block;
-  animation: debriefPulse 1.8s infinite ease-in-out;
 }
 
 .ai-agenda-headline {

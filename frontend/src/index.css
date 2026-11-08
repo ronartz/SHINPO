@@ -67,23 +67,28 @@ button:disabled {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button:not(:disabled) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   button:not(:disabled):active {
-    transform: none;
+    transform: none !important;
   }
 }
 
 .theme-light :focus-visible,
 html[data-theme='light'] :focus-visible {
-  outline-color: var(--color-primary);
+  outline-color: var(--color-focus);
 }
 
 ::selection {

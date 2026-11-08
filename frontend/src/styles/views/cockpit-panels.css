@@ -30,7 +30,6 @@
   border-radius: 50%;
   background: var(--primary-coral);
   box-shadow: none;
-  animation: liveBlink 1.5s infinite ease-in-out;
 }
 
 .hero-session-name {

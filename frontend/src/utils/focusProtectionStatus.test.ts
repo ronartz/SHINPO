@@ -4,6 +4,7 @@ import {
   mapEnforcementOutcome,
   deriveOverallProtectionStatus,
   groupQuarantineEvents,
+  formatEnforcementMode,
 } from './focusProtectionStatus.ts'
 import type { SentinelStatus, SentinelQuarantineItem } from '../api/device'
 
@@ -162,6 +163,40 @@ test('local Automatic Guardian reports warnings without claiming app enforcement
   })
   assert.equal(locked.badgeText, 'Vault Locked')
   assert.match(locked.description, /paused/i)
+})
+
+test('local Guardian status follows observer health and consent rather than Focus alone', () => {
+  const localStatus: SentinelStatus = {
+    status: 'ACTIVE', activeFocusSessionId: 42, activeFocusSessionName: 'Study block',
+    enforcementMode: 'AUDIT_ONLY', totalInterceptedToday: 0, activePolicyRulesCount: 0,
+    recentQuarantines: [], lastSweepAt: null, daemonConnected: true,
+    guardianMode: 'STRICT', warningOnly: true, interventionCapability: 'MONITORING_DISABLED',
+    observerStatus: 'IDLE',
+  }
+  const off = deriveOverallProtectionStatus(localStatus)
+  assert.equal(off.badgeText, 'App observation off')
+  assert.equal(off.shieldConnected, false)
+
+  const observing = deriveOverallProtectionStatus({
+    ...localStatus, interventionCapability: 'LIMITED_NO_CLOSURE_CONSENT', observerStatus: 'MONITORING',
+  })
+  assert.equal(observing.badgeText, 'Observing apps')
+  assert.equal(observing.statusKey, 'READY')
+  assert.equal(observing.badgeVariant, 'ready')
+
+  const degraded = deriveOverallProtectionStatus({
+    ...localStatus, interventionCapability: 'LIMITED_OBSERVER_UNAVAILABLE', observerStatus: 'DEGRADED',
+  })
+  assert.equal(degraded.badgeText, 'Observer unavailable')
+  assert.equal(degraded.shieldConnected, false)
+
+  const paused = deriveOverallProtectionStatus({ ...localStatus, status: 'STANDBY', observerStatus: 'PAUSED' })
+  assert.equal(paused.badgeText, 'Focus paused')
+})
+
+test('enforcement mode labels never expose unknown internal values or imply a default mode', () => {
+  assert.equal(formatEnforcementMode(undefined), 'Status unavailable')
+  assert.equal(formatEnforcementMode('FUTURE_INTERNAL_MODE'), 'Configured mode')
 })
 
 test('groupQuarantineEvents - groups repeated events while preserving all records and PIDs', () => {

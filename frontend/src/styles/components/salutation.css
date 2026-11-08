@@ -72,12 +72,12 @@ html[data-theme='light'] .sidebar-upper-quote,
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brand-primary);
+  color: var(--color-primary, #AFF33E);
 }
 
 html[data-theme='light'] .sidebar-upper-quote-eyebrow,
 .theme-light .sidebar-upper-quote-eyebrow {
-  color: var(--brand-primary);
+  color: var(--color-primary, #15803d);
 }
 
 .sidebar-upper-quote-tag {

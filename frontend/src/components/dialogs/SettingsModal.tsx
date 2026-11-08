@@ -12,6 +12,7 @@ import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
 import { getAiProviderStatus, getNativeAiProviderConfig, configureNativeAiProvider } from '../../api/ai'
 import type { NativeAiProviderConfig } from '../../api/ai'
+import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianObserverLabel } from '../../utils/guardianCapability'
 
 export type SettingsSection =
   | 'appearance'
@@ -42,6 +43,7 @@ export interface SettingsModalProps {
   goals?: Goal[]
   missions?: Mission[]
   sessions?: FocusSession[]
+  onReplayTutorial?: () => void
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -63,6 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   goals = [],
   missions = [],
   sessions = [],
+  onReplayTutorial,
 }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
     isTauriEnvironment() && initialSection === 'connection' ? 'appearance' : initialSection,
@@ -232,18 +235,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }
 
-  const [nativeProvider, setNativeProvider] = useState<NativeAiProviderConfig>({ provider: 'none', model: '', endpoint: '', allowCloudContext: false })
+  const defaultNativeProvider: NativeAiProviderConfig = { provider: 'none', model: '', endpoint: '', allowCloudContext: false }
+  const [nativeProvider, setNativeProvider] = useState<NativeAiProviderConfig>(defaultNativeProvider)
   const nativeApiKeyRef = useRef<HTMLInputElement>(null)
   const [providerSaving, setProviderSaving] = useState(false)
   const [providerMessage, setProviderMessage] = useState('')
   useEffect(() => {
     let current = true
     if (isOpen && activeSection === 'eonpai' && isLocalVaultSession()) {
-      getNativeAiProviderConfig().then((config) => { if (current) setNativeProvider(config) }).catch((error: unknown) => { if (current) setProviderMessage(error instanceof Error ? error.message : 'Could not read provider settings') })
+      getNativeAiProviderConfig().then((config) => { if (current && config) setNativeProvider(config) }).catch((error: unknown) => { if (current) setProviderMessage(error instanceof Error ? error.message : 'Could not read provider settings') })
     }
     if (!isOpen && nativeApiKeyRef.current) nativeApiKeyRef.current.value = ''
     return () => { current = false }
   }, [isOpen, activeSection])
+
+  const handleSaveNativeAiProvider = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (providerSaving) return
+    setProviderSaving(true)
+    setProviderMessage('')
+    const safeConfig = nativeProvider || defaultNativeProvider
+    const key = nativeApiKeyRef.current?.value || undefined
+    try {
+      await configureNativeAiProvider(safeConfig, key)
+      if (nativeApiKeyRef.current) {
+        nativeApiKeyRef.current.value = ''
+      }
+      setProviderMessage('Provider settings saved.')
+      await fetchAiInfo()
+    } catch (error: unknown) {
+      setProviderMessage(error instanceof Error ? error.message : 'Could not save provider')
+    } finally {
+      setProviderSaving(false)
+    }
+  }
 
   // Fetch EONPAI Status
   const fetchAiInfo = useCallback(async () => {
@@ -715,1067 +740,1106 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Right Content Panel */}
           <div className="settings-content-panel">
-            {/* 1. APPEARANCE SECTION */}
-            {activeSection === 'appearance' && (
-              <div>
-                <h3 className="settings-section-title">
-                  Appearance & Display
-                </h3>
-                <p className="settings-section-desc">
-                  Customize your workspace theme and time display format.
-                </p>
-
-                {/* Theme Mode */}
-                <div className="settings-group-card">
-                  <label>
-                    Color Theme
-                  </label>
-                  <p>
-                    Switch between deep focus dark mode and high-clarity daylight theme.
+            <div key={activeSection} className="settings-section-animated-pane">
+              {/* 1. APPEARANCE SECTION */}
+              {activeSection === 'appearance' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    Appearance & Display
+                  </h3>
+                  <p className="settings-section-desc">
+                    Customize your workspace theme and time display format.
                   </p>
-                  <div className="settings-pill-row">
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${isDarkMode ? 'is-active' : ''}`}
-                      onClick={() => { if (!isDarkMode) onToggleTheme() }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="moon" size={15} />
-                        <span>Dark Theme</span>
-                      </div>
-                      {isDarkMode && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${!isDarkMode ? 'is-active' : ''}`}
-                      onClick={() => { if (isDarkMode) onToggleTheme() }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="sun" size={15} />
-                        <span>Light Theme</span>
-                      </div>
-                      {!isDarkMode && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                  </div>
-                </div>
 
-                {/* Layout Mode */}
-                {onToggleV2Preview && (
+                  {/* Theme Mode */}
                   <div className="settings-group-card">
                     <label>
-                      UI Visual Identity
+                      Color Theme
                     </label>
                     <p>
-                      Toggle between the cinematic Aurora identity and the classic workstation layout.
+                      Switch between deep focus dark mode and high-clarity daylight theme.
                     </p>
                     <div className="settings-pill-row">
                       <button
                         type="button"
-                        className={`settings-pill-btn ${isV2Preview ? 'is-active' : ''}`}
-                        onClick={() => { if (!isV2Preview) onToggleV2Preview() }}
+                        className={`settings-pill-btn ${isDarkMode ? 'is-active' : ''}`}
+                        onClick={() => { if (!isDarkMode) onToggleTheme() }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="moon" size={15} />
+                          <span>Dark Theme</span>
+                        </div>
+                        {isDarkMode && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                      </button>
+                      <button
+                        type="button"
+                        className={`settings-pill-btn ${!isDarkMode ? 'is-active' : ''}`}
+                        onClick={() => { if (isDarkMode) onToggleTheme() }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="sun" size={15} />
+                          <span>Light Theme</span>
+                        </div>
+                        {!isDarkMode && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Layout Mode */}
+                  {onToggleV2Preview && (
+                    <div className="settings-group-card">
+                      <label>
+                        UI Visual Identity
+                      </label>
+                      <p>
+                        Toggle between the Aurora and Classic visual themes.
+                      </p>
+                      <div className="settings-pill-row">
+                        <button
+                          type="button"
+                          className={`settings-pill-btn ${isV2Preview ? 'is-active' : ''}`}
+                          onClick={() => { if (!isV2Preview) onToggleV2Preview() }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icon name="sparkle" size={15} />
+                            <span>Aurora</span>
+                          </div>
+                          {isV2Preview && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                        </button>
+                        <button
+                          type="button"
+                          className={`settings-pill-btn ${!isV2Preview ? 'is-active' : ''}`}
+                          onClick={() => { if (isV2Preview) onToggleV2Preview() }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icon name="dashboard" size={15} />
+                            <span>Classic</span>
+                          </div>
+                          {!isV2Preview && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clock Format */}
+                  <div className="settings-group-card">
+                    <label>
+                      Live Clock Format
+                    </label>
+                    <p>
+                      Choose how the workstation live clock renders on your dashboard.
+                    </p>
+                    <div className="settings-pill-row">
+                      <button
+                        type="button"
+                        className={`settings-pill-btn ${!is24Hour ? 'is-active' : ''}`}
+                        onClick={() => handleTimeFormatChange('12h')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="clock" size={15} />
+                          <span>12-Hour Format (02:45 PM)</span>
+                        </div>
+                        {!is24Hour && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                      </button>
+                      <button
+                        type="button"
+                        className={`settings-pill-btn ${is24Hour ? 'is-active' : ''}`}
+                        onClick={() => handleTimeFormatChange('24h')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="clock" size={15} />
+                          <span>24-Hour Format (14:45)</span>
+                        </div>
+                        {is24Hour && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Celebratory Feedback & Progression */}
+                  <div className="settings-group-card">
+                    <label>
+                      Celebratory Feedback & Progression Effects
+                    </label>
+                    <p>
+                      Choose the visual feedback shown when you complete tasks and focus sessions.
+                    </p>
+                    <div className="settings-pill-row">
+                      <button
+                        type="button"
+                        className={`settings-pill-btn ${celebrationEffects !== 'minimal' ? 'is-active' : ''}`}
+                        onClick={() => handleCelebrationEffectsChange('full')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Icon name="sparkle" size={15} />
-                          <span>Aurora View (V2 Cinematic)</span>
+                          <span>Full completion feedback</span>
                         </div>
-                        {isV2Preview && <span className="settings-pill-indicator">✓</span>}
+                        {celebrationEffects !== 'minimal' && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
                       </button>
                       <button
                         type="button"
-                        className={`settings-pill-btn ${!isV2Preview ? 'is-active' : ''}`}
-                        onClick={() => { if (isV2Preview) onToggleV2Preview() }}
+                        className={`settings-pill-btn ${celebrationEffects === 'minimal' ? 'is-active' : ''}`}
+                        onClick={() => handleCelebrationEffectsChange('minimal')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Icon name="dashboard" size={15} />
-                          <span>Classic View</span>
+                          <Icon name="check" size={15} />
+                          <span>Minimal (Subtle / Reduced Motion)</span>
                         </div>
-                        {!isV2Preview && <span className="settings-pill-indicator">✓</span>}
+                        {celebrationEffects === 'minimal' && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
                       </button>
                     </div>
                   </div>
-                )}
 
-                {/* Clock Format */}
-                <div className="settings-group-card">
-                  <label>
-                    Live Clock Format
-                  </label>
-                  <p>
-                    Choose how the workstation live clock renders on your dashboard.
-                  </p>
-                  <div className="settings-pill-row">
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${!is24Hour ? 'is-active' : ''}`}
-                      onClick={() => handleTimeFormatChange('12h')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="clock" size={15} />
-                        <span>12-Hour Format (02:45 PM)</span>
-                      </div>
-                      {!is24Hour && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${is24Hour ? 'is-active' : ''}`}
-                      onClick={() => handleTimeFormatChange('24h')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="clock" size={15} />
-                        <span>24-Hour Format (14:45)</span>
-                      </div>
-                      {is24Hour && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Celebratory Feedback & Progression */}
-                <div className="settings-group-card">
-                  <label>
-                    Celebratory Feedback & Progression Effects
-                  </label>
-                  <p>
-                    Choose the visual feedback shown when you complete tasks and focus sessions.
-                  </p>
-                  <div className="settings-pill-row">
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${celebrationEffects !== 'minimal' ? 'is-active' : ''}`}
-                      onClick={() => handleCelebrationEffectsChange('full')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="sparkle" size={15} />
-                        <span>Full Visual Feedback (+XP, Shimmer)</span>
-                      </div>
-                      {celebrationEffects !== 'minimal' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${celebrationEffects === 'minimal' ? 'is-active' : ''}`}
-                      onClick={() => handleCelebrationEffectsChange('minimal')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="check" size={15} />
-                        <span>Minimal (Subtle / Reduced Motion)</span>
-                      </div>
-                      {celebrationEffects === 'minimal' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Consistency Streak Display */}
-                <div className="settings-group-card">
-                  <label>
-                    Consistency Streak Display
-                  </label>
-                  <p>
-                    Show your productive-day streak on the Dashboard.
-                  </p>
-                  <div className="settings-pill-row">
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${streakDisplay !== 'hidden' ? 'is-active' : ''}`}
-                      onClick={() => handleStreakDisplayChange('visible')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="zap" size={14} />
-                        <span>Visible (Show Streak)</span>
-                      </div>
-                      {streakDisplay !== 'hidden' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill-btn ${streakDisplay === 'hidden' ? 'is-active' : ''}`}
-                      onClick={() => handleStreakDisplayChange('hidden')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name="clock" size={15} />
-                        <span>Hidden (Quiet Mode)</span>
-                      </div>
-                      {streakDisplay === 'hidden' && <span className="settings-pill-indicator">✓</span>}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. ACCOUNT SECTION */}
-            {activeSection === 'account' && (
-              <div>
-                <h3 className="settings-section-title">
-                  User Account & Security
-                </h3>
-                <p className="settings-section-desc">
-                  View your account credentials and manage your session and password.
-                </p>
-
-                {/* Profile Overview */}
-                <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <label style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Active User Profile
+                  {/* Consistency Streak Display */}
+                  <div className="settings-group-card">
+                    <label>
+                      Consistency History Display
                     </label>
-                    {currentUser && !isEditingUsername && !isLocalVaultSession() && (
+                    <p>
+                      Show consecutive days with recorded focus on the Dashboard.
+                    </p>
+                    <div className="settings-pill-row">
                       <button
                         type="button"
-                        onClick={() => {
-                          setIsEditingUsername(true)
-                          setUsernameFeedback(null)
-                          setUsernameInput(currentUser.username)
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--border, rgba(255,255,255,0.15))',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '11.5px',
-                          fontWeight: 600,
-                          padding: '3px 8px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
+                        className={`settings-pill-btn ${streakDisplay !== 'hidden' ? 'is-active' : ''}`}
+                        onClick={() => handleStreakDisplayChange('visible')}
                       >
-                        <Icon name="edit" size={12} /> Change Username
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="zap" size={14} />
+                          <span>Visible (Show consistency)</span>
+                        </div>
+                        {streakDisplay !== 'hidden' && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
                       </button>
+                      <button
+                        type="button"
+                        className={`settings-pill-btn ${streakDisplay === 'hidden' ? 'is-active' : ''}`}
+                        onClick={() => handleStreakDisplayChange('hidden')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name="clock" size={15} />
+                          <span>Hidden (Quiet Mode)</span>
+                        </div>
+                        {streakDisplay === 'hidden' && <span className="settings-pill-indicator" aria-hidden="true"><Icon name="check" size={12} /></span>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. ACCOUNT SECTION */}
+              {activeSection === 'account' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    User Account & Security
+                  </h3>
+                  <p className="settings-section-desc">
+                    View your account credentials and manage your session and password.
+                  </p>
+
+                  {/* Profile Overview */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <label style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Active User Profile
+                      </label>
+                      {currentUser && !isEditingUsername && !isLocalVaultSession() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingUsername(true)
+                            setUsernameFeedback(null)
+                            setUsernameInput(currentUser.username)
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--border, rgba(255,255,255,0.15))',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Icon name="edit" size={12} /> Change Username
+                        </button>
+                      )}
+                    </div>
+                    {currentUser ? (
+                      <div>
+                        {isEditingUsername ? (
+                          <form onSubmit={handleUsernameSubmit} style={{ marginBottom: 12 }}>
+                            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                              New Username (3-50 characters, letters, numbers, _, ., -)
+                            </label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                value={usernameInput}
+                                onChange={(e) => setUsernameInput(e.target.value)}
+                                placeholder="New username"
+                                className="modal-field"
+                                style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', fontSize: '13px' }}
+                                autoFocus
+                                required
+                              />
+                              <button
+                                type="submit"
+                                disabled={usernameLoading}
+                                className="aurora-btn-primary"
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                              >
+                                {usernameLoading ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingUsername(false)
+                                  setUsernameInput(currentUser.username)
+                                  setUsernameFeedback(null)
+                                }}
+                                className="btn-timer secondary"
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        ) : null}
+
+                        {usernameFeedback && (
+                          <div
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              marginBottom: 10,
+                              fontSize: '12px',
+                              background: usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                              border: `1px solid ${usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                              color: usernameFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                            }}
+                          >
+                            {usernameFeedback.text}
+                          </div>
+                        )}
+
+                        {isLocalVaultSession() && (
+                          <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                            This name identifies your encrypted local vault and cannot be changed.
+                          </p>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Username:</span>
+                          <span className="settings-user-name" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{currentUser.username}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Email:</span>
+                          <span className="settings-user-email" style={{ color: 'var(--text-primary)' }}>{currentUser.email}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>User ID:</span>
+                          <span className="settings-badge-value" style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>#{currentUser.id}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Tenant Isolation:</span>
+                          <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}><Icon name="check-circle" size={14} /> Verified Private Workspace</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Not authenticated</span>
                     )}
                   </div>
-                  {currentUser ? (
-                    <div>
-                      {isEditingUsername ? (
-                        <form onSubmit={handleUsernameSubmit} style={{ marginBottom: 12 }}>
-                          <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                            New Username (3-50 characters, letters, numbers, _, ., -)
-                          </label>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input
-                              type="text"
-                              value={usernameInput}
-                              onChange={(e) => setUsernameInput(e.target.value)}
-                              placeholder="New username"
-                              className="modal-field"
-                              style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', fontSize: '13px' }}
-                              autoFocus
-                              required
-                            />
-                            <button
-                              type="submit"
-                              disabled={usernameLoading}
-                              className="aurora-btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '12px' }}
-                            >
-                              {usernameLoading ? 'Saving...' : 'Save'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsEditingUsername(false)
-                                setUsernameInput(currentUser.username)
-                                setUsernameFeedback(null)
-                              }}
-                              className="btn-timer secondary"
-                              style={{ padding: '6px 12px', fontSize: '12px' }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      ) : null}
 
-                      {usernameFeedback && (
+                  {/* Password Change Form */}
+                  <div className="settings-group-card">
+                    <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                      Change Password
+                    </label>
+                    <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Update your account password. All active JWT sessions will remain valid until expiry.
+                    </p>
+                    <form className="settings-password-form" onSubmit={handlePasswordSubmit}>
+                      <div style={{ marginBottom: 10, position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          id="current-password-input"
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          placeholder="Current Password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          required
+                          className="modal-field"
+                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-btn"
+                          onClick={() => setShowCurrentPassword((prev) => !prev)}
+                          aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                          title={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                          tabIndex={0}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-secondary, #5c5c5c)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px',
+                          }}
+                        >
+                          <Icon name={showCurrentPassword ? 'eye-off' : 'eye'} size={15} />
+                        </button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            id="new-password-input"
+                            type={showNewPassword ? 'text' : 'password'}
+                            placeholder="New Password (min 6 chars)"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            className="modal-field"
+                            style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowNewPassword((prev) => !prev)}
+                            aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                            title={showNewPassword ? 'Hide new password' : 'Show new password'}
+                            tabIndex={0}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-secondary, #5c5c5c)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px',
+                            }}
+                          >
+                            <Icon name={showNewPassword ? 'eye-off' : 'eye'} size={15} />
+                          </button>
+                        </div>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            id="confirm-password-input"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            placeholder="Confirm New Password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                            className="modal-field"
+                            style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowConfirmPassword((prev) => !prev)}
+                            aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                            title={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                            tabIndex={0}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-secondary, #5c5c5c)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px',
+                            }}
+                          >
+                            <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      {pwdMessage && (
+                        <div
+                          className={`settings-status-banner ${pwdMessage.isError ? 'is-error' : 'is-success'}`}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            marginBottom: 12,
+                            fontSize: '12.5px',
+                            background: pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                            border: `1px solid ${pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                            color: pwdMessage.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                          }}
+                        >
+                          {pwdMessage.text}
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={pwdLoading}
+                        className="btn-timer primary"
+                        style={{ padding: '8px 16px', fontSize: '13px' }}
+                      >
+                        {pwdLoading ? 'Updating Password...' : 'Update Password'}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Sign Out Card */}
+                  <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)', background: 'color-mix(in srgb, var(--brand-highlight) 5.0%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        End Workstation Session
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Sign out of your local desktop profile.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); onLogout() }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)',
+                        background: 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                        color: 'var(--brand-primary)',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. FOCUS PROTECTION SECTION */}
+              {activeSection === 'protection' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    Focus Protection
+                  </h3>
+                  <p className="settings-section-desc">
+                    Manage distraction rules and protection behavior during focus sessions.
+                  </p>
+
+                  {/* Health & Status Card */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Protection status: {isLocalVaultSession()
+                          ? sentinelStatus?.status === 'LOCKED' ? 'Vault locked'
+                            : sentinelStatus?.observerStatus === 'DEGRADED' ? 'Observer unavailable'
+                              : sentinelStatus?.status === 'ACTIVE' ? 'Monitoring during Focus'
+                                : sentinelStatus?.status === 'PAUSED' ? 'Paused with Focus' : 'Ready for Focus'
+                          : sentinelStatus?.status?.replaceAll('_', ' ') || 'Standby'}
+                      </span>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        background: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)',
+                        color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                      }}>
+                        {sentinelStatus?.activeFocusSessionId ? 'FOCUS SESSION IN PROGRESS' : 'IDLE / READY'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '12.5px' }}>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'App observations today: ' : 'Interceptions Today: '}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? sentinelStatus?.guardianWarningCount ?? 0 : sentinelStatus?.totalInterceptedToday ?? 0}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'Application handling: ' : 'Active Policy Rules: '}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? guardianCanRequestClose(sentinelStatus?.interventionCapability, sentinelStatus?.warningOnly) ? 'Consented close may be requested' : 'Monitoring / warning-only' : sentinelStatus?.activePolicyRulesCount ?? 0}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isLocalVaultSession() ? (
+                    <div className="settings-group-card">
+                      <label>Guardian policy</label>
+                      <p>{guardianInterventionDescription(sentinelStatus?.interventionCapability)}</p>
+                      <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
+                        <div><strong>Effective mode: </strong>{sentinelStatus?.guardianMode ? guardianModeLabel(sentinelStatus.guardianMode) : 'No active session'}</div>
+                        <div><strong>Focus phase: </strong>{sentinelStatus?.focusPhase ?? 'Idle'}</div>
+                        <div><strong>Observer: </strong>{guardianObserverLabel(sentinelStatus?.observerStatus)}</div>
+                        <div><strong>Application policy: </strong>{guardianCapabilityLabel(sentinelStatus?.interventionCapability)}</div>
+                        <div><strong>Built-in process catalog: </strong>{sentinelStatus?.guardianApplicationCatalog?.length ?? 0} recognized names · {sentinelStatus?.guardianAppCatalogVersion ?? 'version unavailable'}; not an installed-app inventory.</div>
+                      </div>
+                    </div>
+                  ) : <div className="settings-group-card">
+                    <label>
+                      Enforcement Policy Mode
+                    </label>
+                    <p>
+                      Choose how focus protection handles distracting applications during a focus session.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[
+                        {
+                          mode: 'STRICT',
+                          title: 'STRICT (Containment)',
+                          desc: 'Closes blocked applications during a focus session without a grace period.',
+                        },
+                        {
+                          mode: 'BALANCED',
+                          title: 'BALANCED (Grace Period)',
+                          desc: 'Shows a 15-second warning before restriction, with an option to pause protection.',
+                        },
+                        {
+                          mode: 'MONITORED',
+                          title: 'Monitoring only',
+                          desc: 'Logs distraction events to telemetry without closing background windows.',
+                        },
+                      ].map((item) => {
+                        const isSel = selectedMode === item.mode
+                        return (
+                          <div
+                            key={item.mode}
+                            className={`settings-mode-card ${isSel ? 'is-active' : ''}`}
+                            onClick={() => !modeUpdating && handleModeChange(item.mode)}
+                            style={{
+                              cursor: modeUpdating ? 'wait' : 'pointer',
+                              opacity: modeUpdating ? 0.7 : 1,
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span className="settings-mode-name">
+                                {item.title}
+                              </span>
+                              {isSel && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 700 }}><Icon name="check" size={12} /> Selected</span>}
+                            </div>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.desc}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {modeFeedback && (
+                      <div style={{ marginTop: 10, fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                        {modeFeedback}
+                      </div>
+                    )}
+                  </div>}
+
+                  {/* Emergency Session Override */}
+                  {!isLocalVaultSession() && <div className="settings-group-card">
+                    <label>
+                      Emergency Focus Override
+                    </label>
+                    <p>
+                      If you need urgent access while strict focus protection is active, enter your password and a reason.
+                    </p>
+                    <form onSubmit={handleEmergencyOverrideSubmit}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showOverridePassword ? 'text' : 'password'}
+                            placeholder="Account Password"
+                            value={overridePassword}
+                            onChange={(e) => setOverridePassword(e.target.value)}
+                            className="modal-field"
+                            style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle-btn"
+                            onClick={() => setShowOverridePassword((prev) => !prev)}
+                            aria-label={showOverridePassword ? 'Hide override password' : 'Show override password'}
+                            title={showOverridePassword ? 'Hide override password' : 'Show override password'}
+                            tabIndex={0}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-secondary, #5c5c5c)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px',
+                            }}
+                          >
+                            <Icon name={showOverridePassword ? 'eye-off' : 'eye'} size={15} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Override Reason (required)"
+                          value={overrideReason}
+                          onChange={(e) => setOverrideReason(e.target.value)}
+                          className="modal-field"
+                          style={{ padding: '8px 12px', borderRadius: '6px' }}
+                        />
+                      </div>
+                      {overrideFeedback && (
                         <div
                           style={{
-                            padding: '6px 10px',
+                            padding: '8px 12px',
                             borderRadius: '6px',
                             marginBottom: 10,
                             fontSize: '12px',
-                            background: usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                            border: `1px solid ${usernameFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
-                            color: usernameFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                            background: overrideFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                            color: overrideFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
                           }}
                         >
-                          {usernameFeedback.text}
+                          {overrideFeedback.text}
                         </div>
                       )}
-
-                      {isLocalVaultSession() && (
-                        <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                          This name identifies your encrypted local vault and cannot be changed.
-                        </p>
-                      )}
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Username:</span>
-                        <span className="settings-user-name" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{currentUser.username}</span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Email:</span>
-                        <span className="settings-user-email" style={{ color: 'var(--text-primary)' }}>{currentUser.email}</span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>User ID:</span>
-                        <span className="settings-badge-value" style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>#{currentUser.id}</span>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Tenant Isolation:</span>
-                        <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>✓ Verified Private Workspace</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Not authenticated</span>
-                  )}
+                      <button
+                        type="submit"
+                        disabled={overrideLoading}
+                        className="btn-timer secondary"
+                        style={{ padding: '8px 14px', fontSize: '12.5px' }}
+                      >
+                        {overrideLoading ? 'Submitting Override...' : 'Execute Emergency Override'}
+                      </button>
+                    </form>
+                  </div>}
                 </div>
+              )}
 
-                {/* Password Change Form */}
-                <div className="settings-group-card">
-                  <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                    Change Password
-                  </label>
-                  <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Update your account password. All active JWT sessions will remain valid until expiry.
+              {/* 4. BROWSER COMPANION SECTION */}
+              {activeSection === 'companion' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    Browser Companion & URL Interception
+                  </h3>
+                  <p className="settings-section-desc">
+                    Inspect browser extension pairing, YouTube distraction policies, and native messaging status.
                   </p>
-                  <form className="settings-password-form" onSubmit={handlePasswordSubmit}>
-                    <div style={{ marginBottom: 10, position: 'relative', display: 'flex', alignItems: 'center' }}>
+
+                  {/* Connection Status Card */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Companion Link: {companionStatus?.state || (companionLoading ? 'Checking...' : 'Standby')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={fetchCompanionInfo}
+                        disabled={companionLoading}
+                        className="btn-timer secondary"
+                        style={{ padding: '5px 12px', fontSize: '12.5px' }}
+                      >
+                        {companionLoading ? 'Checking...' : isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') ? 'Refresh Pairing Status' : 'Test Connection'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Coverage:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.coverage || 'FULL'}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Adapter:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.adapterName || 'SHINPO Contextual Host'}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Diagnostics:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {companionStatus?.detail || 'Native host registered for Chrome, Brave, Edge, and Firefox.'}
+                      </span>
+                    </div>
+                    {isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void createCompanionPairingCode()}>
+                          Generate 10-minute pairing code
+                        </button>
+                        {companionStatus?.state === 'PAIRED' && (
+                          <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void revokeCompanionPairing()}>
+                            Revoke pairing
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {pairingCode && (
+                      <p role="status" style={{ marginTop: 10, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
+                        Enter this code in the Browser Companion within 10 minutes: <code>{pairingCode}</code>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Registration Guide */}
+                  <div className="settings-group-card">
+                    <label>
+                      Native Messaging Setup
+                    </label>
+                    <p>
+                      Install the SHINPO Browser Companion, then register its native host for this workstation:
+                    </p>
+                    <div className="settings-code-box">
+                      bash scripts/register-browser-companion.sh
+                    </div>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                      Windows users: Run <code style={{ color: 'var(--brand-primary)' }}>.\scripts\register-browser-companion.ps1</code> in PowerShell.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. EONPAI AI SECTION */}
+              {activeSection === 'eonpai' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    EONPAI Intelligence Engine
+                  </h3>
+                  <p className="settings-section-desc">
+                    Real-time cognitive guidance, goal decomposition, and session debrief analysis.
+                  </p>
+
+                  {/* AI Status Card */}
+                  {isLocalVaultSession() && (
+                    <form className="settings-group-card" onSubmit={handleSaveNativeAiProvider}>
+                      <div className="settings-field-group">
+                        <label htmlFor="native-ai-provider" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Native AI provider</label>
+                        <select id="native-ai-provider" value={(nativeProvider || defaultNativeProvider).provider} onChange={(event) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), provider: event.target.value as NativeAiProviderConfig['provider'] })}>
+                          <option value="none">Offline planning (no model)</option>
+                          <option value="ollama">Ollama on this computer</option>
+                          <option value="openai">OpenAI-compatible provider (your key)</option>
+                        </select>
+                      </div>
+                      {(nativeProvider || defaultNativeProvider).provider !== 'none' && <div className="settings-field-group" style={{ marginTop: 12 }}>
+                        <label htmlFor="native-ai-model" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Installed or provider model name</label>
+                        <input id="native-ai-model" value={(nativeProvider || defaultNativeProvider).model} maxLength={120} required onChange={(event) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), model: event.target.value })} />
+                      </div>}
+                      {(nativeProvider || defaultNativeProvider).provider === 'ollama' && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 8 }}>Ollama must be installed separately with the selected model. SHINPO connects only to 127.0.0.1:11434.</p>}
+                      {(nativeProvider || defaultNativeProvider).provider === 'openai' && <>
+                        <div className="settings-field-group" style={{ marginTop: 12 }}>
+                          <label htmlFor="native-ai-endpoint" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>HTTPS API base URL</label>
+                          <input id="native-ai-endpoint" type="url" value={(nativeProvider || defaultNativeProvider).endpoint} required placeholder="https://api.example.com/v1" onChange={(event) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), endpoint: event.target.value })} />
+                        </div>
+                        <div className="settings-field-group" style={{ marginTop: 12 }}>
+                          <label htmlFor="native-ai-key" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>API key {(nativeProvider || defaultNativeProvider).hasApiKey ? '(leave blank to keep saved key)' : ''}</label>
+                          <input id="native-ai-key" type="password" autoComplete="off" ref={nativeApiKeyRef} />
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 12, fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={(nativeProvider || defaultNativeProvider).allowCloudContext} required onChange={(event) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), allowCloudContext: event.target.checked })} style={{ marginTop: 3 }} />
+                          <span>I allow my messages and bounded goal, task and session context to be sent to this provider. The provider may charge my account.</span>
+                        </label>
+                      </>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                        <button type="submit" className="btn-timer primary" disabled={providerSaving} style={{ padding: '8px 18px', fontSize: '13px' }}>
+                          {providerSaving ? 'Saving…' : 'Save provider'}
+                        </button>
+                        {providerMessage && <span role="status" style={{ fontSize: '12.5px', color: 'var(--brand-primary)', fontWeight: 600 }}>{providerMessage}</span>}
+                      </div>
+                    </form>
+                  )}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Provider Status: {aiStatus?.status || (aiLoading ? 'Probing...' : 'OPERATIONAL')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={fetchAiInfo}
+                        disabled={aiLoading}
+                        className="btn-timer secondary"
+                        style={{ padding: '5px 12px', fontSize: '12.5px' }}
+                      >
+                        {aiLoading ? 'Probing...' : 'Refresh Status'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Active Engine:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {aiStatus?.enabled ? `External Provider (${aiStatus.provider || 'Ollama'})` : 'Offline planning'}
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Model:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {aiStatus?.model || 'No model; local planning rules'}
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Privacy Guarantee:</span>
+                      <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
+                        Zero cognitive telemetry transmitted to unauthorized external APIs.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="settings-group-card">
+                    <label>
+                      Operational Philosophy
+                    </label>
+                    <p style={{ margin: 0 }}>
+                      When external LLM providers (e.g. Ollama) are unavailable, EONPAI seamlessly operates in deterministic fallback mode. It provides structured task recommendations, goal decomposition templates, and session debrief summaries without network delays or data leaks.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 6. CLOUD CONNECTION SECTION */}
+              {activeSection === 'connection' && !isTauriEnvironment() && (
+                <div>
+                  <h3 className="settings-section-title">
+                    Cloud Connectivity & Synchronization
+                  </h3>
+                  <p className="settings-section-desc">
+                    Configure your production cloud endpoint and verify real-time telemetry streaming.
+                  </p>
+
+                  {/* Server URL Input */}
+                  <div className="settings-group-card">
+                    <label>
+                      Cloud Backend Server URL
+                    </label>
+                    <p>
+                      Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: 'var(--brand-primary)' }}>https://shinpo.yourdomain.com</code>).
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                       <input
-                        id="current-password-input"
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        placeholder="Current Password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        required
+                        type="text"
+                        placeholder="https://shinpo.yourdomain.com (HTTPS required)"
+                        value={serverUrlInput}
+                        onChange={(e) => setServerUrlInput(e.target.value)}
                         className="modal-field"
-                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: '6px' }}
                       />
                       <button
                         type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowCurrentPassword((prev) => !prev)}
-                        aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
-                        title={showCurrentPassword ? 'Hide current password' : 'Show current password'}
-                        tabIndex={0}
-                        style={{
-                          position: 'absolute',
-                          right: '8px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-secondary, #5c5c5c)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '4px',
-                        }}
+                        onClick={handleServerSaveAndTest}
+                        className="btn-timer primary"
+                        style={{ padding: '8px 16px', fontSize: '13px' }}
                       >
-                        <Icon name={showCurrentPassword ? 'eye-off' : 'eye'} size={15} />
+                        Save & Test
                       </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input
-                          id="new-password-input"
-                          type={showNewPassword ? 'text' : 'password'}
-                          placeholder="New Password (min 6 chars)"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          required
-                          className="modal-field"
-                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
-                        />
-                        <button
-                          type="button"
-                          className="password-toggle-btn"
-                          onClick={() => setShowNewPassword((prev) => !prev)}
-                          aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
-                          title={showNewPassword ? 'Hide new password' : 'Show new password'}
-                          tabIndex={0}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-secondary, #5c5c5c)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '4px',
-                          }}
-                        >
-                          <Icon name={showNewPassword ? 'eye-off' : 'eye'} size={15} />
-                        </button>
-                      </div>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input
-                          id="confirm-password-input"
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="Confirm New Password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                          className="modal-field"
-                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
-                        />
-                        <button
-                          type="button"
-                          className="password-toggle-btn"
-                          onClick={() => setShowConfirmPassword((prev) => !prev)}
-                          aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                          title={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                          tabIndex={0}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-secondary, #5c5c5c)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '4px',
-                          }}
-                        >
-                          <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={15} />
-                        </button>
-                      </div>
-                    </div>
-                    {pwdMessage && (
+                    {serverPingStatus.status !== 'IDLE' && (
                       <div
-                        className={`settings-status-banner ${pwdMessage.isError ? 'is-error' : 'is-success'}`}
+                        className={`settings-status-banner ${serverPingStatus.status === 'SUCCESS' ? 'is-success' : 'is-error'}`}
                         style={{
                           padding: '8px 12px',
                           borderRadius: '6px',
-                          marginBottom: 12,
                           fontSize: '12.5px',
-                          background: pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                          border: `1px solid ${pwdMessage.isError ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
-                          color: pwdMessage.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                          background: serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
+                          border: `1px solid ${serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
+                          color: serverPingStatus.status === 'SUCCESS' ? 'var(--brand-primary)' : 'var(--brand-primary)',
                         }}
                       >
-                        {pwdMessage.text}
+                        {serverPingStatus.message}
                       </div>
                     )}
+                  </div>
+
+                  {/* WebSocket Channel Card */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          WebSocket Telemetry Stream
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Real-time STOMP connection for distraction warnings and session sync.
+                        </span>
+                      </div>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        background: isWsConnected ? 'color-mix(in srgb, var(--status-success) 14%, transparent)' : 'color-mix(in srgb, var(--text-muted) 12%, transparent)',
+                        color: isWsConnected ? 'var(--status-success)' : 'var(--text-muted)',
+                      }}>
+                        <span className={`settings-connection-indicator ${isWsConnected ? 'is-connected' : 'is-disconnected'}`} aria-hidden="true" />
+                        {isWsConnected ? 'Connected' : 'Disconnected'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Manual Trigger Refresh */}
+                  {onRefreshData && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={onRefreshData}
+                        disabled={isRefreshing}
+                        className="btn-timer secondary"
+                        style={{ padding: '8px 16px', fontSize: '13px' }}
+                      >
+                        <Icon name="refresh" size={14} />
+                        <span>{isRefreshing ? 'Synchronizing...' : 'Trigger Immediate Data Sync'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 7. PRIVACY & DATA SECTION */}
+              {activeSection === 'privacy' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    Privacy & Data Management
+                  </h3>
+                  <p className="settings-section-desc">
+                    Export your personal focus data and review security guarantees.
+                  </p>
+
+                  {/* Export Data */}
+                  <div className="settings-group-card">
+                    <label>
+                      Export Personal Data (JSON)
+                    </label>
+                    <p>
+                      Download a complete archive containing your goals, tasks, focus session history, and protection activity.
+                    </p>
                     <button
-                      type="submit"
-                      disabled={pwdLoading}
+                      type="button"
+                      onClick={handleExportData}
                       className="btn-timer primary"
                       style={{ padding: '8px 16px', fontSize: '13px' }}
                     >
-                      {pwdLoading ? 'Updating Password...' : 'Update Password'}
+                      Export My Data (JSON)
                     </button>
-                  </form>
-                </div>
-
-                {/* Sign Out Card */}
-                <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)', background: 'color-mix(in srgb, var(--brand-highlight) 5.0%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      End Workstation Session
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      Sign out of your local desktop profile.
-                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => { onClose(); onLogout() }}
+
+                  {/* Privacy Safeguards */}
+                  <div className="settings-group-card">
+                    <label>
+                      Workstation Privacy Guarantees
+                    </label>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      <li><strong>No Keystroke or Screen Logging:</strong> SHINPO checks application names against your focus rules.</li>
+                      <li><strong>Local Enforcement:</strong> Application blocking runs locally on your computer. Server-side process scanning is disabled.</li>
+                      <li><strong>Tenant Isolation:</strong> Your cloud account data is strictly isolated by user ID and signed by cryptographically validated JWTs.</li>
+                    </ul>
+                  </div>
+
+                  {/* Danger Zone: Account & Data Deletion */}
+                  <div
+                    className="settings-group-card"
                     style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)',
-                      background: 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                      color: 'var(--brand-primary)',
-                      fontWeight: 700,
-                      fontSize: '13px',
-                      cursor: 'pointer',
+                      borderColor: 'color-mix(in srgb, var(--brand-primary) 40.0%, transparent)',
+                      background: 'color-mix(in srgb, var(--brand-primary) 4.0%, transparent)',
                     }}
                   >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 3. FOCUS PROTECTION SECTION */}
-            {activeSection === 'protection' && (
-              <div>
-                <h3 className="settings-section-title">
-                  Focus Protection
-                </h3>
-                <p className="settings-section-desc">
-                  Manage distraction rules and protection behavior during focus sessions.
-                </p>
-
-                {/* Health & Status Card */}
-                <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Protection status: {sentinelStatus?.status?.replaceAll('_', ' ') || 'STANDBY'}
-                    </span>
-                    <span style={{
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      background: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)',
-                      color: sentinelStatus?.status === 'ACTIVE_DEFENSE' ? 'var(--brand-primary)' : 'var(--brand-primary)',
-                    }}>
-                      {sentinelStatus?.activeFocusSessionId ? 'FOCUS SESSION IN PROGRESS' : 'IDLE / READY'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '12.5px' }}>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'App observations today: ' : 'Interceptions Today: '}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? sentinelStatus?.guardianWarningCount ?? 0 : sentinelStatus?.totalInterceptedToday ?? 0}</span>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>{isLocalVaultSession() ? 'Application handling: ' : 'Active Policy Rules: '}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isLocalVaultSession() ? 'Warning only' : sentinelStatus?.activePolicyRulesCount ?? 0}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {isLocalVaultSession() ? (
-                  <div className="settings-group-card">
-                    <label>Guardian policy</label>
-                    <p>Application handling is warning-only in this local build. The saved Focus session selects Light, Standard, or Strict; apps are not closed.</p>
-                    <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
-                      <div><strong>Effective mode: </strong>{sentinelStatus?.guardianMode === 'GUIDED' ? 'Light' : sentinelStatus?.guardianMode === 'PROTECTED' ? 'Standard' : sentinelStatus?.guardianMode === 'STRICT' ? 'Strict' : 'No active session'}</div>
-                      <div><strong>Focus phase: </strong>{sentinelStatus?.focusPhase ?? 'Idle'}</div>
-                      <div><strong>Observer: </strong>{sentinelStatus?.observerStatus ?? 'Unavailable'}</div>
-                      <div><strong>Application policy: </strong>{sentinelStatus?.applicationPolicyStatus?.replaceAll('_', ' ').toLowerCase() ?? 'inactive'}</div>
-                      <div><strong>Recognized apps: </strong>{sentinelStatus?.guardianApplicationCatalog?.length ?? 0} · {sentinelStatus?.guardianAppCatalogVersion ?? 'catalog unavailable'}</div>
-                    </div>
-                  </div>
-                ) : <div className="settings-group-card">
-                  <label>
-                    Enforcement Policy Mode
-                  </label>
-                  <p>
-                    Choose how focus protection handles distracting applications during a focus session.
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
-                      {
-                        mode: 'STRICT',
-                        title: 'STRICT (Containment)',
-                        desc: 'Closes blocked applications during a focus session without a grace period.',
-                      },
-                      {
-                        mode: 'BALANCED',
-                        title: 'BALANCED (Grace Period)',
-                        desc: 'Shows a 15-second warning before restriction, with an option to pause protection.',
-                      },
-                      {
-                        mode: 'MONITORED',
-                        title: 'MONITORED (Audit Only)',
-                        desc: 'Logs distraction events to telemetry without closing background windows.',
-                      },
-                    ].map((item) => {
-                      const isSel = selectedMode === item.mode
-                      return (
-                        <div
-                          key={item.mode}
-                          className={`settings-mode-card ${isSel ? 'is-active' : ''}`}
-                          onClick={() => !modeUpdating && handleModeChange(item.mode)}
-                          style={{
-                            cursor: modeUpdating ? 'wait' : 'pointer',
-                            opacity: modeUpdating ? 0.7 : 1,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <span className="settings-mode-name">
-                              {item.title}
-                            </span>
-                            {isSel && <span style={{ fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 700 }}>✓ ACTIVE</span>}
-                          </div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.desc}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {modeFeedback && (
-                    <div style={{ marginTop: 10, fontSize: '12px', color: 'var(--brand-primary)', fontWeight: 600 }}>
-                      {modeFeedback}
-                    </div>
-                  )}
-                </div>}
-
-                {/* Emergency Session Override */}
-                {!isLocalVaultSession() && <div className="settings-group-card">
-                  <label>
-                    Emergency Focus Override
-                  </label>
-                  <p>
-                    If you need urgent access while strict focus protection is active, enter your password and a reason.
-                  </p>
-                  <form onSubmit={handleEmergencyOverrideSubmit}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input
-                          type={showOverridePassword ? 'text' : 'password'}
-                          placeholder="Account Password"
-                          value={overridePassword}
-                          onChange={(e) => setOverridePassword(e.target.value)}
-                          className="modal-field"
-                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px' }}
-                        />
-                        <button
-                          type="button"
-                          className="password-toggle-btn"
-                          onClick={() => setShowOverridePassword((prev) => !prev)}
-                          aria-label={showOverridePassword ? 'Hide override password' : 'Show override password'}
-                          title={showOverridePassword ? 'Hide override password' : 'Show override password'}
-                          tabIndex={0}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-secondary, #5c5c5c)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '4px',
-                          }}
-                        >
-                          <Icon name={showOverridePassword ? 'eye-off' : 'eye'} size={15} />
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Override Reason (required)"
-                        value={overrideReason}
-                        onChange={(e) => setOverrideReason(e.target.value)}
-                        className="modal-field"
-                        style={{ padding: '8px 12px', borderRadius: '6px' }}
-                      />
-                    </div>
-                    {overrideFeedback && (
-                      <div
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          marginBottom: 10,
-                          fontSize: '12px',
-                          background: overrideFeedback.isError ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                          color: overrideFeedback.isError ? 'var(--brand-primary)' : 'var(--brand-primary)',
-                        }}
-                      >
-                        {overrideFeedback.text}
-                      </div>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={overrideLoading}
-                      className="btn-timer secondary"
-                      style={{ padding: '8px 14px', fontSize: '12.5px' }}
-                    >
-                      {overrideLoading ? 'Submitting Override...' : 'Execute Emergency Override'}
-                    </button>
-                  </form>
-                </div>}
-              </div>
-            )}
-
-            {/* 4. BROWSER COMPANION SECTION */}
-            {activeSection === 'companion' && (
-              <div>
-                <h3 className="settings-section-title">
-                  Browser Companion & URL Interception
-                </h3>
-                <p className="settings-section-desc">
-                  Inspect browser extension pairing, YouTube distraction policies, and native messaging status.
-                </p>
-
-                {/* Connection Status Card */}
-                <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Companion Link: {companionStatus?.state || (companionLoading ? 'Checking...' : 'Standby')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={fetchCompanionInfo}
-                      disabled={companionLoading}
-                      className="btn-timer secondary"
-                      style={{ padding: '5px 12px', fontSize: '12.5px' }}
-                    >
-                      {companionLoading ? 'Checking...' : isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') ? 'Refresh Pairing Status' : 'Test Connection'}
-                    </button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Coverage:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.coverage || 'FULL'}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>Adapter:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.adapterName || 'SHINPO Contextual Host'}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>Diagnostics:</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      {companionStatus?.detail || 'Native host registered for Chrome, Brave, Edge, and Firefox.'}
-                    </span>
-                  </div>
-                  {isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                      <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void createCompanionPairingCode()}>
-                        Generate 10-minute pairing code
-                      </button>
-                      {companionStatus?.state === 'PAIRED' && (
-                        <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void revokeCompanionPairing()}>
-                          Revoke pairing
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {pairingCode && (
-                    <p role="status" style={{ marginTop: 10, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
-                      Enter this code in the Browser Companion within 10 minutes: <code>{pairingCode}</code>
+                    <label style={{ color: 'var(--brand-red, var(--brand-primary))' }}>
+                      Danger Zone: Irreversible Account Deletion
+                    </label>
+                    <p style={{ color: 'var(--text-secondary)' }}>
+                      Permanently delete your SHINPO account and all associated goals, tasks, focus history, and protection activity.
                     </p>
-                  )}
-                </div>
-
-                {/* Registration Guide */}
-                <div className="settings-group-card">
-                  <label>
-                    Native Messaging Setup
-                  </label>
-                  <p>
-                    Install the SHINPO Browser Companion, then register its native host for this workstation:
-                  </p>
-                  <div className="settings-code-box">
-                    bash scripts/register-browser-companion.sh
-                  </div>
-                  <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                    Windows users: Run <code style={{ color: 'var(--brand-primary)' }}>.\scripts\register-browser-companion.ps1</code> in PowerShell.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* 5. EONPAI AI SECTION */}
-            {activeSection === 'eonpai' && (
-              <div>
-                <h3 className="settings-section-title">
-                  EONPAI Intelligence Engine
-                </h3>
-                <p className="settings-section-desc">
-                  Real-time cognitive guidance, goal decomposition, and session debrief analysis.
-                </p>
-
-                {/* AI Status Card */}
-                {isLocalVaultSession() && <form className="settings-group-card" onSubmit={(event) => {
-                  event.preventDefault()
-                  if (providerSaving) return
-                  setProviderSaving(true)
-                  setProviderMessage('')
-                  configureNativeAiProvider(nativeProvider, nativeApiKeyRef.current?.value || undefined)
-                    .then(async () => { if (nativeApiKeyRef.current) nativeApiKeyRef.current.value = '';  setProviderMessage('Provider settings saved.'); await fetchAiInfo() })
-                    .catch((error: unknown) => setProviderMessage(error instanceof Error ? error.message : 'Could not save provider'))
-                    .finally(() => setProviderSaving(false))
-                }}>
-                  <label htmlFor="native-ai-provider">Native AI provider</label>
-                  <select id="native-ai-provider" value={nativeProvider.provider} onChange={(event) => setNativeProvider({ ...nativeProvider, provider: event.target.value as NativeAiProviderConfig['provider'] })}>
-                    <option value="none">Offline planning (no model)</option>
-                    <option value="ollama">Ollama on this computer</option>
-                    <option value="openai">OpenAI-compatible provider (your key)</option>
-                  </select>
-                  {nativeProvider.provider !== 'none' && <>
-                    <label htmlFor="native-ai-model">Installed or provider model name</label>
-                    <input id="native-ai-model" value={nativeProvider.model} maxLength={120} required onChange={(event) => setNativeProvider({ ...nativeProvider, model: event.target.value })} />
-                  </>}
-                  {nativeProvider.provider === 'ollama' && <p>Ollama must be installed separately with the selected model. SHINPO connects only to 127.0.0.1:11434.</p>}
-                  {nativeProvider.provider === 'openai' && <>
-                    <label htmlFor="native-ai-endpoint">HTTPS API base URL</label>
-                    <input id="native-ai-endpoint" type="url" value={nativeProvider.endpoint} required placeholder="https://api.example.com/v1" onChange={(event) => setNativeProvider({ ...nativeProvider, endpoint: event.target.value })} />
-                    <label htmlFor="native-ai-key">API key {nativeProvider.hasApiKey ? '(leave blank to keep saved key)' : ''}</label>
-                    <input id="native-ai-key" type="password" autoComplete="off" ref={nativeApiKeyRef} />
-                    <label><input type="checkbox" checked={nativeProvider.allowCloudContext} required onChange={(event) => setNativeProvider({ ...nativeProvider, allowCloudContext: event.target.checked })} /> I allow my messages and bounded goal, task and session context to be sent to this provider. The provider may charge my account.</label>
-                  </>}
-                  <button type="submit" disabled={providerSaving}>{providerSaving ? 'Saving…' : 'Save provider'}</button>
-                  {providerMessage && <p role="status">{providerMessage}</p>}
-                </form>}
-                <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Provider Status: {aiStatus?.status || (aiLoading ? 'Probing...' : 'OPERATIONAL')}
-                    </span>
                     <button
                       type="button"
-                      onClick={fetchAiInfo}
-                      disabled={aiLoading}
+                      onClick={() => {
+                        setDeleteAccountError(null)
+                        setShowDeleteAccountConfirm(true)
+                      }}
                       className="btn-timer secondary"
-                      style={{ padding: '5px 12px', fontSize: '12.5px' }}
-                    >
-                      {aiLoading ? 'Probing...' : 'Refresh Status'}
-                    </button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Active Engine:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {aiStatus?.enabled ? `External Provider (${aiStatus.provider || 'Ollama'})` : 'Offline planning'}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>Model:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {aiStatus?.model || 'No model; local planning rules'}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>Privacy Guarantee:</span>
-                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
-                      Zero cognitive telemetry transmitted to unauthorized external APIs.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="settings-group-card">
-                  <label>
-                    Operational Philosophy
-                  </label>
-                  <p style={{ margin: 0 }}>
-                    When external LLM providers (e.g. Ollama) are unavailable, EONPAI seamlessly operates in deterministic fallback mode. It provides structured task recommendations, goal decomposition templates, and session debrief summaries without network delays or data leaks.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 6. CLOUD CONNECTION SECTION */}
-            {activeSection === 'connection' && !isTauriEnvironment() && (
-              <div>
-                <h3 className="settings-section-title">
-                  Cloud Connectivity & Synchronization
-                </h3>
-                <p className="settings-section-desc">
-                  Configure your production cloud endpoint and verify real-time telemetry streaming.
-                </p>
-
-                {/* Server URL Input */}
-                <div className="settings-group-card">
-                  <label>
-                    Cloud Backend Server URL
-                  </label>
-                  <p>
-                    Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: 'var(--brand-primary)' }}>https://shinpo.yourdomain.com</code>).
-                  </p>
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                    <input
-                      type="text"
-                      placeholder="https://shinpo.yourdomain.com (HTTPS required)"
-                      value={serverUrlInput}
-                      onChange={(e) => setServerUrlInput(e.target.value)}
-                      className="modal-field"
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: '6px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleServerSaveAndTest}
-                      className="btn-timer primary"
-                      style={{ padding: '8px 16px', fontSize: '13px' }}
-                    >
-                      Save & Test
-                    </button>
-                  </div>
-                  {serverPingStatus.status !== 'IDLE' && (
-                    <div
-                      className={`settings-status-banner ${serverPingStatus.status === 'SUCCESS' ? 'is-success' : 'is-error'}`}
                       style={{
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12.5px',
-                        background: serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                        border: `1px solid ${serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
-                        color: serverPingStatus.status === 'SUCCESS' ? 'var(--brand-primary)' : 'var(--brand-primary)',
+                        padding: '8px 16px',
+                        fontSize: '13px',
+                        color: 'var(--brand-primary)',
+                        borderColor: 'color-mix(in srgb, var(--brand-primary) 50.0%, transparent)',
+                        backgroundColor: 'color-mix(in srgb, var(--brand-primary) 8.0%, transparent)',
                       }}
                     >
-                      {serverPingStatus.message}
-                    </div>
-                  )}
-                </div>
-
-                {/* WebSocket Channel Card */}
-                <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        WebSocket Telemetry Stream
-                      </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Real-time STOMP connection for distraction warnings and session sync.
-                      </span>
-                    </div>
-                    <span style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      background: isWsConnected ? 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 20.0%, transparent)',
-                      color: isWsConnected ? 'var(--brand-primary)' : 'var(--brand-primary)',
-                    }}>
-                      {isWsConnected ? '● CONNECTED' : '○ DISCONNECTED'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Manual Trigger Refresh */}
-                {onRefreshData && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      onClick={onRefreshData}
-                      disabled={isRefreshing}
-                      className="btn-timer secondary"
-                      style={{ padding: '8px 16px', fontSize: '13px' }}
-                    >
-                      <Icon name="refresh" size={14} />
-                      <span>{isRefreshing ? 'Synchronizing...' : 'Trigger Immediate Data Sync'}</span>
+                      Delete Account & Wipe All Data
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* 7. PRIVACY & DATA SECTION */}
-            {activeSection === 'privacy' && (
-              <div>
-                <h3 className="settings-section-title">
-                  Privacy & Data Management
-                </h3>
-                <p className="settings-section-desc">
-                  Export your personal focus data and review security guarantees.
-                </p>
-
-                {/* Export Data */}
-                <div className="settings-group-card">
-                  <label>
-                    Export Personal Data (JSON)
-                  </label>
-                  <p>
-                    Download a complete archive containing your goals, tasks, focus session history, and protection activity.
+              {/* 8. ABOUT & DIAGNOSTICS SECTION */}
+              {activeSection === 'about' && (
+                <div>
+                  <h3 className="settings-section-title">
+                    About SHINPO & Diagnostics
+                  </h3>
+                  <p className="settings-section-desc">
+                    System build version, runtime environment, and operational diagnostics.
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleExportData}
-                    className="btn-timer primary"
-                    style={{ padding: '8px 16px', fontSize: '13px' }}
-                  >
-                    Export My Data (JSON)
-                  </button>
-                </div>
 
-                {/* Privacy Safeguards */}
-                <div className="settings-group-card">
-                  <label>
-                    Workstation Privacy Guarantees
-                  </label>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    <li><strong>No Keystroke or Screen Logging:</strong> SHINPO checks application names against your focus rules.</li>
-                    <li><strong>Local Enforcement:</strong> Application blocking runs locally on your computer. Server-side process scanning is disabled.</li>
-                    <li><strong>Tenant Isolation:</strong> Your cloud account data is strictly isolated by user ID and signed by cryptographically validated JWTs.</li>
-                  </ul>
-                </div>
-
-                {/* Danger Zone: Account & Data Deletion */}
-                <div
-                  className="settings-group-card"
-                  style={{
-                    borderColor: 'color-mix(in srgb, var(--brand-primary) 40.0%, transparent)',
-                    background: 'color-mix(in srgb, var(--brand-primary) 4.0%, transparent)',
-                  }}
-                >
-                  <label style={{ color: 'var(--brand-red, var(--brand-primary))' }}>
-                    Danger Zone: Irreversible Account Deletion
-                  </label>
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    Permanently delete your SHINPO account and all associated goals, tasks, focus history, and protection activity.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteAccountError(null)
-                      setShowDeleteAccountConfirm(true)
-                    }}
-                    className="btn-timer secondary"
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '13px',
-                      color: 'var(--brand-primary)',
-                      borderColor: 'color-mix(in srgb, var(--brand-primary) 50.0%, transparent)',
-                      backgroundColor: 'color-mix(in srgb, var(--brand-primary) 8.0%, transparent)',
-                    }}
-                  >
-                    Delete Account & Wipe All Data
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 8. ABOUT & DIAGNOSTICS SECTION */}
-            {activeSection === 'about' && (
-              <div>
-                <h3 className="settings-section-title">
-                  About SHINPO & Diagnostics
-                </h3>
-                <p className="settings-section-desc">
-                  System build version, runtime environment, and operational diagnostics.
-                </p>
-
-                {/* About Info */}
-                <div className="settings-group-card">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Product:</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>進歩 (SHINPO)</span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Version:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>1.0.0 (Private Beta)</span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Runtime Shell:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>
-                      {isTauriEnvironment() ? 'Tauri desktop app' : 'Browser app (Chromium/Gecko)'}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Data model:</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isTauriEnvironment() ? 'Encrypted local vault' : 'Server-backed workspace'}</span>
-                  </div>
-                </div>
-
-                {/* Diagnostics Runner */}
-                {!isTauriEnvironment() && <div className="settings-group-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div>
-                      <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Live System Diagnostics
+                  {/* About Info */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Product:</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>進歩 (SHINPO)</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Version:</span>
+                      <span style={{ color: 'var(--text-primary)' }}>1.0.0 (Private Beta)</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Runtime Shell:</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {isTauriEnvironment() ? 'Tauri desktop app' : 'Browser app (Chromium/Gecko)'}
                       </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Run a real-time verification pass of all cloud and local subsystems.
-                      </span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Data model:</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isTauriEnvironment() ? 'Encrypted local vault' : 'Server-backed workspace'}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleRunDiagnostics}
-                      disabled={diagnosticsRunning}
-                      className="btn-timer primary"
-                      style={{ padding: '8px 16px', fontSize: '12.5px' }}
-                    >
-                      {diagnosticsRunning ? 'Running Checks...' : 'Run Diagnostics'}
-                    </button>
                   </div>
 
-                  {diagnosticResults && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                      {[
-                        { title: 'REST API Connectivity', res: diagnosticResults.api },
-                        { title: 'WebSocket Stream (/ws)', res: diagnosticResults.ws },
-                        { title: 'Client-Side Storage', res: diagnosticResults.storage },
-                        { title: 'Desktop protection service', res: diagnosticResults.shield },
-                      ].map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="settings-diag-row"
-                          style={{
-                            background: item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)',
-                            border: `1px solid ${item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)'}`,
-                          }}
-                        >
-                          <span className="settings-diag-name">{item.title}</span>
-                          <span className="settings-diag-badge" style={{ color: item.res.pass ? 'var(--brand-primary)' : 'var(--brand-primary)', fontWeight: 700 }}>
-                            {item.res.pass ? '✓ PASS' : '✗ FAIL'} — <span className="settings-diag-detail">{item.res.detail}</span>
-                          </span>
-                        </div>
-                      ))}
+                  {/* Interactive Tutorial Replay */}
+                  <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Interactive Tutorial
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Replay the 7-stage interactive onboarding journey covering Goals, Tasks, Scheduling, Guardian, and Focus.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose()
+                          onReplayTutorial?.()
+                        }}
+                        className="btn-timer secondary"
+                        style={{ padding: '8px 16px', fontSize: '12.5px', flexShrink: 0 }}
+                      >
+                        Replay Tutorial
+                      </button>
                     </div>
-                  )}
-                </div>}
-              </div>
-            )}
+                  </div>
+
+                  {/* Diagnostics Runner */}
+                  {!isTauriEnvironment() && <div className="settings-group-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Live System Diagnostics
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Run a real-time verification pass of all cloud and local subsystems.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRunDiagnostics}
+                        disabled={diagnosticsRunning}
+                        className="btn-timer primary"
+                        style={{ padding: '8px 16px', fontSize: '12.5px' }}
+                      >
+                        {diagnosticsRunning ? 'Running Checks...' : 'Run Diagnostics'}
+                      </button>
+                    </div>
+
+                    {diagnosticResults && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+                        {[
+                          { title: 'REST API Connectivity', res: diagnosticResults.api },
+                          { title: 'WebSocket Stream (/ws)', res: diagnosticResults.ws },
+                          { title: 'Client-Side Storage', res: diagnosticResults.storage },
+                          { title: 'Desktop protection service', res: diagnosticResults.shield },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="settings-diag-row"
+                            style={{
+                              background: item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)',
+                              border: `1px solid ${item.res.pass ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)'}`,
+                            }}
+                          >
+                            <span className="settings-diag-name">{item.title}</span>
+                            <span className="settings-diag-badge" style={{ color: item.res.pass ? 'var(--brand-primary)' : 'var(--brand-primary)', fontWeight: 700 }}>
+                              <Icon name={item.res.pass ? 'check' : 'close'} size={12} /> {item.res.pass ? 'PASS' : 'FAIL'} — <span className="settings-diag-detail">{item.res.detail}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

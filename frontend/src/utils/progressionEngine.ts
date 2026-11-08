@@ -199,9 +199,9 @@ export function deriveAchievements(
     },
     {
       id: 'momentum_streak',
-      title: 'Momentum Builder',
+      title: 'Consistent Practice',
       category: 'consistency',
-      description: 'Achieve a 3-day productive streak.',
+      description: 'Record Focus work on 3 consecutive days.',
       icon: 'sparkle',
       unlocked: currentStreak >= 3,
       progressLabel: currentStreak >= 3 ? 'Unlocked' : `${currentStreak}/3 days`,

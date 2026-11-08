@@ -46,6 +46,8 @@ export interface AuroraDashboardViewProps {
 
 import { trackMicrokitPointer } from '../../components/microkit/pointerGlow'
 import { DashboardInsights } from '../../components/dashboard/DashboardInsights'
+import { getDashboardTaskState } from '../../utils/dashboardTaskState'
+import { formatCount } from '../../utils/pluralize'
 
 import {
   getTodayScheduleSessions,
@@ -60,7 +62,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
   sessions = [],
   activeSession,
   analyticsData,
-  progress,
+  progress: _progress,
   setActiveTab,
   onNavigateToTasks,
   handleArmMissionAsSession,
@@ -99,6 +101,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
   // 2. Metrics calculation matching V1 exact formulas
   const totalMissionsCount = missions.length
   const completedMissionsCount = missions.filter((m) => m.status === 'COMPLETED').length
+  const completedSessionsCount = sessions.filter((s) => s.status === 'COMPLETED').length
+  const dashboardTaskState = getDashboardTaskState(missions)
   const velocityRate = totalMissionsCount > 0
     ? Math.round((completedMissionsCount / totalMissionsCount) * 100)
     : (analyticsData?.summary?.completionRate ? Math.round(analyticsData.summary.completionRate) : 0)
@@ -423,7 +427,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
+            <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Focus Time
             </Typography>
             <Box
@@ -532,7 +536,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           glass
           noPadding
           data-tutorial="metric-completion"
-          onClick={() => setActiveTab('Rewards')}
+          onClick={() => setActiveTab('Schedule')}
           sx={{
             p: '20px 22px',
             height: '100%',
@@ -543,19 +547,19 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             justifyContent: 'space-between',
             gap: 1.2,
           }}
-          title="View rewards and progress"
+          title="View scheduled sessions"
           role="button"
-          aria-label={`View focus streak: ${analyticsData?.summary?.currentStreak ?? 0} days`}
+          aria-label={`${sortedScheduleSessions.length} scheduled sessions today`}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
-              setActiveTab('Rewards')
+              setActiveTab('Schedule')
             }
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
-              Focus Streak
+              Planned sessions
             </Typography>
             <Box
               sx={{
@@ -583,10 +587,10 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               lineHeight: 1.15,
             }}
           >
-            {analyticsData?.summary?.currentStreak ?? 0} days
+            {sortedScheduleSessions.length}
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: 'text.secondary', fontWeight: 500 }}>
-            Keep building consistency
+            Scheduled for today
           </Typography>
         </AuroraCard>
 
@@ -607,20 +611,20 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             justifyContent: 'space-between',
             gap: 1.2,
           }}
-          onClick={() => setActiveTab('Rewards')}
-          title="View total XP and rewards"
+          onClick={() => setActiveTab('Goals & Missions')}
+          title="View open tasks"
           role="button"
-          aria-label={`View rewards: ${progress?.totalProgress ?? 0} XP earned`}
+          aria-label={`${dashboardTaskState.remaining} open tasks`}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
-              setActiveTab('Rewards')
+              setActiveTab('Goals & Missions')
             }
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
-              Total XP
+              Open tasks
             </Typography>
             <Box
               sx={{
@@ -635,7 +639,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 justifyContent: 'center',
               }}
             >
-              <Icon name="rewards" size={17} />
+              <Icon name="check-circle" size={17} />
             </Box>
           </Box>
           <Typography
@@ -648,10 +652,10 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               lineHeight: 1.15,
             }}
           >
-            {progress?.totalProgress ?? 0} XP
+            {dashboardTaskState.remaining}
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: 'text.secondary', fontWeight: 500 }}>
-            Level {progress?.level ?? 1} · {progress?.currentLevelXp ?? 0} / {progress?.nextLevelThreshold ?? 100} XP to next level
+            {dashboardTaskState.total - dashboardTaskState.remaining} of {dashboardTaskState.total} completed
           </Typography>
         </AuroraCard>
       </Box>
@@ -665,8 +669,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-          lg: 'minmax(0, 1.2fr) minmax(0, 1fr)',
-          xl: 'minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr)',
+            lg: 'minmax(0, 1.2fr) minmax(0, 1fr)',
+            xl: 'minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr)',
           },
           gap: { xs: '18px', xl: '24px' },
           width: '100%',
@@ -705,15 +709,15 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                       px: 1.4,
                       py: 0.5,
                       borderRadius: '999px',
-                        background: activeSession.status === 'PAUSED'
-                          ? 'var(--accent-yellow-subtle)'
-                          : 'var(--brand-coral-subtle)',
-                        color: activeSession.status === 'PAUSED'
-                          ? 'var(--accent-yellow)'
-                          : 'var(--brand-coral)',
-                        border: activeSession.status === 'PAUSED'
-                          ? '1px solid var(--accent-yellow-border)'
-                          : '1px solid var(--brand-coral-border)',
+                      background: activeSession.status === 'PAUSED'
+                        ? 'var(--accent-yellow-subtle)'
+                        : 'var(--brand-coral-subtle)',
+                      color: activeSession.status === 'PAUSED'
+                        ? 'var(--accent-yellow)'
+                        : 'var(--brand-coral)',
+                      border: activeSession.status === 'PAUSED'
+                        ? '1px solid var(--accent-yellow-border)'
+                        : '1px solid var(--brand-coral-border)',
                       fontSize: 12,
                       fontWeight: 800,
                       letterSpacing: '0.04em',
@@ -721,6 +725,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     }}
                   >
                     <Box
+                      aria-hidden="true"
                       sx={{
                         width: 7,
                         height: 7,
@@ -964,10 +969,16 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 ) : (
                   <>
                     <Typography variant="h5" sx={{ fontWeight: 800, fontSize: 22, color: 'text.primary' }}>
-                      All Planned Tasks Complete
+                      {dashboardTaskState.state === 'EMPTY' ? 'Nothing planned yet' : activeSession ? 'Focus session in progress' : dashboardTaskState.state === 'IN_PROGRESS' ? 'Open tasks need attention' : 'All planned tasks complete'}
                     </Typography>
                     <Typography variant="body1" sx={{ fontSize: 15, color: 'text.secondary' }}>
-                      You're all caught up! Add a new task or review your goals to maintain momentum.
+                      {dashboardTaskState.state === 'EMPTY'
+                        ? 'Add a task to start planning your next step.'
+                        : activeSession
+                          ? `You have ${formatCount(dashboardTaskState.remaining, 'open task')}. Return to your current Focus session when you are ready.`
+                          : dashboardTaskState.state === 'IN_PROGRESS'
+                            ? `${formatCount(dashboardTaskState.remaining, 'task')} of ${dashboardTaskState.total} remain open. Review them in Goals & Tasks.`
+                            : 'You have completed every task in your workspace.'}
                     </Typography>
                   </>
                 )}
@@ -1147,7 +1158,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                         justifyContent: 'center',
                       }}
                     >
-                      {isDone ? '✓' : s.status === 'PAUSED' ? '❚❚' : isActive ? '▶' : idx + 1}
+                      {isDone ? <Icon name="check" size={12} /> : s.status === 'PAUSED' ? <Icon name="pause" size={12} /> : isActive ? <Icon name="play" size={12} /> : idx + 1}
                     </Box>
 
                     {/* Flexible Col 2: Title + Distinct Secondary Details */}
@@ -1261,31 +1272,33 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 500 }}>
                 {sortedScheduleSessions.length > 0 ? `${sortedScheduleSessions.length} total today` : 'Ready to plan'}
               </Typography>
-              <Box
-                component="button"
-                onClick={() => setActiveTab('Schedule')}
-                sx={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-primary)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  p: 0,
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                + Schedule Focus Block
-              </Box>
+              {sortedScheduleSessions.length > 0 && (
+                <Box
+                  component="button"
+                  onClick={() => setActiveTab('Schedule')}
+                  sx={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-primary)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    p: 0,
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  + Schedule Focus Block
+                </Box>
+              )}
             </Box>
           </Box>
         </AuroraCard>
 
         <AuroraCard className="dashboard-rewards-summary" glass noPadding tiltVariant="none">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.4, height: '100%', p: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.3, height: '100%', p: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
               <Typography sx={{ fontSize: 15, fontWeight: 750 }}>Rewards &amp; Progress</Typography>
               <button type="button" className="dashboard-insight-link" onClick={() => setActiveTab('Rewards')}>
@@ -1293,22 +1306,61 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               </button>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{ display: 'grid', placeItems: 'center', width: 48, height: 48, flex: '0 0 auto', borderRadius: 2, bgcolor: 'color-mix(in srgb, var(--brand-primary) 18%, transparent)', color: 'var(--brand-primary)' }}>
-                <Icon name="rewards" size={25} />
+              <Box sx={{ display: 'grid', placeItems: 'center', width: 44, height: 44, flex: '0 0 auto', borderRadius: 2, bgcolor: 'color-mix(in srgb, var(--brand-primary) 18%, transparent)', color: 'var(--brand-primary)' }}>
+                <Icon name="target" size={22} />
               </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Level {progress?.level ?? 1}</Typography>
-                <Typography noWrap sx={{ fontSize: 18, fontWeight: 750 }}>{progress?.levelTitle || 'Getting Started'}</Typography>
-                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>{progress?.totalProgress ?? 0} XP earned</Typography>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12.5, fontWeight: 650 }}>
+                    {_progress ? `Level ${_progress.level} • ${_progress.levelTitle || 'Novice'}` : 'Execution Progress'}
+                  </Typography>
+                  {_progress && (
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-primary)' }}>
+                      {_progress.totalProgress} XP
+                    </Typography>
+                  )}
+                </Box>
+                <Typography noWrap sx={{ fontSize: 15.5, fontWeight: 750 }}>
+                  {totalMissionsCount > 0 ? `${completedMissionsCount} of ${totalMissionsCount} tasks complete` : 'Ready to begin work'}
+                </Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+                  {totalMissionsCount > 0
+                    ? `${goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length} active goals · ${completedSessionsCount} focus sessions`
+                    : 'Create your first goal & task to build progress'}
+                </Typography>
               </Box>
             </Box>
-            <Box sx={{ mt: 'auto' }}>
-              <Box sx={{ height: 7, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
-                <Box sx={{ width: `${Math.min(100, Math.max(0, progress?.progressPercent ?? 0))}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, p: 1.1, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)' }}>
+              <Box>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Active Goals</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
               </Box>
-              <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: 11 }}>
-                {progress?.currentLevelXp ?? 0} / {progress?.nextLevelThreshold ?? 100} XP to next level · {analyticsData?.summary?.currentStreak ?? 0} day streak
+              <Box>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Focus Sessions</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{completedSessionsCount}</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 0.6, borderTop: '1px solid var(--border)' }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: 12.5, flexShrink: 0 }}>Next Milestone</Typography>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'var(--brand-primary)', textAlign: 'right', wordBreak: 'break-word' }}>
+                First Step (0/1 tasks)
               </Typography>
+            </Box>
+
+            <Box sx={{ mt: 'auto', pt: 0.4 }}>
+              <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
+                <Box sx={{ width: `${totalMissionsCount ? Math.min(100, Math.round((completedMissionsCount / totalMissionsCount) * 100)) : 0}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.6 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 11.5 }}>
+                  {totalMissionsCount > 0 ? `${Math.round((completedMissionsCount / totalMissionsCount) * 100)}% complete` : '0% complete'}
+                </Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 11.5 }}>
+                  {totalMissionsCount > 0 ? `${totalMissionsCount - completedMissionsCount} open tasks` : '0 open tasks'}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </AuroraCard>
@@ -1393,10 +1445,11 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 <span>Filtering: "{topSearchQuery}"</span>
                 <button
                   onClick={() => setTopSearchQuery?.('')}
-                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 700 }}
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: 0 }}
                   title="Clear filter"
+                  aria-label="Clear filter"
                 >
-                  ×
+                  <Icon name="close" size={13} />
                 </button>
               </Box>
             )}
@@ -1435,7 +1488,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             noPadding
             sx={{
               p: '18px 20px',
-              minHeight: 260,
+              minHeight: 180,
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
@@ -1547,7 +1600,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             noPadding
             sx={{
               p: '18px 20px',
-              minHeight: 260,
+              minHeight: 180,
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
@@ -1651,7 +1704,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             data-tutorial="completed-column"
             sx={{
               p: '18px 20px',
-              minHeight: 260,
+              minHeight: 180,
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
@@ -1747,8 +1800,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             </Box>
           </AuroraCard>
 
-      </Box>
-      <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} showRecentSessions />
+        </Box>
+        <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} showRecentSessions />
       </Box>
 
       {/* Task Details Modal */}

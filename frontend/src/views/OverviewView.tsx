@@ -10,10 +10,13 @@ import type { AuthUser } from '../api/auth'
 import { Icon } from '../components/common/Icon'
 import { LiveClock } from '../components/common/LiveClock'
 import { formatTimerDigits } from '../utils/focusTimer'
-import { deriveOverallProtectionStatus } from '../utils/focusProtectionStatus'
+import { deriveOverallProtectionStatus, formatEnforcementMode } from '../utils/focusProtectionStatus'
+import { guardianCapabilityLabel, guardianModeLabel } from '../utils/guardianCapability'
 import { trackRender } from '../utils/renderTracker'
 import { getTodayScheduleSessions, getSessionSecondaryInfo, isMissionInFocusSession } from '../utils/scheduleHelpers'
 import { DashboardInsights } from '../components/dashboard/DashboardInsights'
+import { getDashboardTaskState } from '../utils/dashboardTaskState'
+import { formatCount } from '../utils/pluralize'
 
 export interface OverviewViewProps {
   currentUser?: AuthUser | null
@@ -87,13 +90,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   handleResume = () => {},
   setCompletingSessionId = () => {},
   nextActionMission,
-  onOpenAchievements,
+  onNavigateToTasks,
 }) => {
   const protectionInfo = sentinelStatus ? deriveOverallProtectionStatus(sentinelStatus) : null
   trackRender('OverviewView')
 
   const totalMissionsCount = missions.length
   const completedMissionsCount = missions.filter((m) => m.status === 'COMPLETED').length
+  const dashboardTaskState = getDashboardTaskState(missions)
   const totalFocusMinutesToday = analyticsData?.summary?.totalFocusMinutes ??
     sessions.filter((s) => s.status === 'COMPLETED').reduce((acc, s) => acc + (s.durationMinutes || 0), 0)
 
@@ -357,9 +361,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div
               className={`sentinel-badge-pill ${protectionInfo?.badgeVariant || 'offline'}`}
               onClick={() => setActiveTab('Task Manager')}
-              title={sentinelStatus.warningOnly
-                ? `Automatic Guardian: ${sentinelStatus.guardianMode ?? 'Standard'} · ${sentinelStatus.guardianWarningCount ?? 0} app warnings today · no apps closed`
-                : `Focus Protection: ${sentinelStatus.enforcementMode} • ${sentinelStatus.totalInterceptedToday} intercepted today`}
+              title={sentinelStatus.interventionCapability !== undefined
+                ? `Automatic Guardian: ${guardianModeLabel(sentinelStatus.guardianMode)} · ${sentinelStatus.guardianWarningCount ?? 0} app observations today · ${guardianCapabilityLabel(sentinelStatus.interventionCapability)}`
+                : `Focus Protection: ${formatEnforcementMode(sentinelStatus.enforcementMode)} · ${sentinelStatus.totalInterceptedToday} reported today`}
             >
               <span className="sentinel-mini-dot" />
               <span>
@@ -398,7 +402,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         >
           <div className="metric-card-top">
             <span className="metric-card-label">Focus time</span>
-            <div className="metric-icon-box blue" aria-hidden="true">⏱️</div>
+            <div className="metric-icon-box blue" aria-hidden="true"><Icon name="clock" size={20} /></div>
           </div>
           <div className="metric-card-value">{totalFocusMinutesToday >= 60 ? `${Math.floor(totalFocusMinutesToday / 60)}h ${totalFocusMinutesToday % 60}m` : `${totalFocusMinutesToday}m`}</div>
           <div className="metric-card-footer">
@@ -416,7 +420,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         >
           <div className="metric-card-top">
             <span className="metric-card-label">Tasks completed</span>
-            <div className="metric-icon-box blue" aria-hidden="true">☑️</div>
+            <div className="metric-icon-box blue" aria-hidden="true"><Icon name="check-circle" size={20} /></div>
           </div>
           <div className="metric-card-value">{completedMissionsCount} <small>/ {totalMissionsCount}</small></div>
           <div className="metric-card-footer">
@@ -434,7 +438,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         >
           <div className="metric-card-top">
             <span className="metric-card-label">Active goals</span>
-            <div className="metric-icon-box orange" aria-hidden="true">🎯</div>
+            <div className="metric-icon-box orange" aria-hidden="true"><Icon name="target" size={20} /></div>
           </div>
           <div className="metric-card-value">{activeGoals.length}</div>
           <div className="metric-card-footer">
@@ -442,21 +446,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </button>
 
-        {/* Metric 4: Current streak */}
+        {/* Metric 4: Open tasks */}
         <button
           type="button"
           className="dashboard-metric-card"
-          onClick={() => onOpenAchievements?.()}
-          title="View rewards and progress"
-          aria-label={`Current focus streak: ${analyticsData?.summary?.currentStreak || 0} days`}
+          onClick={() => onNavigateToTasks?.('PENDING')}
+          title="View open tasks"
+          aria-label={`${dashboardTaskState.remaining} open tasks`}
         >
           <div className="metric-card-top">
-            <span className="metric-card-label">Current streak</span>
-            <div className="metric-icon-box purple" aria-hidden="true">🔥</div>
+            <span className="metric-card-label">Open tasks</span>
+            <div className="metric-icon-box purple" aria-hidden="true"><Icon name="target" size={20} /></div>
           </div>
-          <div className="metric-card-value">{analyticsData?.summary?.currentStreak || 0} <small>days</small></div>
+          <div className="metric-card-value">{dashboardTaskState.remaining}</div>
           <div className="metric-card-footer">
-            <span className="metric-card-sub">Keep your focus going</span>
+            <span className="metric-card-sub">Tasks not yet completed</span>
           </div>
         </button>
       </section>
@@ -593,9 +597,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     </>
                   ) : (
                     <>
-                      <h2 className="hero-session-title">All Planned Tasks Complete</h2>
+                      <h2 className="hero-session-title">{dashboardTaskState.state === 'EMPTY' ? 'Nothing planned yet' : activeSession ? 'Focus session in progress' : dashboardTaskState.state === 'IN_PROGRESS' ? 'Open tasks need attention' : 'All planned tasks complete'}</h2>
                       <p className="hero-session-desc">
-                        You're all caught up! Add a new task or review your goals to maintain momentum.
+                        {dashboardTaskState.state === 'EMPTY'
+                          ? 'Add a task to start planning your next step.'
+                          : activeSession
+                          ? `You have ${formatCount(dashboardTaskState.remaining, 'open task')}. Return to your current Focus session when you are ready.`
+                            : dashboardTaskState.state === 'IN_PROGRESS'
+                            ? `${formatCount(dashboardTaskState.remaining, 'task')} of ${dashboardTaskState.total} remain open. Review them in Goals & Tasks.`
+                              : 'You have completed every task in your workspace.'}
                       </p>
                     </>
                   )}
@@ -631,7 +641,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       title="Add new task"
                     >
                       <Icon name="plus" size={14} />
-                      <span>Add New Task</span>
+                      <span>Add Task</span>
                     </button>
                   )}
                   <button
@@ -690,7 +700,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       >
                         <div className="schedule-item-time">
                           <span className={`schedule-time-pill ${isDone ? 'done' : s.status === 'PAUSED' ? 'paused' : isActive ? 'active' : ''}`}>
-                            {isDone ? '✓' : s.status === 'PAUSED' ? '❚❚' : isActive ? '▶' : idx + 1}
+                            {isDone ? <Icon name="check" size={12} /> : s.status === 'PAUSED' ? <Icon name="pause" size={12} /> : isActive ? <Icon name="play" size={12} /> : idx + 1}
                           </span>
                         </div>
                         <div className="schedule-item-details">
@@ -723,7 +733,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         className="schedule-session-item is-completed"
                       >
                         <div className="schedule-item-time">
-                          <span className="schedule-time-pill">✓</span>
+                          <span className="schedule-time-pill" aria-hidden="true"><Icon name="check" size={12} /></span>
                         </div>
                         <div className="schedule-item-details">
                           <span className="schedule-session-name" title={d.sessionName}>{d.sessionName}</span>
@@ -768,20 +778,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <section className="dashboard-sidecar-card dashboard-quick-actions" aria-label="Quick actions">
             <header className="dashboard-reference-card-heading">
-              <h2>Quick actions</h2><span aria-hidden="true">✨</span>
+              <h2>Quick actions</h2><span aria-hidden="true"><Icon name="sparkle" size={17} /></span>
             </header>
             <div className="dashboard-quick-action-grid">
               <button type="button" onClick={() => activeSession ? setActiveTab('Focus Engine') : primaryActionTask ? handleEngageNextAction ? handleEngageNextAction() : handleArmMissionAsSession(primaryActionTask.title, primaryActionTask.estimatedMinutes || undefined) : setActiveTab('Focus Engine')}>
-                <span aria-hidden="true">▶️</span><strong>{activeSession ? 'Return to focus' : 'Start focus'}</strong><small>{activeSession ? 'Open the live timer' : `${primaryActionTask?.estimatedMinutes || 25} min session`}</small>
+                <span aria-hidden="true"><Icon name={activeSession ? 'clock' : 'play'} size={20} /></span><strong>{activeSession ? 'Return to focus' : 'Start focus'}</strong><small>{activeSession ? 'Open the live timer' : `${primaryActionTask?.estimatedMinutes || 25} min session`}</small>
               </button>
               <button type="button" onClick={() => setActiveTab('Schedule')}>
-                <span aria-hidden="true">🗓️</span><strong>Book session</strong><small>Schedule focus time</small>
+                <span aria-hidden="true"><Icon name="calendar" size={20} /></span><strong>Book session</strong><small>Schedule focus time</small>
               </button>
               <button type="button" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>
-                <span aria-hidden="true">➕</span><strong>New task</strong><small>Add a task</small>
+                <span aria-hidden="true"><Icon name="plus" size={20} /></span><strong>New task</strong><small>Add a task</small>
               </button>
               <button type="button" onClick={() => setActiveTab('Goals & Missions')}>
-                <span aria-hidden="true">🎯</span><strong>New goal</strong><small>Set a goal</small>
+                <span aria-hidden="true"><Icon name="target" size={20} /></span><strong>New goal</strong><small>Set a goal</small>
               </button>
             </div>
           </section>
@@ -794,13 +804,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             const goalTasks = missions.filter((mission) => mission.goalId === goal.id)
             const complete = goalTasks.filter((mission) => mission.status === 'COMPLETED').length
             const percent = goalTasks.length ? Math.round(complete / goalTasks.length * 100) : 0
-            return <li key={goal.id}><div className="dashboard-goal-name"><span aria-hidden="true">🎯</span><strong title={goal.title}>{goal.title}</strong><b>{percent}%</b></div><small>{goal.description || 'Keep making progress toward this goal.'}</small><div className="dashboard-goal-bar"><span style={{ width: `${percent}%` }} /></div></li>
-          })}</ul> : <div className="dashboard-reference-empty"><span aria-hidden="true">🎯</span><p>No active goals yet.</p><button type="button" onClick={() => setActiveTab('Goals & Missions')}>Create a goal</button></div>}
+            return <li key={goal.id}><div className="dashboard-goal-name"><span aria-hidden="true"><Icon name="target" size={17} /></span><strong title={goal.title}>{goal.title}</strong><b>{percent}%</b></div><small>{goal.description || 'Keep making progress toward this goal.'}</small><div className="dashboard-goal-bar"><span style={{ width: `${percent}%` }} /></div></li>
+          })}</ul> : <div className="dashboard-reference-empty"><span aria-hidden="true"><Icon name="target" size={22} /></span><p>No active goals yet.</p><button type="button" onClick={() => setActiveTab('Goals & Missions')}>Create a goal</button></div>}
         </article>
 
         <article className="dashboard-reference-panel dashboard-today-tasks">
           <header className="dashboard-reference-card-heading"><span><h2>Today's tasks</h2><small>{todayMissions.length} planned</small></span><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
-          {todayMissions.length ? <div className="dashboard-today-task-list">{todayMissions.slice(0, 5).map((task) => renderFlightDeckCard(task))}</div> : <div className="dashboard-reference-empty"><span aria-hidden="true">📝</span><p>No tasks planned for today.</p><button type="button" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>Add a task</button></div>}
+          {todayMissions.length ? <div className="dashboard-today-task-list">{todayMissions.slice(0, 5).map((task) => renderFlightDeckCard(task))}</div> : <div className="dashboard-reference-empty"><span aria-hidden="true"><Icon name="journal" size={22} /></span><p>No tasks planned for today.</p><button type="button" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>Add a task</button></div>}
         </article>
       </section>
 
@@ -810,7 +820,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div className="taskmaster-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="badge-tag red">TASK DETAILS</span>
                 <span className="badge-tag blue">{inspectingMission.estimatedMinutes || 25}m Session</span>
               </div>
               <button className="modal-close-icon-btn" onClick={() => setInspectingMission(null)}>

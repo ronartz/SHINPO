@@ -9,6 +9,34 @@
   border-radius: 16px;
   box-shadow: var(--shadow-elevated);
   color: var(--text-primary, #eeeeee);
+  animation: settingsModalEnter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+}
+
+@keyframes settingsModalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.settings-section-animated-pane {
+  animation: settingsContentFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes settingsContentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .theme-light .settings-modal-box,
@@ -20,6 +48,7 @@ html[data-theme='light'] .settings-modal-box {
 }
 
 /* Header */
+
 .settings-modal-header {
   border-bottom: 1px solid var(--border-subtle, rgba(255,255,255, 0.08));
   background: var(--surface, color-mix(in srgb, var(--brand-baltic-blue) 95.0%, transparent));
@@ -83,7 +112,11 @@ html[data-theme='light'] .settings-nav-sidebar {
   font-size: 13px;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-tab-btn:active {
+  transform: scale(0.98);
 }
 
 .theme-light .settings-tab-btn,
@@ -107,6 +140,7 @@ html[data-theme='light'] .settings-tab-btn:hover {
   border-color: color-mix(in srgb, var(--brand-highlight) 35.0%, transparent) !important;
   color: var(--brand-primary) !important;
   font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .theme-light .settings-tab-btn.is-active,
@@ -114,6 +148,7 @@ html[data-theme='light'] .settings-tab-btn.is-active {
   background: color-mix(in srgb, var(--brand-highlight) 12.0%, transparent) !important;
   border-color: color-mix(in srgb, var(--brand-highlight) 30.0%, transparent) !important;
   color: var(--brand-primary) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
 /* Right Content Panel */
@@ -155,18 +190,20 @@ html[data-theme='light'] .settings-section-desc {
 
 /* Preference Cards */
 .settings-group-card {
-  margin-bottom: var(--space-6);
-  padding: var(--space-4) var(--space-6);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--brand-baltic-blue) 45.0%, transparent);
-  border: 1px solid rgba(255,255,255, 0.08);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
   box-sizing: border-box;
 }
 
 .theme-light .settings-group-card,
 html[data-theme='light'] .settings-group-card {
-  background: var(--color-surface-2) !important;
-  border: 1px solid color-mix(in srgb, var(--brand-highlight) 14.0%, transparent) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .settings-group-card label {
@@ -394,5 +431,104 @@ html[data-theme='light'] .settings-diag-row {
 .theme-light .settings-diag-name,
 html[data-theme='light'] .settings-diag-name {
   color: var(--color-text-primary) !important;
+}
+
+.settings-connection-indicator {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+
+.settings-connection-indicator.is-connected { background: var(--status-success, #22c55e); }
+.settings-connection-indicator.is-disconnected { background: var(--text-muted, #94a3b8); }
+
+/* Form Controls & Native AI Provider Select */
+.settings-modal-box select,
+.settings-modal-box input[type="text"],
+.settings-modal-box input[type="password"] {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-card, var(--surface));
+  color: var(--text-1, var(--color-text-primary));
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+  color-scheme: dark;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-light .settings-modal-box select,
+html[data-theme='light'] .settings-modal-box select,
+.theme-light .settings-modal-box input[type="text"],
+html[data-theme='light'] .settings-modal-box input[type="text"],
+.theme-light .settings-modal-box input[type="password"],
+html[data-theme='light'] .settings-modal-box input[type="password"],
+.theme-light .settings-modal-box input[type="number"],
+html[data-theme='light'] .settings-modal-box input[type="number"],
+.theme-light .settings-modal-box textarea,
+html[data-theme='light'] .settings-modal-box textarea {
+  background: var(--color-surface-1, #ffffff);
+  border-color: var(--border-strong, #cbd5e1);
+  color: var(--color-text-primary, #0f172a);
+  color-scheme: light;
+}
+
+.settings-modal-box select:focus,
+.settings-modal-box input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 28%, transparent);
+}
+
+.settings-modal-box select option {
+  background: var(--surface-card, #1e293b);
+  color: var(--text-1, #f8fafc);
+  padding: 8px 12px;
+}
+
+.theme-light .settings-modal-box select option,
+html[data-theme='light'] .settings-modal-box select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+/* Motion & Press Feedback */
+.settings-pill-btn {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-pill-btn:active {
+  transform: scale(0.98);
+}
+
+.settings-action-btn,
+.settings-save-btn {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-action-btn:active,
+.settings-save-btn:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal-box,
+  .settings-section-animated-pane {
+    animation: none !important;
+    transform: none !important;
+  }
+  .settings-tab-btn,
+  .settings-pill-btn,
+  .settings-action-btn,
+  .settings-save-btn {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 

@@ -39,8 +39,6 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
   isRefreshing = false,
   onOpenSettings,
   currentUser,
-  userProgress,
-  onOpenAchievements,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview = true,
@@ -282,33 +280,9 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: 'text.primary' }}>
                   {currentUser.username}
                 </Typography>
-                <Box
-                  component="span"
-                  className="user-level-badge"
-                  onClick={(e) => {
-                    if (onOpenAchievements) {
-                      e.stopPropagation()
-                      onOpenAchievements()
-                    }
-                  }}
-                  sx={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: isDarkMode ? 'var(--brand-primary)' : 'var(--brand-primary)',
-                    background: isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-primary) 10.0%, transparent)',
-                    px: 0.7,
-                    py: 0.1,
-                    borderRadius: '4px',
-                    lineHeight: 1.2,
-                    cursor: onOpenAchievements ? 'pointer' : 'default',
-                  }}
-                  title={onOpenAchievements ? 'View Progression & Achievements' : undefined}
-                >
-                  Lvl {userProgress?.level || 1}
-                </Box>
               </Box>
               <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 600 }}>
-                {userProgress ? `${userProgress.totalProgress} XP • ${userProgress.levelTitle}` : 'Personal Workspace'}
+                Personal workspace
               </Typography>
             </Box>
           </Box>

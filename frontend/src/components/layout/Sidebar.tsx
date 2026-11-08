@@ -8,6 +8,8 @@ import { formatTimerDigits } from '../../utils/focusTimer'
 import type { FocusSession } from '../../api/focusSessions'
 import type { ProgressResponse } from '../../api/progress'
 import type { SentinelWarningItem, SentinelStatus } from '../../api/device'
+import { guardianCanRequestClose, guardianInterventionDescription, guardianModeLabel } from '../../utils/guardianCapability'
+import { formatEnforcementMode } from '../../utils/focusProtectionStatus'
 
 export interface SidebarProps {
   sidebarExpanded: boolean
@@ -23,8 +25,6 @@ export interface SidebarProps {
   graceSecondsLeft?: number
   sentinelStatus?: SentinelStatus | null
   userProgress: ProgressResponse | null
-  topSearchQuery: string
-  onSearchChange: (query: string) => void
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -42,16 +42,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   activeSession,
   graceSecondsLeft = 0,
   sentinelStatus,
-  userProgress,
-  topSearchQuery,
-  onSearchChange,
 }) => {
   trackRender('Sidebar')
   const navRef = useRef<HTMLElement>(null)
   const activeIndicatorRef = useRef<HTMLSpanElement>(null)
   const hoverDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const pendingSearchFocusRef = useRef(false)
   const [isPointerHovered, setIsPointerHovered] = useState(false)
   const [isKeyboardFocused, setIsKeyboardFocused] = useState(false)
   const isVisuallyExpanded = sidebarExpanded || isPointerHovered || isKeyboardFocused
@@ -62,13 +57,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   useEffect(() => () => {
     if (hoverDelayRef.current) clearTimeout(hoverDelayRef.current)
   }, [])
-
-  useEffect(() => {
-    if (isVisuallyExpanded && pendingSearchFocusRef.current) {
-      pendingSearchFocusRef.current = false
-      searchInputRef.current?.focus()
-    }
-  }, [isVisuallyExpanded])
 
   useLayoutEffect(() => {
     const nav = navRef.current
@@ -100,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   const isDaemonConnected = Boolean(sentinelStatus?.daemonConnected)
   const sentinelState = sentinelStatus?.status
   const enforcementMode = sentinelStatus?.enforcementMode
+  const localCloseAvailable = guardianCanRequestClose(sentinelStatus?.interventionCapability, sentinelStatus?.warningOnly)
 
   let statusTitle: string
   let statusSub: string
@@ -121,13 +110,18 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     statusTooltip = 'Focus Protection: Grace period active'
   } else if (isSessionActive) {
     if (isDaemonConnected) {
-      const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY'
-      statusTitle = sentinelStatus?.warningOnly ? 'Guardian monitoring' : isMonitoringOnly ? 'Protection monitoring' : 'Focus protection active'
-      statusSub = sentinelStatus?.warningOnly ? `${sentinelStatus.guardianMode ?? 'Standard'} · apps are never closed` : isMonitoringOnly ? 'Apps are not blocked' : 'Distracting apps are blocked'
+      const nativeStatusAvailable = Boolean(sentinelStatus?.interventionCapability)
+      const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY' || (nativeStatusAvailable && !localCloseAvailable)
+      statusTitle = sentinelStatus?.warningOnly || (nativeStatusAvailable && !localCloseAvailable) ? 'Guardian monitoring' : isMonitoringOnly ? 'Protection monitoring' : 'Focus protection active'
+      statusSub = nativeStatusAvailable
+        ? localCloseAvailable ? 'Consented graceful close may be requested' : 'Monitoring only · no close request is armed'
+        : sentinelStatus?.warningOnly ? `${sentinelStatus.guardianMode ?? 'Standard'} · warning-only` : isMonitoringOnly ? 'Apps are not blocked' : 'Distracting apps are blocked'
       dotClass = 'focus-engaged'
-      shieldStateClass = 'shield-active'
-      statusTooltip = sentinelStatus?.warningOnly
-        ? `Automatic ${sentinelStatus.guardianMode ?? 'Standard'} Guardian records recognized app names. Apps are never closed; site rules depend on Browser Companion.`
+      shieldStateClass = nativeStatusAvailable && !localCloseAvailable ? 'shield-ready' : 'shield-active'
+      statusTooltip = nativeStatusAvailable
+        ? `${guardianInterventionDescription(sentinelStatus?.interventionCapability)} Browser site restrictions are reported separately.`
+        : sentinelStatus?.warningOnly
+        ? `Automatic ${sentinelStatus.guardianMode ?? 'Standard'} Guardian records recognized app names in warning-only mode. Site rules depend on Browser Companion.`
         : isMonitoringOnly
         ? 'Focus protection is monitoring only; no applications are blocked.'
         : 'Focus protection is connected and blocking distracting apps. Browser protection is reported separately.'
@@ -146,12 +140,19 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     statusTooltip = 'The Focus session is paused. Automatic app observations resume when Focus resumes.'
   } else {
     if (isDaemonConnected) {
-      const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY'
-      statusTitle = sentinelStatus?.warningOnly ? 'Guardian ready' : isMonitoringOnly ? 'Protection monitoring' : sentinelState === 'STANDBY' ? 'Protection on standby' : 'Protection ready'
-      statusSub = sentinelStatus?.warningOnly ? 'Warnings begin with a Focus session' : isMonitoringOnly ? 'Apps are not blocked' : 'No active focus session'
+      const nativeStatusAvailable = Boolean(sentinelStatus?.interventionCapability)
+      const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY' || (nativeStatusAvailable && !localCloseAvailable)
+      statusTitle = sentinelStatus?.warningOnly || isMonitoringOnly
+        ? 'Monitoring only'
+        : sentinelState === 'STANDBY' ? 'Protection on standby' : 'Protection ready'
+      statusSub = nativeStatusAvailable
+        ? 'Warnings and intervention depend on Focus phase, consent, and platform capability'
+        : sentinelStatus?.warningOnly ? 'Warnings begin with a Focus session' : isMonitoringOnly ? 'Apps are not blocked' : 'No active focus session'
       dotClass = 'status-dot-ready'
       shieldStateClass = 'shield-ready'
-      statusTooltip = sentinelStatus?.warningOnly
+      statusTooltip = nativeStatusAvailable
+        ? `${guardianInterventionDescription(sentinelStatus?.interventionCapability)} Browser policy is managed separately by Browser Companion.`
+        : sentinelStatus?.warningOnly
         ? 'App observations run during Focus only; browser policy is managed by Browser Companion.'
         : isMonitoringOnly
         ? 'Focus protection is monitoring only; no applications are blocked.'
@@ -214,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           onClick={onToggleExpanded}
           title={sidebarExpanded ? 'Unpin sidebar' : isVisuallyExpanded ? 'Pin sidebar open' : 'Expand sidebar'}
           aria-label={sidebarExpanded ? 'Unpin sidebar' : isVisuallyExpanded ? 'Pin sidebar open' : 'Expand sidebar'}
-          aria-expanded={isVisuallyExpanded}
+          aria-expanded={sidebarExpanded}
         >
           <Icon name={isVisuallyExpanded ? 'chevron-left' : 'chevron-right'} size={16} />
         </button>
@@ -238,29 +239,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           </p>
       </div>
 
-      <div className={`sidebar-search ${isVisuallyExpanded ? 'is-expanded' : ''}`} role="search">
-        <Icon name="search" size={16} />
-        <input
-          ref={searchInputRef}
-          type="search"
-          value={topSearchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search tasks and goals"
-          aria-label="Search dashboard tasks and goals"
-          tabIndex={isVisuallyExpanded ? 0 : -1}
-        />
-        {!isVisuallyExpanded && <button
-          type="button"
-          aria-label="Search tasks and goals"
-          title="Search tasks and goals"
-          onClick={() => {
-            pendingSearchFocusRef.current = true
-            setIsKeyboardFocused(true)
-          }}
-        />}
-        {isVisuallyExpanded && topSearchQuery && <button type="button" className="sidebar-search-clear" onClick={() => onSearchChange('')} aria-label="Clear search"><Icon name="close" size={14} /></button>}
-      </div>
-
       <nav className="sidebar-nav-stack has-active-marker" ref={navRef}>
         <span className="sidebar-active-indicator" ref={activeIndicatorRef} aria-hidden="true" />
         <div className="sidebar-section-header"><span>Navigation</span></div>
@@ -270,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             type="button"
             className={`sidebar-btn ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => onSelectTab(item.id)}
-            title={item.hasBadge && scheduledCount > 0 ? `${item.label} · ${scheduledCount} scheduled sessions` : item.label}
+            title={sidebarExpanded || isVisuallyExpanded ? undefined : (item.hasBadge && scheduledCount > 0 ? `${item.label} · ${scheduledCount} scheduled sessions` : item.label)}
             aria-label={item.hasBadge && scheduledCount > 0 ? `${item.label}, ${scheduledCount} scheduled sessions` : item.label}
             aria-current={activeTab === item.id ? 'page' : undefined}
             data-tab={item.id}
@@ -301,7 +279,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 <span className="protection-title">{statusTitle}</span>
                 <span className="protection-sub-text">{statusSub}</span>
                 {isDaemonConnected && (sentinelStatus?.guardianMode || enforcementMode) && (
-                  <span className="protection-mode-badge">{sentinelStatus?.guardianMode ?? enforcementMode}</span>
+                  <span className="protection-mode-badge">
+                    {sentinelStatus?.guardianMode
+                      ? guardianModeLabel(sentinelStatus.guardianMode)
+                      : formatEnforcementMode(enforcementMode)}
+                  </span>
                 )}
               </div>
             </div>
@@ -346,16 +328,14 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           onClick={() => onSelectTab('Rewards')}
           data-tab="Rewards"
           data-tutorial={rewardsItem?.tut}
-          aria-label={userProgress ? `Rewards and progress, level ${userProgress.level}, ${userProgress.totalProgress} XP` : 'Rewards and progress'}
+          aria-label="Rewards and milestones"
           aria-current={activeTab === 'Rewards' ? 'page' : undefined}
-          title={!isVisuallyExpanded ? `Rewards · ${userProgress?.totalProgress ?? 0} XP` : undefined}
+          title={!isVisuallyExpanded ? 'Rewards and milestones' : undefined}
         >
           <span className="sidebar-rewards-emblem"><Icon name="rewards" size={19} /></span>
           <span className="sidebar-rewards-details">
-            <span className="sidebar-rewards-level">Level {userProgress?.level ?? 1}</span>
-            <strong>{userProgress?.levelTitle ?? 'Rewards & Progress'}</strong>
-            <span className="sidebar-rewards-meter" aria-hidden="true"><span style={{ width: `${Math.min(100, Math.max(0, userProgress?.progressPercent ?? 0))}%` }} /></span>
-            <small>{userProgress?.totalProgress ?? 0} / {userProgress?.nextLevelThreshold ?? 100} XP</small>
+            <strong>Rewards &amp; milestones</strong>
+            <small>Achievements from completed work</small>
           </span>
         </button>
 

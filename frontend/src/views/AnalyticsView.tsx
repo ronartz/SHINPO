@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { fetchAnalyticsPeriod, type AnalyticsDashboardResponse, type AnalyticsPeriodResponse, type AnalyticsRange, type RecentDebrief } from '../api/analytics'
 import { Icon } from '../components/common/Icon'
+import { formatCount } from '../utils/pluralize'
 import { trackRender } from '../utils/renderTracker'
 import { buildAnalyticsCsv } from '../utils/analyticsCsv'
 
 export interface AnalyticsViewProps {
   analyticsData: AnalyticsDashboardResponse | null
   analyticsLoading: boolean
+  analyticsError: boolean
   loadAnalytics: () => void
   onNavigateFocus: () => void
   userId?: number | null
@@ -38,8 +40,8 @@ function comparison(current: number, previous: number) {
 }
 
 function ActivityChart({ data, range, onNavigateFocus }: { data: AnalyticsPeriodResponse; range: AnalyticsRange; onNavigateFocus: () => void }) {
-  const current = data.currentBuckets
-  const previous = data.previousBuckets
+  const current = data?.currentBuckets ?? []
+  const previous = data?.previousBuckets ?? []
   const count = Math.max(current.length, previous.length)
   const currentValues = Array.from({ length: count }, (_, i) => minutes(current[i]?.activeSeconds ?? 0))
   const previousValues = Array.from({ length: count }, (_, i) => minutes(previous[i]?.activeSeconds ?? 0))
@@ -72,10 +74,10 @@ function ActivityChart({ data, range, onNavigateFocus }: { data: AnalyticsPeriod
         <path d={area} fill="url(#analytics-area)" />
         <path d={line(previousValues)} className="analytics-line-previous" />
         <path d={line(currentValues)} className="analytics-line-current" />
-        {currentValues.map((value, i) => <circle key={`c${i}`} cx={x(i)} cy={y(value)} r="4" className="analytics-point-current" tabIndex={0} aria-label={`${bucketLabel(current[i].start, range)} current: ${value} focus minutes, ${current[i].completedSessions} completed sessions`}><title>{`${bucketLabel(current[i].start, range)} · ${value}m · ${current[i].completedSessions} sessions`}</title></circle>)}
-        {previousValues.map((value, i) => <circle key={`p${i}`} cx={x(i)} cy={y(value)} r="3" className="analytics-point-previous" tabIndex={0} aria-label={`${bucketLabel(previous[i].start, range)} previous: ${value} focus minutes, ${previous[i].completedSessions} completed sessions`}><title>{`${bucketLabel(previous[i].start, range)} · previous ${value}m`}</title></circle>)}
+        {currentValues.map((value, i) => <circle key={`c${i}`} cx={x(i)} cy={y(value)} r="4" className="analytics-point-current" tabIndex={0} aria-label={`${bucketLabel(current[i]?.start, range)} current: ${value} focus minutes, ${current[i]?.completedSessions ?? 0} completed sessions`}><title>{`${bucketLabel(current[i]?.start, range)} · ${value}m · ${current[i]?.completedSessions ?? 0} sessions`}</title></circle>)}
+        {previousValues.map((value, i) => <circle key={`p${i}`} cx={x(i)} cy={y(value)} r="3" className="analytics-point-previous" tabIndex={0} aria-label={`${bucketLabel(previous[i]?.start, range)} previous: ${value} focus minutes, ${previous[i]?.completedSessions ?? 0} completed sessions`}><title>{`${bucketLabel(previous[i]?.start, range)} · previous ${value}m`}</title></circle>)}
       </>
-      {labelIndexes.map((index) => <text key={index} x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'} className="analytics-chart-axis">{bucketLabel(current[index].start, range)}</text>)}
+      {labelIndexes.map((index) => <text key={index} x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'} className="analytics-chart-axis">{bucketLabel(current[index]?.start, range)}</text>)}
     </svg>
   </div>
 }
@@ -101,6 +103,7 @@ function FocusedDays({ analyticsData }: { analyticsData: AnalyticsDashboardRespo
 }
 
 function Reflection({ entry }: { entry: RecentDebrief }) {
+  const rating = Math.min(5, Math.max(0, entry.quality ?? 0))
   return <article className="analytics-debrief-card">
     <div className="analytics-debrief-main">
       <div className="analytics-debrief-title">{entry.sessionName}</div>
@@ -115,12 +118,12 @@ function Reflection({ entry }: { entry: RecentDebrief }) {
     <div className="analytics-debrief-meta">
       <span className="analytics-duration-chip"><strong>{formatDuration(entry.actualFocusMinutes * 60)}</strong><small>actual focus</small></span>
       <span className="analytics-duration-chip analytics-planned-chip"><strong>{formatDuration(entry.durationMinutes * 60)}</strong><small>planned</small></span>
-      <span className="analytics-quality" aria-label={entry.quality != null ? `Rated ${entry.quality} out of 5` : 'Not rated'}>{entry.quality != null ? <>{'★'.repeat(Math.min(5, Math.max(0, entry.quality)))}{'☆'.repeat(Math.max(0, 5 - entry.quality))}<small>{entry.quality}/5</small></> : 'Not rated'}</span>
+      <span className="analytics-quality" aria-label={entry.quality != null ? `Rated ${rating} out of 5` : 'Not rated'}>{entry.quality != null ? <><span className="analytics-quality-stars" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <Icon key={index} name="star" size={12} className={index < rating ? 'is-filled' : undefined} />)}</span><small>{rating}/5</small></> : 'Not rated'}</span>
     </div>
   </article>
 }
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, analyticsLoading, loadAnalytics, onNavigateFocus, userId }) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, analyticsLoading, analyticsError, loadAnalytics, onNavigateFocus, userId }) => {
   trackRender('AnalyticsView')
   const storageKey = userId == null ? null : `shinpo_analytics_range_${userId}`
   const [range, setRange] = useState<AnalyticsRange>(() => {
@@ -143,8 +146,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
   const periodLoading = !visiblePeriod && periodErrorFor !== range
   const periodError = periodErrorFor === range
   const dailyAverage = visiblePeriod ? formatDuration(visiblePeriod.currentActiveSeconds / (range === '24h' ? 1 : Number(range.replace('d', '')))) : '—'
-  const strongest = visiblePeriod?.currentBuckets.reduce<(typeof visiblePeriod.currentBuckets)[number] | null>((best, item) => !best || item.activeSeconds > best.activeSeconds ? item : best, null)
-  const completedRate = analyticsData?.summary.completionRate ?? null
+  const strongest = visiblePeriod?.currentBuckets?.reduce<(typeof visiblePeriod.currentBuckets)[number] | null>((best, item) => !best || item.activeSeconds > best.activeSeconds ? item : best, null) ?? null
+  const completedRate = analyticsData?.summary?.completionRate ?? null
   const chartCurrent = comparison(visiblePeriod?.currentActiveSeconds ?? 0, visiblePeriod?.previousActiveSeconds ?? 0)
   const chartSessions = comparison(visiblePeriod?.currentCompletedSessions ?? 0, visiblePeriod?.previousCompletedSessions ?? 0)
 
@@ -166,7 +169,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
     fetchAnalyticsPeriod(range).then(setPeriod).catch(() => setPeriodErrorFor(range))
   }
 
-  return <main className="analytics-view">
+  return <main className="analytics-view" aria-busy={analyticsLoading}>
     <header className="analytics-page-heading">
       <div className="analytics-heading-copy"><span className="analytics-heading-icon"><Icon name="analytics" size={21} /></span><div><h1>Analytics</h1>
         <p>{visiblePeriod ? `${labels[range]} · ${dateLabel(visiblePeriod.currentStart)} – ${dateLabel(visiblePeriod.currentEnd)} UTC, compared with the prior ${range}.` : 'A clear view of your focus, consistency, and completed work.'}</p>
@@ -180,6 +183,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
       </div>
     </header>
 
+    {analyticsError && <div className="analytics-load-state" role="alert">
+      <span>{analyticsData ? 'Analytics could not be refreshed. Showing the last loaded values.' : 'Analytics could not be loaded. Your saved data has not been changed.'}</span>
+      <button type="button" onClick={loadAnalytics} disabled={analyticsLoading}>Try again</button>
+    </div>}
+    {!analyticsData && analyticsLoading && <p className="analytics-load-state is-loading" role="status">Loading saved analytics…</p>}
+
     <section className="analytics-metrics-grid" aria-label="Analytics summary">
       <article className="analytics-card analytics-card-focus"><span className="analytics-metric-icon is-blue"><Icon name="clock" size={21} /></span><div className="analytics-metric-content"><div className="analytics-metric-heading"><span>Focus time</span></div>
         <strong>{visiblePeriod ? formatDuration(visiblePeriod.currentActiveSeconds) : '—'}</strong><div className="analytics-metric-support"><small>{labels[range]} · active time</small>{visiblePeriod && <span className={`analytics-comparison is-${chartCurrent.tone}`}>{chartCurrent.label}</span>}</div></div></article>
@@ -189,8 +198,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
         <strong>{analyticsData ? <>{analyticsData.summary.missionsCompleted}<i> / {analyticsData.summary.missionsTotal}</i></> : '—'}</strong>
         <div className="analytics-metric-support"><small>Current completed tasks · all time</small></div>
         <div className="analytics-task-progress" role="img" aria-label={completedRate == null ? 'No tasks yet' : `${completedRate}% of all tasks completed`}><span style={{ transform: `scaleX(${Math.min(100, Math.max(0, completedRate ?? 0)) / 100})` }} /></div></div></article>
-      <article className="analytics-card"><span className="analytics-metric-icon is-success"><Icon name="sparkle" size={21} /></span><div className="analytics-metric-content"><div className="analytics-metric-heading"><span>Focus streak</span></div>
-        <strong>{analyticsData?.summary.currentStreak ?? '—'}<i> {analyticsData?.summary.currentStreak === 1 ? 'day' : 'days'}</i></strong>
+      <article className="analytics-card"><span className="analytics-metric-icon is-success"><Icon name="sparkle" size={21} /></span><div className="analytics-metric-content"><div className="analytics-metric-heading"><span>Focus consistency</span></div>
+        <strong>{analyticsData ? formatCount(analyticsData.summary.currentStreak, 'day') : '—'}</strong>
         <div className="analytics-metric-support"><small>Consecutive UTC days with completed Focus</small></div>
       </div></article>
     </section>
@@ -212,8 +221,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ analyticsData, ana
 
     <section className="analytics-lower-grid" aria-label="Focus history">
       <FocusedDays analyticsData={analyticsData} />
-      <section className="analytics-panel analytics-recent-panel" aria-labelledby="analytics-reflections-title"><div className="analytics-panel-heading"><div><h2 id="analytics-reflections-title">Recent reflections</h2><p>Outcomes and notes from completed Focus sessions.</p></div><span className="analytics-recent-count">{analyticsData?.recentDebriefs.length ?? 0} {(analyticsData?.recentDebriefs.length ?? 0) === 1 ? 'session' : 'sessions'}</span></div>
-        <div className="analytics-debrief-list">{analyticsData?.recentDebriefs.length ? analyticsData.recentDebriefs.map((entry) => <Reflection key={entry.sessionId} entry={entry} />) : <div className="analytics-debrief-empty">Completed session reflections will appear here.</div>}</div>
+      <section className="analytics-panel analytics-recent-panel" aria-labelledby="analytics-reflections-title"><div className="analytics-panel-heading"><div><h2 id="analytics-reflections-title">Recent reflections</h2><p>Outcomes and notes from completed Focus sessions.</p></div><span className="analytics-recent-count">{analyticsData?.recentDebriefs?.length ?? 0} {(analyticsData?.recentDebriefs?.length ?? 0) === 1 ? 'session' : 'sessions'}</span></div>
+        <div className="analytics-debrief-list">{analyticsData?.recentDebriefs?.length ? analyticsData.recentDebriefs.map((entry) => <Reflection key={entry.sessionId} entry={entry} />) : <div className="analytics-debrief-empty">Completed session reflections will appear here.</div>}</div>
       </section>
     </section>
   </main>

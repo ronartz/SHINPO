@@ -16,6 +16,7 @@ export function useAuth() {
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null)
 
   // Listen for unauthorized events dispatched by API client
   useEffect(() => {
@@ -66,7 +67,9 @@ export function useAuth() {
     try {
       const response = await register(authIdentifier.trim(), authEmail.trim(), authPassword)
       setCurrentUser(response.user)
-      if (response.recoveryKey) window.alert(`Save this SHINPO recovery key somewhere safe. It is shown only once and is required if you forget your password:\n\n${response.recoveryKey}`)
+      if (response.recoveryKey) {
+        setRecoveryKey(response.recoveryKey)
+      }
       setAuthPassword('')
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : 'Registration failed')
@@ -97,6 +100,8 @@ export function useAuth() {
     authError,
     setAuthError,
     authLoading,
+    recoveryKey,
+    setRecoveryKey,
     handleLogin,
     handleRegister,
     handleLogout,

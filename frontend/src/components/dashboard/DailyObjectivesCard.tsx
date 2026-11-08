@@ -52,7 +52,7 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
               title="Consecutive days with completed focus work"
             >
               <Icon name="zap" size={14} className="streak-flame" />
-              <span className="streak-text">{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</span>
+              <span className="streak-text">{currentStreak} {currentStreak === 1 ? 'consistent day' : 'consistent days'}</span>
             </div>
           )}
 
@@ -61,7 +61,7 @@ export const DailyObjectivesCard: React.FC<DailyObjectivesCardProps> = ({
               type="button"
               className="btn-view-achievements"
               onClick={onOpenAchievements}
-              title="View achievements and experience points"
+              title="View verified progress and milestones"
             >
               <Icon name="target" size={13} />
               <span>Progress</span>

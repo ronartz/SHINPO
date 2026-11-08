@@ -16,14 +16,14 @@ function contrast(foreground: string, background: string) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 }
 
-test('Aurora MUI themes resolve the canonical dark and light palette', () => {
+test('Aurora MUI themes resolve the midnight, violet and cyan palette', () => {
   const dark = getAuroraTheme('dark')
   const light = getAuroraTheme('light')
 
-  assert.equal(dark.palette.primary.main, '#3B82F6')
-  assert.equal(dark.palette.info.main, '#3B82F6')
-  assert.equal(light.palette.primary.main, '#2563EB')
-  assert.equal(dark.palette.background.default, '#0B1120')
+  assert.equal(dark.palette.primary.main, '#9757FA')
+  assert.equal(dark.palette.info.main, '#4D77F9')
+  assert.equal(light.palette.primary.main, '#7C3AED')
+  assert.equal(dark.palette.background.default, '#0B0F19')
   assert.equal(light.palette.background.default, '#F8FAFC')
 })
 

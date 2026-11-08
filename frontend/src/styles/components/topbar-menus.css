@@ -1,0 +1,235 @@
+/* ==========================================================================
+   SHINPO (進歩) — TOPBAR DROPDOWN MENUS (ACCOUNT & POWER)
+   Balanced Profile Dropdown & Safe Power Menu
+   Strict Light/Dark & Classic/Aurora Parity, WCAG AA Contrast, Full Keyboard Nav
+   ========================================================================== */
+
+/* Menu Anchors */
+.topbar-menu-anchor {
+  position: relative;
+  z-index: 501;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Base Dropdown Container */
+.shinpo-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--surface-card, #0c101d);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 14px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  z-index: 1000;
+  outline: none;
+  animation: shinpoDropdownEnter 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
+  box-sizing: border-box;
+}
+
+.theme-light .shinpo-dropdown-menu,
+html[data-theme='light'] .shinpo-dropdown-menu {
+  background: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 18%, transparent) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06) !important;
+}
+
+@keyframes shinpoDropdownEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-dropdown-menu {
+    animation: none !important;
+  }
+}
+
+/* Specific Menu Widths */
+.shinpo-account-dropdown {
+  width: 300px;
+}
+
+.shinpo-power-dropdown {
+  width: 260px;
+}
+
+/* Account Dropdown Header */
+.account-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 12px 10px;
+}
+
+.account-menu-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-primary, #6366f1) 0%, #8b5cf6 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-highlight) 35%, transparent);
+  flex-shrink: 0;
+}
+
+.account-menu-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.account-menu-username {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #f8fafc);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-light .account-menu-username,
+html[data-theme='light'] .account-menu-username {
+  color: var(--color-text-primary, #0f172a) !important;
+}
+
+.account-menu-subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.2;
+}
+
+.theme-light .account-menu-subtitle,
+html[data-theme='light'] .account-menu-subtitle {
+  color: var(--color-text-secondary, #64748b) !important;
+}
+
+/* Menu Dividers */
+.dropdown-menu-divider {
+  height: 1px;
+  background: var(--border-subtle, rgba(255, 255, 255, 0.08));
+  margin: 4px 6px;
+}
+
+.theme-light .dropdown-menu-divider,
+html[data-theme='light'] .dropdown-menu-divider {
+  background: color-mix(in srgb, var(--brand-highlight) 10%, transparent) !important;
+}
+
+/* Menu Items */
+.dropdown-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text, #f1f5f9);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  box-sizing: border-box;
+}
+
+.theme-light .dropdown-menu-item,
+html[data-theme='light'] .dropdown-menu-item {
+  color: var(--color-text-primary, #1e293b) !important;
+}
+
+.dropdown-menu-item:hover,
+.dropdown-menu-item:focus-visible,
+.dropdown-menu-item.is-focused {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.07));
+  border-color: var(--border-subtle, rgba(255, 255, 255, 0.1));
+  color: var(--text, #ffffff);
+  outline: none;
+}
+
+.theme-light .dropdown-menu-item:hover,
+.theme-light .dropdown-menu-item:focus-visible,
+.theme-light .dropdown-menu-item.is-focused,
+html[data-theme='light'] .dropdown-menu-item:hover,
+html[data-theme='light'] .dropdown-menu-item:focus-visible,
+html[data-theme='light'] .dropdown-menu-item.is-focused {
+  background: rgba(15, 23, 42, 0.05) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: var(--color-text-primary, #0f172a) !important;
+}
+
+.dropdown-menu-item svg {
+  color: var(--text-secondary, #94a3b8);
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.dropdown-menu-item:hover svg,
+.dropdown-menu-item:focus-visible svg,
+.dropdown-menu-item.is-focused svg {
+  color: var(--brand-primary, #6366f1);
+}
+
+.dropdown-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dropdown-menu-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.dropdown-menu-item-desc {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  margin-top: 1px;
+  line-height: 1.2;
+}
+
+.theme-light .dropdown-menu-item-desc,
+html[data-theme='light'] .dropdown-menu-item-desc {
+  color: #64748b !important;
+}
+
+/* Restrained Danger item (Exit SHINPO / Lock) */
+.dropdown-menu-item-danger {
+  color: var(--text, #f1f5f9);
+}
+
+.dropdown-menu-item-danger svg {
+  color: #ef4444;
+}
+
+.dropdown-menu-item-danger:hover,
+.dropdown-menu-item-danger:focus-visible,
+.dropdown-menu-item-danger.is-focused {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #ef4444 !important;
+}
+
+.dropdown-menu-item-danger:hover svg,
+.dropdown-menu-item-danger:focus-visible svg,
+.dropdown-menu-item-danger.is-focused svg {
+  color: #ef4444 !important;
+}

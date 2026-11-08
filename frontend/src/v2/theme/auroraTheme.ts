@@ -9,7 +9,9 @@ import {
 export function getAuroraTheme(mode: 'dark' | 'light') {
   const tokens = auroraColors[mode]
   const fallback = auroraColorFallbacks[mode] as Record<string, string>
-  const computed = typeof document === 'undefined' ? undefined : getComputedStyle(document.documentElement)
+  const computed = typeof document === 'undefined' || document.documentElement.dataset.brand !== 'aurora'
+    ? undefined
+    : getComputedStyle(document.documentElement)
   const c = Object.fromEntries(Object.entries(tokens).map(([key, value]) => {
     const token = /^var\((--[\w-]+)/.exec(value)?.[1]
     return [key, (token ? computed?.getPropertyValue(token).trim() : value) || fallback[key]]
@@ -190,7 +192,7 @@ export function getAuroraTheme(mode: 'dark' | 'light') {
             fontFamily: auroraTypography.fontBody,
             transition: 'all 180ms ease',
             '&:focus-visible': {
-              outline: `2px solid ${c.primaryBlue}`,
+              outline: `2px solid ${c.focusCyan}`,
               outlineOffset: 2,
             },
           },
