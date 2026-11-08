@@ -21,6 +21,7 @@ const injectMocks = async (page: any) => {
       value: {
         invoke: async (cmd: string, _args: any) => {
           if (cmd === 'local_vault_status') return { unlocked: true, username: 'eonx_dev' }
+          if (cmd === 'local_get_onboarding_state') return { status: 'COMPLETED', currentStep: 6 }
           if (cmd === 'get_guardian_status') return {
             status: 'idle',
             observerStatus: 'active',
@@ -213,10 +214,6 @@ test.describe('SHINPO Layout & Typography Release Contracts', () => {
   test('Dashboard Contract: Zero tasks state never shows false "all completed" message or gamified XP', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
-
-    const dashboardBtn = page.getByRole('button', { name: /Dashboard/i }).first()
-    await dashboardBtn.click()
-    await page.waitForTimeout(200)
 
     // 1. Assert zero-task state
     const bodyText = await page.locator('body').innerText()

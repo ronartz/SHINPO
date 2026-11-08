@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('shinpo_splash_shown', 'true')
+  })
+})
+
 for (const brand of ['classic', 'aurora']) {
   for (const theme of ['dark', 'light']) {
     test(`${brand} ${theme} auth uses active tokens and supports password visibility`, async ({ page }) => {

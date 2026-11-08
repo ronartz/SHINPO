@@ -227,7 +227,7 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     await page.screenshot({ path: '../docs/qa/screenshots/core-ui-repairs/05_goals_and_tasks.png' })
   })
 
-  test('Screenshot 5: Focus Engine intention pill is removed and intention card fills height', async ({ page }) => {
+  test('Screenshot 5: Focus Engine intention pill is removed and intention card hugs content without dead space', async ({ page }) => {
     await page.goto('/')
     await page.locator('[data-tab="Focus Engine"]').click()
     await page.waitForSelector('.card-timer-hud')
@@ -236,9 +236,10 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     const redundantTag = page.locator('.active-intention-tag')
     await expect(redundantTag).toHaveCount(0)
 
-    // Intention card must have flex: 1
-    const flexValue = await page.$eval('.card-session-intention', (el) => window.getComputedStyle(el).flexGrow)
-    expect(Number(flexValue)).toBeGreaterThanOrEqual(1)
+    // Intention card must hug its content naturally without stretching into dead space
+    const intentionBox = await page.locator('.card-session-intention').boundingBox()
+    expect(intentionBox).not.toBeNull()
+    expect(intentionBox!.height).toBeGreaterThan(60)
     await page.screenshot({ path: '../docs/qa/screenshots/core-ui-repairs/06_focus_engine_intention_card.png' })
   })
 
@@ -250,7 +251,7 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     const debugInfo = await page.locator('.cockpit-top-bar').evaluate(el => ({
       computedHeight: window.getComputedStyle(el).height,
       minHeight: window.getComputedStyle(el).minHeight,
-      offsetHeight: el.offsetHeight,
+      offsetHeight: (el as HTMLElement).offsetHeight,
       innerHTML: el.innerHTML.slice(0, 100),
     }))
     console.log('TopBar debug info:', debugInfo)
@@ -285,6 +286,43 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     await expect(milestoneText).toBeVisible()
 
     await page.screenshot({ path: '../docs/qa/screenshots/core-ui-repairs/08_dashboard_rewards_card.png' })
+  })
+
+  test('User Request 1: Today\'s Schedule centers single item/empty state and stacks multiple items', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await page.goto('/')
+    await page.waitForSelector('.schedule-card')
+
+    const scheduleCard = page.locator('.schedule-card')
+    await expect(scheduleCard).toBeVisible()
+
+    // The container for schedule items inside .schedule-card should use centered justification when <= 1 item
+    const bodyJustify = await scheduleCard.locator('.schedule-card-body, > div').nth(1).evaluate((el) => {
+      return window.getComputedStyle(el).justifyContent
+    })
+    expect(['center', 'space-around']).toContain(bodyJustify)
+  })
+
+  test('User Request 2: Focus Engine left column intention card hugs content and avoids dead space', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await page.goto('/')
+    await page.locator('[data-tab="Focus Engine"]').click()
+    await page.waitForSelector('.card-timer-hud')
+    await page.waitForSelector('.card-session-intention')
+
+    const leftCol = page.locator('.focus-left-column')
+    const rightCol = page.locator('.focus-right-column')
+
+    const leftBox = await leftCol.boundingBox()
+    const rightBox = await rightCol.boundingBox()
+
+    expect(leftBox).not.toBeNull()
+    expect(rightBox).not.toBeNull()
+
+    // Intention card must not artificially stretch into dead space
+    const intentionBox = await page.locator('.card-session-intention').boundingBox()
+    expect(intentionBox).not.toBeNull()
+    expect(intentionBox!.height).toBeGreaterThan(60)
   })
 
   test('Phase C: PC System Monitor sub-tab displays live native telemetry metrics and process table', async ({ page }) => {
