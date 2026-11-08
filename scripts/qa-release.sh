@@ -88,7 +88,40 @@ run_security_gate() {
   echo ""
   echo "--- [2/5] EXECUTING SECURITY & SUPPLY-CHAIN GATE ---"
   
-  if node scripts/qa-security.mjs; then
+  local sec_pass=true
+  if ! node scripts/qa-security.mjs; then
+    sec_pass=false
+  fi
+
+  if command -v gitleaks >/dev/null 2>&1; then
+    echo ">> Running Gitleaks secret detection..."
+    if ! gitleaks detect --no-git --redact; then
+      sec_pass=false
+    fi
+  fi
+
+  if command -v semgrep >/dev/null 2>&1; then
+    echo ">> Running Semgrep SAST scan..."
+    if ! semgrep scan --config auto --error; then
+      sec_pass=false
+    fi
+  fi
+
+  if command -v osv-scanner >/dev/null 2>&1; then
+    echo ">> Running OSV-Scanner dependency scan..."
+    if ! osv-scanner scan -r .; then
+      sec_pass=false
+    fi
+  fi
+
+  if command -v cargo-deny >/dev/null 2>&1; then
+    echo ">> Running Cargo Deny scan..."
+    if ! cargo deny check; then
+      sec_pass=false
+    fi
+  fi
+
+  if [ "$sec_pass" = true ]; then
     GATE_SECURITY_STATUS="PASS"
     record_gate_result "Security" "PASS"
   else

@@ -1,176 +1,36 @@
-# SHINPO — Standalone Runtime Architecture & Operations Manual
+# Standalone Desktop Runtime
 
-This document defines the production architecture, runtime lifecycle, and operational procedures for running SHINPO as a self-contained, offline-capable desktop application on Fedora Linux (and other desktop environments).
+## Runtime boundary
 
----
+The local desktop application is a Tauri v2 shell containing a React frontend and native Rust services. The local account path invokes Rust through Tauri IPC and stores account data in an encrypted SQLCipher database under Tauri's per-user application-data directory. Account paths are derived by Tauri; do not assume a fixed path across operating systems or packaging formats.
 
-## 1. Runtime Topology & Component Map
+Spring Boot, PostgreSQL, Docker, and a local HTTP server are not required for the local-vault application flow. The legacy backend remains in the repository for parity and migration work. A local operation must fail visibly if its native IPC operation fails; it must not silently fall back to the legacy HTTP service.
 
-SHINPO runs entirely on the user's local machine without external cloud dependencies, paid infrastructure, or remote databases.
+Production WebView connectivity is restricted by the CSP in `frontend/src-tauri/tauri.conf.json` to Tauri IPC origins. Development-server access is configured separately. Optional EONPAI provider requests are made by the native provider service when the user configures a provider; no provider is required for deterministic offline planning.
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             DESKTOP ENVIRONMENT                             │
-│                                                                             │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │                        SHINPO Desktop Shell                         │   │
-│   │   - Tauri 2.12.1 Native Window (GTK / WebKitGTK on Linux)           │   │
-│   │   - Embedded Rust Native Shield Thread (cgroup/process interceptor) │   │
-│   │   - Packaged Static Frontend (Vite + React SPA from ../dist)        │   │
-│   └──────────────────────────────────┬──────────────────────────────────┘   │
-│                                      │ HTTP / WebSocket                     │
-│                                      │ (http://127.0.0.1:8080)              │
-│                                      ▼                                      │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │                     Spring Boot 4 Backend Service                   │   │
-│   │   - Standalone Fat JAR (OpenJDK 25.0.4.1)                           │   │
-│   │   - Process PID: ~/.local/state/shinpo/shinpo-backend.pid           │   │
-│   │   - Logs: ~/.local/share/shinpo/shinpo-backend.log                  │   │
-│   │   - Bound strictly to 127.0.0.1:8080 (Loopback Only)                │   │
-│   │   - Flyway Schema Migrations (V1 through V19)                       │   │
-│   └──────────────────┬───────────────────────────────┬──────────────────┘   │
-│                      │ JDBC (localhost:5432)         │ HTTP (localhost:11434)│
-│                      ▼                               ▼                      │
-│   ┌───────────────────────────────────┐    ┌────────────────────────────┐   │
-│   │   Rootless PostgreSQL 16 (Podman) │    │  Ollama Local LLM (Opt.)   │   │
-│   │   - Container: shinpo-postgres    │    │  - Model: qwen3:4b         │   │
-│   │   - Volume: shinpo-pgdata         │    │  - Fallback: Mock provider │   │
-│   │   - Port: 127.0.0.1:5432          │    └────────────────────────────┘   │
-│   └───────────────────────────────────┘                                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+## Local data and secrets
 
----
+The encrypted vault and its metadata are stored below the platform-specific Tauri app-data directory. The password and recovery key wrap the database key; the recovery key is not an independent backup. Back up the complete SHINPO application-data directory only while SHINPO is closed, and protect the copy as sensitive data. A transactional export/restore flow is not currently qualified.
 
-## 2. Directory Structure & Standard Paths (XDG Compliant)
+Provider credentials use the operating system credential store where supported. Credential-store availability and provider connectivity are runtime-dependent and must be reported as unavailable when they fail.
 
-All per-user configuration and application states strictly adhere to XDG Base Directory standards:
+## Guardian and Browser Companion
 
-| Path | Purpose | Permissions |
-| :--- | :--- | :--- |
-| `~/.config/shinpo/shinpo.env` | Standalone environment file containing cryptographically generated JWT keys and DB credentials | `0600` (`-rw-------`) |
-| `~/.local/state/shinpo/shinpo-backend.pid` | PID tracking file for the standalone Spring Boot JAR process | `0644` |
-| `~/.local/share/shinpo/shinpo-backend.log` | Rolling application runtime log for backend inspection | `0644` |
-| `~/.local/share/containers/storage/` | Rootless Podman volume storage for `shinpo-postgres` database files | Managed by Podman |
-| `~/.local/share/shinpo/shield_spool.json` | Offline spooling storage for Shield enforcement quarantine events | `0600` |
+- Native Guardian application handling is **warning-only**. It records consented observations; the desktop application does not automatically terminate processes.
+- The Linux native capability is observation and warning. Windows Guardian is reported unavailable by the platform capability command.
+- Browser Companion site policy requires a supported browser extension, a registered native-messaging host, successful pairing, and an active connection. A local saved pairing is not a live-connection signal.
+- Do not infer that apps or websites are blocked from a Focus session being active.
 
----
-
-## 3. Configuration & Secret Management
-
-Secrets are never hardcoded in source files or configuration scripts.
-
-Upon first launch, `scripts/shinpo-runtime.sh` (or `bin/shinpo`) inspects `~/.config/shinpo/shinpo.env`. If absent, it automatically generates a 256-bit cryptographic JWT secret using `openssl rand -hex 32` and writes the configuration with restricted file permissions (`chmod 600`):
+## Useful commands
 
 ```bash
-# SHINPO Local Standalone Environment Configuration
-SERVER_ADDRESS=127.0.0.1
-SERVER_PORT=8080
-
-POSTGRES_HOST=127.0.0.1
-POSTGRES_PORT=5432
-POSTGRES_DB=shinpo
-POSTGRES_USER=shinpo
-POSTGRES_PASSWORD=shinpo_dev
-
-# Cryptographically generated 256-bit JWT signing secret
-SHINPO_JWT_SECRET=<64-character hex string>
-
-# EONPAI AI Provider Settings (Local Ollama)
-SHINPO_AI_ENABLED=true
-SHINPO_AI_PROVIDER=ollama
-SHINPO_AI_OLLAMA_BASE_URL=http://localhost:11434
-SHINPO_AI_OLLAMA_MODEL=qwen3:4b
+npm run tauri:dev
+cargo run --locked --manifest-path frontend/src-tauri/Cargo.toml --bin shinpo-desktop -- --smoke-test
+npm run check:all
 ```
 
----
+The smoke-test command creates and removes its own unique disposable profile under the system temporary directory. It never opens the normal app-data directory.
 
-## 4. Lifecycle & Process Management
+## Legacy runtime
 
-### Startup Sequence
-
-```mermaid
-sequenceDiagram
-    participant User as User / Launcher (bin/shinpo)
-    participant Podman as Rootless Podman (shinpo-postgres)
-    participant Boot as Spring Boot JAR (Java 25)
-    participant Tauri as Tauri Desktop Window
-
-    User->>User: Source ~/.config/shinpo/shinpo.env
-    User->>Podman: Check container status (inspect shinpo-postgres)
-    alt Container stopped / not created
-        User->>Podman: Start/run shinpo-postgres (docker.io/library/postgres:16)
-    end
-    User->>Podman: Poll pg_isready until port 5432 is accepting queries
-    User->>Boot: Check PID file. If alive and healthy, skip startup.
-    alt Backend not running
-        User->>Boot: Launch java -jar shinpo-0.0.1-SNAPSHOT.jar with setsid & disown
-        Boot->>Boot: Record PID to ~/.local/state/shinpo/shinpo-backend.pid
-        Boot->>Podman: Execute Flyway migrations (V1 -> V19)
-        Boot->>Boot: Open port 8080 on 127.0.0.1
-    end
-    User->>Boot: Poll /actuator/health until status == UP
-    User->>Tauri: Launch Desktop Window (shinpo-desktop)
-    Tauri->>Boot: Connect to http://127.0.0.1:8080
-    Tauri->>Tauri: Launch native Sentinel/Shield background thread
-```
-
-### Shutdown Sequence
-
-1. **Desktop Window Close**: The user closes the Tauri desktop window. The embedded Shield enforcement thread terminates gracefully.
-2. **Backend Shutdown (`bin/shinpo stop`)**:
-   - Sends `SIGTERM` to the PID recorded in `~/.local/state/shinpo/shinpo-backend.pid`.
-   - Waits up to 10 seconds for graceful connection draining and Hikari connection pool release.
-   - Cleans up PID file upon exit.
-3. **Database Container**: Remains persisted in background or stops via container command without data loss.
-
----
-
-## 5. Fedora Packaging & Distribution Direction
-
-For Fedora Linux workstations (x86_64), SHINPO leverages native Linux bundling capabilities built into Tauri:
-
-1. **RPM Package (`.rpm`)**:
-   - Generated using Tauri's native `rpmbuild` integration.
-   - Configuration in `frontend/src-tauri/tauri.conf.json`:
-     ```json
-     "bundle": {
-       "active": true,
-       "targets": ["rpm", "appimage", "nsis"],
-       "linux": {
-         "rpm": {
-           "release": "1"
-         }
-       }
-     }
-     ```
-   - Installs desktop launcher `.desktop` file to `/usr/share/applications/` and icon assets to `/usr/share/icons/hicolor/`.
-2. **AppImage (`.AppImage`)**:
-   - Standalone portable single-file binary containing bundled WebKitGTK libraries and runtime dependencies.
-
----
-
-## 6. CLI Reference: `bin/shinpo`
-
-The repository provides a single unified entry point `bin/shinpo` (symlinked to `scripts/shinpo-runtime.sh`):
-
-```bash
-# Check status of PostgreSQL, Backend process, and Health endpoint
-./bin/shinpo status
-
-# Start PostgreSQL and Backend in the background
-./bin/shinpo start
-
-# Stop the Backend process cleanly
-./bin/shinpo stop
-
-# Restart Backend cleanly without port conflicts
-./bin/shinpo restart
-
-# Tail backend runtime logs
-./bin/shinpo logs
-
-# Start backend (if not running) and open desktop application
-./bin/shinpo desktop
-```
-
+`backend/`, database migrations, Docker files, and legacy HTTP clients are retained while parity and historical migration requirements are being resolved. Their presence in the source tree does not mean the standalone local-vault desktop path starts or requires them. Do not delete legacy migrations or user data as part of normal desktop startup.

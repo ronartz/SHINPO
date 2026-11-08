@@ -7,6 +7,7 @@
     "qa:visual": "./scripts/qa-release.sh visual",
     "qa:visual:desktop": "npm --prefix frontend run qa:visual:desktop",
     "qa:security": "./scripts/qa-release.sh security",
+    "check:all": "bash ./scripts/qa-check-all.sh",
     "qa:native": "./scripts/qa-release.sh native",
     "test:e2e": "npm --prefix frontend run test:e2e",
     "test:a11y": "npm --prefix frontend run test:a11y",
