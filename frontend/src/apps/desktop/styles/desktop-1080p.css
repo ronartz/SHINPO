@@ -32,7 +32,7 @@
   /* Compact TopBar */
   .cockpit-top-bar {
     min-height: 48px !important;
-    height: 48px !important;
+    height: auto !important;
     padding: 0 14px !important;
     margin-bottom: 12px !important;
     gap: 12px !important;
@@ -112,7 +112,8 @@
   .priority-hero-card,
   .schedule-card,
   .dashboard-rewards-summary {
-    min-height: 185px !important;
+    min-height: 0 !important;
+    height: 100% !important;
     padding: 16px 18px !important;
     border-radius: var(--radius-lg, 16px) !important;
   }
@@ -215,7 +216,8 @@
 
   .goals-view-deck .goal-card-item,
   .goal-card-item {
-    min-height: 142px !important;
+    min-height: 0 !important;
+    height: auto !important;
     padding: 13px 15px 12px !important;
     border-radius: var(--radius-lg, 16px) !important;
   }
@@ -260,15 +262,37 @@
   .focus-hero-split {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) !important;
     gap: 14px !important;
-    align-items: stretch !important;
+    align-items: start !important;
+  }
+
+  .focus-left-column {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    gap: 14px !important;
   }
 
   /* Compact Timer HUD */
   .card-timer-hud {
-    min-height: 390px !important;
-    max-height: 430px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
     padding: 18px 20px !important;
     border-radius: var(--radius-lg, 16px) !important;
+  }
+
+  .focus-workspace-container[data-focus-mode='active'] .card-timer-hud,
+  .focus-workspace-container[data-focus-mode='paused'] .card-timer-hud,
+  .focus-workspace-container[data-focus-mode='break'] .card-timer-hud {
+    height: 100% !important;
+  }
+
+  .card-session-intention {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .focus-time-orbit {
@@ -304,7 +328,8 @@
 
   /* Session Configuration Card */
   .card-session-creator {
-    min-height: 390px !important;
+    min-height: 0 !important;
+    height: 100% !important;
     padding: 18px 20px !important;
     border-radius: var(--radius-lg, 16px) !important;
   }
@@ -496,14 +521,20 @@
    9. EONPAI ASSISTANT (FIXED PROMPT ANCHOR & CONTAINED FEED AT 1080P)
    -------------------------------------------------------------------------- */
 @media (min-width: 1440px) and (min-height: 800px) {
-  .eonpai-cockpit-layout {
-    height: calc(100vh - 90px) !important;
-    max-height: calc(100vh - 90px) !important;
+  .eonpai-cockpit-layout,
+  .eonpai-aurora-workspace {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
     gap: 14px !important;
   }
 
-  .eonpai-command-drawer {
+  .eonpai-command-drawer,
+  .eonpai-utility-panel {
     padding: 14px !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    align-self: stretch !important;
   }
 
   .eonpai-conversation-card {
@@ -520,5 +551,8 @@
 
   .eonpai-context-panel {
     padding: 14px !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    align-self: stretch !important;
   }
 }

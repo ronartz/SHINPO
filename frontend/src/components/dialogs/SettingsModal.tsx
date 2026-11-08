@@ -615,7 +615,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isTauriEnvironment()) {
       results.shield = {
         pass: true,
-        detail: 'Tauri desktop runtime verified. Local protection service connected.',
+        detail: 'Tauri desktop runtime available. Guardian remains warning-only.',
       }
     } else {
       results.shield = {
@@ -1699,8 +1699,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </label>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                       <li><strong>No Keystroke or Screen Logging:</strong> SHINPO checks application names against your focus rules.</li>
-                      <li><strong>Local Enforcement:</strong> Application blocking runs locally on your computer. Server-side process scanning is disabled.</li>
-                      <li><strong>Tenant Isolation:</strong> Your cloud account data is strictly isolated by user ID and signed by cryptographically validated JWTs.</li>
+                      <li><strong>Guardian:</strong> App observations and warnings run locally; this release does not close applications.</li>
+                      <li><strong>Local vault:</strong> Account data is stored in the encrypted local workspace.</li>
                     </ul>
                   </div>
 

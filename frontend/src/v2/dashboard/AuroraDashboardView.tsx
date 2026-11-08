@@ -1098,7 +1098,16 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           </Box>
 
           {/* Card Body: Renders sorted sessions with 3-column CSS Grid geometry */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, justifyContent: 'flex-start' }}>
+          <Box
+            className="schedule-card-body"
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              flex: 1,
+              justifyContent: sortedScheduleSessions.length <= 1 ? 'center' : 'flex-start',
+            }}
+          >
             {sortedScheduleSessions.length > 0 ? (
               sortedScheduleSessions.slice(0, 4).map((s, idx) => {
                 const isActive = s.status === 'ACTIVE' || s.status === 'PAUSED' || (activeSession && activeSession.id === s.id)
@@ -1331,7 +1340,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               </Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, p: 1.1, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: _progress?.streak ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: 1, p: 1.1, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)' }}>
               <Box>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Active Goals</Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
@@ -1340,6 +1349,14 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Focus Sessions</Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{completedSessionsCount}</Typography>
               </Box>
+              {_progress?.streak && (
+                <Box data-testid="dashboard-streak-tile">
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Streak</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 750, color: _progress.streak.currentStreak > 0 ? 'var(--accent-orange, #f97316)' : 'inherit' }}>
+                    {_progress.streak.currentStreak}d
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 0.6, borderTop: '1px solid var(--border)' }}>
@@ -1349,15 +1366,15 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               </Typography>
             </Box>
 
-            <Box sx={{ mt: 'auto', pt: 0.4 }}>
+            <Box sx={{ mt: 'auto', pt: 0.8, pb: 0.5 }}>
               <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
                 <Box sx={{ width: `${totalMissionsCount ? Math.min(100, Math.round((completedMissionsCount / totalMissionsCount) * 100)) : 0}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.6 }}>
-                <Typography sx={{ color: 'text.secondary', fontSize: 11.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.8 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 11.5, fontWeight: 500 }}>
                   {totalMissionsCount > 0 ? `${Math.round((completedMissionsCount / totalMissionsCount) * 100)}% complete` : '0% complete'}
                 </Typography>
-                <Typography sx={{ color: 'text.secondary', fontSize: 11.5 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 11.5, fontWeight: 500 }}>
                   {totalMissionsCount > 0 ? `${totalMissionsCount - completedMissionsCount} open tasks` : '0 open tasks'}
                 </Typography>
               </Box>

@@ -586,6 +586,38 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
+.app-shell.theme-aurora .study-mode-options {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.app-shell.theme-aurora .study-mode-option {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  gap: 5px !important;
+  min-height: 72px !important;
+  white-space: normal !important;
+  padding: 12px 14px !important;
+}
+
+.app-shell.theme-aurora .study-mode-option strong {
+  display: block !important;
+  color: var(--text) !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+}
+
+.app-shell.theme-aurora .study-mode-option span,
+.app-shell.theme-aurora .study-mode-option .study-mode-option-detail {
+  display: block !important;
+  color: var(--text-3) !important;
+  font-size: 11.5px !important;
+  line-height: 1.45 !important;
+}
+
 .app-shell.theme-aurora :is(button, a, [role='button'], .MuiButtonBase-root) {
   -webkit-tap-highlight-color: transparent;
   transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease;
@@ -725,9 +757,10 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
 /* Aurora EONPAI: a bounded three-zone workspace with live, honest context. */
 .app-shell.theme-aurora .app-content-stage-ai {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
 }
 
 .app-shell.theme-aurora .eonpai-aurora-workspace {
@@ -735,7 +768,8 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(240px, 300px);
   gap: 12px;
   flex: 1 1 auto;
-  height: auto;
+  height: 100% !important;
+  max-height: 100% !important;
   overflow: hidden;
   min-height: 0;
 }

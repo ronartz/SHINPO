@@ -198,7 +198,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
               },
             }}
-            title={isRefreshing ? 'Synchronizing with cloud...' : 'Refresh Data'}
+            title={isRefreshing ? 'Refreshing data…' : 'Refresh data'}
             aria-label="Refresh Data"
           >
             <Icon name="refresh" size={15} />

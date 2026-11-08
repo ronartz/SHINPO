@@ -329,12 +329,12 @@ export function StudyResourcesPanel({
       <div className="study-resources-header">
         <div className="study-resources-heading">
           <span className="study-resources-icon"><Icon name="journal" size={17} /></span>
-          <div>
+          <div className="study-resources-heading-copy">
             <div className="study-resources-title-line">
-              <h3>Study Resources</h3>
+              <h3 id="study-resources-heading">Study Resources</h3>
               <span className="badge-tag blue">{resources.length}</span>
             </div>
-            <p>{taskTitle ? `For ${taskTitle}` : 'Task-aware links and contextual protection'}</p>
+            <p className="study-resources-sub">{taskTitle ? `For ${taskTitle}` : 'Task-aware links and contextual protection'}</p>
           </div>
         </div>
         {hasTarget && (
@@ -411,7 +411,7 @@ export function StudyResourcesPanel({
                     onClick={() => void handleModeChange(option)}
                   >
                     <strong>{MODE_DETAILS[option].label}</strong>
-                    <span>{MODE_DETAILS[option].detail}</span>
+                    <span className="study-mode-option-detail">{MODE_DETAILS[option].detail}</span>
                   </button>
                 ))}
               </div>

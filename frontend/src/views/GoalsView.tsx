@@ -436,7 +436,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           ========================================================================= */}
       <header className="goals-page-heading">
         <div className="goals-page-copy">
-          <span>Goals &amp; Tasks</span>
+          <span>Portfolio &amp; Roadmap</span>
           <h1>Goals &amp; Tasks</h1>
           <p>Turn your goals into focused action. Plan, track, and complete the work that matters.</p>
         </div>
@@ -807,16 +807,16 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           SECTION 2: TASKS AREA (Primary List View with Status Tabs, Search & Sort)
           ========================================================================= */}
       <section className={`goals-task-area ${taskViewMode === 'board' ? 'is-board-mode' : ''}`} aria-label="Tasks">
-      <div className="deck-section-header" data-tutorial="missions-queue">
-        <div className="deck-section-title">
-          <Icon name="target" size={17} />
-          <span>Tasks</span>
-          <span className="deck-counter-badge">{missions.length}</span>
+        <div className="deck-section-header" data-tutorial="missions-queue">
+          <div className="deck-section-title">
+            <Icon name="target" size={17} />
+            <span>Tasks</span>
+            <span className="deck-counter-badge">{missions.length}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Status filters and task actions occupy separate, predictable grid cells. */}
-      {taskViewMode === 'list' && (
+        {/* Status filters and task actions occupy separate, predictable grid cells. */}
+        {taskViewMode === 'list' && (
           <div className="tasks-status-tabs">
             <button
               type="button"
@@ -952,86 +952,86 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           )}
         </div>
 
-      {/* Task Content: Primary List View OR Board Mode */}
-      {taskViewMode === 'list' ? (
-        <div className="missions-list-container microkit-tab-content">
-          {filteredMissions.length === 0 ? (
-            <div className="missions-empty-row">
-              <Icon name="target" size={18} />
-              <span>
-                {missions.length === 0
-                  ? 'No tasks yet. Create a task or plan tasks from a goal.'
-                  : 'No tasks matching the selected filter or search query.'}
-              </span>
-            </div>
-          ) : (
-            filteredMissions.map((m) => renderTaskRow(m))
-          )}
-        </div>
-      ) : (
-        /* Board Mode (Improved Symmetrical Kanban) */
-        <div className="flight-deck-board-grid microkit-tab-content">
-          {/* Lane 1: In Progress */}
-          <div className="status-column col-in-progress">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-coral" />
-                <span className="column-title-text">In Progress</span>
+        {/* Task Content: Primary List View OR Board Mode */}
+        {taskViewMode === 'list' ? (
+          <div className="missions-list-container microkit-tab-content">
+            {filteredMissions.length === 0 ? (
+              <div className="missions-empty-row">
+                <Icon name="target" size={18} />
+                <span>
+                  {missions.length === 0
+                    ? 'No tasks yet. Create a task or plan tasks from a goal.'
+                    : 'No tasks matching the selected filter or search query.'}
+                </span>
               </div>
-              <span className="column-count-badge">{boardInProgress.length}</span>
-            </div>
-            <div className="status-column-cards">
-              {boardInProgress.length > 0 ? (
-                boardInProgress.map(renderKanbanCard)
-              ) : (
-                <div className="status-column-empty">
-                  <span className="empty-title">No tasks in progress.</span>
-                </div>
-              )}
-            </div>
+            ) : (
+              filteredMissions.map((m) => renderTaskRow(m))
+            )}
           </div>
+        ) : (
+          /* Board Mode (Improved Symmetrical Kanban) */
+          <div className="flight-deck-board-grid microkit-tab-content">
+            {/* Lane 1: In Progress */}
+            <div className="status-column col-in-progress">
+              <div className="status-column-header">
+                <div className="column-header-title">
+                  <span className="column-status-dot dot-coral" />
+                  <span className="column-title-text">In Progress</span>
+                </div>
+                <span className="column-count-badge">{boardInProgress.length}</span>
+              </div>
+              <div className="status-column-cards">
+                {boardInProgress.length > 0 ? (
+                  boardInProgress.map(renderKanbanCard)
+                ) : (
+                  <div className="status-column-empty">
+                    <span className="empty-title">No tasks in progress.</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-          {/* Lane 2: Ready */}
-          <div className="status-column col-backlog">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-blue" />
-                <span className="column-title-text">Ready</span>
-              </div>
-              <span className="column-count-badge">{boardReady.length}</span>
-            </div>
-            <div className="status-column-cards">
-              {boardReady.length > 0 ? (
-                boardReady.map(renderKanbanCard)
-              ) : (
-                <div className="status-column-empty">
-                  <span className="empty-title">Tasks ready to start will appear here.</span>
+            {/* Lane 2: Ready */}
+            <div className="status-column col-backlog">
+              <div className="status-column-header">
+                <div className="column-header-title">
+                  <span className="column-status-dot dot-blue" />
+                  <span className="column-title-text">Ready</span>
                 </div>
-              )}
+                <span className="column-count-badge">{boardReady.length}</span>
+              </div>
+              <div className="status-column-cards">
+                {boardReady.length > 0 ? (
+                  boardReady.map(renderKanbanCard)
+                ) : (
+                  <div className="status-column-empty">
+                    <span className="empty-title">Tasks ready to start will appear here.</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Lane 3: Completed */}
-          <div className="status-column col-completed">
-            <div className="status-column-header">
-              <div className="column-header-title">
-                <span className="column-status-dot dot-emerald" />
-                <span className="column-title-text">Completed</span>
-              </div>
-              <span className="column-count-badge">{boardCompleted.length}</span>
-            </div>
-            <div className="status-column-cards">
-              {boardCompleted.length > 0 ? (
-                boardCompleted.map(renderKanbanCard)
-              ) : (
-                <div className="status-column-empty">
-                  <span className="empty-title">Completed tasks will appear here.</span>
+            {/* Lane 3: Completed */}
+            <div className="status-column col-completed">
+              <div className="status-column-header">
+                <div className="column-header-title">
+                  <span className="column-status-dot dot-emerald" />
+                  <span className="column-title-text">Completed</span>
                 </div>
-              )}
+                <span className="column-count-badge">{boardCompleted.length}</span>
+              </div>
+              <div className="status-column-cards">
+                {boardCompleted.length > 0 ? (
+                  boardCompleted.map(renderKanbanCard)
+                ) : (
+                  <div className="status-column-empty">
+                    <span className="empty-title">Completed tasks will appear here.</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </section>
 
       {resourceMission && (

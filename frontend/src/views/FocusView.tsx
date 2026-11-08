@@ -57,8 +57,6 @@ export interface FocusViewProps {
   guardianAppMonitoring: boolean
   setGuardianAppMonitoring: (enabled: boolean) => void
   onGuardianPreferencesSaved: (preferences: GuardianPreferences) => void
-  closureConsent: boolean
-  setClosureConsent: (enabled: boolean) => void
   backgroundRuntimeConsent: boolean
   setBackgroundRuntimeConsent: (enabled: boolean) => void
   guardianModeAvailable: boolean
@@ -89,8 +87,8 @@ const getStatusClass = (status: FocusSessionStatus | string): string => {
 
 const GUARDIAN_MODE_OPTIONS: ReadonlyArray<{ mode: GuardianMode; label: string; detail: string }> = [
   { mode: 'GUIDED', label: 'Light', detail: 'App monitoring is warning-only; website rules depend on a connected Browser Companion.' },
-  { mode: 'PROTECTED', label: 'Standard', detail: 'With consent, recognized apps receive a cooperative close request after 10 minutes of sampled running time on Linux.' },
-  { mode: 'STRICT', label: 'Strict', detail: 'With account consent, Linux may request a cooperative close immediately for identity-verified recognized apps.' },
+  { mode: 'PROTECTED', label: 'Standard', detail: 'With separate consent, SHINPO samples recognized app-running time and warns; it does not close apps.' },
+  { mode: 'STRICT', label: 'Strict', detail: 'SHINPO warns when it observes a recognized app; it does not close apps.' },
 ]
 
 export const FocusView: React.FC<FocusViewProps> = ({
@@ -134,8 +132,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
   guardianAppMonitoring,
   setGuardianAppMonitoring,
   onGuardianPreferencesSaved,
-  closureConsent,
-  setClosureConsent,
   backgroundRuntimeConsent,
   setBackgroundRuntimeConsent,
   guardianModeAvailable,
@@ -167,13 +163,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
         preferredMode: guardianMode,
         appMonitoringConsent: applyToNewSessions && guardianAppMonitoring,
         applyToNewSessions,
-        closureConsent: applyToNewSessions && guardianAppMonitoring && closureConsent,
+        closureConsent: false,
         backgroundRuntimeConsent: applyToNewSessions && guardianAppMonitoring && backgroundRuntimeConsent,
       })
       onGuardianPreferencesSaved(saved)
       if (!saved.appMonitoringConsent) setGuardianAppMonitoring(false)
       if (!applyToNewSessions || !saved.appMonitoringConsent) {
-        setClosureConsent(false)
         setBackgroundRuntimeConsent(false)
       }
       setGuardianPreferenceMessage(applyToNewSessions
@@ -319,7 +314,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </div>
                   )}
                   <span className="focus-stage-task">
-                    {activeSession?.name || (sessionIntention.trim() || 'Choose one meaningful next step')}
+                    {activeSession?.name || (sessionIntention.trim() ? `Target: ${sessionIntention.trim()}` : 'Choose one meaningful next step')}
                   </span>
                 </div>
               </div>
@@ -438,6 +433,11 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   </button>
                 ))}
               </div>
+              <div className="intention-guidance-footer" style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
+                  Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -516,13 +516,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </div>
                     <p className="study-mode-description" aria-live="polite">{GUARDIAN_MODE_OPTIONS.find(({ mode }) => mode === guardianMode)?.detail}</p>
                     <fieldset className="guardian-consent-group">
-                      <legend>App observation and intervention consent</legend>
+                      <legend>App observation consent</legend>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={guardianAppMonitoring} onChange={(event) => setGuardianAppMonitoring(event.target.checked)} />Allow SHINPO to observe matching process names during this Focus session</label>
                       <p className="guardian-observation-note">On Fedora Wayland, foreground time is unavailable. Standard uses sampled app-running time—not foreground time—and requires separate consent.</p>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={backgroundRuntimeConsent} disabled={!guardianAppMonitoring} onChange={(event) => setBackgroundRuntimeConsent(event.target.checked)} />Allow Standard to count up to 10 minutes while a recognized app is running</label>
-                      <label className="pomodoro-toggle"><input type="checkbox" checked={closureConsent} disabled={!guardianAppMonitoring} onChange={(event) => setClosureConsent(event.target.checked)} />Allow cooperative close requests for identity-verified recognized apps (Linux only)</label>
                     </fieldset>
-                    <p className="guardian-observation-note">SHINPO sends a graceful close request only. It never force-kills; protected, unknown or unverified processes remain untouched. Windows intervention is unavailable.</p>
+                    <p className="guardian-observation-note">Guardian is warning-only in this release. SHINPO never closes applications.</p>
                     <div className="guardian-preference-actions">
                       <button type="button" disabled={savingGuardianPreference} onClick={() => void saveGuardianPreference(true)}>
                         {savingGuardianPreference ? 'Saving…' : 'Remember for future sessions'}

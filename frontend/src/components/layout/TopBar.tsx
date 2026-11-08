@@ -157,7 +157,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           className={`action-btn-circle ${isRefreshing ? 'is-spinning' : ''}`}
           onClick={onRefreshData}
           disabled={isRefreshing}
-          title={isRefreshing ? 'Synchronizing with cloud...' : 'Refresh Data'}
+          title={isRefreshing ? 'Refreshing data…' : 'Refresh data'}
           aria-label="Refresh Data"
         >
           <Icon name="refresh" size={16} />

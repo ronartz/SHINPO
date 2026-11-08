@@ -28,7 +28,7 @@
   gap: var(--space-5);
   width: 100%;
   box-sizing: border-box;
-  align-items: stretch;
+  align-items: start;
 }
 
 .focus-workspace-container[data-focus-mode='active'] .focus-hero-split,
@@ -45,6 +45,10 @@
   gap: var(--space-4);
   min-width: 0;
   width: 100%;
+}
+
+.focus-left-column {
+  height: auto;
 }
 
 .focus-hero-split .card-timer-hud,
@@ -255,14 +259,21 @@
 }
 
 .guardian-observation-note {
-  margin: 8px 0;
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--surface-subtle) 80%, transparent);
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border);
   color: var(--text-3);
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .guardian-consent-group .guardian-observation-note {
-  margin: 4px 0 6px 26px;
+  margin: 6px 0 8px 24px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
 }
 
 .card-session-intention {
@@ -271,7 +282,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
 }
 
 .intention-helper-text {
@@ -311,19 +324,28 @@
 .guardian-preference-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: 10px;
+  gap: var(--space-3, 10px);
+  margin-top: 14px;
+  margin-bottom: 8px;
 }
 
 .guardian-preference-actions button {
-  min-height: 36px;
-  padding: 0 var(--space-3);
+  min-height: 38px;
+  padding: 0 var(--space-4, 16px);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--text);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-subtle);
+  color: var(--text-1);
   font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guardian-preference-actions button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 
 .guardian-preference-actions button:disabled {
@@ -961,12 +983,12 @@ html[data-theme='light'] .btn-timer.warning:hover,
 }
 
 .study-mode-description {
-  margin: 10px 0 14px;
-  padding: 10px 14px;
-  background: color-mix(in srgb, var(--brand-highlight, #7c3aed) 6%, transparent);
-  border-radius: 8px;
+  margin: 12px 0 16px;
+  padding: 11px 16px;
+  background: color-mix(in srgb, var(--brand-highlight, #7c3aed) 8%, transparent);
+  border-radius: var(--radius-md, 10px);
   border-left: 3px solid var(--brand-primary, #8b5cf6);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-2);
 }

@@ -261,7 +261,6 @@ export function DesktopApp() {
     preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false,
     closureConsent: false, backgroundRuntimeConsent: false,
   })
-  const [guardianClosureConsent, setGuardianClosureConsent] = useState(false)
   const [guardianBackgroundRuntimeConsent, setGuardianBackgroundRuntimeConsent] = useState(false)
   const [latePenaltyEnabled, setLatePenaltyEnabled] = useState(false)
   const [latePenaltyXp, setLatePenaltyXp] = useState(5)
@@ -912,7 +911,6 @@ export function DesktopApp() {
     getGuardianPreferences().then((preferences) => {
       if (!active) return
       setSavedGuardianPreferences(preferences)
-      setGuardianClosureConsent(preferences.closureConsent)
       setGuardianBackgroundRuntimeConsent(preferences.backgroundRuntimeConsent)
       if (preferences.applyToNewSessions) {
         setGuardianMode(preferences.preferredMode)
@@ -926,7 +924,6 @@ export function DesktopApp() {
         setGuardianMode('PROTECTED')
         setGuardianAppMonitoring(false)
         setSavedGuardianPreferences({ preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false })
-        setGuardianClosureConsent(false)
         setGuardianBackgroundRuntimeConsent(false)
       }
     })
@@ -1120,11 +1117,15 @@ export function DesktopApp() {
     wsClient.connect(currentUser.id)
 
     const unsubQuarantine = wsClient.onQuarantine((event: SentinelQuarantineEvent) => {
+      const closureConfirmed = ['TERMINATED', 'CLOSED_GRACEFULLY_VERIFIED']
+        .includes(event.enforcementAction.toUpperCase())
       addLiveAlert({
         id: `quarantine-${event.id}-${Date.now()}`,
         type: 'quarantine',
-        title: `Focus Protection: Closed ${event.processName}`,
-        badge: `PID ${event.pid} • ${event.enforcementAction || 'TERMINATED'}`,
+        title: closureConfirmed
+          ? `Focus Protection: Closed ${event.processName}`
+          : `Focus Protection: Distraction observed — ${event.processName}`,
+        badge: `PID ${event.pid} • ${event.enforcementAction || 'WARNING_ONLY'}`,
         description: event.reason,
         timestamp: event.timestamp || new Date().toISOString(),
       })
@@ -1352,7 +1353,6 @@ export function DesktopApp() {
     setGuardianMode('PROTECTED')
     setGuardianAppMonitoring(false)
     setSavedGuardianPreferences({ preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false })
-    setGuardianClosureConsent(false)
     setGuardianBackgroundRuntimeConsent(false)
   }
 
@@ -3202,11 +3202,8 @@ export function DesktopApp() {
           setGuardianAppMonitoring={setGuardianAppMonitoring}
           onGuardianPreferencesSaved={(preferences) => {
             setSavedGuardianPreferences(preferences)
-            setGuardianClosureConsent(preferences.closureConsent)
             setGuardianBackgroundRuntimeConsent(preferences.backgroundRuntimeConsent)
           }}
-          closureConsent={guardianClosureConsent}
-          setClosureConsent={setGuardianClosureConsent}
           backgroundRuntimeConsent={guardianBackgroundRuntimeConsent}
           setBackgroundRuntimeConsent={setGuardianBackgroundRuntimeConsent}
           guardianModeAvailable={isTauriEnvironment() && isLocalVaultSession()}

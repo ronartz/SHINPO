@@ -899,7 +899,7 @@
   white-space: nowrap;
 }
 
-.task-row-goal-pill > span {
+.task-row-goal-pill>span {
   display: inline-block;
   max-width: 140px;
   overflow: hidden;
@@ -1487,14 +1487,16 @@ html[data-theme='light'] .decomp-footer-actions,
 }
 
 .goals-page-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 16px 24px;
   margin-bottom: 24px;
 }
 
 .goals-page-copy {
+  flex: 1 1 320px;
   min-width: 0;
 }
 
@@ -1523,33 +1525,45 @@ html[data-theme='light'] .decomp-footer-actions,
   line-height: 1.5;
 }
 
+.goals-page-heading {
+  margin-bottom: 16px;
+}
+
 .goals-page-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
 .goals-progress-summary {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 8px 16px;
-  border: 1px solid color-mix(in srgb, #4aaeff 22%, var(--border));
-  border-radius: 12px;
-  background: linear-gradient(135deg, color-mix(in srgb, #123052 84%, var(--surface-card)), color-mix(in srgb, #0b1e34 90%, var(--surface-card)));
+  height: 42px;
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-subtle);
 }
 
 .goals-level-ring {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  color: #5cc3ff;
-  background: radial-gradient(closest-side, #102944 79%, transparent 81%), conic-gradient(#31b8ff var(--goals-progress, 0%), #263e5b 0);
+  color: var(--brand-primary, #60a5fa);
+  background: radial-gradient(closest-side, var(--surface-card) 78%, transparent 80%), conic-gradient(var(--brand-primary, #60a5fa) var(--goals-progress, 0%), var(--border) 0);
+}
+
+.goals-level-ring svg {
+  width: 16px;
+  height: 16px;
 }
 
 .goals-level-copy {
@@ -1603,8 +1617,13 @@ html[data-theme='light'] .decomp-footer-actions,
 
 .goals-new-goal-button {
   min-height: 42px;
+  height: 42px;
+  box-sizing: border-box;
   padding-inline: 16px !important;
-  border-radius: 9px !important;
+  border-radius: var(--radius-md, 10px) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
 }
 

@@ -55,11 +55,13 @@ html[data-theme='light'] .shinpo-dropdown-menu {
 
 /* Specific Menu Widths */
 .shinpo-account-dropdown {
-  width: 300px;
+  width: min(300px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
 }
 
 .shinpo-power-dropdown {
-  width: 260px;
+  width: min(260px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
 }
 
 /* Account Dropdown Header */
