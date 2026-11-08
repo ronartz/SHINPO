@@ -175,9 +175,7 @@ pub fn request_graceful_close(
     if !closure_consent {
         return Ok(CloseResult::ConsentRequired);
     }
-    if expected.pid == std::process::id()
-        || protected_process_name(&expected.process_name)
-    {
+    if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
         return Err("Protected or unrecognized processes cannot be closed".into());
     }
     // pidfd binds the operation to this process instance; never fall back to kill(PID).
@@ -379,14 +377,18 @@ mod tests {
             return;
         };
         // Catalog inspection ignores non-catalog names
-        assert!(inspect_distraction(process.child.id(), "shinpo-custom-target-app")
-            .unwrap()
-            .is_none());
+        assert!(
+            inspect_distraction(process.child.id(), "shinpo-custom-target-app")
+                .unwrap()
+                .is_none()
+        );
         // Target inspection recognizes and verifies user-configured target names
         let identity = inspect_target_process(process.child.id(), "shinpo-custom-target-app")
             .unwrap()
             .unwrap();
-        assert!(identity.executable_path.ends_with("shinpo-custom-target-app"));
+        assert!(identity
+            .executable_path
+            .ends_with("shinpo-custom-target-app"));
         assert_eq!(identity.owner_id, unsafe { libc::geteuid() });
         assert_eq!(
             request_graceful_close(&identity, false).unwrap(),

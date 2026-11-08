@@ -1,8 +1,10 @@
 export function guardianCapabilityLabel(capability?: string | null): string {
   switch (capability) {
-    case 'STRICT_LINUX_COOPERATIVE_CLOSE': return 'Strict · cooperative close available'
-    case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE': return 'Standard · sampled app-running allowance'
-    case 'STANDARD_COOPERATIVE_CLOSE_READY': return 'Standard · cooperative close available'
+    case 'STRICT_LINUX_COOPERATIVE_CLOSE':
+    case 'STRICT_WARNING_ONLY': return 'Strict · warning-only; app closure disabled'
+    case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
+    case 'STANDARD_WARNING_ONLY': return 'Standard · warning-only'
+    case 'STANDARD_COOPERATIVE_CLOSE_READY': return 'Standard · warning-only; app closure disabled'
     case 'BREAK_OBSERVATION_ONLY': return 'Break · observation only'
     case 'GRACE_WARNING_ONLY': return 'Grace period · warning only'
     case 'RETURN_REQUIRED_WARNING_ONLY': return 'Return required · warning only'
@@ -13,7 +15,7 @@ export function guardianCapabilityLabel(capability?: string | null): string {
     case 'LIMITED_OBSERVER_UNAVAILABLE': return 'Limited · observer unavailable'
     case 'LIMITED_OBSERVER_STARTING': return 'Starting app observation'
     case 'LIMITED_PLATFORM_UNSUPPORTED': return 'Limited · app intervention unavailable on this platform'
-    case 'LIMITED_NO_CLOSURE_CONSENT': return 'Monitoring only · close consent is off'
+    case 'LIMITED_NO_CLOSURE_CONSENT': return 'Monitoring only · app closure disabled'
     case 'LIMITED_NO_RUNTIME_CONSENT': return 'Monitoring only · runtime allowance consent is off'
     case 'LOCKED': return 'Vault locked'
     default: return 'Monitoring · no app action confirmed'
@@ -23,11 +25,15 @@ export function guardianCapabilityLabel(capability?: string | null): string {
 export function guardianInterventionDescription(capability?: string | null): string {
   switch (capability) {
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
-      return 'On Linux, Strict may request a graceful close for eligible, identity-verified catalog processes when account consent is enabled. SHINPO verifies exit and never force-kills.'
+    case 'STRICT_WARNING_ONLY':
+      return 'Strict reports recognized app observations immediately. This release does not close applications.'
     case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
-      return 'Standard measures sampled app-running time, not foreground use. After its 10-minute allowance, Linux may request a consented graceful close for an eligible, identity-verified process.'
+    case 'STANDARD_WARNING_ONLY':
+      return 'Standard may sample recognized app-running time when enabled. This release reports warnings and does not close applications.'
+    case 'STANDARD_COOPERATIVE_CLOSE_READY':
+      return 'Monitoring only: application closure is disabled in this release.'
     case 'LIMITED_NO_CLOSURE_CONSENT':
-      return 'Monitoring only: account-level close consent is off, so no close request can be made.'
+      return 'Monitoring only: application closure is disabled in this release.'
     case 'LIMITED_NO_RUNTIME_CONSENT':
       return 'Monitoring only: Standard runtime-allowance consent is off.'
     case 'LIMITED_PLATFORM_UNSUPPORTED':
@@ -54,11 +60,8 @@ export function guardianInterventionDescription(capability?: string | null): str
   }
 }
 
-export function guardianCanRequestClose(capability?: string | null, warningOnly?: boolean): boolean {
-  return warningOnly === false && (
-    capability === 'STRICT_LINUX_COOPERATIVE_CLOSE'
-    || capability === 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE'
-  )
+export function guardianCanRequestClose(_capability?: string | null, _warningOnly?: boolean): boolean {
+  return false
 }
 
 export function guardianOutcomeLabel(outcome?: string | null): string {
@@ -69,6 +72,8 @@ export function guardianOutcomeLabel(outcome?: string | null): string {
     case 'WARNING_LIGHT': return 'Observed · Light mode'
     case 'WARNING_STANDARD': return 'Observed · Standard mode'
     case 'WARNING_STRICT': return 'Observed · Strict mode'
+    case 'WARNING_STRICT_ENFORCEMENT_DISABLED': return 'Strict · warning only; no app closed'
+    case 'WARNING_ALLOWANCE_ENFORCEMENT_DISABLED': return 'Standard · warning only; no app closed'
     case 'CLOSE_REQUESTED_UNCONFIRMED': return 'Graceful close requested · exit unconfirmed'
     case 'LIMITED_IDENTITY_UNVERIFIED': return 'Limited · process identity unverified'
     case 'LIMITED_NO_CLOSURE_CONSENT': return 'Limited · close consent is off'

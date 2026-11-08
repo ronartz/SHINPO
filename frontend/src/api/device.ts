@@ -217,6 +217,8 @@ export interface SentinelStatus {
   guardianAppCatalogVersion?: string
   guardianDomainCatalogVersion?: string
   warningOnly?: boolean
+  guardianCapability?: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
+  browserCompanionSupported?: boolean
   interventionCapability?: string
   standardAllowanceSeconds?: number | null
   lastGuardianObservationAt?: string | null
@@ -291,6 +293,22 @@ const SENTINEL_BASE = `${API_BASE}/sentinel`
 
 export async function fetchSentinelStatus(): Promise<SentinelStatus> {
   if (isTauriEnvironment() && isLocalVaultSession()) {
+    const capabilities = await invokeTauriCommand<{
+      guardian: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
+      browserCompanionSupported: boolean
+    }>('local_platform_capabilities')
+    if (capabilities.guardian === 'UNAVAILABLE') {
+      return {
+        status: 'UNAVAILABLE', activeFocusSessionId: null, activeFocusSessionName: null,
+        enforcementMode: 'AUDIT_ONLY', totalInterceptedToday: 0, activePolicyRulesCount: 0,
+        isPolicyLocked: false, recentQuarantines: [], lastSweepAt: null, daemonConnected: false,
+        warningOnly: true, guardianCapability: capabilities.guardian,
+        browserCompanionSupported: capabilities.browserCompanionSupported,
+        interventionCapability: 'UNAVAILABLE', observerStatus: 'UNAVAILABLE',
+        applicationPolicyStatus: 'UNAVAILABLE', guardianWarningCount: 0,
+        guardianApplicationCatalog: [], guardianObservations: [],
+      }
+    }
     const local = await invokeTauriCommand<{
       status: 'LOCKED' | 'READY' | 'ACTIVE' | 'PAUSED'
       activeFocusSessionId: number | null
@@ -331,6 +349,8 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
       guardianAppCatalogVersion: local.appCatalogVersion,
       guardianDomainCatalogVersion: local.domainCatalogVersion,
       warningOnly: local.warningOnly,
+      guardianCapability: capabilities.guardian,
+      browserCompanionSupported: capabilities.browserCompanionSupported,
       interventionCapability: local.interventionCapability,
       standardAllowanceSeconds: local.standardAllowanceSeconds,
       lastGuardianObservationAt: local.lastObservationAt,

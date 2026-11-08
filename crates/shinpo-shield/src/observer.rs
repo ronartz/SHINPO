@@ -145,7 +145,10 @@ pub fn observe_processes_with_targets(
                 return None;
             }
             let normalized = name.trim().to_ascii_lowercase();
-            let clean_name = normalized.strip_suffix(".exe").unwrap_or(&normalized).to_string();
+            let clean_name = normalized
+                .strip_suffix(".exe")
+                .unwrap_or(&normalized)
+                .to_string();
 
             // Explicit allowed target check
             if allowed_set.contains(&normalized) || allowed_set.contains(&clean_name) {
@@ -205,6 +208,9 @@ mod tests {
     fn allowed_target_overrides_catalog() {
         let allowed = vec!["discord".to_string(), "steam".to_string()];
         let observed = super::observe_processes_with_targets(&[], &allowed);
-        assert!(!observed.iter().any(|o| o.process_name.to_lowercase() == "discord" || o.process_name.to_lowercase() == "steam"));
+        assert!(!observed
+            .iter()
+            .any(|o| o.process_name.to_lowercase() == "discord"
+                || o.process_name.to_lowercase() == "steam"));
     }
 }

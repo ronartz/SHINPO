@@ -301,6 +301,11 @@ export async function completeFocusSession(
       sessionId: id, quality: payload?.quality ?? null, reflectionNote: payload?.reflectionNote ?? null,
       accomplishment: payload?.accomplishment ?? null, markMissionCompleted: payload?.markMissionCompleted ?? false,
     })
+    if (session.status !== 'COMPLETED'
+      || (session.reflectionNote ?? null) !== (payload?.reflectionNote ?? null)
+      || (session.accomplishment ?? null) !== (payload?.accomplishment ?? null)) {
+      throw new Error('Focus completion was not fully saved. Refresh the session before continuing.')
+    }
     await refreshLocalBrowserPolicy()
     return session
   }

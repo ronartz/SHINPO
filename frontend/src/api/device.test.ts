@@ -23,11 +23,15 @@ test('local vault Sentinel status is explicit and never requests the backend', a
     interventionCapability: 'LOCKED', standardAllowanceSeconds: null as number | null,
     observerStatus: 'LOCKED', applicationPolicyStatus: 'LOCKED', applicationCatalog: [] as { processName: string; category: string; rationale: string }[],
   }
+  let platformCapabilities: { guardian: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'; browserCompanionSupported: boolean } = {
+    guardian: 'OBSERVE_AND_WARN', browserCompanionSupported: true,
+  }
   const commands: string[] = []
   Object.defineProperty(globalThis, '__TAURI_INTERNALS__', {
     configurable: true,
     value: { invoke: async (command: string) => {
       commands.push(command)
+      if (command === 'local_platform_capabilities') return platformCapabilities
       if (command === 'local_get_guardian_status') return guardianStatus
       if (command === 'local_get_guardian_observations') return [{
         id: 3, sessionId: 7, pid: 4242, processName: 'discord', catalogVersion: 'guardian-apps-v1',
@@ -57,6 +61,8 @@ test('local vault Sentinel status is explicit and never requests the backend', a
       recentQuarantines: [],
       lastSweepAt: null,
       daemonConnected: false,
+      guardianCapability: 'OBSERVE_AND_WARN',
+      browserCompanionSupported: true,
       guardianMode: null,
       focusPhase: null,
       guardianWarningCount: 0,
@@ -94,11 +100,20 @@ test('local vault Sentinel status is explicit and never requests the backend', a
     assert.equal(active.guardianObservations?.[0]?.sessionId, 7)
     const localSnapshot = await fetchDeviceSnapshot()
     assert.equal(localSnapshot.systemInfo.osName, 'Linux')
+    platformCapabilities = { guardian: 'UNAVAILABLE', browserCompanionSupported: true }
+    const unsupported = await fetchSentinelStatus()
+    assert.equal(unsupported.status, 'UNAVAILABLE')
+    assert.equal(unsupported.observerStatus, 'UNAVAILABLE')
+    assert.equal(unsupported.interventionCapability, 'UNAVAILABLE')
+    assert.equal(unsupported.browserCompanionSupported, true)
     assert.deepEqual(commands, [
+      'local_platform_capabilities',
       'local_get_guardian_status',
+      'local_platform_capabilities',
       'local_get_guardian_status',
       'local_get_guardian_observations',
       'local_get_process_snapshot',
+      'local_platform_capabilities',
     ])
     await assert.rejects(terminateProcess(4242), /No backend request was made/)
     assert.deepEqual(await fetchSentinelRules(), [])

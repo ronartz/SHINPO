@@ -16,7 +16,7 @@ pub struct DiscoveredApp {
     pub icon: Option<String>,
     pub exec_name: Option<String>,
     pub is_running: bool,
-    pub policy: String, // "BLOCKED" | "ALLOWED" | "NONE"
+    pub policy: String,                 // "BLOCKED" | "ALLOWED" | "NONE"
     pub enforcement_capability: String, // "TERMINATE" | "MONITOR_ONLY" | "UNSUPPORTED"
     pub unsupported_reason: Option<String>,
 }
@@ -34,7 +34,11 @@ pub struct RawDesktopEntry {
     pub is_application: bool,
 }
 
-pub fn parse_desktop_entry_content(id: &str, content: &str, source: &str) -> Option<RawDesktopEntry> {
+pub fn parse_desktop_entry_content(
+    id: &str,
+    content: &str,
+    source: &str,
+) -> Option<RawDesktopEntry> {
     let mut in_desktop_entry = false;
     let mut name = None;
     let mut exec = None;
@@ -121,7 +125,7 @@ pub fn extract_exec_binary(exec_str: &str, wm_class: Option<&str>) -> Option<Str
                         return Some(wm.trim().to_ascii_lowercase());
                     }
                 }
-                let clean = cmd.split('.').last().unwrap_or(cmd);
+                let clean = cmd.split('.').next_back().unwrap_or(cmd);
                 return Some(clean.trim().to_ascii_lowercase());
             }
         }
@@ -156,7 +160,8 @@ pub fn get_linux_application_dirs() -> Vec<(PathBuf, &'static str)> {
         if user_apps.is_dir() {
             dirs.push((user_apps, "user"));
         }
-        let user_flatpak = PathBuf::from(&home).join(".local/share/flatpak/exports/share/applications");
+        let user_flatpak =
+            PathBuf::from(&home).join(".local/share/flatpak/exports/share/applications");
         if user_flatpak.is_dir() {
             dirs.push((user_flatpak, "flatpak"));
         }
@@ -199,11 +204,15 @@ pub fn scan_linux_desktop_entries() -> Vec<RawDesktopEntry> {
     }
 
     let mut result: Vec<RawDesktopEntry> = discovered.into_values().collect();
-    result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    result.sort_by_key(|entry| entry.name.to_lowercase());
     result
 }
 
-fn scan_directory_entries(dir: &Path, source: &str, discovered: &mut HashMap<String, RawDesktopEntry>) {
+fn scan_directory_entries(
+    dir: &Path,
+    source: &str,
+    discovered: &mut HashMap<String, RawDesktopEntry>,
+) {
     let read_dir = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(_) => return,
@@ -291,7 +300,10 @@ fn scan_windows_directory(
             continue;
         }
 
-        let is_lnk = path.extension().and_then(|e| e.to_str()).map_or(false, |ext| ext.eq_ignore_ascii_case("lnk"));
+        let is_lnk = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("lnk"));
         if !is_lnk {
             continue;
         }
@@ -373,19 +385,25 @@ pub fn discover_installed_apps() -> Vec<DiscoveredApp> {
                 || entry
                     .wm_class
                     .as_ref()
-                    .map_or(false, |wm| running_processes.contains(&wm.to_ascii_lowercase()))
+                    .is_some_and(|wm| running_processes.contains(&wm.to_ascii_lowercase()))
         } else {
             false
         };
 
         let is_protected = exec_name
             .as_ref()
-            .map_or(false, |ename| protected_process_name(ename));
+            .is_some_and(|ename| protected_process_name(ename));
 
         let (enforcement_capability, unsupported_reason) = if is_protected {
-            ("UNSUPPORTED".to_string(), Some("Protected system application".to_string()))
+            (
+                "UNSUPPORTED".to_string(),
+                Some("Protected system application".to_string()),
+            )
         } else if exec_name.is_none() {
-            ("UNSUPPORTED".to_string(), Some("Executable target unresolved".to_string()))
+            (
+                "UNSUPPORTED".to_string(),
+                Some("Executable target unresolved".to_string()),
+            )
         } else {
             ("TERMINATE".to_string(), None)
         };
@@ -439,7 +457,9 @@ Exec=utility
 Type=Application
 NoDisplay=true
 "#;
-        assert!(parse_desktop_entry_content("hidden.desktop", content_nodisplay, "system").is_none());
+        assert!(
+            parse_desktop_entry_content("hidden.desktop", content_nodisplay, "system").is_none()
+        );
 
         let content_non_app = r#"
 [Desktop Entry]
@@ -466,7 +486,7 @@ URL=https://example.com
 
     #[test]
     fn test_protected_process_is_marked_unsupported() {
-        let apps = vec![RawDesktopEntry {
+        let apps = [RawDesktopEntry {
             id: "systemd.desktop".to_string(),
             name: "System Daemon".to_string(),
             exec: Some("systemd".to_string()),
@@ -479,8 +499,13 @@ URL=https://example.com
         }];
 
         let entry = &apps[0];
-        let exec_name = entry.exec.as_deref().and_then(|ex| extract_exec_binary(ex, None));
-        let is_protected = exec_name.as_ref().map_or(false, |ename| protected_process_name(ename));
+        let exec_name = entry
+            .exec
+            .as_deref()
+            .and_then(|ex| extract_exec_binary(ex, None));
+        let is_protected = exec_name
+            .as_ref()
+            .is_some_and(|ename| protected_process_name(ename));
         assert!(is_protected);
     }
 }

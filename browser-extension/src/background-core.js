@@ -225,24 +225,30 @@
     }
     state.evaluatingByTab.set(tabId, evaluationKey)
 
-    const result = policyEngine.evaluateUrl(state.policy, url)
-    if (result.decision === policyEngine.DECISIONS.ALLOW) {
-      state.lastAllowedByTab.set(tabId, result.normalizedDestination)
-      await apiCall('tabs', 'sendMessage', tabId, { type: 'HIDE_SHINPO_INTERVENTION' }).catch(() => undefined)
-      await setTabBadge(tabId, '', null)
-    } else if (result.decision === policyEngine.DECISIONS.RESTRICT) {
-      await presentIntervention(tabId, result, source, true)
-    } else if (result.decision === policyEngine.DECISIONS.WARN) {
-      await setTabBadge(tabId, '!', '#D99A24')
-      await presentIntervention(tabId, result, source, false)
-    } else if (result.decision === policyEngine.DECISIONS.UNCERTAIN) {
-      await setTabBadge(tabId, '?', '#5899E2')
-      if (state.policy.mode !== 'GUIDED') await presentIntervention(tabId, result, source, false)
-    } else {
-      await setTabBadge(tabId, '', null)
+    try {
+      const result = policyEngine.evaluateUrl(state.policy, url)
+      if (result.decision === policyEngine.DECISIONS.ALLOW) {
+        state.lastAllowedByTab.set(tabId, result.normalizedDestination)
+        await apiCall('tabs', 'sendMessage', tabId, { type: 'HIDE_SHINPO_INTERVENTION' }).catch(() => undefined)
+        await setTabBadge(tabId, '', null)
+      } else if (result.decision === policyEngine.DECISIONS.RESTRICT) {
+        await presentIntervention(tabId, result, source, true)
+      } else if (result.decision === policyEngine.DECISIONS.WARN) {
+        await setTabBadge(tabId, '!', '#D99A24')
+        await presentIntervention(tabId, result, source, false)
+      } else if (result.decision === policyEngine.DECISIONS.UNCERTAIN) {
+        await setTabBadge(tabId, '?', '#5899E2')
+        if (state.policy.mode !== 'GUIDED') await presentIntervention(tabId, result, source, false)
+      } else {
+        await setTabBadge(tabId, '', null)
+      }
+      await updateAction()
+      return { decision: result.decision, reason: result.reason }
+    } finally {
+      if (state.evaluatingByTab.get(tabId) === evaluationKey) {
+        state.evaluatingByTab.delete(tabId)
+      }
     }
-    await updateAction()
-    return { decision: result.decision, reason: result.reason }
   }
 
   async function presentIntervention(tabId, evaluation, source, blocking) {
