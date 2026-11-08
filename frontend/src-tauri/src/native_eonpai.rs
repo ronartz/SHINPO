@@ -291,11 +291,20 @@ fn validate_action(db: &Connection, action: &Action) -> rusqlite::Result<()> {
 }
 
 fn propose(db: &Connection, action: &Action, description: &str) -> rusqlite::Result<String> {
+    propose_at_revision(db, action, description, revision(db)?)
+}
+
+fn propose_at_revision(
+    db: &Connection,
+    action: &Action,
+    description: &str,
+    basis_revision: i64,
+) -> rusqlite::Result<String> {
     validate_action(db, action)?;
     ensure_active_eonpai_conversation(db)?;
     let id = random_id()?;
     let now = unix_now_seconds();
-    db.execute("INSERT INTO eonpai_actions(action_id,action_type,description,payload,basis_revision,confirmation_token,confirmation_scope,created_at,expires_at,conversation_id) VALUES(?1,?2,?3,?4,?5,'','',?6,?7,(SELECT id FROM eonpai_conversations WHERE status='ACTIVE'))", params![id,action.kind(),description,serde_json::to_string(action).map_err(|_|rusqlite::Error::InvalidQuery)?,revision(db)?,format_epoch_seconds(now),format_epoch_seconds(now+900)])?;
+    db.execute("INSERT INTO eonpai_actions(action_id,action_type,description,payload,basis_revision,confirmation_token,confirmation_scope,created_at,expires_at,conversation_id) VALUES(?1,?2,?3,?4,?5,'','',?6,?7,(SELECT id FROM eonpai_conversations WHERE status='ACTIVE'))", params![id,action.kind(),description,serde_json::to_string(action).map_err(|_|rusqlite::Error::InvalidQuery)?,basis_revision,format_epoch_seconds(now),format_epoch_seconds(now+900)])?;
     Ok(id)
 }
 

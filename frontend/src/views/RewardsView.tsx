@@ -112,15 +112,22 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
   const recentEvents = progress?.recentEvents ?? []
   const visibleEvents = showAllEvents ? recentEvents : recentEvents.slice(0, 3)
 
+  const streak = progress?.streak
+  const currentStreak = streak?.currentStreak ?? 0
+  const longestStreak = streak?.longestStreak ?? currentStreak
+  const todayCompleted = streak?.todayCompleted ?? false
+  const productiveDaysThisMonth = streak?.productiveDaysThisMonth ?? (todayCompleted ? 1 : 0)
+  const lastSevenDays = streak?.lastSevenDays ?? []
+
   return (
     <main className="rewards-view">
       <header className="rewards-heading">
         <div>
           <span className="rewards-eyebrow">Progress built through real work</span>
           <h1>Progress &amp; milestones</h1>
-          <p>Review completed work, Focus history and milestones verified from your saved activity.</p>
+          <p>Review completed work, Focus history and milestones recorded in this workspace.</p>
         </div>
-        <span className="rewards-ledger-trust"><Icon name="shield-check" size={18} /><span><strong>Verified progress</strong><small>Synced from your sessions</small></span></span>
+        <span className="rewards-ledger-trust"><Icon name="shield-check" size={18} /><span><strong>Saved progress</strong><small>From recorded activity</small></span></span>
       </header>
 
       <section className={`rewards-hero${freshEventIds.length ? ' has-new-xp' : ''}`} aria-label="Work progress">
@@ -150,6 +157,61 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
         </div>
       </section>
 
+      <section className="rewards-consistency" aria-labelledby="rewards-consistency-title">
+        <div className="rewards-section-heading">
+          <div>
+            <span className="rewards-eyebrow">Habit &amp; Focus Rhythm</span>
+            <h2 id="rewards-consistency-title">Daily Consistency</h2>
+            <p>Qualified by completing at least one task or a 15-minute focus session each day.</p>
+          </div>
+          <div className="consistency-streak-badge" data-testid="streak-current-badge">
+            <span className="streak-badge-fire"><Icon name="zap" size={16} /></span>
+            <strong>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} streak</strong>
+            <small>{todayCompleted ? '• Today completed' : '• Pending today'}</small>
+          </div>
+        </div>
+
+        <div className="consistency-strip-container">
+          {lastSevenDays.length > 0 && (
+            <div className="consistency-activity-strip" aria-label="7-day activity strip">
+              {lastSevenDays.map((day) => (
+                <div
+                  key={day.date}
+                  className={`consistency-day-tile ${day.qualified ? 'is-qualified' : 'is-unqualified'} ${day.date === lastSevenDays[lastSevenDays.length - 1]?.date ? 'is-today' : ''}`}
+                  title={`${day.date} (${day.dayLabel}): ${day.qualified ? 'Productive day' : 'No qualifying activity'}${day.taskCompleted ? ' · Task completed' : ''}${day.focusMinutes > 0 ? ` · ${day.focusMinutes}m focus` : ''}`}
+                >
+                  <span className="day-tile-label">{day.dayLabel}</span>
+                  <span className="day-tile-indicator">
+                    <Icon name={day.qualified ? 'check' : 'clock'} size={14} />
+                  </span>
+                  <span className="day-tile-date">{day.date.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="consistency-stat-cards">
+            <div className="consistency-stat-tile">
+              <span className="stat-tile-label">Today's state</span>
+              <strong className={todayCompleted ? 'state-complete' : 'state-pending'}>
+                {todayCompleted ? 'Completed' : 'In progress'}
+              </strong>
+              <small>{todayCompleted ? 'Qualified for daily streak' : 'Complete 1 task or 15m focus'}</small>
+            </div>
+            <div className="consistency-stat-tile">
+              <span className="stat-tile-label">Longest streak</span>
+              <strong>{longestStreak} {longestStreak === 1 ? 'day' : 'days'}</strong>
+              <small>All-time consistency record</small>
+            </div>
+            <div className="consistency-stat-tile">
+              <span className="stat-tile-label">This month</span>
+              <strong>{productiveDaysThisMonth} {productiveDaysThisMonth === 1 ? 'day' : 'days'}</strong>
+              <small>Productive calendar days</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="rewards-daily" aria-labelledby="rewards-daily-title">
         <div className="rewards-section-heading">
           <div><h2 id="rewards-daily-title">Today’s progress</h2></div>
@@ -169,7 +231,7 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
 
       <section className="rewards-journey" aria-labelledby="rewards-journey-title">
         <div className="rewards-section-heading">
-          <div><span className="rewards-eyebrow">Earned through verified progress</span><h2 id="rewards-journey-title">Milestones</h2><p>Choose a milestone to see what counts and where to continue.</p></div>
+          <div><span className="rewards-eyebrow">Progress from saved activity</span><h2 id="rewards-journey-title">Milestones</h2><p>Choose a milestone to see what counts and where to continue.</p></div>
           <span className="rewards-count">{unlockedCount} / {achievements.length} met</span>
         </div>
         <div className="rewards-journey-grid">

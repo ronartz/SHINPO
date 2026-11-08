@@ -180,15 +180,22 @@ pub fn local_get_process_snapshot(
         .map_err(|e| format!("Lock error: {e}"))?;
     let sys = guard.as_mut().ok_or("System not initialized")?;
 
-    let search_lower = search.map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty());
-    let policy_filter = policy.map(|p| p.trim().to_uppercase()).filter(|p| !p.is_empty());
+    let search_lower = search
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty());
+    let policy_filter = policy
+        .map(|p| p.trim().to_uppercase())
+        .filter(|p| !p.is_empty());
 
     let mut processes: Vec<LocalProcessInfo> = sys
         .processes()
         .iter()
         .filter_map(|(pid, p)| {
             let name = p.name().to_string_lossy().to_string();
-            let exe = p.exe().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
+            let exe = p
+                .exe()
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_default();
 
             if let Some(ref q) = search_lower {
                 if !name.to_lowercase().contains(q) && !exe.to_lowercase().contains(q) {
@@ -198,7 +205,8 @@ pub fn local_get_process_snapshot(
 
             // Safe classifications: system vs user processes
             let pid_u32 = pid.as_u32();
-            let is_protected_os = pid_u32 <= 100 || name == "systemd" || name == "init" || name == "kthreadd";
+            let is_protected_os =
+                pid_u32 <= 100 || name == "systemd" || name == "init" || name == "kthreadd";
             let state = if is_protected_os {
                 "PROTECTED".to_string()
             } else {
@@ -221,7 +229,10 @@ pub fn local_get_process_snapshot(
                 memory_bytes: Some(p.memory()),
                 status: status_str,
                 started_at: Some(format!("{}", p.start_time())),
-                user: p.user_id().map(|u| format!("{:?}", u)).unwrap_or_else(|| "user".to_string()),
+                user: p
+                    .user_id()
+                    .map(|u| format!("{:?}", u))
+                    .unwrap_or_else(|| "user".to_string()),
                 shinpo_policy_state: state.clone(),
                 policy_reason: if is_protected_os {
                     "Protected OS daemon".to_string()
@@ -237,7 +248,9 @@ pub fn local_get_process_snapshot(
     processes.sort_by(|a, b| {
         let cpu_b = b.cpu_percent.unwrap_or(0.0);
         let cpu_a = a.cpu_percent.unwrap_or(0.0);
-        cpu_b.partial_cmp(&cpu_a).unwrap_or(std::cmp::Ordering::Equal)
+        cpu_b
+            .partial_cmp(&cpu_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let system_info = LocalDeviceSystemInfo {

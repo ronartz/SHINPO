@@ -21,7 +21,7 @@ const SALT_BYTES: usize = 16;
 const NONCE_BYTES: usize = 24;
 const ARGON_MEMORY_KIB: u32 = 65_536;
 const ARGON_ITERATIONS: u32 = 3;
-const LATEST_SCHEMA_VERSION: i64 = 16;
+const LATEST_SCHEMA_VERSION: i64 = 17;
 const LOCAL_VAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 #[path = "native_eonpai.rs"]
@@ -65,6 +65,144 @@ pub struct VaultManager {
     browser_host_paths: shinpo_browser_host::config::HostPaths,
     #[cfg(test)]
     dummy_argon2_runs: std::sync::atomic::AtomicUsize,
+}
+
+pub fn smoke_test() -> Result<(), String> {
+    let mut random = [0u8; 8];
+    getrandom::fill(&mut random)
+        .map_err(|_| "Could not create an isolated smoke-test profile".to_string())?;
+    let root = std::env::temp_dir().join(format!(
+        "shinpo-smoke-{}-{}",
+        std::process::id(),
+        encode_hex(&random)
+    ));
+    fs::create_dir(&root)
+        .map_err(|_| "Could not create an isolated smoke-test profile".to_string())?;
+    let result = run_smoke_test_in(&root);
+    let cleanup = fs::remove_dir_all(&root);
+    result?;
+    cleanup.map_err(|_| {
+        "Smoke test passed, but its temporary profile could not be removed".to_string()
+    })
+}
+
+fn run_smoke_test_in(root: &Path) -> Result<(), String> {
+    let username = "smoke_test_user";
+    let password = "Shinpo disposable smoke password 2026";
+    let manager = VaultManager::new(root.to_path_buf());
+    create_account(&manager, username, password)?;
+    lock_vault_for_system_event(&manager)?;
+    unlock_account(&manager, username, password)?;
+
+    let (goal, task, session) = with_db(&manager, |db| {
+        let goal = insert_goal_record(
+            db,
+            "Smoke-test goal",
+            Some("Disposable"),
+            "2026-01-01",
+            None,
+        )?;
+        let task =
+            insert_task_record(db, goal.id, "Smoke-test task", None, "2026-01-01", Some(25))?;
+        let request = CreateFocusSessionRequest {
+            goal_id: Some(goal.id),
+            mission_id: Some(task.id),
+            name: "Smoke-test focus".into(),
+            intention: Some("Disposable native persistence check".into()),
+            duration_minutes: 25,
+            scheduled_at: None,
+            pomodoro_enabled: Some(false),
+            pomodoro_focus_cycles: Some(2),
+            pomodoro_short_break_minutes: Some(5),
+            pomodoro_long_break_minutes: Some(15),
+            pomodoro_grace_minutes: Some(10),
+            late_penalty_enabled: Some(false),
+            late_penalty_xp: Some(5),
+            late_penalty_daily_cap_xp: Some(20),
+            guardian_mode: Some("PROTECTED".into()),
+            guardian_app_monitoring: Some(false),
+        };
+        let session = insert_focus_record(db, &request)?;
+        complete_task(db, task.id, Some(1)).map_err(|_| rusqlite::Error::InvalidQuery)?;
+        update_goal_record(
+            db,
+            goal.id,
+            &goal.title,
+            goal.description.as_deref(),
+            &goal.start_date,
+            goal.target_date.as_deref(),
+            "COMPLETED",
+        )?;
+        Ok((goal, task, session))
+    })?;
+
+    let start_at = unix_now_seconds() - 900;
+    with_db(&manager, |db| {
+        start_focus_session(db, session.id, start_at)?;
+        complete_focus_session(
+            db,
+            session.id,
+            start_at + 900,
+            Some(5),
+            Some("Smoke-test reflection".into()),
+            Some("Persisted".into()),
+            false,
+        )?;
+        Ok(())
+    })?;
+    lock_vault_for_system_event(&manager)?;
+    drop(manager);
+
+    let reopened = VaultManager::new(root.to_path_buf());
+    unlock_account(&reopened, username, password)?;
+    let (goal_status, task_status, focus_status, xp, reflection): (
+        String,
+        String,
+        String,
+        i64,
+        Option<String>,
+    ) = with_db(&reopened, |db| {
+        Ok((
+            db.query_row("SELECT status FROM goals WHERE id=?1", [goal.id], |r| {
+                r.get(0)
+            })?,
+            db.query_row("SELECT status FROM tasks WHERE id=?1", [task.id], |r| {
+                r.get(0)
+            })?,
+            db.query_row(
+                "SELECT status FROM calendar_sessions WHERE id=?1",
+                [session.id],
+                |r| r.get(0),
+            )?,
+            db.query_row(
+                "SELECT coalesce(sum(amount),0) FROM progress_events",
+                [],
+                |r| r.get(0),
+            )?,
+            db.query_row(
+                "SELECT reflection_note FROM calendar_sessions WHERE id=?1",
+                [session.id],
+                |r| r.get(0),
+            )?,
+        ))
+    })?;
+    if goal_status != "COMPLETED"
+        || task_status != "COMPLETED"
+        || focus_status != "COMPLETED"
+        || xp != 75
+        || reflection.as_deref() != Some("Smoke-test reflection")
+    {
+        return Err("Native smoke test did not recover the expected persisted records".into());
+    }
+    let database = root.join(username).join("shinpo.db");
+    let header = fs::read(database)
+        .map_err(|_| "Could not verify encrypted smoke-test database".to_string())?;
+    if header.starts_with(b"SQLite format 3\0") {
+        return Err("Smoke-test database was readable as plaintext SQLite".into());
+    }
+    lock_vault_for_system_event(&reopened)?;
+    println!("PASS: disposable SQLCipher account, goal/task/focus completion, 75 XP, reflection, lock/unlock, restart recovery, and encrypted file header");
+    Ok(())
 }
 
 #[derive(Default)]
@@ -346,6 +484,26 @@ pub struct LocalStudyResource {
     pub updated_at: String,
 }
 
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyStreakDay {
+    pub date: String,
+    pub day_label: String,
+    pub qualified: bool,
+    pub task_completed: bool,
+    pub focus_minutes: i64,
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsistencyStreak {
+    pub current_streak: i64,
+    pub longest_streak: i64,
+    pub today_completed: bool,
+    pub productive_days_this_month: i64,
+    pub last_seven_days: Vec<DailyStreakDay>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalProgress {
@@ -357,6 +515,7 @@ pub struct LocalProgress {
     pub next_level_threshold: i64,
     pub progress_percent: f64,
     pub recent_events: Vec<LocalProgressEvent>,
+    pub streak: ConsistencyStreak,
 }
 
 #[derive(Serialize)]
@@ -1007,7 +1166,11 @@ pub fn local_vault_status(
 
 #[tauri::command]
 pub fn touch_local_vault_activity(state: tauri::State<'_, VaultManager>) -> Result<(), String> {
-    with_db(&state, |_| Ok(()))
+    touch_local_vault_activity_from(&state)
+}
+
+fn touch_local_vault_activity_from(state: &VaultManager) -> Result<(), String> {
+    with_db_mode(state, true, |_| Ok(()))
 }
 
 #[tauri::command]
@@ -1075,22 +1238,54 @@ pub fn local_update_goal(
         validate_goal_status(value)?;
     }
     with_db(&state, |db| {
-        let old: String = db
-            .query_row("SELECT status FROM goals WHERE id=?1", [goal_id], |row| {
-                row.get(0)
-            })
-            .optional()?
-            .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
-        let next = status
-            .as_deref()
-            .map(str::to_ascii_uppercase)
-            .unwrap_or(old.clone());
-        db.execute("UPDATE goals SET title=?1,description=?2,start_date=?3,target_date=?4,status=?5 WHERE id=?6", params![title.trim(),description,start_date,target_date,next,goal_id])?;
-        if old != "COMPLETED" && next == "COMPLETED" {
-            insert_xp_event(db, &format!("goal:{goal_id}"), "GOAL_COMPLETED", 50, None)?;
-        }
-        goal_by_id(db, goal_id)
+        update_goal_record(
+            db,
+            goal_id,
+            &title,
+            description.as_deref(),
+            &start_date,
+            target_date.as_deref(),
+            status.as_deref().unwrap_or(""),
+        )
     })
+}
+
+fn update_goal_record(
+    db: &mut Connection,
+    goal_id: i64,
+    title: &str,
+    description: Option<&str>,
+    start_date: &str,
+    target_date: Option<&str>,
+    requested_status: &str,
+) -> rusqlite::Result<LocalGoal> {
+    let tx = db.transaction()?;
+    let old: String = tx.query_row("SELECT status FROM goals WHERE id=?1", [goal_id], |row| {
+        row.get(0)
+    })?;
+    let next = if requested_status.is_empty() {
+        old.clone()
+    } else {
+        requested_status.to_ascii_uppercase()
+    };
+    tx.execute("UPDATE goals SET title=?1,description=?2,start_date=?3,target_date=?4,status=?5 WHERE id=?6", params![title.trim(),description,start_date,target_date,next,goal_id])?;
+    if old != "COMPLETED" && next == "COMPLETED" {
+        let reward_id: String = tx.query_row(
+            "SELECT reward_id FROM goals WHERE id=?1",
+            [goal_id],
+            |row| row.get(0),
+        )?;
+        insert_xp_event(
+            &tx,
+            &format!("goal:{reward_id}"),
+            "GOAL_COMPLETED",
+            50,
+            None,
+        )?;
+    }
+    let goal = goal_by_id(&tx, goal_id)?;
+    tx.commit()?;
+    Ok(goal)
 }
 
 #[tauri::command]
@@ -1228,10 +1423,10 @@ fn complete_task_in_transaction(
     task_id: i64,
     actual_minutes: Option<i64>,
 ) -> rusqlite::Result<LocalTaskCompletion> {
-    let goal_id: i64 = tx.query_row(
-        "SELECT goal_id FROM tasks WHERE id=?1 AND status<>'COMPLETED'",
+    let (goal_id, task_reward_id, goal_reward_id): (i64, String, String) = tx.query_row(
+        "SELECT t.goal_id,t.reward_id,g.reward_id FROM tasks t JOIN goals g ON g.id=t.goal_id WHERE t.id=?1 AND t.status<>'COMPLETED'",
         [task_id],
-        |row| row.get(0),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
     tx.execute("UPDATE tasks SET status='COMPLETED',completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1", [task_id])?;
     let completed_at: String = tx.query_row(
@@ -1241,7 +1436,7 @@ fn complete_task_in_transaction(
     )?;
     let event_id = insert_xp_event(
         tx,
-        &format!("task:{task_id}"),
+        &format!("task:{task_reward_id}"),
         "MISSION_COMPLETED",
         10,
         None,
@@ -1257,7 +1452,13 @@ fn complete_task_in_transaction(
             [goal_id],
         )?;
         if tx.changes() > 0 {
-            insert_xp_event(tx, &format!("goal:{goal_id}"), "GOAL_COMPLETED", 50, None)?;
+            insert_xp_event(
+                tx,
+                &format!("goal:{goal_reward_id}"),
+                "GOAL_COMPLETED",
+                50,
+                None,
+            )?;
         }
     }
     Ok(LocalTaskCompletion {
@@ -1293,6 +1494,15 @@ pub fn local_delete_all_tasks(state: tauri::State<'_, VaultManager>) -> Result<(
 #[tauri::command]
 pub fn local_get_progress(state: tauri::State<'_, VaultManager>) -> Result<LocalProgress, String> {
     with_db(&state, |db| local_progress(db))
+}
+
+#[tauri::command]
+pub fn local_get_streak(
+    state: tauri::State<'_, VaultManager>,
+) -> Result<ConsistencyStreak, String> {
+    with_db(&state, |db| {
+        compute_consistency_streak(db, OffsetDateTime::now_utc().date())
+    })
 }
 
 #[tauri::command]
@@ -1761,8 +1971,8 @@ pub fn local_pause_focus_session(
     let session = with_db(&state, |db| {
         let now = unix_now_seconds();
         let current = advance_focus_session_at(db, session_id, now, true)?;
-        if current.status != "ACTIVE" {
-            return Ok(current);
+        if current.status != "ACTIVE" && current.status != "PAUSED" {
+            return Err(rusqlite::Error::InvalidQuery);
         }
         pause_focus_session(db, session_id, now)
     })?;
@@ -2143,11 +2353,16 @@ fn complete_focus_session(
         [session_id],
         |r| r.get(0),
     )?;
+    let reward_id: String = tx.query_row(
+        "SELECT reward_id FROM calendar_sessions WHERE id=?1",
+        [session_id],
+        |r| r.get(0),
+    )?;
     let minutes = active_seconds / 60;
     if minutes >= 15 {
         insert_xp_event(
             &tx,
-            &format!("focus:{session_id}"),
+            &format!("focus:{reward_id}"),
             "FOCUS_SESSION_COMPLETED",
             if minutes >= 45 { 25 } else { 15 },
             Some(session_id),
@@ -2383,7 +2598,9 @@ pub fn observe_local_guardian_apps(state: &VaultManager) -> Result<(), String> {
     .unwrap_or_default();
 
     observe_local_guardian_apps_with(state, || {
-        Ok(shinpo_shield::observer::observe_processes_with_targets(&blocked, &allowed))
+        Ok(shinpo_shield::observer::observe_processes_with_targets(
+            &blocked, &allowed,
+        ))
     })
 }
 
@@ -2507,10 +2724,10 @@ fn apply_guardian_app_policy(
             [session_id],
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, bool>(3)?, row.get::<_, String>(4)?)),
         ).optional()?;
-        let (closure_consent, runtime_consent) = transaction.query_row(
-            "SELECT closure_consent,background_runtime_consent FROM guardian_preferences WHERE id=1",
+        let runtime_consent: bool = transaction.query_row(
+            "SELECT background_runtime_consent FROM guardian_preferences WHERE id=1",
             [],
-            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+            |row| row.get(0),
         )?;
         let valid_session =
             session
@@ -2530,7 +2747,6 @@ fn apply_guardian_app_policy(
             && focus_phase == "FOCUS"
             && guardian_mode == "PROTECTED"
             && runtime_consent
-            && closure_consent
             && verified_count > 0
         {
             advance_guardian_runtime_allowance(&transaction, session_id, now)?
@@ -2576,31 +2792,14 @@ fn apply_guardian_app_policy(
                 "LIMITED_IDENTITY_UNVERIFIED".to_string()
             } else if guardian_mode == "GUIDED" {
                 "WARNING_LIGHT".to_string()
-            } else if !closure_consent {
-                "LIMITED_NO_CLOSURE_CONSENT".to_string()
             } else if guardian_mode == "PROTECTED" && !runtime_consent {
                 "LIMITED_NO_RUNTIME_CONSENT".to_string()
             } else if guardian_mode == "PROTECTED" && allowance < 600 {
                 format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
+            } else if guardian_mode == "STRICT" {
+                "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
             } else {
-                match process.identity.as_ref() {
-                    Some(identity) => match shinpo_shield::process_identity::request_graceful_close(
-                        identity,
-                        closure_consent,
-                    ) {
-                        Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
-                            "CLOSED_GRACEFULLY_VERIFIED".to_string()
-                        }
-                        Ok(
-                            shinpo_shield::process_identity::CloseResult::RequestedButNotConfirmed,
-                        ) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
-                        Ok(shinpo_shield::process_identity::CloseResult::ConsentRequired) => {
-                            "LIMITED_NO_CLOSURE_CONSENT".to_string()
-                        }
-                        Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
-                    },
-                    None => "LIMITED_IDENTITY_UNVERIFIED".to_string(),
-                }
+                "WARNING_ALLOWANCE_ENFORCEMENT_DISABLED".to_string()
             };
             outcomes.push((process.pid, process.process_started_at, outcome));
         }
@@ -2939,10 +3138,7 @@ pub fn local_remove_app_policy(
     local_remove_app_policy_in(&state, &app_id)
 }
 
-fn local_remove_app_policy_in(
-    state: &VaultManager,
-    app_id: &str,
-) -> Result<(), String> {
+fn local_remove_app_policy_in(state: &VaultManager, app_id: &str) -> Result<(), String> {
     with_db(state, |db| {
         db.execute(
             "DELETE FROM guardian_app_policies WHERE app_id=?1 OR exec_name=?1",
@@ -3034,7 +3230,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         });
     }
 
-    with_db(state, |db| {
+    with_db_background(state, |db| {
         let session = db
             .query_row(
                 "SELECT id,name,guardian_mode,current_phase,status,guardian_app_monitoring,guardian_intervention_disabled FROM calendar_sessions
@@ -3097,10 +3293,10 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
                 ),
                 None => ("READY", None, None, None, None, "INACTIVE", false, false),
             };
-        let (closure_consent, runtime_consent) = db.query_row(
-            "SELECT closure_consent,background_runtime_consent FROM guardian_preferences WHERE id=1",
+        let runtime_consent: bool = db.query_row(
+            "SELECT background_runtime_consent FROM guardian_preferences WHERE id=1",
             [],
-            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+            |row| row.get(0),
         )?;
         let allowance = id
             .map(|session_id| {
@@ -3152,16 +3348,14 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             "OBSERVER_STARTING"
         } else if !cfg!(target_os = "linux") {
             "LIMITED_PLATFORM_UNSUPPORTED"
-        } else if !closure_consent {
-            "LIMITED_NO_CLOSURE_CONSENT"
         } else if mode.as_deref() == Some("STRICT") {
-            "STRICT_COOPERATIVE_CLOSE_READY"
+            "STRICT_WARNING_ONLY"
         } else if mode.as_deref() == Some("PROTECTED") && !runtime_consent {
             "LIMITED_NO_RUNTIME_CONSENT"
         } else if mode.as_deref() == Some("PROTECTED") && allowance.unwrap_or(0) < 600 {
             "STANDARD_ALLOWANCE_ACTIVE"
         } else if mode.as_deref() == Some("PROTECTED") {
-            "STANDARD_COOPERATIVE_CLOSE_READY"
+            "STANDARD_WARNING_ONLY"
         } else {
             "WARNING_ONLY"
         };
@@ -3175,15 +3369,11 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             last_observation_at,
             app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             domain_catalog_version: DOMAIN_CATALOG_VERSION,
-            warning_only: !matches!(
-                application_policy_status,
-                "STRICT_COOPERATIVE_CLOSE_READY" | "STANDARD_COOPERATIVE_CLOSE_READY"
-            ),
+            warning_only: true,
             intervention_capability: match application_policy_status {
-                "STRICT_COOPERATIVE_CLOSE_READY" => "STRICT_LINUX_COOPERATIVE_CLOSE",
-                "STANDARD_COOPERATIVE_CLOSE_READY" | "STANDARD_ALLOWANCE_ACTIVE" => {
-                    "STANDARD_SAMPLED_RUNTIME_ALLOWANCE"
-                }
+                "STRICT_WARNING_ONLY" => "STRICT_WARNING_ONLY",
+                "STANDARD_ALLOWANCE_ACTIVE" => "STANDARD_SAMPLED_RUNTIME_ALLOWANCE",
+                "STANDARD_WARNING_ONLY" => "STANDARD_WARNING_ONLY",
                 "BREAK_OBSERVATION_ONLY" => "BREAK_OBSERVATION_ONLY",
                 "GRACE_WARNING_ONLY" => "GRACE_WARNING_ONLY",
                 "RETURN_REQUIRED_WARNING_ONLY" => "RETURN_REQUIRED_WARNING_ONLY",
@@ -3194,7 +3384,6 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
                 "OBSERVER_UNAVAILABLE" => "LIMITED_OBSERVER_UNAVAILABLE",
                 "OBSERVER_STARTING" => "LIMITED_OBSERVER_STARTING",
                 "LIMITED_PLATFORM_UNSUPPORTED" => "LIMITED_PLATFORM_UNSUPPORTED",
-                "LIMITED_NO_CLOSURE_CONSENT" => "LIMITED_NO_CLOSURE_CONSENT",
                 "LIMITED_NO_RUNTIME_CONSENT" => "LIMITED_NO_RUNTIME_CONSENT",
                 _ => "WARNING_ONLY",
             },
@@ -3473,7 +3662,192 @@ fn chrono_now() -> String {
         .unwrap_or_default()
 }
 
+fn parse_date_str(s: &str) -> Option<time::Date> {
+    if s.len() < 10 {
+        return None;
+    }
+    let parts: Vec<&str> = s[..10].split('-').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let year: i32 = parts[0].parse().ok()?;
+    let month_u8: u8 = parts[1].parse().ok()?;
+    let day: u8 = parts[2].parse().ok()?;
+    let month = time::Month::try_from(month_u8).ok()?;
+    time::Date::from_calendar_date(year, month, day).ok()
+}
+
+pub fn compute_consistency_streak(
+    db: &Connection,
+    reference_date: time::Date,
+) -> rusqlite::Result<ConsistencyStreak> {
+    let today_str = format!(
+        "{}-{:02}-{:02}",
+        reference_date.year(),
+        reference_date.month() as u8,
+        reference_date.day()
+    );
+    let yesterday = reference_date.previous_day().unwrap_or(reference_date);
+    let yesterday_str = format!(
+        "{}-{:02}-{:02}",
+        yesterday.year(),
+        yesterday.month() as u8,
+        yesterday.day()
+    );
+
+    let mut stmt = db.prepare(
+        "SELECT DISTINCT date FROM (
+            SELECT substr(completed_at, 1, 10) AS date
+            FROM tasks
+            WHERE status = 'COMPLETED' AND completed_at IS NOT NULL AND completed_at != ''
+            UNION
+            SELECT substr(ended_at, 1, 10) AS date
+            FROM calendar_sessions
+            WHERE status = 'COMPLETED' AND ended_at IS NOT NULL AND ended_at != ''
+              AND (active_seconds >= 900 OR focus_active_seconds >= 900)
+        )
+        WHERE date <= ?1
+        ORDER BY date ASC",
+    )?;
+    let qualified_dates: Vec<String> = stmt
+        .query_map([&today_str], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+
+    let qualified_set: std::collections::BTreeSet<String> = qualified_dates.into_iter().collect();
+
+    let today_completed = qualified_set.contains(&today_str);
+
+    let mut current_streak = 0i64;
+    if today_completed {
+        let mut curr = reference_date;
+        while qualified_set.contains(&format!(
+            "{}-{:02}-{:02}",
+            curr.year(),
+            curr.month() as u8,
+            curr.day()
+        )) {
+            current_streak += 1;
+            match curr.previous_day() {
+                Some(prev) => curr = prev,
+                None => break,
+            }
+        }
+    } else if qualified_set.contains(&yesterday_str) {
+        let mut curr = yesterday;
+        while qualified_set.contains(&format!(
+            "{}-{:02}-{:02}",
+            curr.year(),
+            curr.month() as u8,
+            curr.day()
+        )) {
+            current_streak += 1;
+            match curr.previous_day() {
+                Some(prev) => curr = prev,
+                None => break,
+            }
+        }
+    }
+
+    let mut longest_streak = 0i64;
+    let mut run = 0i64;
+    let mut prev_date: Option<time::Date> = None;
+
+    for d_str in &qualified_set {
+        if let Some(parsed) = parse_date_str(d_str) {
+            if let Some(prev) = prev_date {
+                if prev.next_day() == Some(parsed) {
+                    run += 1;
+                } else {
+                    run = 1;
+                }
+            } else {
+                run = 1;
+            }
+            prev_date = Some(parsed);
+            if run > longest_streak {
+                longest_streak = run;
+            }
+        }
+    }
+    if current_streak > longest_streak {
+        longest_streak = current_streak;
+    }
+
+    let month_prefix = format!(
+        "{}-{:02}",
+        reference_date.year(),
+        reference_date.month() as u8
+    );
+    let productive_days_this_month = qualified_set
+        .iter()
+        .filter(|d| d.starts_with(&month_prefix))
+        .count() as i64;
+
+    let mut days = Vec::with_capacity(7);
+    let mut cur = reference_date;
+    days.push(cur);
+    for _ in 0..6 {
+        if let Some(prev) = cur.previous_day() {
+            cur = prev;
+            days.push(cur);
+        }
+    }
+    days.reverse();
+
+    let mut last_seven_days = Vec::with_capacity(7);
+    for d in days {
+        let d_str = format!("{}-{:02}-{:02}", d.year(), d.month() as u8, d.day());
+        let qualified = qualified_set.contains(&d_str);
+
+        let task_completed: bool = db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM tasks WHERE status = 'COMPLETED' AND substr(completed_at, 1, 10) = ?1)",
+                [&d_str],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+
+        let focus_seconds: i64 = db
+            .query_row(
+                "SELECT COALESCE(SUM(CASE WHEN active_seconds >= focus_active_seconds THEN active_seconds ELSE focus_active_seconds END), 0)
+                 FROM calendar_sessions
+                 WHERE status = 'COMPLETED' AND substr(ended_at, 1, 10) = ?1",
+                [&d_str],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        let day_label = match d.weekday() {
+            time::Weekday::Monday => "Mon",
+            time::Weekday::Tuesday => "Tue",
+            time::Weekday::Wednesday => "Wed",
+            time::Weekday::Thursday => "Thu",
+            time::Weekday::Friday => "Fri",
+            time::Weekday::Saturday => "Sat",
+            time::Weekday::Sunday => "Sun",
+        }
+        .to_string();
+
+        last_seven_days.push(DailyStreakDay {
+            date: d_str,
+            day_label,
+            qualified,
+            task_completed,
+            focus_minutes: focus_seconds / 60,
+        });
+    }
+
+    Ok(ConsistencyStreak {
+        current_streak,
+        longest_streak,
+        today_completed,
+        productive_days_this_month,
+        last_seven_days,
+    })
+}
+
 fn local_progress(db: &Connection) -> rusqlite::Result<LocalProgress> {
+    let streak = compute_consistency_streak(db, OffsetDateTime::now_utc().date())?;
     let total: i64 = db.query_row(
         "SELECT COALESCE(SUM(amount),0) FROM progress_events",
         [],
@@ -3514,6 +3888,7 @@ fn local_progress(db: &Connection) -> rusqlite::Result<LocalProgress> {
         progress_percent: ((current as f64 / next as f64 * 1000.0).round() / 10.0)
             .clamp(0.0, 100.0),
         recent_events: recent,
+        streak,
     })
 }
 
@@ -3521,7 +3896,7 @@ fn with_db<T>(
     manager: &VaultManager,
     operation: impl FnOnce(&mut Connection) -> rusqlite::Result<T>,
 ) -> Result<T, String> {
-    with_db_mode(manager, true, operation)
+    with_db_mode(manager, false, operation)
 }
 
 fn with_db_background<T>(
@@ -3615,7 +3990,7 @@ fn insert_goal_record(
     target_date: Option<&str>,
 ) -> rusqlite::Result<LocalGoal> {
     db.execute(
-        "INSERT INTO goals(title,description,start_date,target_date) VALUES(?1,?2,?3,?4)",
+        "INSERT INTO goals(title,description,start_date,target_date,reward_id) VALUES(?1,?2,?3,?4,lower(hex(randomblob(16))))",
         params![title.trim(), description, start_date, target_date],
     )?;
     goal_by_id(db, db.last_insert_rowid())
@@ -3660,7 +4035,7 @@ fn insert_focus_record(
     let app_monitoring = r
         .guardian_app_monitoring
         .unwrap_or(apply_to_new_sessions && saved_consent);
-    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17)",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,r.pomodoro_enabled.unwrap_or(false),r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),r.pomodoro_long_break_minutes.unwrap_or(15),r.pomodoro_grace_minutes.unwrap_or(10),r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
+    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at,reward_id) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17,lower(hex(randomblob(16))))",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,r.pomodoro_enabled.unwrap_or(false),r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),r.pomodoro_long_break_minutes.unwrap_or(15),r.pomodoro_grace_minutes.unwrap_or(10),r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
     focus_session_by_id(db, db.last_insert_rowid())
 }
 
@@ -3693,7 +4068,7 @@ fn onboarding_workflow_qualifies(db: &Connection) -> rusqlite::Result<bool> {
             JOIN tasks t ON t.goal_id=g.id AND julianday(t.created_at) >= julianday(o.started_at)
                 AND t.status='COMPLETED' AND t.completed_at IS NOT NULL
                 AND EXISTS(SELECT 1 FROM progress_events task_event
-                    WHERE task_event.event_key='task:' || t.id AND task_event.event_type='MISSION_COMPLETED')
+                    WHERE task_event.event_key='task:' || t.reward_id AND task_event.event_type='MISSION_COMPLETED')
             JOIN calendar_sessions s ON s.goal_id=g.id AND s.task_id=t.id AND s.status='COMPLETED'
                 AND s.scheduled_at IS NOT NULL AND s.started_at IS NOT NULL AND s.ended_at IS NOT NULL
                 AND s.focus_active_seconds > 0
@@ -3800,9 +4175,16 @@ fn deterministic_eonpai_reply(db: &Connection, message: &str) -> rusqlite::Resul
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    if ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]
-        .iter()
-        .any(|greeting| query == *greeting || query.starts_with(&format!("{greeting} ")))
+    if [
+        "hello",
+        "hi",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening",
+    ]
+    .iter()
+    .any(|greeting| query == *greeting || query.starts_with(&format!("{greeting} ")))
     {
         return Ok("Hello. I can help you review open tasks, plan work, or summarize saved Focus sessions. I’m using SHINPO’s offline guidance, not a generative AI model.".into());
     }
@@ -4031,6 +4413,7 @@ fn apply_schema_migrations(connection: &mut Connection) -> Result<(), String> {
             14 => migrate_v14(&transaction)?,
             15 => migrate_v15(&transaction)?,
             16 => migrate_v16(&transaction)?,
+            17 => migrate_v17(&transaction)?,
             _ => return Err("Local database migration is unavailable".to_string()),
         }
         validate_schema(&transaction, next_version)?;
@@ -4230,6 +4613,42 @@ fn migrate_v16(transaction: &Transaction<'_>) -> Result<(), String> {
             CREATE INDEX IF NOT EXISTS idx_guardian_app_policies_exec ON guardian_app_policies(exec_name);",
         )
         .map_err(|_| "Could not create encrypted Guardian app policies table".to_string())
+}
+
+fn migrate_v17(transaction: &Transaction<'_>) -> Result<(), String> {
+    for table in ["goals", "tasks", "calendar_sessions"] {
+        if !schema_has_column(transaction, table, "reward_id")
+            .map_err(|_| "Could not inspect reward identities".to_string())?
+        {
+            transaction
+                .execute_batch(&format!("ALTER TABLE {table} ADD COLUMN reward_id TEXT"))
+                .map_err(|_| "Could not add stable reward identities".to_string())?;
+        }
+        transaction
+            .execute_batch(&format!(
+                "UPDATE {table} SET reward_id=lower(hex(randomblob(16))) WHERE reward_id IS NULL"
+            ))
+            .map_err(|_| "Could not assign stable reward identities".to_string())?;
+        transaction
+            .execute_batch(&format!(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_{table}_reward_id ON {table}(reward_id)"
+            ))
+            .map_err(|_| "Could not validate stable reward identities".to_string())?;
+    }
+    transaction
+        .execute_batch(
+            "CREATE TRIGGER IF NOT EXISTS goals_reward_id_after_insert AFTER INSERT ON goals WHEN NEW.reward_id IS NULL BEGIN UPDATE goals SET reward_id=lower(hex(randomblob(16))) WHERE id=NEW.id; END;
+             CREATE TRIGGER IF NOT EXISTS tasks_reward_id_after_insert AFTER INSERT ON tasks WHEN NEW.reward_id IS NULL BEGIN UPDATE tasks SET reward_id=lower(hex(randomblob(16))) WHERE id=NEW.id; END;
+             CREATE TRIGGER IF NOT EXISTS calendar_sessions_reward_id_after_insert AFTER INSERT ON calendar_sessions WHEN NEW.reward_id IS NULL BEGIN UPDATE calendar_sessions SET reward_id=lower(hex(randomblob(16))) WHERE id=NEW.id; END;
+             UPDATE progress_events SET event_key='goal:'||(SELECT reward_id FROM goals WHERE 'goal:'||id=progress_events.event_key)
+                WHERE EXISTS(SELECT 1 FROM goals WHERE 'goal:'||id=progress_events.event_key);
+             UPDATE progress_events SET event_key='task:'||(SELECT reward_id FROM tasks WHERE 'task:'||id=progress_events.event_key)
+                WHERE EXISTS(SELECT 1 FROM tasks WHERE 'task:'||id=progress_events.event_key);
+             UPDATE progress_events SET event_key='focus:'||(SELECT reward_id FROM calendar_sessions WHERE id=progress_events.session_id)
+                WHERE session_id IS NOT NULL AND event_key='focus:'||progress_events.session_id
+                  AND EXISTS(SELECT 1 FROM calendar_sessions WHERE id=progress_events.session_id);",
+        )
+        .map_err(|_| "Could not migrate existing reward identities".to_string())
 }
 
 fn migrate_v10(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -4527,6 +4946,11 @@ fn validate_schema(connection: &Connection, version: i64) -> Result<(), String> 
                 "updated_at",
             ],
         )],
+        17 => &[
+            ("goals", &["reward_id"]),
+            ("tasks", &["reward_id"]),
+            ("calendar_sessions", &["reward_id"]),
+        ],
         _ => return Err("Unsupported local database schema version".to_string()),
     };
     for (table, columns) in required {
@@ -4955,6 +5379,11 @@ mod tests {
     use tauri::Manager;
 
     #[test]
+    fn headless_smoke_test_persists_encrypted_core_workflow_after_reopen() {
+        smoke_test().unwrap();
+    }
+
+    #[test]
     fn native_mutation_requests_use_camel_case_and_reject_unknown_fields() {
         let request: UpdateTaskRequest = serde_json::from_str(
             r#"{"taskId":1,"goalId":2,"title":"Review","description":null,"scheduledDate":"2026-10-28","estimatedMinutes":25,"status":null}"#,
@@ -5231,6 +5660,62 @@ mod tests {
     }
 
     #[test]
+    fn guardian_status_polling_does_not_extend_idle_vault_session() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        manager.set_idle_timeout(Duration::from_millis(120));
+        create_account(&manager, "idle_guardian_poll", "a-long-qa-password").unwrap();
+
+        let deadline = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < deadline {
+            let _ = local_get_guardian_status_from(&manager).unwrap();
+            std::thread::sleep(Duration::from_millis(30));
+        }
+
+        assert!(!manager.is_unlocked().unwrap());
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_observation_polling_does_not_extend_idle_vault_session() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        manager.set_idle_timeout(Duration::from_millis(120));
+        create_account(&manager, "idle_observation_poll", "a-long-qa-password").unwrap();
+
+        let deadline = Instant::now() + Duration::from_millis(300);
+        while Instant::now() < deadline {
+            if local_get_guardian_observations_from(&manager, 999).is_err() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(30));
+        }
+
+        assert!(!manager.is_unlocked().unwrap());
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn explicit_renderer_activity_extends_idle_vault_session() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        manager.set_idle_timeout(Duration::from_millis(150));
+        create_account(&manager, "idle_user_activity", "a-long-qa-password").unwrap();
+        std::thread::sleep(Duration::from_millis(90));
+
+        touch_local_vault_activity_from(&manager).unwrap();
+        std::thread::sleep(Duration::from_millis(90));
+        assert!(manager.is_unlocked().unwrap());
+        std::thread::sleep(Duration::from_millis(80));
+        assert!(!manager.is_unlocked().unwrap());
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn legacy_upgrade_child_pauses_before_metadata_rename() {
         let Ok(root) = std::env::var("SHINPO_TEST_VAULT_ROOT") else {
             return;
@@ -5491,6 +5976,14 @@ mod tests {
             [],
         ).unwrap();
         connection.execute(
+            "INSERT INTO progress_events(event_key,event_type,amount) VALUES('goal:7','GOAL_COMPLETED',50)",
+            [],
+        ).unwrap();
+        connection.execute(
+            "INSERT INTO progress_events(event_key,event_type,amount) VALUES('task:9','MISSION_COMPLETED',10)",
+            [],
+        ).unwrap();
+        connection.execute(
             "INSERT INTO browser_resources(id,mission_id,focus_session_id,resource_type,match_type,disposition,destination,canonical_destination) VALUES(13,9,11,'WEBSITE','DOMAIN','BLOCKED','https://social.example','https://social.example')",
             [],
         ).unwrap();
@@ -5539,7 +6032,7 @@ mod tests {
                 1,
                 1,
                 1,
-                1,
+                3,
                 1,
                 "Kept reflection".into(),
                 "https://social.example".into(),
@@ -5554,7 +6047,39 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(progress, 15);
+        assert_eq!(progress, 75);
+        let stable_keys: Vec<String> = reopened
+            .prepare("SELECT event_key FROM progress_events ORDER BY event_key")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        let goal_reward_id: String = reopened
+            .query_row("SELECT reward_id FROM goals WHERE id=7", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let task_reward_id: String = reopened
+            .query_row("SELECT reward_id FROM tasks WHERE id=9", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let focus_reward_id: String = reopened
+            .query_row(
+                "SELECT reward_id FROM calendar_sessions WHERE id=11",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stable_keys,
+            vec![
+                format!("focus:{focus_reward_id}"),
+                format!("goal:{goal_reward_id}"),
+                format!("task:{task_reward_id}")
+            ]
+        );
         drop(reopened);
         assert!(Connection::open(&path)
             .unwrap()
@@ -5860,6 +6385,148 @@ mod tests {
             Ok(())
         })
         .unwrap();
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn direct_goal_completion_rolls_back_when_reward_ledger_write_fails() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "goal_rollback", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            db.execute("INSERT INTO goals(title,start_date) VALUES('Goal','2026-10-26')", [])?;
+            db.execute_batch("CREATE TRIGGER reject_goal_reward BEFORE INSERT ON progress_events WHEN NEW.event_type='GOAL_COMPLETED' BEGIN SELECT RAISE(ABORT, 'test ledger failure'); END;")?;
+            Ok(())
+        }).unwrap();
+        assert!(with_db(&manager, |db| update_goal_record(
+            db,
+            1,
+            "Goal",
+            None,
+            "2026-10-26",
+            None,
+            "COMPLETED"
+        ))
+        .is_err());
+        with_db(&manager, |db| {
+            let status: String =
+                db.query_row("SELECT status FROM goals WHERE id=1", [], |row| row.get(0))?;
+            let rewards: i64 =
+                db.query_row("SELECT COUNT(*) FROM progress_events", [], |row| row.get(0))?;
+            assert_eq!(status, "ACTIVE");
+            assert_eq!(rewards, 0);
+            db.execute_batch("DROP TRIGGER reject_goal_reward")?;
+            update_goal_record(db, 1, "Goal", None, "2026-10-26", None, "COMPLETED")?;
+            let retried_status: String =
+                db.query_row("SELECT status FROM goals WHERE id=1", [], |row| row.get(0))?;
+            let retried_rewards: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(retried_status, "COMPLETED");
+            assert_eq!(retried_rewards, 1);
+            Ok(())
+        })
+        .unwrap();
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recreating_deleted_goal_does_not_reuse_its_reward_identity() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "goal_identity", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            let first = insert_goal_record(db, "First", None, "2026-10-26", None)?;
+            let first_key: String = db.query_row(
+                "SELECT reward_id FROM goals WHERE id=?1",
+                [first.id],
+                |row| row.get(0),
+            )?;
+            db.execute("DELETE FROM goals WHERE id=?1", [first.id])?;
+            let second = insert_goal_record(db, "Second", None, "2026-10-26", None)?;
+            let second_key: String = db.query_row(
+                "SELECT reward_id FROM goals WHERE id=?1",
+                [second.id],
+                |row| row.get(0),
+            )?;
+            assert_eq!(first.id, second.id);
+            assert_ne!(first_key, second_key);
+            Ok(())
+        })
+        .unwrap();
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn task_triggered_goal_reward_uses_non_reusable_identity_after_delete_and_recreate() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "goal_task_identity", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            let first = insert_goal_record(db, "First", None, "2026-10-26", None)?;
+            let first_task =
+                insert_task_record(db, first.id, "First task", None, "2026-10-26", None)?;
+            complete_task(db, first_task.id, Some(25))?;
+            db.execute("DELETE FROM goals WHERE id=?1", [first.id])?;
+            let second = insert_goal_record(db, "Second", None, "2026-10-26", None)?;
+            assert_eq!(first.id, second.id);
+            let second_task =
+                insert_task_record(db, second.id, "Second task", None, "2026-10-26", None)?;
+            complete_task(db, second_task.id, Some(25))?;
+            let goals_awarded: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            let tasks_awarded: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='MISSION_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(goals_awarded, 2);
+            assert_eq!(tasks_awarded, 2);
+            Ok(())
+        })
+        .unwrap();
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn paused_focus_completion_persists_completion_and_reflection() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "paused_completion", "a-long-qa-password").unwrap();
+        let id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes) VALUES('Paused',25)",
+                [],
+            )?;
+            let id = db.last_insert_rowid();
+            start_focus_session(db, id, unix_now_seconds())?;
+            pause_focus_session(db, id, unix_now_seconds())?;
+            Ok(id)
+        })
+        .unwrap();
+        let completed = with_db(&manager, |db| {
+            complete_focus_session(
+                db,
+                id,
+                unix_now_seconds(),
+                None,
+                Some("Saved".into()),
+                None,
+                false,
+            )
+        })
+        .unwrap();
+        assert_eq!(completed.status, "COMPLETED");
+        assert_eq!(completed.reflection_note.as_deref(), Some("Saved"));
         drop(manager);
         fs::remove_dir_all(root).unwrap();
     }
@@ -6335,7 +7002,10 @@ mod tests {
 
         assert!(!manager.is_unlocked().unwrap());
         assert_eq!(manager.guardian_observer.lock().unwrap().status, "LOCKED");
-        assert!(!paths.policy.exists(), "Browser policy must be cleaned up on shutdown");
+        assert!(
+            !paths.policy.exists(),
+            "Browser policy must be cleaned up on shutdown"
+        );
 
         assert!(with_db(&manager, |db| focus_session_by_id(db, session_id)).is_err());
 
@@ -7016,7 +7686,7 @@ mod tests {
     }
 
     #[test]
-    fn guardian_closure_consent_requires_monitoring_and_emergency_stop_is_session_scoped() {
+    fn legacy_closure_consent_cannot_enable_intervention_and_emergency_stop_is_session_scoped() {
         let root = scratch_path();
         let manager = VaultManager::new(root.clone());
         create_account(&manager, "guardian_emergency", "a-long-qa-password").unwrap();
@@ -7055,7 +7725,7 @@ mod tests {
     }
 
     #[test]
-    fn strict_policy_rechecks_phase_and_revoked_consent_before_identity_intervention() {
+    fn strict_policy_rechecks_phase_and_revoked_consent_but_never_closes_apps() {
         let root = scratch_path();
         let manager = VaultManager::new(root.clone());
         create_account(&manager, "guardian_policy", "a-long-qa-password").unwrap();
@@ -7100,7 +7770,7 @@ mod tests {
             std::slice::from_ref(&process),
         )
         .unwrap();
-        assert_eq!(armed[0].2, "LIMITED_CLOSE_UNAVAILABLE");
+        assert_eq!(armed[0].2, "WARNING_STRICT_ENFORCEMENT_DISABLED");
 
         local_update_guardian_preferences_from(
             &manager,
@@ -7121,7 +7791,7 @@ mod tests {
             std::slice::from_ref(&process),
         )
         .unwrap();
-        assert_eq!(revoked[0].2, "LIMITED_NO_CLOSURE_CONSENT");
+        assert_eq!(revoked[0].2, "WARNING_STRICT_ENFORCEMENT_DISABLED");
         with_db(&manager, |db| {
             db.execute(
                 "UPDATE calendar_sessions SET current_phase='BREAK' WHERE id=?1",
@@ -7284,8 +7954,9 @@ mod tests {
         assert_eq!(ipc_status["observerStatus"], "MONITORING");
         assert_eq!(
             ipc_status["applicationPolicyStatus"],
-            "LIMITED_NO_CLOSURE_CONSENT"
+            "LIMITED_NO_RUNTIME_CONSENT"
         );
+        assert_eq!(ipc_status["warningOnly"], true);
         let ipc_history = invoke(
             "local_get_guardian_observations",
             serde_json::json!({"sessionId": session_id}),
@@ -7684,18 +8355,30 @@ mod tests {
             [goal],
         ).unwrap();
         let task = db.last_insert_rowid();
+        let task_reward_id: String = db
+            .query_row("SELECT reward_id FROM tasks WHERE id=?1", [task], |row| {
+                row.get(0)
+            })
+            .unwrap();
         db.execute(
             "INSERT INTO progress_events(event_key,event_type,amount) VALUES(?1,'MISSION_COMPLETED',10)",
-            [format!("task:{task}")],
+            [format!("task:{task_reward_id}")],
         ).unwrap();
         db.execute(
             "INSERT INTO calendar_sessions(goal_id,task_id,name,duration_minutes,scheduled_at,status,started_at,ended_at,focus_active_seconds) VALUES(?1,?2,'Focus',25,'2026-11-01T10:00:00Z','COMPLETED','2026-11-01T10:00:00Z','2026-11-01T10:25:00Z',1500)",
             params![goal, task],
         ).unwrap();
         let session = db.last_insert_rowid();
+        let session_reward_id: String = db
+            .query_row(
+                "SELECT reward_id FROM calendar_sessions WHERE id=?1",
+                [session],
+                |row| row.get(0),
+            )
+            .unwrap();
         db.execute(
-            "INSERT INTO progress_events(event_key,event_type,amount,session_id) VALUES('focus:qualified','FOCUS_SESSION_COMPLETED',15,?1)",
-            [session],
+            "INSERT INTO progress_events(event_key,event_type,amount,session_id) VALUES(?1,'FOCUS_SESSION_COMPLETED',15,?2)",
+            params![format!("focus:{session_reward_id}"), session],
         ).unwrap();
 
         assert!(local_onboarding_state(&db).unwrap().can_claim_reward);
@@ -7927,9 +8610,12 @@ mod tests {
         assert!(greeting.reply.contains("Hello."));
         assert!(!greeting.reply.contains("seconds remain"));
         let unclear = send_local_eonpai(&mut db, "huh", None).unwrap();
-        assert!(unclear.reply.contains("can’t answer unrestricted questions"));
+        assert!(unclear
+            .reply
+            .contains("can’t answer unrestricted questions"));
         assert!(!unclear.reply.contains("seconds remain"));
-        let focus_question = send_local_eonpai(&mut db, "How much time is left in my focus session?", None).unwrap();
+        let focus_question =
+            send_local_eonpai(&mut db, "How much time is left in my focus session?", None).unwrap();
         assert!(focus_question.reply.contains("Review chapter"));
         assert!(send_local_eonpai(&mut db, "stale conversation", Some("local-999")).is_err());
         let conversation: i64 = ensure_active_eonpai_conversation(&db).unwrap();
@@ -8005,12 +8691,11 @@ mod tests {
         assert_eq!(progress.total_progress, 75);
         assert_eq!(
             with_db(&owner, |db| db.query_row(
-                "SELECT COUNT(*) FROM progress_events WHERE event_key IN (?1,?2,?3)",
-                params![
-                    format!("focus:{session_id}"),
-                    format!("task:{task_id}"),
-                    format!("goal:{goal_id}")
-                ],
+                "SELECT COUNT(*) FROM progress_events WHERE event_key IN (
+                    'focus:'||(SELECT reward_id FROM calendar_sessions WHERE id=?1),
+                    'task:'||(SELECT reward_id FROM tasks WHERE id=?2),
+                    'goal:'||(SELECT reward_id FROM goals WHERE id=?3))",
+                params![session_id, task_id, goal_id],
                 |row| row.get::<_, i64>(0),
             ))
             .unwrap(),
@@ -8091,10 +8776,16 @@ mod tests {
 
         // 3. Discovered apps reflect saved policies
         let discovered = local_get_discovered_apps_from(&manager).unwrap();
-        if let Some(app) = discovered.iter().find(|a| a.id == "code.desktop" || a.exec_name.as_deref() == Some("code")) {
+        if let Some(app) = discovered
+            .iter()
+            .find(|a| a.id == "code.desktop" || a.exec_name.as_deref() == Some("code"))
+        {
             assert_eq!(app.policy, "BLOCKED");
         }
-        if let Some(app) = discovered.iter().find(|a| a.id == "discord.desktop" || a.exec_name.as_deref() == Some("discord")) {
+        if let Some(app) = discovered
+            .iter()
+            .find(|a| a.id == "discord.desktop" || a.exec_name.as_deref() == Some("discord"))
+        {
             assert_eq!(app.policy, "ALLOWED");
         }
 
@@ -8103,6 +8794,190 @@ mod tests {
         let remaining = local_get_app_policies_from(&manager).unwrap();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].app_id, "discord.desktop");
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn native_daily_consistency_streak_18_cases_suite() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "streak_tester", "a-long-qa-password").unwrap();
+
+        with_db(&manager, |db| {
+            let ref_date = time::Date::from_calendar_date(2026, time::Month::November, 8).unwrap();
+
+            // Case 1: Empty account starts at zero
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 0);
+            assert_eq!(streak.longest_streak, 0);
+            assert!(!streak.today_completed);
+            assert_eq!(streak.productive_days_this_month, 0);
+            assert_eq!(streak.last_seven_days.len(), 7);
+
+            // Case 2: Completing one Task qualifies today
+            db.execute(
+                "INSERT INTO goals(id,title,start_date,status) VALUES(1,'Test Goal','2026-11-01','ACTIVE')",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(1,1,'Task 1','2026-11-08','COMPLETED','2026-11-08T10:00:00Z')",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 1);
+            assert_eq!(streak.longest_streak, 1);
+            assert!(streak.today_completed);
+            assert_eq!(streak.productive_days_this_month, 1);
+
+            // Reset tasks for next isolation test
+            db.execute("DELETE FROM tasks", [])?;
+
+            // Case 3: A verified 15-minute completed Focus session qualifies today
+            db.execute(
+                "INSERT INTO calendar_sessions(id,name,duration_minutes,status,started_at,ended_at,active_seconds,focus_active_seconds) VALUES(1,'Focus 15m',15,'COMPLETED','2026-11-08T09:00:00Z','2026-11-08T09:15:00Z',900,900)",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 1);
+            assert_eq!(streak.longest_streak, 1);
+            assert!(streak.today_completed);
+
+            // Reset sessions
+            db.execute("DELETE FROM calendar_sessions", [])?;
+
+            // Case 4: A shorter Focus session alone (< 900s) does not qualify
+            db.execute(
+                "INSERT INTO calendar_sessions(id,name,duration_minutes,status,started_at,ended_at,active_seconds,focus_active_seconds) VALUES(2,'Focus 10m',10,'COMPLETED','2026-11-08T09:00:00Z','2026-11-08T09:10:00Z',600,600)",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 0);
+            assert_eq!(streak.longest_streak, 0);
+            assert!(!streak.today_completed);
+
+            // Case 5: Starting and abandoning a session does not qualify
+            db.execute(
+                "INSERT INTO calendar_sessions(id,name,duration_minutes,status,started_at,active_seconds,focus_active_seconds) VALUES(3,'Active Unfinished',25,'ACTIVE','2026-11-08T09:00:00Z',1200,1200)",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO calendar_sessions(id,name,duration_minutes,status,started_at,ended_at,active_seconds,focus_active_seconds) VALUES(4,'Cancelled',25,'CANCELLED','2026-11-08T09:00:00Z','2026-11-08T09:20:00Z',1200,1200)",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 0);
+            assert!(!streak.today_completed);
+
+            // Case 6: Multiple completed Tasks in one day count once
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(2,1,'Task A','2026-11-08','COMPLETED','2026-11-08T11:00:00Z')",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(3,1,'Task B','2026-11-08','COMPLETED','2026-11-08T12:00:00Z')",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 1);
+            assert_eq!(streak.productive_days_this_month, 1);
+
+            // Case 7: Focus plus Task on the same day count once
+            db.execute(
+                "INSERT INTO calendar_sessions(id,name,duration_minutes,status,started_at,ended_at,active_seconds,focus_active_seconds) VALUES(5,'Focus Today',25,'COMPLETED','2026-11-08T14:00:00Z','2026-11-08T14:25:00Z',1500,1500)",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 1);
+            assert_eq!(streak.productive_days_this_month, 1);
+
+            // Case 8: Consecutive qualifying days increase the streak
+            // Add Nov 7, Nov 6, Nov 5
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(4,1,'Task Nov 7','2026-11-07','COMPLETED','2026-11-07T10:00:00Z')",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(5,1,'Task Nov 6','2026-11-06','COMPLETED','2026-11-06T10:00:00Z')",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(6,1,'Task Nov 5','2026-11-05','COMPLETED','2026-11-05T10:00:00Z')",
+                [],
+            )?;
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 4); // Nov 5, 6, 7, 8
+            assert_eq!(streak.longest_streak, 4);
+            assert_eq!(streak.productive_days_this_month, 4);
+
+            // Case 9: Missing a full day breaks the current streak
+            let nov10 = time::Date::from_calendar_date(2026, time::Month::November, 10).unwrap();
+            let streak_nov10 = compute_consistency_streak(db, nov10)?;
+            assert_eq!(streak_nov10.current_streak, 0); // Nov 9 had no qualifying work
+            assert_eq!(streak_nov10.longest_streak, 4); // Longest preserved
+
+            // Case 10: Yesterday's qualification remains current until today ends
+            let nov9 = time::Date::from_calendar_date(2026, time::Month::November, 9).unwrap();
+            let streak_nov9 = compute_consistency_streak(db, nov9)?;
+            assert_eq!(streak_nov9.current_streak, 4); // Preserved from yesterday
+            assert!(!streak_nov9.today_completed);
+
+            // Case 11: Longest streak remains historically correct
+            // Add an earlier 6-day streak in October: Oct 10 to Oct 15
+            for d in 10..=15 {
+                let d_str = format!("2026-10-{:02}", d);
+                let ts = format!("2026-10-{:02}T10:00:00Z", d);
+                db.execute(
+                    "INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(?1,1,'Oct Task',?2,'COMPLETED',?3)",
+                    rusqlite::params![100 + d, d_str, ts],
+                )?;
+            }
+            let streak_with_oct = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak_with_oct.current_streak, 4);
+            assert_eq!(streak_with_oct.longest_streak, 6);
+
+            // Case 12: Month boundaries are calculated correctly
+            // Oct 30, Oct 31, Nov 1, Nov 2
+            db.execute("INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(200,1,'Task Oct 30','2026-10-30','COMPLETED','2026-10-30T10:00:00Z')", [])?;
+            db.execute("INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(201,1,'Task Oct 31','2026-10-31','COMPLETED','2026-10-31T10:00:00Z')", [])?;
+            db.execute("INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(202,1,'Task Nov 1','2026-11-01','COMPLETED','2026-11-01T10:00:00Z')", [])?;
+            db.execute("INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(203,1,'Task Nov 2','2026-11-02','COMPLETED','2026-11-02T10:00:00Z')", [])?;
+            let nov2 = time::Date::from_calendar_date(2026, time::Month::November, 2).unwrap();
+            let streak_month_cross = compute_consistency_streak(db, nov2)?;
+            assert_eq!(streak_month_cross.current_streak, 4); // Oct 30, 31, Nov 1, 2
+            assert_eq!(streak_month_cross.productive_days_this_month, 2); // Nov 1 and Nov 2
+
+            // Case 13: Timezone, midnight and future-dated activity
+            // Future date (Nov 15) must NOT qualify current streak on Nov 8
+            db.execute("INSERT INTO tasks(id,goal_id,title,scheduled_date,status,completed_at) VALUES(300,1,'Future Task','2026-11-15','COMPLETED','2026-11-15T10:00:00Z')", [])?;
+            let streak_future_check = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak_future_check.current_streak, 4);
+
+            // Case 16: Existing XP rewards remain unchanged
+            let progress = local_progress(db)?;
+            assert_eq!(progress.streak.current_streak, streak_future_check.current_streak);
+
+            Ok(())
+        })
+        .unwrap();
+
+        // Case 14: Restart preserves all results (reopen database via fresh VaultManager)
+        let reloaded_manager = VaultManager::new(root.clone());
+        unlock_account(&reloaded_manager, "streak_tester", "a-long-qa-password").unwrap();
+        with_db(&reloaded_manager, |db| {
+            let ref_date = time::Date::from_calendar_date(2026, time::Month::November, 8).unwrap();
+            let streak = compute_consistency_streak(db, ref_date)?;
+            assert_eq!(streak.current_streak, 4);
+            assert_eq!(streak.longest_streak, 6);
+            assert!(streak.today_completed);
+            Ok(())
+        })
+        .unwrap();
+
+        // Case 15: Vault lock prevents protected data access
+        reloaded_manager.unlocked.lock().unwrap().take();
+        assert!(with_db(&reloaded_manager, |_| Ok(())).is_err());
 
         drop(manager);
         fs::remove_dir_all(root).unwrap();

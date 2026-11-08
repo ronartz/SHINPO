@@ -106,6 +106,25 @@ struct BrowserCompanionLocalStatus {
     detail: &'static str,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalPlatformCapabilities {
+    guardian: &'static str,
+    browser_companion_supported: bool,
+}
+
+#[tauri::command]
+fn local_platform_capabilities() -> LocalPlatformCapabilities {
+    LocalPlatformCapabilities {
+        guardian: if cfg!(target_os = "linux") {
+            "OBSERVE_AND_WARN"
+        } else {
+            "UNAVAILABLE"
+        },
+        browser_companion_supported: cfg!(any(target_os = "linux", target_os = "windows")),
+    }
+}
+
 #[tauri::command]
 fn browser_companion_pairing_code(
     state: tauri::State<'_, native_vault::VaultManager>,
@@ -200,10 +219,7 @@ fn desktop_minimize_window(window: tauri::WebviewWindow) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn desktop_restart_app(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, native_vault::VaultManager>,
-) {
+fn desktop_restart_app(app: tauri::AppHandle, state: tauri::State<'_, native_vault::VaultManager>) {
     if SHUTDOWN_IN_PROGRESS
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
@@ -217,10 +233,7 @@ fn desktop_restart_app(
 }
 
 #[tauri::command]
-fn desktop_exit_app(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, native_vault::VaultManager>,
-) {
+fn desktop_exit_app(app: tauri::AppHandle, state: tauri::State<'_, native_vault::VaultManager>) {
     if SHUTDOWN_IN_PROGRESS
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
@@ -288,6 +301,7 @@ pub fn run() {
             native_vault::local_delete_task,
             native_vault::local_delete_all_tasks,
             native_vault::local_get_progress,
+            native_vault::local_get_streak,
             native_vault::local_get_onboarding_state,
             native_vault::local_start_onboarding,
             native_vault::local_record_onboarding_step,
@@ -339,6 +353,7 @@ pub fn run() {
             browser_companion_pairing_code,
             browser_companion_local_status,
             browser_companion_revoke,
+            local_platform_capabilities,
             native_system_monitor::local_get_system_telemetry,
             native_system_monitor::local_get_process_snapshot,
             get_secure_refresh_token,
@@ -354,3 +369,7 @@ pub fn run() {
 
 mod native_system_monitor;
 mod native_vault;
+
+pub fn smoke_test() -> Result<(), String> {
+    native_vault::smoke_test()
+}

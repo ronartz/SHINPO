@@ -321,6 +321,7 @@ async fn generate_at(
     parse_model_reply(text)
 }
 
+#[cfg(test)]
 fn persist_reply(
     db: &mut Connection,
     expected_epoch: &str,
@@ -330,12 +331,24 @@ fn persist_reply(
     message: &str,
     reply: ModelReply,
 ) -> Result<LocalEonpaiReply, String> {
+    let basis_revision = revision(db).map_err(|_| "Could not capture planning context revision")?;
     if current_epoch != expected_epoch {
         return Err(
             "Vault changed while the response was being generated; the response was discarded"
                 .into(),
         );
     }
+    persist_reply_at_revision(db, conversation, public_id, message, basis_revision, reply)
+}
+
+fn persist_reply_at_revision(
+    db: &mut Connection,
+    conversation: i64,
+    public_id: &str,
+    message: &str,
+    basis_revision: i64,
+    reply: ModelReply,
+) -> Result<LocalEonpaiReply, String> {
     let active = ensure_active_eonpai_conversation(db).map_err(|_| "Conversation unavailable")?;
     if active != conversation
         || conversation_public_id(db, active).map_err(|_| "Conversation unavailable")? != public_id
@@ -344,10 +357,11 @@ fn persist_reply(
     }
     let tx = db.transaction().map_err(|_| "Could not persist response")?;
     for action in &reply.actions {
-        propose(
+        propose_at_revision(
             &tx,
             action,
             "Model-proposed change. Review the exact payload before confirming.",
+            basis_revision,
         )
         .map_err(|_| "Model proposed invalid or unauthorized data; no changes were made")?;
     }
@@ -390,9 +404,8 @@ pub(crate) async fn send_request(
     {
         return Err("Message must contain 1–8000 printable characters".into());
     }
-    let (config, epoch, conversation, public_id, messages, username) = with_assistant(
-        state,
-        |db, epoch, username| {
+    let (config, epoch, conversation, public_id, messages, username, basis_revision) =
+        with_assistant(state, |db, epoch, username| {
             if let Some(id) = goal_id {
                 goal_by_id(db, id).map_err(|_| "Goal does not belong to this vault")?;
             }
@@ -459,9 +472,9 @@ pub(crate) async fn send_request(
                 public_id,
                 Value::Array(messages),
                 username.to_string(),
+                revision(db).map_err(|_| "Could not capture planning context revision")?,
             ))
-        },
-    )?;
+        })?;
     if config.provider == "none" {
         return with_db(state, |db| {
             send_local_eonpai_with_context(
@@ -515,15 +528,13 @@ pub(crate) async fn send_request(
     }
     let reply = result?;
     with_assistant(state, |db, current_epoch, _| {
-        persist_reply(
-            db,
-            &epoch,
-            current_epoch,
-            conversation,
-            &public_id,
-            message,
-            reply,
-        )
+        if current_epoch != epoch {
+            return Err(
+                "Vault changed while the response was being generated; the response was discarded"
+                    .into(),
+            );
+        }
+        persist_reply_at_revision(db, conversation, &public_id, message, basis_revision, reply)
     })
 }
 
@@ -637,6 +648,71 @@ mod tests {
             .query_row("SELECT title FROM tasks WHERE id=1", [], |r| r.get(0))
             .unwrap();
         assert_eq!(saved_task, "Review chapter one");
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn model_action_proposal_keeps_pre_request_revision_and_is_rejected_when_context_changes() {
+        let root =
+            std::env::temp_dir().join(format!("shinpo-eonpai-revision-{}", opaque_id().unwrap()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("vault.db");
+        let mut db = open_encrypted_database(&path, &[0x39; 32], "qa_revision", true).unwrap();
+        let goal = insert_goal_record(&db, "Exam preparation", None, "2026-11-01", None).unwrap();
+        let conversation = ensure_active_eonpai_conversation(&db).unwrap();
+        let public_id = conversation_public_id(&db, conversation).unwrap();
+        let captured_revision = revision(&db).unwrap();
+        db.execute(
+            "UPDATE goals SET title='Changed during provider request' WHERE id=?1",
+            [goal.id],
+        )
+        .unwrap();
+        let reply = ModelReply {
+            reply: "Review these tasks before adding them.".into(),
+            actions: vec![Action::CreateTasks {
+                goal_id: goal.id,
+                scheduled_date: "2026-11-04".into(),
+                tasks: vec![TaskDraft {
+                    title: "Review chapter".into(),
+                    description: "Study chapter one.".into(),
+                    estimated_minutes: 25,
+                }],
+            }],
+        };
+        persist_reply_at_revision(
+            &mut db,
+            conversation,
+            &public_id,
+            "Plan my goal",
+            captured_revision,
+            reply,
+        )
+        .unwrap();
+        let action: String = db
+            .query_row("SELECT action_id FROM eonpai_actions", [], |row| row.get(0))
+            .unwrap();
+        let basis: i64 = db
+            .query_row(
+                "SELECT basis_revision FROM eonpai_actions WHERE action_id=?1",
+                [&action],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(basis, captured_revision);
+        let preview = issue_preview(&db, &action, "epoch").unwrap();
+        assert!(confirm(
+            &mut db,
+            &action,
+            "epoch",
+            preview["confirmationToken"].as_str().unwrap()
+        )
+        .is_err());
+        assert_eq!(
+            db.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
         drop(db);
         std::fs::remove_dir_all(root).unwrap();
     }

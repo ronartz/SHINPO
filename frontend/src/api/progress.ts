@@ -9,6 +9,22 @@ export type ProgressEventDto = {
   createdAt: string | null
 }
 
+export type DailyStreakDay = {
+  date: string
+  dayLabel: string
+  qualified: boolean
+  taskCompleted: boolean
+  focusMinutes: number
+}
+
+export type ConsistencyStreak = {
+  currentStreak: number
+  longestStreak: number
+  todayCompleted: boolean
+  productiveDaysThisMonth: number
+  lastSevenDays: DailyStreakDay[]
+}
+
 export type ProgressResponse = {
   userId: number
   totalProgress: number
@@ -18,6 +34,7 @@ export type ProgressResponse = {
   nextLevelThreshold: number
   progressPercent: number
   recentEvents: ProgressEventDto[]
+  streak?: ConsistencyStreak
 }
 
 /**
