@@ -72,5 +72,6 @@ release/rc/*
 .agent/
 .gemini/
 .gsd/
+.planning/agentic-awesome-skills/
 test-results/
 playwright-report/
