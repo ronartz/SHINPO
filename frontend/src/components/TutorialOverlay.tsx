@@ -30,13 +30,13 @@ export const OnboardingWelcome: React.FC<OnboardingWelcomeProps> = ({ onStart, o
       <button type="button" className="coachmark-close-btn" onClick={onDismiss} aria-label="Dismiss welcome">
         <Icon name="close" size={15} />
       </button>
-      <h2 id="onboarding-welcome-title">Make time for what matters</h2>
+      <h2 id="onboarding-welcome-title">Welcome to SHINPO</h2>
       <p id="onboarding-welcome-description">
-        Turn a goal into a small task, reserve Focus time, then see what you accomplished. You decide when to start a session.
+        Learn how to turn a goal into a focused action.
       </p>
       <div className="onboarding-welcome-actions">
-        <button type="button" className="btn-coachmark primary" onClick={onStart}>Show me the workflow</button>
-        <button type="button" className="btn-coachmark secondary" onClick={onExplore}>Explore on my own</button>
+        <button type="button" className="btn-coachmark primary" onClick={onStart}>Start interactive tutorial</button>
+        <button type="button" className="btn-coachmark secondary" onClick={onExplore}>Explore SHINPO instead</button>
       </div>
     </section>
   </div>
@@ -245,7 +245,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
             title="Pause walkthrough (Esc)"
             aria-label="Pause Walkthrough"
           >
-            ✕
+            <Icon name="close" size={15} />
           </button>
         </div>
 
