@@ -121,8 +121,18 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
         setShowTaskMenu(false)
       }
     }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowGoalMenu(false)
+        setShowTaskMenu(false)
+      }
+    }
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   useEffect(() => {
@@ -938,7 +948,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 aria-label="Task Options"
                 aria-expanded={showTaskMenu}
               >
-                ···
+                <Icon name="more-horizontal" size={15} />
               </button>
               {showTaskMenu && (
                 <div className="overflow-menu-dropdown microkit-glide-menu">

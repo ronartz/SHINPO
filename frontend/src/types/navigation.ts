@@ -57,6 +57,8 @@ export type IconName =
   | 'chevron-down'
   | 'chevron-up'
   | 'minimize'
+  | 'more-horizontal'
+  | 'ellipsis'
 
 
 export interface NavItemConfig {

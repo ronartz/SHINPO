@@ -186,7 +186,6 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             {cell.day}{cell.count > 0 && <i />}
           </button>)}
         </div>
-        <button type="button" className="schedule-today-button" onClick={() => selectDate(localCalendarDate())}>Jump to today</button>
       </div>
 
       <div className="schedule-sidebar-section">
@@ -208,7 +207,6 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             <i className={`schedule-upcoming-dot status-${session.status}`} />
           </button>
         }) : <p className="schedule-upcoming-empty">No upcoming sessions this week.</p>}
-        <button type="button" className="schedule-sidebar-book schedule-sidebar-book-primary" onClick={() => handleOpenBookingModal(selectedScheduleDate)}><Icon name="plus" size={14} />Book focus session</button>
       </div>
 
       <div className="schedule-sidebar-summary-card">
@@ -246,7 +244,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             <button type="button" className="active" aria-pressed="true">Week</button>
             <button type="button" disabled title="Month view is not available yet">Month</button>
           </div>
-          <button type="button" className="schedule-btn-book" onClick={() => handleOpenBookingModal(selectedScheduleDate)} data-tutorial="schedule-book-btn"><Icon name="plus" size={14} /><span>New event</span></button>
+          <button type="button" className="schedule-btn-book" onClick={() => handleOpenBookingModal(selectedScheduleDate)} data-tutorial="schedule-book-btn"><Icon name="plus" size={14} /><span>Schedule Focus</span></button>
         </div>
       </header>
 

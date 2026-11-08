@@ -576,9 +576,16 @@
 
 /* Secondary Overflow Menu for Bulk Actions */
 .btn-overflow-trigger {
-  padding: var(--space-1) var(--space-2) !important;
-  font-weight: 800;
-  letter-spacing: 1px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .overflow-menu-dropdown {
@@ -590,7 +597,7 @@
   border-radius: 10px;
   padding: var(--space-1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  z-index: 50;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   min-width: 170px;
@@ -704,14 +711,16 @@
 }
 
 .tasks-search-box {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: var(--space-1) var(--space-3);
+  padding: 0 var(--space-3);
   width: 210px;
+  height: 38px;
+  box-sizing: border-box;
   color: var(--text-3);
   transition: border-color 0.15s ease;
 }
@@ -742,8 +751,16 @@
 
 .tasks-sort-wrap {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.tasks-sort-wrap .shinpo-select-trigger {
+  height: 38px;
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
 .tasks-sort-select {
@@ -752,15 +769,19 @@
 
 /* View Mode Toggle Button Group */
 .view-mode-toggle {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 2px;
+  height: 38px;
+  box-sizing: border-box;
 }
 
 .view-mode-btn {
-  padding: var(--space-1) var(--space-3);
+  height: 32px;
+  padding: 0 var(--space-3);
   font-size: 12.5px;
   font-weight: 600;
   border: none;
@@ -1630,13 +1651,7 @@ html[data-theme='light'] .decomp-footer-actions,
 .goals-overflow-wrap {
   position: relative;
   flex: 0 0 auto;
-}
-
-.goals-overflow-wrap>.btn-overflow-trigger {
-  width: 38px;
-  height: 40px;
-  padding: 0 !important;
-  border-radius: 9px;
+  display: inline-flex;
 }
 
 .goals-section-heading {
@@ -1835,15 +1850,15 @@ html[data-theme='light'] .decomp-footer-actions,
 }
 
 .goals-task-area .goals-new-task-button {
+  height: 38px;
   min-height: 38px;
-  padding-inline: 13px !important;
+  padding-inline: 14px !important;
   border-radius: 8px !important;
   white-space: nowrap;
-}
-
-.goals-task-area .goals-overflow-wrap>.btn-overflow-trigger {
-  width: 36px;
-  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
 }
 
 .goals-task-area>.flight-deck-board-grid {

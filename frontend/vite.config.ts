@@ -5,6 +5,9 @@ const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:80
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    target: ['es2022', 'chrome100', 'safari15'],
+  },
 
   server: {
     proxy: {
