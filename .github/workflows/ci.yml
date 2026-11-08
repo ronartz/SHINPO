@@ -232,4 +232,5 @@ jobs:
         run: |
           cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock
           cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock
-          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock
+          # RUSTSEC-2024-0429: glib VariantStrIter unsoundness; transitive GTK/WebKitGTK binding for Tauri 2 on Linux, unused by application code
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock

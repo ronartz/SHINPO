@@ -14,6 +14,7 @@
 @import './styles/views/cockpit-panels.css';
 @import './styles/components/modals-sentinel.css';
 @import './styles/components/settings-modal.css';
+@import './styles/components/topbar-menus.css';
 @import './styles/components/shinpo-ui.css';
 @import './styles/components/progression-rewards.css';
 @import './styles/foundations/flightdeck-themes.css';
@@ -45,3 +46,6 @@
 /* 7. V2 Aurora Stylesheet */
 @import './v2/theme/aurora.css';
 @import './styles/app-shell-refinement.css';
+@import './styles/components/interactive-tutorial.css';
+@import './styles/components/cinematic-startup.css';
+

@@ -1,0 +1,57 @@
+/* ==========================================================================
+   SHINPO (進歩) — DESKTOP APPLICATION STYLESHEET
+   Scoped to Desktop presentation environment.
+   Total modular files: 21
+   ========================================================================== */
+
+/* 1. Design Tokens & Foundations */
+@import '../../../styles/tokens.css';
+@import '../../../styles/shell.css';
+@import '../../../styles/components/salutation.css';
+
+/* 2. Flight Deck & Shared Foundations */
+@import '../../../styles/views/goals-kanban.css';
+@import '../../../styles/views/cockpit-panels.css';
+@import '../../../styles/components/modals-sentinel.css';
+@import '../../../styles/components/settings-modal.css';
+@import '../../../styles/components/topbar-menus.css';
+@import '../../../styles/components/shinpo-ui.css';
+@import '../../../styles/components/progression-rewards.css';
+@import '../../../styles/foundations/flightdeck-themes.css';
+@import '../../../styles/views/flightdeck-cards.css';
+
+/* 3. Core View Modules */
+@import '../../../styles/views/overview-bento.css';
+@import '../../../styles/views/focus-engine.css';
+@import '../../../styles/views/eonpai.css';
+@import '../../../styles/components/session-reflection.css';
+@import '../../../styles/views/goals.css';
+@import '../../../styles/views/study-resources.css';
+
+/* 4. Global Responsive Tiers */
+@import '../../../styles/responsive.css';
+
+/* 5. Additional Views */
+@import '../../../styles/views/auth.css';
+@import './animated-login-card.css';
+@import '../../../styles/views/schedule.css';
+@import '../../../styles/views/task-manager.css';
+@import '../../../styles/views/analytics.css';
+
+/* 6. System Animations, Glass Finishes & Telemetry */
+@import '../../../styles/foundations/animations.css';
+@import '../../../styles/foundations/microkit-motion.css';
+@import '../../../styles/components/glass-surfaces.css';
+@import '../../../styles/components/telemetry-toasts.css';
+
+/* 7. V2 Aurora Stylesheet */
+@import '../../../v2/theme/aurora.css';
+@import '../../../styles/app-shell-refinement.css';
+@import '../../../styles/components/interactive-tutorial.css';
+@import '../../../styles/components/cinematic-startup.css';
+
+/* 8. Desktop Silk Login Background */
+@import './silk-login.css';
+
+/* 9. 1920x1080p Landscape High-Density Tier */
+@import './desktop-1080p.css';

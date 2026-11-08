@@ -72,3 +72,5 @@ release/rc/*
 .agent/
 .gemini/
 .gsd/
+test-results/
+playwright-report/

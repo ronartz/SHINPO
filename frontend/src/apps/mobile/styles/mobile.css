@@ -1,0 +1,394 @@
+/* ==========================================================================
+   SHINPO (進歩) — MOBILE PRESENTATION STYLESHEET
+   Strictly isolated mobile-first layout, touch targets & navigation.
+   Zero desktop sidebar, bento grid, or flightdeck selectors.
+   ========================================================================== */
+
+@import '../../../styles/tokens.css';
+@import '../../../styles/foundations/animations.css';
+
+/* --------------------------------------------------------------------------
+   Mobile App Root Container
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  height: 100%;
+  width: 100%;
+  background: var(--bg, #0b0f19);
+  color: var(--text, #f1f5f9);
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Top Bar (56px + Safe Area)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--surface, rgba(15, 23, 42, 0.85));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.shinpo-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shinpo-mobile-brand-title {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text, #f1f5f9);
+}
+
+.shinpo-mobile-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shinpo-mobile-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.04));
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.shinpo-mobile-icon-btn:active {
+  transform: scale(0.95);
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+/* --------------------------------------------------------------------------
+   Mobile View Content Area (Scrollable with bottom nav clearance)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 16px));
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Bottom Navigation Bar (64px + Safe Area)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(64px + env(safe-area-inset-bottom, 12px));
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+  background: var(--surface, rgba(15, 23, 42, 0.95));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.shinpo-mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.1s ease;
+  touch-action: manipulation;
+}
+
+.shinpo-mobile-nav-item:active {
+  transform: scale(0.92);
+}
+
+.shinpo-mobile-nav-item.active {
+  color: var(--brand-primary, #6366f1);
+  font-weight: 700;
+}
+
+.shinpo-mobile-nav-item.active svg {
+  filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.4));
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Cards & Panels
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-card {
+  background: var(--surface, rgba(30, 41, 59, 0.7));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.shinpo-mobile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.shinpo-mobile-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #f1f5f9);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Typography
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-heading {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+  color: var(--text, #f1f5f9);
+}
+
+.shinpo-mobile-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary, #94a3b8);
+  margin: 0 0 16px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Touch Controls & Form Inputs (WCAG 44x44px minimum)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  width: 100%;
+}
+
+.shinpo-mobile-btn-primary {
+  background: var(--brand-primary, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.shinpo-mobile-btn-primary:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
+}
+
+.shinpo-mobile-btn-secondary {
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  color: var(--text, #f1f5f9);
+}
+
+.shinpo-mobile-btn-secondary:active {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.1));
+}
+
+.shinpo-mobile-btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.shinpo-mobile-input {
+  min-height: 48px;
+  width: 100%;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.04));
+  color: var(--text, #f1f5f9);
+  font-size: 15px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.shinpo-mobile-input:focus {
+  border-color: var(--brand-primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Focus Timer Display
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.shinpo-mobile-timer-digits {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #f1f5f9);
+  margin: 12px 0;
+}
+
+.shinpo-mobile-presets {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.shinpo-mobile-preset-btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.05));
+  color: var(--text-secondary, #94a3b8);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.shinpo-mobile-preset-btn.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--brand-primary, #6366f1);
+  color: var(--brand-primary, #6366f1);
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Goal & Task Item (Touch-friendly vertical rows)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.shinpo-mobile-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  margin: -10px -4px -10px -10px;
+  cursor: pointer;
+}
+
+.shinpo-mobile-checkbox-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border, rgba(255, 255, 255, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.shinpo-mobile-checkbox-box.checked {
+  background: var(--brand-primary, #6366f1);
+  border-color: var(--brand-primary, #6366f1);
+  color: #ffffff;
+}
+
+.shinpo-mobile-task-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #f1f5f9);
+}
+
+.shinpo-mobile-task-text.completed {
+  text-decoration: line-through;
+  color: var(--text-muted, #64748b);
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Desktop Capability Notice (Honest Architecture)
+   -------------------------------------------------------------------------- */
+.shinpo-mobile-desktop-notice {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #fbbf24;
+}
+
+.shinpo-mobile-desktop-notice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.shinpo-mobile-desktop-notice-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: #f59e0b;
+}

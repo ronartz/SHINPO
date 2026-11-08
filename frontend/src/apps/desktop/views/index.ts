@@ -1,0 +1,8 @@
+export { OverviewView } from '../../../views/OverviewView'
+export { FocusView } from '../../../views/FocusView'
+export { GoalsView } from '../../../views/GoalsView'
+export { ScheduleView } from '../../../views/ScheduleView'
+export { AnalyticsView } from '../../../views/AnalyticsView'
+export { RewardsView } from '../../../views/RewardsView'
+export { TaskManagerView } from '../../../views/TaskManagerView'
+export { EonpaiView } from '../../../views/EonpaiView'

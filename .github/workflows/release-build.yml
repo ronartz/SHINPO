@@ -14,8 +14,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  qa-release-gate:
+    name: Mandatory QA & Release Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Install Playwright Chromium browser
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Execute Mandatory Release Quality Gate
+        run: ./scripts/qa-release.sh release
+      - name: Archive QA Gate Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-release-gate-reports
+          path: docs/qa/
+
   linux-installers:
     name: Linux installers and checksums
+    needs: qa-release-gate
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -73,6 +102,7 @@ jobs:
 
   windows-installer:
     name: Windows NSIS installer and checksum
+    needs: qa-release-gate
     runs-on: windows-2025
     timeout-minutes: 90
     steps:
@@ -171,7 +201,7 @@ jobs:
             if (-not (Test-Path $path)) { throw "Browser Companion resource is missing: $path" }
           }
           $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          foreach ($required in @('target/bundle-input/*', '../../browser-extension/dist/chromium/*', '../../browser-extension/dist/firefox/*', '../../scripts/register-browser-companion.ps1')) {
+          foreach ($required in @('target/bundle-input/*', '../../browser-extension/dist/chromium', '../../browser-extension/dist/firefox', '../../scripts/register-browser-companion.ps1')) {
             if (-not ($config.bundle.resources.PSObject.Properties.Name -contains $required)) {
               throw "Tauri bundle resource mapping is missing: $required"
             }
