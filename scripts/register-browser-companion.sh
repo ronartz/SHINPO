@@ -17,6 +17,7 @@ MANIFEST_PATH="${MANIFEST_DIR}/${HOST_NAME}.json"
 FIREFOX_MANIFEST_PATH="${MANIFEST_DIR}/${HOST_NAME}.firefox.json"
 TARGET_DIRS=(
     "${CONFIG_HOME}/google-chrome/NativeMessagingHosts"
+    "${CONFIG_HOME}/google-chrome-for-testing/NativeMessagingHosts"
     "${CONFIG_HOME}/chromium/NativeMessagingHosts"
     "${CONFIG_HOME}/BraveSoftware/Brave-Browser/NativeMessagingHosts"
     "${CONFIG_HOME}/microsoft-edge/NativeMessagingHosts"
@@ -26,16 +27,43 @@ SELECTED_TARGETS=()
 REGISTER_FIREFOX=false
 REGISTER_ALL=false
 
-for ARG in "$@"; do
-    case "$ARG" in
-        --chrome) SELECTED_TARGETS+=("${TARGET_DIRS[0]}") ;;
-        --chromium) SELECTED_TARGETS+=("${TARGET_DIRS[1]}") ;;
-        --brave) SELECTED_TARGETS+=("${TARGET_DIRS[2]}") ;;
-        --edge) SELECTED_TARGETS+=("${TARGET_DIRS[3]}") ;;
-        --firefox) REGISTER_FIREFOX=true ;;
-        --all) REGISTER_ALL=true ;;
-        --uninstall) ;;
-        *) echo "Unknown option: ${ARG}" >&2; exit 2 ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --chrome)
+            SELECTED_TARGETS+=("${TARGET_DIRS[0]}" "${TARGET_DIRS[1]}")
+            shift
+            ;;
+        --chromium)
+            SELECTED_TARGETS+=("${TARGET_DIRS[2]}")
+            shift
+            ;;
+        --brave)
+            SELECTED_TARGETS+=("${TARGET_DIRS[3]}")
+            shift
+            ;;
+        --edge)
+            SELECTED_TARGETS+=("${TARGET_DIRS[4]}")
+            shift
+            ;;
+        --target-dir)
+            SELECTED_TARGETS+=("$2")
+            shift 2
+            ;;
+        --firefox)
+            REGISTER_FIREFOX=true
+            shift
+            ;;
+        --all)
+            REGISTER_ALL=true
+            shift
+            ;;
+        --uninstall)
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 2
+            ;;
     esac
 done
 
@@ -75,6 +103,8 @@ fi
 HOST_BIN=""
 if [[ -x "${SCRIPT_DIR}/shinpo-browser-host" ]]; then
     HOST_BIN="${SCRIPT_DIR}/shinpo-browser-host"
+elif [[ -x "/usr/lib/SHINPO/browser-companion/shinpo-browser-host" ]]; then
+    HOST_BIN="/usr/lib/SHINPO/browser-companion/shinpo-browser-host"
 elif [[ -x "${PROJECT_ROOT}/release/shinpo-browser-host" ]]; then
     HOST_BIN="${PROJECT_ROOT}/release/shinpo-browser-host"
 elif [[ -x "${PROJECT_ROOT}/crates/shinpo-browser-host/target/release/shinpo-browser-host" ]]; then
@@ -135,7 +165,9 @@ cat > "${FIREFOX_MANIFEST_PATH}" <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
-    "${FIREFOX_ID}"
+    "${FIREFOX_ID}",
+    "companion@shinpo.local",
+    "shinpo@shinpo.local"
   ]
 }
 EOF

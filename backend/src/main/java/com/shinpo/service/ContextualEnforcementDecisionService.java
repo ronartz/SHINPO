@@ -70,7 +70,7 @@ public class ContextualEnforcementDecisionService {
                         userId, session.getMission().getId()));
             }
             List<ContextualFocusResource> matchingBreakRules = resources.stream()
-                    .filter(ContextualFocusResource::isBreakOnly)
+                    .filter(resource -> resource.isBreakOnly())
                     .filter(resource -> resource.getResourceType() == ContextualResourceType.DESKTOP_PROCESS)
                     .filter(resource -> resource.getProcessException() != null)
                     .filter(resource -> {

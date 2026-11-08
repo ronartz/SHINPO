@@ -145,7 +145,9 @@ export async function clearAuthSession(): Promise<void> {
   localStorage.removeItem(USER_KEY)
   if (isTauriEnvironment() && isLocalVaultSession()) {
     await invokeTauriCommand<void>('lock_local_account')
-  } else if (isTauriEnvironment()) await invokeTauriCommand<void>('delete_secure_refresh_token')
+  } else if (isTauriEnvironment()) {
+    await invokeTauriCommand<void>('delete_secure_refresh_token')
+  }
 }
 
 export async function setCustomServerUrl(url: string): Promise<void> {

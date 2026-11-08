@@ -1,7 +1,10 @@
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 use tauri::Manager;
+
+static SHUTDOWN_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "linux")]
 fn start_linux_lock_monitor(app: tauri::AppHandle) -> std::io::Result<()> {
@@ -191,6 +194,45 @@ fn delete_secure_refresh_token() -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn desktop_minimize_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn desktop_restart_app(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, native_vault::VaultManager>,
+) {
+    if SHUTDOWN_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        log::warn!("[SHINPO Desktop] Application shutdown or restart is already in progress.");
+        return;
+    }
+    log::info!("[SHINPO Desktop] Safe restart requested by user; preparing vault checkpoint.");
+    let _ = native_vault::prepare_desktop_shutdown(&state);
+    app.restart();
+}
+
+#[tauri::command]
+fn desktop_exit_app(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, native_vault::VaultManager>,
+) {
+    if SHUTDOWN_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        log::warn!("[SHINPO Desktop] Application shutdown or restart is already in progress.");
+        return;
+    }
+    log::info!("[SHINPO Desktop] Safe exit requested by user; preparing vault checkpoint.");
+    let _ = native_vault::prepare_desktop_shutdown(&state);
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -287,15 +329,28 @@ pub fn run() {
             native_vault::local_set_browser_focus_mode,
             native_vault::local_get_guardian_observations,
             native_vault::local_get_guardian_status,
+            native_vault::local_get_guardian_preferences,
+            native_vault::local_update_guardian_preferences,
+            native_vault::local_emergency_stop_guardian,
+            native_vault::local_get_discovered_apps,
+            native_vault::local_get_app_policies,
+            native_vault::local_save_app_policy,
+            native_vault::local_remove_app_policy,
             browser_companion_pairing_code,
             browser_companion_local_status,
             browser_companion_revoke,
+            native_system_monitor::local_get_system_telemetry,
+            native_system_monitor::local_get_process_snapshot,
             get_secure_refresh_token,
             set_secure_refresh_token,
-            delete_secure_refresh_token
+            delete_secure_refresh_token,
+            desktop_minimize_window,
+            desktop_restart_app,
+            desktop_exit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
 }
 
+mod native_system_monitor;
 mod native_vault;

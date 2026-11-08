@@ -34,8 +34,8 @@ test('native host registrations use the extension IDs derived from packaged mani
 test('Tauri bundles both browser builds and platform host-registration scripts', () => {
   const resources = tauri.bundle.resources
   assert.ok(Object.keys(resources).some((path) => path === 'target/bundle-input/*'))
-  assert.ok(Object.keys(resources).some((path) => path.endsWith('browser-extension/dist/chromium/*')))
-  assert.ok(Object.keys(resources).some((path) => path.endsWith('browser-extension/dist/firefox/*')))
+  assert.equal(resources['../../browser-extension/dist/chromium'], 'browser-companion/chromium')
+  assert.equal(resources['../../browser-extension/dist/firefox'], 'browser-companion/firefox')
   assert.ok(Object.keys(resources).some((path) => path.endsWith('register-browser-companion.sh')))
   assert.ok(Object.keys(resources).some((path) => path.endsWith('register-browser-companion.ps1')))
   assert.match(tauri.build.beforeBuildCommand, /prepare-desktop-bundle\.mjs/)

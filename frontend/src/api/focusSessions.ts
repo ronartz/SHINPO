@@ -9,6 +9,31 @@ export type FocusSessionStatus =
 
 export type GuardianMode = 'GUIDED' | 'PROTECTED' | 'STRICT'
 
+export type GuardianPreferences = {
+  preferredMode: GuardianMode
+  appMonitoringConsent: boolean
+  applyToNewSessions: boolean
+  closureConsent: boolean
+  backgroundRuntimeConsent: boolean
+}
+
+export type GuardianStatus = {
+  status: string
+  activeFocusSessionId: number | null
+  activeFocusSessionName: string | null
+  guardianMode: GuardianMode | null
+  focusPhase: string | null
+  observationsToday: number
+  lastObservationAt: string | null
+  appCatalogVersion: string
+  domainCatalogVersion: string
+  warningOnly: boolean
+  interventionCapability: string
+  standardAllowanceSeconds: number | null
+  observerStatus: string
+  applicationPolicyStatus: string
+}
+
 export type SessionResult = {
   quality?: number
   reflectionNote?: string
@@ -96,6 +121,28 @@ export type CreateFocusSessionRequest = {
   guardianAppMonitoring?: boolean
 }
 
+export async function getGuardianPreferences(): Promise<GuardianPreferences> {
+  if (!isLocalFocusMode()) throw new Error('Guardian preferences are available only in the local desktop app')
+  return invokeTauriCommand('local_get_guardian_preferences')
+}
+
+export async function getGuardianStatus(): Promise<GuardianStatus> {
+  if (!isLocalFocusMode()) throw new Error('Guardian status is available only in the local desktop app')
+  return invokeTauriCommand('local_get_guardian_status')
+}
+
+export async function updateGuardianPreferences(
+  preferences: GuardianPreferences,
+): Promise<GuardianPreferences> {
+  if (!isLocalFocusMode()) throw new Error('Guardian preferences are available only in the local desktop app')
+  return invokeTauriCommand('local_update_guardian_preferences', { request: preferences })
+}
+
+export async function emergencyStopGuardianInterventions(): Promise<void> {
+  if (!isLocalFocusMode()) throw new Error('Guardian controls are available only in the local desktop app')
+  await invokeTauriCommand('local_emergency_stop_guardian')
+}
+
 export type { GuardianObservation } from './device.ts'
 import type { GuardianObservation } from './device.ts'
 
@@ -132,7 +179,7 @@ export async function createFocusSession(
     pomodoroLongBreakMinutes: request.pomodoroLongBreakMinutes, pomodoroGraceMinutes: request.pomodoroGraceMinutes,
     latePenaltyEnabled: request.latePenaltyEnabled ?? false, latePenaltyXp: request.latePenaltyXp ?? 5,
     latePenaltyDailyCapXp: request.latePenaltyDailyCapXp ?? 20,
-    guardianMode: request.guardianMode ?? 'PROTECTED', guardianAppMonitoring: request.guardianAppMonitoring ?? false,
+    guardianMode: request.guardianMode, guardianAppMonitoring: request.guardianAppMonitoring,
   } })
   const effectiveUserId = request.userId ?? getAuthenticatedUserId() ?? undefined
   const payload = effectiveUserId !== undefined ? { ...request, userId: effectiveUserId } : request

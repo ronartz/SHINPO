@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { updateMission } from './goalsAndMissions.ts'
-import { createFocusSession, updateFocusSession } from './focusSessions.ts'
+import { createFocusSession, emergencyStopGuardianInterventions, getGuardianPreferences, getGuardianStatus, updateFocusSession, updateGuardianPreferences } from './focusSessions.ts'
 import { createStudyResource } from './contextualFocus.ts'
 
 test('native mutations send typed request payloads through Tauri IPC', async () => {
@@ -24,6 +24,9 @@ test('native mutations send typed request payloads through Tauri IPC', async () 
         calls.push({ command, args })
         if (command === 'local_get_tasks') return [{ id: 9, goalId: 4 }]
         if (command === 'local_get_focus_sessions') return [{ id: 12, goalId: 4, taskId: 9 }]
+        if (command === 'local_get_guardian_preferences') return { preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false }
+        if (command === 'local_get_guardian_status') return { status: 'ACTIVE', warningOnly: true, interventionCapability: 'LIMITED_NO_CLOSURE_CONSENT' }
+        if (command === 'local_update_guardian_preferences') return args?.request
         return {}
       },
     },
@@ -45,6 +48,10 @@ test('native mutations send typed request payloads through Tauri IPC', async () 
       pomodoroFocusCycles: 2,
     })
     await updateFocusSession(12, { name: 'Review focus' })
+    assert.deepEqual(await getGuardianPreferences(), { preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false })
+    await updateGuardianPreferences({ preferredMode: 'STRICT', appMonitoringConsent: true, applyToNewSessions: true, closureConsent: true, backgroundRuntimeConsent: true })
+    assert.equal((await getGuardianStatus()).interventionCapability, 'LIMITED_NO_CLOSURE_CONSENT')
+    await emergencyStopGuardianInterventions()
     await createStudyResource({
       missionId: 9,
       resourceType: 'WEBSITE',
@@ -60,11 +67,16 @@ test('native mutations send typed request payloads through Tauri IPC', async () 
       scheduledDate: '2026-10-28', estimatedMinutes: 25, status: undefined,
     })
     assert.deepEqual(request('local_create_focus_session').pomodoroFocusCycles, 2)
-    assert.equal(request('local_create_focus_session').guardianAppMonitoring, false)
+    assert.equal(request('local_create_focus_session').guardianAppMonitoring, undefined)
     await createFocusSession({ userId: 1, name: 'Consented Focus', durationMinutes: 25, guardianAppMonitoring: true })
     const createSessionRequests = calls.filter((call) => call.command === 'local_create_focus_session')
     assert.equal((createSessionRequests.at(-1)?.args?.request as Record<string, unknown>).guardianAppMonitoring, true)
     assert.deepEqual(request('local_update_focus_session').sessionId, 12)
+    assert.deepEqual(request('local_update_guardian_preferences'), {
+      preferredMode: 'STRICT', appMonitoringConsent: true, applyToNewSessions: true,
+      closureConsent: true, backgroundRuntimeConsent: true,
+    })
+    assert.ok(calls.some((call) => call.command === 'local_emergency_stop_guardian'))
     assert.deepEqual(request('local_create_study_resource').destination, 'iana.org')
   } finally {
     delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__

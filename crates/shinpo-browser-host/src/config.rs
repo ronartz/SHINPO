@@ -114,7 +114,7 @@ impl HostConfig {
             max_lease_seconds: 60,
             pairing_expires_at_ms: Some(now_ms() + 10 * 60 * 1000),
             browser_token_hash: None,
-            review_url: Some("http://localhost:5173".to_string()),
+            review_url: None,
             backend: None,
         };
         (config, raw_token)

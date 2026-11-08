@@ -73,7 +73,8 @@ class OnboardingServiceTests {
     @DisplayName("Concurrent first onboarding writes recheck after locking the user")
     void testGetOrCreateRechecksAfterUserLock() {
         UserOnboarding createdByConcurrentRequest = new UserOnboarding(testUser);
-        when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.empty(), Optional.of(createdByConcurrentRequest));
+        when(onboardingRepository.findByUserId(1L)).thenReturn(Optional.empty())
+                .thenReturn(Optional.of(createdByConcurrentRequest));
         when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
 
         UserOnboarding result = onboardingService.getOrCreateEntity(1L);

@@ -412,17 +412,19 @@ public class ContextualFocusPolicyService {
 
         boolean breakPhase = isBreakPermissionPhase(session.getCurrentPhase());
         List<ContextualFocusResource> applicable = applicableResources(session, now);
-        if (!breakPhase && applicable.stream()
-                .filter(ContextualFocusResource::isBreakOnly)
-                .anyMatch(resource -> canonicalizationService.matches(resource, descriptor))) {
-            return response(
-                    session,
-                    ContextualPolicyDecision.RESTRICT,
-                    "This resource is only permitted during the configured break",
-                    descriptor.canonicalUrl(),
-                    null,
-                    leaseExpiresAt
-            );
+        if (!breakPhase) {
+            for (ContextualFocusResource resource : applicable) {
+                if (resource != null && resource.isBreakOnly() && canonicalizationService.matches(resource, descriptor)) {
+                    return response(
+                            session,
+                            ContextualPolicyDecision.RESTRICT,
+                            "This resource is only permitted during the configured break",
+                            descriptor.canonicalUrl(),
+                            null,
+                            leaseExpiresAt
+                    );
+                }
+            }
         }
         List<ContextualFocusResource> matches = applicable.stream()
                 .filter(resource -> resource.getDisposition() == ContextualResourceDisposition.BLOCKED

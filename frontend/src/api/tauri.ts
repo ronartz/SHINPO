@@ -16,8 +16,18 @@ export async function invokeTauriCommand<T>(cmd: string, args?: Record<string, u
     }
   }
 
-  if (w.__TAURI_INTERNALS__?.invoke) return w.__TAURI_INTERNALS__.invoke(cmd, args)
-  if (w.__TAURI__?.core?.invoke) return w.__TAURI__.core.invoke(cmd, args)
-  if (w.__TAURI__?.invoke) return w.__TAURI__.invoke(cmd, args)
-  throw new Error(`Tauri invoke not found on window object for command: ${cmd}`)
+  try {
+    if (w.__TAURI_INTERNALS__?.invoke) return await w.__TAURI_INTERNALS__.invoke(cmd, args)
+    if (w.__TAURI__?.core?.invoke) return await w.__TAURI__.core.invoke(cmd, args)
+    if (w.__TAURI__?.invoke) return await w.__TAURI__.invoke(cmd, args)
+    throw new Error(`Tauri invoke not found on window object for command: ${cmd}`)
+  } catch (err: unknown) {
+    if (err instanceof Error) throw err
+    const message = typeof err === 'string'
+      ? err
+      : err && typeof err === 'object' && 'message' in err && typeof (err as Record<string, unknown>).message === 'string'
+        ? String((err as Record<string, unknown>).message)
+        : String(err)
+    throw new Error(message, { cause: err })
+  }
 }

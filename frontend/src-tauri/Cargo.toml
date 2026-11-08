@@ -21,6 +21,7 @@ tauri-plugin-log = "2"
 keyring = "=4.2.0"
 shinpo-shield = { path = "../../crates/shinpo-shield" }
 shinpo-browser-host = { path = "../../crates/shinpo-browser-host" }
+sysinfo = "0.33"
 argon2 = "0.6"
 chacha20poly1305 = "0.11"
 getrandom = "0.3"

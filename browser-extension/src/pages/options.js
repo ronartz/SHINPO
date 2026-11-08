@@ -5,6 +5,13 @@
   const reviewUrl = document.getElementById('review-url')
   const message = document.getElementById('message')
 
+  // On load, populate current reviewUrl if configured
+  send({ type: 'STATUS' }).then((status) => {
+    if (status?.reviewUrl) {
+      reviewUrl.value = status.reviewUrl
+    }
+  }).catch(() => {})
+
   document.getElementById('pair').addEventListener('click', () => act(async () => {
     await send({ type: 'PAIR', pairingCode: pairingCode.value })
     pairingCode.value = ''

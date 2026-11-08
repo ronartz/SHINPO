@@ -1159,6 +1159,7 @@ mod tests {
         let before = revision(&f.db).unwrap();
         f.db.execute_batch(
             "DROP TRIGGER eonpai_sessions_update;
+             DROP TABLE guardian_preferences;
              CREATE TRIGGER eonpai_sessions_update AFTER UPDATE ON calendar_sessions
              WHEN OLD.name IS NOT NEW.name BEGIN UPDATE eonpai_revision SET revision=revision+1; END;
              PRAGMA user_version=11;",

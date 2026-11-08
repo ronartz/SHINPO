@@ -51,8 +51,8 @@
     "targets": ["deb", "appimage", "rpm", "nsis"],
     "resources": {
       "target/bundle-input/*": "browser-companion/",
-      "../../browser-extension/dist/chromium/*": "browser-companion/chromium/",
-      "../../browser-extension/dist/firefox/*": "browser-companion/firefox/",
+      "../../browser-extension/dist/chromium": "browser-companion/chromium",
+      "../../browser-extension/dist/firefox": "browser-companion/firefox",
       "../../scripts/register-browser-companion.sh": "browser-companion/register-browser-companion.sh",
       "../../scripts/register-browser-companion.ps1": "browser-companion/register-browser-companion.ps1",
       "../../docs/Browser-Companion-Install.md": "browser-companion/Browser-Companion-Install.md"

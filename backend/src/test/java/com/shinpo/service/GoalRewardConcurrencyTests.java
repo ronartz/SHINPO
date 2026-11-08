@@ -2,9 +2,7 @@ package com.shinpo.service;
 
 import com.shinpo.dto.CreateGoalRequest;
 import com.shinpo.dto.GoalResponse;
-import com.shinpo.dto.ProgressResponse;
 import com.shinpo.dto.UpdateGoalRequest;
-import com.shinpo.entity.ProgressEvent;
 import com.shinpo.entity.User;
 import com.shinpo.repository.ProgressEventRepository;
 import com.shinpo.repository.UserRepository;

@@ -95,6 +95,7 @@ pub struct ObservedDistraction {
     pub catalog_version: &'static str,
     pub category: &'static str,
     pub rationale: &'static str,
+    pub identity: Option<crate::process_identity::ProcessIdentity>,
 }
 
 pub fn classify_distraction(process_name: &str) -> Option<&'static AppCatalogEntry> {
@@ -114,9 +115,26 @@ pub fn distraction_catalog() -> &'static [AppCatalogEntry] {
 }
 
 pub fn observe_known_distractions() -> Vec<ObservedDistraction> {
+    observe_processes_with_targets(&[], &[])
+}
+
+pub fn observe_processes_with_targets(
+    blocked_targets: &[String],
+    allowed_targets: &[String],
+) -> Vec<ObservedDistraction> {
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
     let own_pid = std::process::id();
+
+    let allowed_set: std::collections::HashSet<String> = allowed_targets
+        .iter()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .collect();
+
+    let blocked_set: std::collections::HashSet<String> = blocked_targets
+        .iter()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .collect();
 
     system
         .processes()
@@ -126,14 +144,40 @@ pub fn observe_known_distractions() -> Vec<ObservedDistraction> {
             if pid.as_u32() == own_pid {
                 return None;
             }
-            let classification = classify_distraction(&name)?;
+            let normalized = name.trim().to_ascii_lowercase();
+            let clean_name = normalized.strip_suffix(".exe").unwrap_or(&normalized).to_string();
+
+            // Explicit allowed target check
+            if allowed_set.contains(&normalized) || allowed_set.contains(&clean_name) {
+                return None;
+            }
+
+            let is_explicit_blocked =
+                blocked_set.contains(&normalized) || blocked_set.contains(&clean_name);
+            let catalog_entry = classify_distraction(&name);
+
+            if !is_explicit_blocked && catalog_entry.is_none() {
+                return None;
+            }
+
+            let (category, rationale) = if let Some(entry) = catalog_entry {
+                (entry.category, entry.rationale)
+            } else {
+                ("USER_BLOCKED", "User-configured focus protection policy")
+            };
+
+            let identity = crate::process_identity::inspect_target_process(pid.as_u32(), &name)
+                .ok()
+                .flatten();
+
             Some(ObservedDistraction {
                 pid: pid.as_u32(),
                 process_name: name,
                 process_started_at: process.start_time(),
                 catalog_version: APP_CATALOG_VERSION,
-                category: classification.category,
-                rationale: classification.rationale,
+                category,
+                rationale,
+                identity,
             })
         })
         .collect()
@@ -155,5 +199,12 @@ mod tests {
         let game = classify_distraction("Steam.EXE").unwrap();
         assert_eq!(game.category, "GAMING");
         assert_eq!(game.rationale, "Game launcher and store");
+    }
+
+    #[test]
+    fn allowed_target_overrides_catalog() {
+        let allowed = vec!["discord".to_string(), "steam".to_string()];
+        let observed = super::observe_processes_with_targets(&[], &allowed);
+        assert!(!observed.iter().any(|o| o.process_name.to_lowercase() == "discord" || o.process_name.to_lowercase() == "steam"));
     }
 }

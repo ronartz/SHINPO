@@ -21,7 +21,7 @@ const SALT_BYTES: usize = 16;
 const NONCE_BYTES: usize = 24;
 const ARGON_MEMORY_KIB: u32 = 65_536;
 const ARGON_ITERATIONS: u32 = 3;
-const LATEST_SCHEMA_VERSION: i64 = 13;
+const LATEST_SCHEMA_VERSION: i64 = 16;
 const LOCAL_VAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 #[path = "native_eonpai.rs"]
@@ -207,6 +207,26 @@ pub struct CreateFocusSessionRequest {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdateGuardianPreferencesRequest {
+    preferred_mode: String,
+    app_monitoring_consent: bool,
+    apply_to_new_sessions: bool,
+    closure_consent: bool,
+    background_runtime_consent: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalGuardianPreferences {
+    pub preferred_mode: String,
+    pub app_monitoring_consent: bool,
+    pub apply_to_new_sessions: bool,
+    pub closure_consent: bool,
+    pub background_runtime_consent: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdateFocusSessionRequest {
     session_id: i64,
     goal_id: Option<i64>,
@@ -256,6 +276,29 @@ pub struct LocalGuardianObservation {
     pub observed_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalGuardianAppPolicy {
+    pub id: i64,
+    pub app_id: String,
+    pub app_name: String,
+    pub exec_name: String,
+    pub policy_type: String,
+    pub source: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveAppPolicyRequest {
+    pub app_id: String,
+    pub app_name: String,
+    pub exec_name: String,
+    pub policy_type: String,
+    pub source: Option<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalGuardianStatus {
@@ -269,6 +312,8 @@ pub struct LocalGuardianStatus {
     pub app_catalog_version: &'static str,
     pub domain_catalog_version: &'static str,
     pub warning_only: bool,
+    pub intervention_capability: &'static str,
+    pub standard_allowance_seconds: Option<i64>,
     pub observer_status: &'static str,
     pub application_policy_status: &'static str,
     pub application_catalog: Vec<LocalGuardianCatalogEntry>,
@@ -836,6 +881,10 @@ fn change_account_password(
 #[tauri::command]
 pub fn lock_local_account(state: tauri::State<'_, VaultManager>) -> Result<(), String> {
     lock_vault_for_system_event(&state)
+}
+
+pub fn prepare_desktop_shutdown(manager: &VaultManager) -> Result<(), String> {
+    lock_vault_for_system_event(manager)
 }
 
 pub fn lock_vault_for_system_event(manager: &VaultManager) -> Result<(), String> {
@@ -1540,10 +1589,12 @@ pub fn local_create_focus_session(
     let penalty_enabled = late_penalty_enabled.unwrap_or(false);
     let penalty_xp = late_penalty_xp.unwrap_or(5);
     let penalty_cap = late_penalty_daily_cap_xp.unwrap_or(20);
-    let guardian_mode = guardian_mode
-        .unwrap_or_else(|| "PROTECTED".into())
-        .to_ascii_uppercase();
-    if !matches!(guardian_mode.as_str(), "GUIDED" | "PROTECTED" | "STRICT") {
+    if guardian_mode.as_ref().is_some_and(|mode| {
+        !matches!(
+            mode.to_ascii_uppercase().as_str(),
+            "GUIDED" | "PROTECTED" | "STRICT"
+        )
+    }) {
         return Err("Guardian mode must be Light, Standard, or Strict".into());
     }
     if !(1..=100).contains(&penalty_xp)
@@ -2313,8 +2364,26 @@ fn maintain_active_focus_at(
 }
 
 pub fn observe_local_guardian_apps(state: &VaultManager) -> Result<(), String> {
+    let (blocked, allowed) = with_db_background(state, |db| {
+        let mut stmt = db.prepare("SELECT exec_name, policy_type FROM guardian_app_policies")?;
+        let mut blocked = Vec::new();
+        let mut allowed = Vec::new();
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for r in rows.flatten() {
+            if r.1 == "BLOCKED" {
+                blocked.push(r.0);
+            } else if r.1 == "ALLOWED" {
+                allowed.push(r.0);
+            }
+        }
+        Ok((blocked, allowed))
+    })
+    .unwrap_or_default();
+
     observe_local_guardian_apps_with(state, || {
-        Ok(shinpo_shield::observer::observe_known_distractions())
+        Ok(shinpo_shield::observer::observe_processes_with_targets(&blocked, &allowed))
     })
 }
 
@@ -2346,6 +2415,13 @@ fn observe_local_guardian_apps_with(
         .optional()
     })?;
     let Some((session_id, guardian_mode, focus_phase)) = active_session else {
+        with_db_background(state, |db| {
+            db.execute(
+                "UPDATE guardian_session_usage SET last_verified_epoch=NULL",
+                [],
+            )?;
+            Ok(())
+        })?;
         set_guardian_observer_health(state, None, "IDLE")?;
         return Ok(());
     };
@@ -2354,14 +2430,18 @@ fn observe_local_guardian_apps_with(
     let observed = match observe() {
         Ok(observed) => observed,
         Err(error) => {
+            reset_guardian_runtime_sample(state, session_id)?;
             set_guardian_observer_health(state, Some(session_id), "DEGRADED")?;
             return Err(error);
         }
     };
     if observed.is_empty() {
+        reset_guardian_runtime_sample(state, session_id)?;
         set_guardian_observer_health(state, Some(session_id), "MONITORING")?;
         return Ok(());
     }
+    let outcomes =
+        apply_guardian_app_policy(state, session_id, &guardian_mode, &focus_phase, &observed)?;
     let observed_at = OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(|_| "Could not timestamp local Guardian observation".to_string())?;
@@ -2375,6 +2455,18 @@ fn observe_local_guardian_apps_with(
             &observed_at,
         )
     });
+    if persisted.is_ok() {
+        let _ = with_db_background(state, |db| {
+            persist_guardian_intervention_outcomes(
+                db,
+                session_id,
+                &guardian_mode,
+                &focus_phase,
+                &observed,
+                &outcomes,
+            )
+        });
+    }
     set_guardian_observer_health(
         state,
         Some(session_id),
@@ -2385,6 +2477,206 @@ fn observe_local_guardian_apps_with(
         },
     )?;
     persisted
+}
+
+type GuardianOutcome = (u32, u64, String);
+
+fn reset_guardian_runtime_sample(state: &VaultManager, session_id: i64) -> Result<(), String> {
+    with_db_background(state, |db| {
+        db.execute(
+            "UPDATE guardian_session_usage SET last_verified_epoch=NULL WHERE session_id=?1",
+            [session_id],
+        )?;
+        Ok(())
+    })
+}
+
+fn apply_guardian_app_policy(
+    state: &VaultManager,
+    session_id: i64,
+    guardian_mode: &str,
+    focus_phase: &str,
+    observed: &[shinpo_shield::observer::ObservedDistraction],
+) -> Result<Vec<GuardianOutcome>, String> {
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    with_db_background(state, |db| {
+        let transaction = db.transaction()?;
+        let session = transaction.query_row(
+            "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
+             FROM calendar_sessions WHERE id=?1",
+            [session_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, bool>(3)?, row.get::<_, String>(4)?)),
+        ).optional()?;
+        let (closure_consent, runtime_consent) = transaction.query_row(
+            "SELECT closure_consent,background_runtime_consent FROM guardian_preferences WHERE id=1",
+            [],
+            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+        )?;
+        let valid_session =
+            session
+                .as_ref()
+                .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                    status == "ACTIVE"
+                        && phase == focus_phase
+                        && mode == guardian_mode
+                        && *monitoring
+                        && !stopped
+                });
+        let verified_count = observed
+            .iter()
+            .filter(|process| verified_observed_identity(process))
+            .count();
+        let allowance = if valid_session
+            && focus_phase == "FOCUS"
+            && guardian_mode == "PROTECTED"
+            && runtime_consent
+            && closure_consent
+            && verified_count > 0
+        {
+            advance_guardian_runtime_allowance(&transaction, session_id, now)?
+        } else {
+            transaction.execute(
+                "UPDATE guardian_session_usage SET last_verified_epoch=NULL WHERE session_id=?1",
+                [session_id],
+            )?;
+            transaction
+                .query_row(
+                    "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
+                    [session_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .optional()?
+                .unwrap_or(0)
+        };
+        let mut outcomes = Vec::with_capacity(observed.len());
+        for process in observed {
+            let event_key = guardian_event_key(session_id, process, guardian_mode, focus_phase);
+            let prior_outcome = transaction
+                .query_row(
+                    "SELECT outcome FROM guardian_observations WHERE event_key=?1",
+                    [&event_key],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let already_intervened = prior_outcome.as_deref().is_some_and(|outcome| {
+                matches!(
+                    outcome,
+                    "CLOSED_GRACEFULLY_VERIFIED"
+                        | "CLOSE_REQUESTED_UNCONFIRMED"
+                        | "LIMITED_CLOSE_UNAVAILABLE"
+                )
+            });
+            let outcome = if already_intervened {
+                prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
+            } else if !valid_session {
+                "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
+            } else if focus_phase != "FOCUS" {
+                "ALLOWED_OUTSIDE_FOCUS".to_string()
+            } else if !verified_observed_identity(process) {
+                "LIMITED_IDENTITY_UNVERIFIED".to_string()
+            } else if guardian_mode == "GUIDED" {
+                "WARNING_LIGHT".to_string()
+            } else if !closure_consent {
+                "LIMITED_NO_CLOSURE_CONSENT".to_string()
+            } else if guardian_mode == "PROTECTED" && !runtime_consent {
+                "LIMITED_NO_RUNTIME_CONSENT".to_string()
+            } else if guardian_mode == "PROTECTED" && allowance < 600 {
+                format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
+            } else {
+                match process.identity.as_ref() {
+                    Some(identity) => match shinpo_shield::process_identity::request_graceful_close(
+                        identity,
+                        closure_consent,
+                    ) {
+                        Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+                            "CLOSED_GRACEFULLY_VERIFIED".to_string()
+                        }
+                        Ok(
+                            shinpo_shield::process_identity::CloseResult::RequestedButNotConfirmed,
+                        ) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
+                        Ok(shinpo_shield::process_identity::CloseResult::ConsentRequired) => {
+                            "LIMITED_NO_CLOSURE_CONSENT".to_string()
+                        }
+                        Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
+                    },
+                    None => "LIMITED_IDENTITY_UNVERIFIED".to_string(),
+                }
+            };
+            outcomes.push((process.pid, process.process_started_at, outcome));
+        }
+        transaction.commit()?;
+        Ok(outcomes)
+    })
+}
+
+fn verified_observed_identity(process: &shinpo_shield::observer::ObservedDistraction) -> bool {
+    process.identity.as_ref().is_some_and(|identity| {
+        identity.pid == process.pid
+            && identity
+                .process_name
+                .eq_ignore_ascii_case(&process.process_name)
+            && !shinpo_shield::process_identity::protected_process_name(&identity.process_name)
+    })
+}
+
+fn guardian_event_key(
+    session_id: i64,
+    process: &shinpo_shield::observer::ObservedDistraction,
+    guardian_mode: &str,
+    focus_phase: &str,
+) -> String {
+    format!(
+        "guardian:{session_id}:{}:{}:{guardian_mode}:{focus_phase}",
+        process.pid, process.process_started_at
+    )
+}
+
+fn advance_guardian_runtime_allowance(
+    transaction: &Transaction<'_>,
+    session_id: i64,
+    now: i64,
+) -> rusqlite::Result<i64> {
+    transaction.execute(
+        "INSERT OR IGNORE INTO guardian_session_usage(session_id) VALUES(?1)",
+        [session_id],
+    )?;
+    transaction.execute(
+        "UPDATE guardian_session_usage SET
+             consumed_seconds=MIN(600,consumed_seconds + CASE WHEN last_verified_epoch IS NULL THEN 0 ELSE MIN(10,MAX(0,?2-last_verified_epoch)) END),
+             last_verified_epoch=?2 WHERE session_id=?1",
+        params![session_id, now],
+    )?;
+    transaction.query_row(
+        "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
+        [session_id],
+        |row| row.get(0),
+    )
+}
+
+fn persist_guardian_intervention_outcomes(
+    db: &mut Connection,
+    session_id: i64,
+    guardian_mode: &str,
+    focus_phase: &str,
+    observed: &[shinpo_shield::observer::ObservedDistraction],
+    outcomes: &[GuardianOutcome],
+) -> rusqlite::Result<()> {
+    let tx = db.transaction()?;
+    for process in observed {
+        let Some((_, _, outcome)) = outcomes.iter().find(|(pid, started, _)| {
+            *pid == process.pid && *started == process.process_started_at
+        }) else {
+            continue;
+        };
+        tx.execute(
+            "UPDATE guardian_observations SET outcome=?1 WHERE event_key=?2",
+            params![
+                outcome,
+                guardian_event_key(session_id, process, guardian_mode, focus_phase)
+            ],
+        )?;
+    }
+    tx.commit()
 }
 
 fn persist_guardian_observations(
@@ -2462,6 +2754,259 @@ fn local_get_guardian_observations_from(
 }
 
 #[tauri::command]
+pub fn local_get_guardian_preferences(
+    state: tauri::State<'_, VaultManager>,
+) -> Result<LocalGuardianPreferences, String> {
+    local_get_guardian_preferences_from(&state)
+}
+
+fn local_get_guardian_preferences_from(
+    state: &VaultManager,
+) -> Result<LocalGuardianPreferences, String> {
+    with_db(state, |db| {
+        db.query_row(
+            "SELECT preferred_mode,app_monitoring_consent,apply_to_new_sessions,closure_consent,background_runtime_consent
+             FROM guardian_preferences WHERE id=1",
+            [],
+            |row| {
+                Ok(LocalGuardianPreferences {
+                    preferred_mode: row.get(0)?,
+                    app_monitoring_consent: row.get(1)?,
+                    apply_to_new_sessions: row.get(2)?,
+                    closure_consent: row.get(3)?,
+                    background_runtime_consent: row.get(4)?,
+                })
+            },
+        )
+    })
+}
+
+#[tauri::command]
+pub fn local_update_guardian_preferences(
+    state: tauri::State<'_, VaultManager>,
+    request: UpdateGuardianPreferencesRequest,
+) -> Result<LocalGuardianPreferences, String> {
+    local_update_guardian_preferences_from(&state, request)
+}
+
+#[tauri::command]
+pub fn local_emergency_stop_guardian(state: tauri::State<'_, VaultManager>) -> Result<(), String> {
+    emergency_stop_guardian_in(&state)
+}
+
+fn emergency_stop_guardian_in(state: &VaultManager) -> Result<(), String> {
+    with_db(state, |db| {
+        db.execute("UPDATE calendar_sessions SET guardian_intervention_disabled=1,updated_at=?1 WHERE status IN ('ACTIVE','PAUSED')", [chrono_now()])?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn local_get_discovered_apps(
+    state: tauri::State<'_, VaultManager>,
+) -> Result<Vec<shinpo_shield::app_discovery::DiscoveredApp>, String> {
+    local_get_discovered_apps_from(&state)
+}
+
+fn local_get_discovered_apps_from(
+    state: &VaultManager,
+) -> Result<Vec<shinpo_shield::app_discovery::DiscoveredApp>, String> {
+    let mut apps = shinpo_shield::app_discovery::discover_installed_apps();
+    if state.is_unlocked().unwrap_or(false) {
+        let policies = local_get_app_policies_from(state).unwrap_or_default();
+        let mut by_app_id = std::collections::HashMap::new();
+        let mut by_exec = std::collections::HashMap::new();
+        for p in policies {
+            by_app_id.insert(p.app_id, p.policy_type.clone());
+            by_exec.insert(p.exec_name.to_ascii_lowercase(), p.policy_type);
+        }
+        for app in &mut apps {
+            if let Some(p) = by_app_id.get(&app.id) {
+                app.policy = p.clone();
+            } else if let Some(ref ename) = app.exec_name {
+                if let Some(p) = by_exec.get(&ename.to_ascii_lowercase()) {
+                    app.policy = p.clone();
+                }
+            }
+        }
+    }
+    Ok(apps)
+}
+
+#[tauri::command]
+pub fn local_get_app_policies(
+    state: tauri::State<'_, VaultManager>,
+) -> Result<Vec<LocalGuardianAppPolicy>, String> {
+    local_get_app_policies_from(&state)
+}
+
+fn local_get_app_policies_from(
+    state: &VaultManager,
+) -> Result<Vec<LocalGuardianAppPolicy>, String> {
+    with_db(state, |db| {
+        let mut stmt = db.prepare(
+            "SELECT id, app_id, app_name, exec_name, policy_type, source, created_at, updated_at
+             FROM guardian_app_policies ORDER BY app_name ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(LocalGuardianAppPolicy {
+                id: row.get(0)?,
+                app_id: row.get(1)?,
+                app_name: row.get(2)?,
+                exec_name: row.get(3)?,
+                policy_type: row.get(4)?,
+                source: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })?;
+        rows.collect()
+    })
+}
+
+#[tauri::command]
+pub fn local_save_app_policy(
+    state: tauri::State<'_, VaultManager>,
+    request: SaveAppPolicyRequest,
+) -> Result<LocalGuardianAppPolicy, String> {
+    local_save_app_policy_in(&state, request)
+}
+
+fn local_save_app_policy_in(
+    state: &VaultManager,
+    request: SaveAppPolicyRequest,
+) -> Result<LocalGuardianAppPolicy, String> {
+    let p_type = request.policy_type.trim().to_ascii_uppercase();
+    if p_type != "BLOCKED" && p_type != "ALLOWED" {
+        return Err("Policy type must be BLOCKED or ALLOWED".to_string());
+    }
+    let app_id = request.app_id.trim();
+    if app_id.is_empty() {
+        return Err("App ID is required".to_string());
+    }
+    let app_name = request.app_name.trim();
+    if app_name.is_empty() {
+        return Err("App name is required".to_string());
+    }
+    let exec_name = request.exec_name.trim().to_ascii_lowercase();
+    if exec_name.is_empty() {
+        return Err("Executable target is required".to_string());
+    }
+    if shinpo_shield::process_identity::protected_process_name(&exec_name) {
+        return Err("Protected system processes cannot have policies applied".to_string());
+    }
+    let source = request.source.as_deref().unwrap_or("system");
+    let now = chrono_now();
+
+    with_db(state, |db| {
+        db.execute(
+            "INSERT INTO guardian_app_policies(app_id, app_name, exec_name, policy_type, source, created_at, updated_at)
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?6)
+             ON CONFLICT(app_id) DO UPDATE SET
+                app_name=excluded.app_name,
+                exec_name=excluded.exec_name,
+                policy_type=excluded.policy_type,
+                source=excluded.source,
+                updated_at=excluded.updated_at",
+            params![app_id, app_name, exec_name, p_type, source, now],
+        )?;
+        let row = db.query_row(
+            "SELECT id, app_id, app_name, exec_name, policy_type, source, created_at, updated_at
+             FROM guardian_app_policies WHERE app_id=?1",
+            [app_id],
+            |r| {
+                Ok(LocalGuardianAppPolicy {
+                    id: r.get(0)?,
+                    app_id: r.get(1)?,
+                    app_name: r.get(2)?,
+                    exec_name: r.get(3)?,
+                    policy_type: r.get(4)?,
+                    source: r.get(5)?,
+                    created_at: r.get(6)?,
+                    updated_at: r.get(7)?,
+                })
+            },
+        )?;
+        Ok(row)
+    })
+}
+
+#[tauri::command]
+pub fn local_remove_app_policy(
+    state: tauri::State<'_, VaultManager>,
+    app_id: String,
+) -> Result<(), String> {
+    local_remove_app_policy_in(&state, &app_id)
+}
+
+fn local_remove_app_policy_in(
+    state: &VaultManager,
+    app_id: &str,
+) -> Result<(), String> {
+    with_db(state, |db| {
+        db.execute(
+            "DELETE FROM guardian_app_policies WHERE app_id=?1 OR exec_name=?1",
+            [app_id],
+        )?;
+        Ok(())
+    })
+}
+
+fn local_update_guardian_preferences_from(
+    state: &VaultManager,
+    request: UpdateGuardianPreferencesRequest,
+) -> Result<LocalGuardianPreferences, String> {
+    let mode = request.preferred_mode.trim().to_ascii_uppercase();
+    if !matches!(mode.as_str(), "GUIDED" | "PROTECTED" | "STRICT") {
+        return Err("Guardian mode must be Light, Standard, or Strict".into());
+    }
+    if (request.closure_consent || request.background_runtime_consent)
+        && !request.app_monitoring_consent
+    {
+        return Err("Guardian intervention consent requires app monitoring consent".into());
+    }
+    with_db(state, |db| {
+        let transaction = db.transaction()?;
+        transaction.execute(
+            "UPDATE guardian_preferences SET preferred_mode=?1,app_monitoring_consent=?2,
+             apply_to_new_sessions=?3,closure_consent=?4,background_runtime_consent=?5,updated_at=?6 WHERE id=1",
+            params![
+                mode,
+                request.app_monitoring_consent,
+                request.apply_to_new_sessions,
+                request.closure_consent,
+                request.background_runtime_consent,
+                chrono_now(),
+            ],
+        )?;
+        if !request.app_monitoring_consent {
+            transaction.execute(
+                "UPDATE calendar_sessions SET guardian_app_monitoring=0
+                 WHERE status IN ('SCHEDULED','ACTIVE','PAUSED') AND guardian_app_monitoring<>0",
+                [],
+            )?;
+        }
+        if !request.app_monitoring_consent
+            || !request.closure_consent
+            || !request.background_runtime_consent
+        {
+            transaction.execute(
+                "UPDATE guardian_session_usage SET last_verified_epoch=NULL",
+                [],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(LocalGuardianPreferences {
+            preferred_mode: mode,
+            app_monitoring_consent: request.app_monitoring_consent,
+            apply_to_new_sessions: request.apply_to_new_sessions,
+            closure_consent: request.closure_consent,
+            background_runtime_consent: request.background_runtime_consent,
+        })
+    })
+}
+
+#[tauri::command]
 pub fn local_get_guardian_status(
     state: tauri::State<'_, VaultManager>,
 ) -> Result<LocalGuardianStatus, String> {
@@ -2481,6 +3026,8 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             domain_catalog_version: DOMAIN_CATALOG_VERSION,
             warning_only: true,
+            intervention_capability: "LOCKED",
+            standard_allowance_seconds: None,
             observer_status: "LOCKED",
             application_policy_status: "LOCKED",
             application_catalog: local_guardian_catalog(),
@@ -2490,7 +3037,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
     with_db(state, |db| {
         let session = db
             .query_row(
-                "SELECT id,name,guardian_mode,current_phase,status FROM calendar_sessions
+                "SELECT id,name,guardian_mode,current_phase,status,guardian_app_monitoring,guardian_intervention_disabled FROM calendar_sessions
                  WHERE status IN ('ACTIVE','PAUSED') ORDER BY id DESC LIMIT 1",
                 [],
                 |row| {
@@ -2500,6 +3047,8 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
                         row.get::<_, String>(2)?,
                         row.get::<_, String>(3)?,
                         row.get::<_, String>(4)?,
+                        row.get::<_, bool>(5)?,
+                        row.get::<_, bool>(6)?,
                     ))
                 },
             )
@@ -2515,29 +3064,55 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             [],
             |row| row.get(0),
         )?;
-        let (status, id, name, mode, phase, policy_status, monitoring) = match session {
-            Some((id, name, mode, phase, session_status)) => (
-                if session_status == "ACTIVE" {
-                    "ACTIVE"
-                } else {
-                    "PAUSED"
-                },
-                Some(id),
-                Some(name),
-                Some(mode),
-                Some(phase.clone()),
-                match (session_status.as_str(), phase.as_str()) {
-                    ("PAUSED", _) => "PAUSED",
-                    (_, "FOCUS") => "WARNING_ONLY",
-                    (_, "BREAK") => "BREAK_OBSERVATION_ONLY",
-                    (_, "GRACE") => "GRACE_WARNING_ONLY",
-                    (_, "RETURN_REQUIRED") => "RETURN_REQUIRED_WARNING_ONLY",
-                    _ => "INACTIVE",
-                },
-                session_status == "ACTIVE",
-            ),
-            None => ("READY", None, None, None, None, "INACTIVE", false),
-        };
+        let (status, id, name, mode, phase, policy_status, monitoring, intervention_disabled) =
+            match session {
+                Some((
+                    id,
+                    name,
+                    mode,
+                    phase,
+                    session_status,
+                    app_monitoring_enabled,
+                    intervention_disabled,
+                )) => (
+                    if session_status == "ACTIVE" {
+                        "ACTIVE"
+                    } else {
+                        "PAUSED"
+                    },
+                    Some(id),
+                    Some(name),
+                    Some(mode),
+                    Some(phase.clone()),
+                    match (session_status.as_str(), phase.as_str()) {
+                        ("PAUSED", _) => "PAUSED",
+                        (_, "FOCUS") => "WARNING_ONLY",
+                        (_, "BREAK") => "BREAK_OBSERVATION_ONLY",
+                        (_, "GRACE") => "GRACE_WARNING_ONLY",
+                        (_, "RETURN_REQUIRED") => "RETURN_REQUIRED_WARNING_ONLY",
+                        _ => "INACTIVE",
+                    },
+                    session_status == "ACTIVE" && app_monitoring_enabled,
+                    intervention_disabled,
+                ),
+                None => ("READY", None, None, None, None, "INACTIVE", false, false),
+            };
+        let (closure_consent, runtime_consent) = db.query_row(
+            "SELECT closure_consent,background_runtime_consent FROM guardian_preferences WHERE id=1",
+            [],
+            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+        )?;
+        let allowance = id
+            .map(|session_id| {
+                db.query_row(
+                    "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
+                    [session_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .optional()
+            })
+            .transpose()?
+            .flatten();
         let health = state
             .guardian_observer
             .lock()
@@ -2561,23 +3136,71 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         } else {
             "STARTING"
         };
+        let application_policy_status = if id.is_none() {
+            "INACTIVE"
+        } else if intervention_disabled {
+            "EMERGENCY_STOPPED"
+        } else if status == "PAUSED" {
+            "PAUSED"
+        } else if phase.as_deref() != Some("FOCUS") {
+            policy_status
+        } else if !monitoring {
+            "MONITORING_DISABLED"
+        } else if observer_status == "DEGRADED" {
+            "OBSERVER_UNAVAILABLE"
+        } else if observer_status != "MONITORING" {
+            "OBSERVER_STARTING"
+        } else if !cfg!(target_os = "linux") {
+            "LIMITED_PLATFORM_UNSUPPORTED"
+        } else if !closure_consent {
+            "LIMITED_NO_CLOSURE_CONSENT"
+        } else if mode.as_deref() == Some("STRICT") {
+            "STRICT_COOPERATIVE_CLOSE_READY"
+        } else if mode.as_deref() == Some("PROTECTED") && !runtime_consent {
+            "LIMITED_NO_RUNTIME_CONSENT"
+        } else if mode.as_deref() == Some("PROTECTED") && allowance.unwrap_or(0) < 600 {
+            "STANDARD_ALLOWANCE_ACTIVE"
+        } else if mode.as_deref() == Some("PROTECTED") {
+            "STANDARD_COOPERATIVE_CLOSE_READY"
+        } else {
+            "WARNING_ONLY"
+        };
         Ok(LocalGuardianStatus {
             status,
             active_focus_session_id: id,
             active_focus_session_name: name,
-            guardian_mode: mode,
+            guardian_mode: mode.clone(),
             focus_phase: phase,
             observations_today,
             last_observation_at,
             app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             domain_catalog_version: DOMAIN_CATALOG_VERSION,
-            warning_only: true,
-            observer_status,
-            application_policy_status: if observer_status == "DEGRADED" {
-                "OBSERVER_UNAVAILABLE"
-            } else {
-                policy_status
+            warning_only: !matches!(
+                application_policy_status,
+                "STRICT_COOPERATIVE_CLOSE_READY" | "STANDARD_COOPERATIVE_CLOSE_READY"
+            ),
+            intervention_capability: match application_policy_status {
+                "STRICT_COOPERATIVE_CLOSE_READY" => "STRICT_LINUX_COOPERATIVE_CLOSE",
+                "STANDARD_COOPERATIVE_CLOSE_READY" | "STANDARD_ALLOWANCE_ACTIVE" => {
+                    "STANDARD_SAMPLED_RUNTIME_ALLOWANCE"
+                }
+                "BREAK_OBSERVATION_ONLY" => "BREAK_OBSERVATION_ONLY",
+                "GRACE_WARNING_ONLY" => "GRACE_WARNING_ONLY",
+                "RETURN_REQUIRED_WARNING_ONLY" => "RETURN_REQUIRED_WARNING_ONLY",
+                "PAUSED" => "SESSION_PAUSED",
+                "INACTIVE" => "INACTIVE",
+                "MONITORING_DISABLED" => "MONITORING_DISABLED",
+                "EMERGENCY_STOPPED" => "EMERGENCY_STOPPED",
+                "OBSERVER_UNAVAILABLE" => "LIMITED_OBSERVER_UNAVAILABLE",
+                "OBSERVER_STARTING" => "LIMITED_OBSERVER_STARTING",
+                "LIMITED_PLATFORM_UNSUPPORTED" => "LIMITED_PLATFORM_UNSUPPORTED",
+                "LIMITED_NO_CLOSURE_CONSENT" => "LIMITED_NO_CLOSURE_CONSENT",
+                "LIMITED_NO_RUNTIME_CONSENT" => "LIMITED_NO_RUNTIME_CONSENT",
+                _ => "WARNING_ONLY",
             },
+            standard_allowance_seconds: allowance,
+            observer_status,
+            application_policy_status,
             application_catalog: local_guardian_catalog(),
         })
     })
@@ -3017,7 +3640,27 @@ fn insert_focus_record(
     db: &Connection,
     r: &CreateFocusSessionRequest,
 ) -> rusqlite::Result<LocalFocusSession> {
-    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17)",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,r.pomodoro_enabled.unwrap_or(false),r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),r.pomodoro_long_break_minutes.unwrap_or(15),r.pomodoro_grace_minutes.unwrap_or(10),r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),r.guardian_mode.as_deref().unwrap_or("PROTECTED").to_ascii_uppercase(),r.guardian_app_monitoring.unwrap_or(false),chrono_now()])?;
+    let (saved_mode, saved_consent, apply_to_new_sessions): (String, bool, bool) = db.query_row(
+        "SELECT preferred_mode,app_monitoring_consent,apply_to_new_sessions
+         FROM guardian_preferences WHERE id=1",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    let mode = r
+        .guardian_mode
+        .as_deref()
+        .map(str::to_ascii_uppercase)
+        .unwrap_or_else(|| {
+            if apply_to_new_sessions {
+                saved_mode
+            } else {
+                "PROTECTED".to_string()
+            }
+        });
+    let app_monitoring = r
+        .guardian_app_monitoring
+        .unwrap_or(apply_to_new_sessions && saved_consent);
+    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17)",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,r.pomodoro_enabled.unwrap_or(false),r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),r.pomodoro_long_break_minutes.unwrap_or(15),r.pomodoro_grace_minutes.unwrap_or(10),r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
     focus_session_by_id(db, db.last_insert_rowid())
 }
 
@@ -3149,6 +3792,7 @@ fn local_eonpai_conversation(
 }
 
 fn deterministic_eonpai_reply(db: &Connection, message: &str) -> rusqlite::Result<String> {
+    let query = message.trim().to_lowercase();
     let active: Option<(String, String, String, Option<i64>)> = db
         .query_row(
             "SELECT name,current_phase,status,phase_deadline_at FROM calendar_sessions WHERE status IN ('ACTIVE','PAUSED') ORDER BY id DESC LIMIT 1",
@@ -3156,7 +3800,17 @@ fn deterministic_eonpai_reply(db: &Connection, message: &str) -> rusqlite::Resul
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    if let Some((name, phase, status, deadline)) = active {
+    if ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]
+        .iter()
+        .any(|greeting| query == *greeting || query.starts_with(&format!("{greeting} ")))
+    {
+        return Ok("Hello. I can help you review open tasks, plan work, or summarize saved Focus sessions. I’m using SHINPO’s offline guidance, not a generative AI model.".into());
+    }
+    if let Some((name, phase, status, deadline)) = active.filter(|_| {
+        ["focus", "session", "break", "remaining", "timer", "return"]
+            .iter()
+            .any(|term| query.contains(term))
+    }) {
         let phase_detail = match (status.as_str(), deadline) {
             ("ACTIVE", Some(deadline_ms)) => format!(
                 "{} seconds remain in this phase.",
@@ -3170,7 +3824,6 @@ fn deterministic_eonpai_reply(db: &Connection, message: &str) -> rusqlite::Resul
         ));
     }
 
-    let query = message.to_lowercase();
     if query.contains("priority") || query.contains("next task") || query.contains("what next") {
         let task: Option<(String, Option<String>)> = db
             .query_row(
@@ -3219,7 +3872,11 @@ fn deterministic_eonpai_reply(db: &Connection, message: &str) -> rusqlite::Resul
         ));
     }
 
-    Ok("I’m running in local guidance mode without a generative model. I can summarize your current Focus session, identify your next open task, or list upcoming tasks using data stored in this encrypted vault. No prompt was sent to a server.".into())
+    if query.contains("focus") || query.contains("session") || query.contains("break") {
+        return Ok("I can summarize saved Focus sessions and explain the current session state. Ask about your current Focus session or request a summary of recent sessions.".into());
+    }
+
+    Ok("I’m running in offline planning mode, not as a generative AI model. I can organize open tasks, suggest a schedule, break an active goal into tasks, and summarize saved Focus records. I can’t answer unrestricted questions. Ask about your next task or say “plan my day”. No prompt was sent to a server.".into())
 }
 
 fn validate_title(value: &str) -> Result<(), String> {
@@ -3371,6 +4028,9 @@ fn apply_schema_migrations(connection: &mut Connection) -> Result<(), String> {
             11 => eonpai::migrate(&transaction)?,
             12 => eonpai::migrate_reflection_revision(&transaction)?,
             13 => migrate_v13(&transaction)?,
+            14 => migrate_v14(&transaction)?,
+            15 => migrate_v15(&transaction)?,
+            16 => migrate_v16(&transaction)?,
             _ => return Err("Local database migration is unavailable".to_string()),
         }
         validate_schema(&transaction, next_version)?;
@@ -3502,6 +4162,74 @@ fn migrate_v13(transaction: &Transaction<'_>) -> Result<(), String> {
         )
         .map_err(|_| "Could not clear inferred Guardian app-monitoring consent".to_string())?;
     Ok(())
+}
+
+fn migrate_v14(transaction: &Transaction<'_>) -> Result<(), String> {
+    transaction
+        .execute_batch(
+            "CREATE TABLE guardian_preferences (
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                preferred_mode TEXT NOT NULL DEFAULT 'PROTECTED'
+                    CHECK(preferred_mode IN ('GUIDED','PROTECTED','STRICT')),
+                app_monitoring_consent INTEGER NOT NULL DEFAULT 0
+                    CHECK(app_monitoring_consent IN (0,1)),
+                apply_to_new_sessions INTEGER NOT NULL DEFAULT 0
+                    CHECK(apply_to_new_sessions IN (0,1)),
+                updated_at TEXT NOT NULL
+            );
+            INSERT INTO guardian_preferences(id, updated_at) VALUES(1, CURRENT_TIMESTAMP);",
+        )
+        .map_err(|_| "Could not create encrypted Guardian preferences".to_string())
+}
+
+fn migrate_v15(transaction: &Transaction<'_>) -> Result<(), String> {
+    for (table, column, definition) in [
+        (
+            "guardian_preferences",
+            "closure_consent",
+            "INTEGER NOT NULL DEFAULT 0 CHECK(closure_consent IN (0,1))",
+        ),
+        (
+            "guardian_preferences",
+            "background_runtime_consent",
+            "INTEGER NOT NULL DEFAULT 0 CHECK(background_runtime_consent IN (0,1))",
+        ),
+        (
+            "calendar_sessions",
+            "guardian_intervention_disabled",
+            "INTEGER NOT NULL DEFAULT 0 CHECK(guardian_intervention_disabled IN (0,1))",
+        ),
+    ] {
+        ensure_column(transaction, table, column, definition)
+            .map_err(|_| "Could not add Guardian safety preferences".to_string())?;
+    }
+    transaction
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS guardian_session_usage (
+            session_id INTEGER PRIMARY KEY REFERENCES calendar_sessions(id) ON DELETE CASCADE,
+            consumed_seconds INTEGER NOT NULL DEFAULT 0 CHECK(consumed_seconds BETWEEN 0 AND 600),
+            last_verified_epoch INTEGER
+        );",
+        )
+        .map_err(|_| "Could not create encrypted Guardian allowance state".to_string())
+}
+
+fn migrate_v16(transaction: &Transaction<'_>) -> Result<(), String> {
+    transaction
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS guardian_app_policies (
+                id INTEGER PRIMARY KEY,
+                app_id TEXT NOT NULL UNIQUE,
+                app_name TEXT NOT NULL,
+                exec_name TEXT NOT NULL,
+                policy_type TEXT NOT NULL CHECK(policy_type IN ('BLOCKED','ALLOWED')),
+                source TEXT NOT NULL DEFAULT 'system',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_guardian_app_policies_exec ON guardian_app_policies(exec_name);",
+        )
+        .map_err(|_| "Could not create encrypted Guardian app policies table".to_string())
 }
 
 fn migrate_v10(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -3766,6 +4494,39 @@ fn validate_schema(connection: &Connection, version: i64) -> Result<(), String> 
             ("eonpai_settings", &["settings"]),
             ("eonpai_revision", &["revision"]),
         ],
+        14 => &[(
+            "guardian_preferences",
+            &[
+                "preferred_mode",
+                "app_monitoring_consent",
+                "apply_to_new_sessions",
+                "updated_at",
+            ],
+        )],
+        15 => &[
+            (
+                "guardian_preferences",
+                &["closure_consent", "background_runtime_consent"],
+            ),
+            ("calendar_sessions", &["guardian_intervention_disabled"]),
+            (
+                "guardian_session_usage",
+                &["session_id", "consumed_seconds", "last_verified_epoch"],
+            ),
+        ],
+        16 => &[(
+            "guardian_app_policies",
+            &[
+                "id",
+                "app_id",
+                "app_name",
+                "exec_name",
+                "policy_type",
+                "source",
+                "created_at",
+                "updated_at",
+            ],
+        )],
         _ => return Err("Unsupported local database schema version".to_string()),
     };
     for (table, columns) in required {
@@ -5536,6 +6297,57 @@ mod tests {
     }
 
     #[test]
+    fn prepare_desktop_shutdown_checkpoints_focus_clears_browser_policy_and_locks_vault() {
+        let root = scratch_path();
+        let host = root.join("browser-host");
+        let paths = shinpo_browser_host::config::HostPaths {
+            config: host.join("config.json"),
+            policy: host.join("policy.json"),
+            state_dir: host.join("state"),
+        };
+        let manager = VaultManager::new(root.join("vaults")).with_browser_host_paths(paths.clone());
+        create_account(&manager, "shutdown_user", "a-long-qa-password").unwrap();
+        shinpo_browser_host::initialize_installation(&paths).unwrap();
+
+        let session_id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,pomodoro_enabled) VALUES('Focus',60,1)",
+                [],
+            )?;
+            Ok(db.last_insert_rowid())
+        })
+        .unwrap();
+        let start = 1_800_000_000;
+        with_db(&manager, |db| start_focus_session(db, session_id, start)).unwrap();
+
+        shinpo_browser_host::publish_policy(
+            &paths,
+            serde_json::json!({
+                "status":"ACTIVE", "sessionId":session_id, "policyVersion":1,
+                "currentPhase":"FOCUS", "mode":"PROTECTED", "issuedAt":start,
+                "resources":[]
+            }),
+        )
+        .unwrap();
+        assert!(paths.policy.exists());
+
+        prepare_desktop_shutdown(&manager).unwrap();
+
+        assert!(!manager.is_unlocked().unwrap());
+        assert_eq!(manager.guardian_observer.lock().unwrap().status, "LOCKED");
+        assert!(!paths.policy.exists(), "Browser policy must be cleaned up on shutdown");
+
+        assert!(with_db(&manager, |db| focus_session_by_id(db, session_id)).is_err());
+
+        let reopened = VaultManager::new(root.join("vaults")).with_browser_host_paths(paths);
+        unlock_account(&reopened, "shutdown_user", "a-long-qa-password").unwrap();
+        let recovered = with_db(&reopened, |db| focus_session_by_id(db, session_id)).unwrap();
+        assert_eq!(recovered.status, "PAUSED");
+        drop(reopened);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn browser_policy_is_derived_only_from_active_focus_and_vault_resources() {
         let root = scratch_path();
         let manager = VaultManager::new(root.clone());
@@ -5756,6 +6568,7 @@ mod tests {
             catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             category: "COMMUNICATION",
             rationale: "Game and social chat platform",
+            identity: None,
         };
         for _ in 0..2 {
             with_db(&manager, |db| {
@@ -5916,6 +6729,415 @@ mod tests {
     }
 
     #[test]
+    fn active_guardian_session_without_observation_consent_reports_idle() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_opt_out", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,status,guardian_app_monitoring) VALUES('Opted out focus',25,'ACTIVE',0)",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        let status = local_get_guardian_status_from(&manager).unwrap();
+        assert_eq!(status.status, "ACTIVE");
+        assert_eq!(status.observer_status, "IDLE");
+        assert_eq!(status.application_policy_status, "MONITORING_DISABLED");
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_status_never_advertises_close_during_break_or_pause() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_status_phase", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE guardian_preferences SET app_monitoring_consent=1,closure_consent=1,background_runtime_consent=1 WHERE id=1",
+                [],
+            )?;
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,status,guardian_mode,guardian_app_monitoring,current_phase) VALUES('Break',25,'ACTIVE','STRICT',1,'BREAK')",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        set_guardian_observer_health(&manager, Some(1), "MONITORING").unwrap();
+
+        let break_status = local_get_guardian_status_from(&manager).unwrap();
+        assert_eq!(
+            break_status.application_policy_status,
+            "BREAK_OBSERVATION_ONLY"
+        );
+        assert_eq!(
+            break_status.intervention_capability,
+            "BREAK_OBSERVATION_ONLY"
+        );
+        assert!(break_status.warning_only);
+
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE calendar_sessions SET status='PAUSED',current_phase='FOCUS' WHERE id=1",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        let paused_status = local_get_guardian_status_from(&manager).unwrap();
+        assert_eq!(paused_status.application_policy_status, "PAUSED");
+        assert_eq!(paused_status.intervention_capability, "SESSION_PAUSED");
+
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE calendar_sessions SET status='ACTIVE',current_phase='FOCUS' WHERE id=1",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        set_guardian_observer_health(&manager, Some(1), "SCANNING").unwrap();
+        let starting_status = local_get_guardian_status_from(&manager).unwrap();
+        assert_eq!(starting_status.observer_status, "STARTING");
+        assert_eq!(
+            starting_status.application_policy_status,
+            "OBSERVER_STARTING"
+        );
+        assert_eq!(
+            starting_status.intervention_capability,
+            "LIMITED_OBSERVER_STARTING"
+        );
+        assert!(starting_status.warning_only);
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn emergency_stop_persists_for_a_paused_focus_session() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_paused_stop", "a-long-qa-password").unwrap();
+        with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,status,guardian_mode,guardian_app_monitoring) VALUES('Paused focus',25,'PAUSED','STRICT',1)",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        emergency_stop_guardian_in(&manager).unwrap();
+        let disabled = with_db(&manager, |db| {
+            db.query_row(
+                "SELECT guardian_intervention_disabled FROM calendar_sessions WHERE id=1",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+        })
+        .unwrap();
+        assert!(disabled);
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_preference_is_encrypted_opt_in_reused_for_new_sessions_and_revocable() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_preference", "a-long-qa-password").unwrap();
+
+        let initial = local_get_guardian_preferences_from(&manager).unwrap();
+        assert!(!initial.app_monitoring_consent);
+        assert!(!initial.apply_to_new_sessions);
+
+        local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "STRICT".into(),
+                app_monitoring_consent: true,
+                apply_to_new_sessions: true,
+                closure_consent: false,
+                background_runtime_consent: false,
+            },
+        )
+        .unwrap();
+        let saved = local_get_guardian_preferences_from(&manager).unwrap();
+        assert_eq!(saved.preferred_mode, "STRICT");
+        assert!(saved.app_monitoring_consent && saved.apply_to_new_sessions);
+        assert!(local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "UNRECOGNIZED".into(),
+                app_monitoring_consent: false,
+                apply_to_new_sessions: false,
+                closure_consent: false,
+                background_runtime_consent: false,
+            },
+        )
+        .is_err());
+        assert_eq!(
+            local_get_guardian_preferences_from(&manager)
+                .unwrap()
+                .preferred_mode,
+            "STRICT"
+        );
+
+        let created = with_db(&manager, |db| {
+            insert_focus_record(
+                db,
+                &CreateFocusSessionRequest {
+                    goal_id: None,
+                    mission_id: None,
+                    name: "Remembered Guardian choice".into(),
+                    intention: None,
+                    duration_minutes: 25,
+                    scheduled_at: None,
+                    pomodoro_enabled: None,
+                    pomodoro_focus_cycles: None,
+                    pomodoro_short_break_minutes: None,
+                    pomodoro_long_break_minutes: None,
+                    pomodoro_grace_minutes: None,
+                    late_penalty_enabled: None,
+                    late_penalty_xp: None,
+                    late_penalty_daily_cap_xp: None,
+                    guardian_mode: None,
+                    guardian_app_monitoring: None,
+                },
+            )
+        })
+        .unwrap();
+        assert_eq!(
+            with_db(&manager, |db| {
+                db.query_row(
+                    "SELECT guardian_mode FROM calendar_sessions WHERE id=?1",
+                    [created.id],
+                    |row| row.get::<_, String>(0),
+                )
+            })
+            .unwrap(),
+            "STRICT"
+        );
+        assert!(created.guardian_app_monitoring);
+
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE calendar_sessions SET status='ACTIVE',guardian_app_monitoring=1 WHERE id=?1",
+                [created.id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "GUIDED".into(),
+                app_monitoring_consent: false,
+                apply_to_new_sessions: false,
+                closure_consent: false,
+                background_runtime_consent: false,
+            },
+        )
+        .unwrap();
+        let revoked = local_get_guardian_preferences_from(&manager).unwrap();
+        assert!(!revoked.app_monitoring_consent && !revoked.apply_to_new_sessions);
+        assert!(!with_db(&manager, |db| {
+            db.query_row(
+                "SELECT guardian_app_monitoring FROM calendar_sessions WHERE id=?1",
+                [created.id],
+                |row| row.get::<_, bool>(0),
+            )
+        })
+        .unwrap());
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn standard_runtime_allowance_is_capped_transactional_and_persists_across_unlock() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_allowance", "a-long-qa-password").unwrap();
+        let session_id = with_db(&manager, |db| {
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring) VALUES('Allowance',30,'ACTIVE','FOCUS','PROTECTED',1)", [])?;
+            Ok(db.last_insert_rowid())
+        }).unwrap();
+        let first = with_db(&manager, |db| {
+            let tx = db.transaction()?;
+            let seconds = advance_guardian_runtime_allowance(&tx, session_id, 1_000)?;
+            tx.commit()?;
+            Ok(seconds)
+        })
+        .unwrap();
+        assert_eq!(first, 0);
+        with_db(&manager, |db| {
+            db.execute("UPDATE guardian_session_usage SET consumed_seconds=590,last_verified_epoch=1000 WHERE session_id=?1", [session_id])?;
+            Ok(())
+        }).unwrap();
+        let at_boundary = with_db(&manager, |db| {
+            let tx = db.transaction()?;
+            let seconds = advance_guardian_runtime_allowance(&tx, session_id, 1_010)?;
+            tx.commit()?;
+            Ok(seconds)
+        })
+        .unwrap();
+        assert_eq!(at_boundary, 600);
+        let capped = with_db(&manager, |db| {
+            let tx = db.transaction()?;
+            let seconds = advance_guardian_runtime_allowance(&tx, session_id, 50_000)?;
+            tx.commit()?;
+            Ok(seconds)
+        })
+        .unwrap();
+        assert_eq!(capped, 600);
+
+        lock_vault_for_system_event(&manager).unwrap();
+        drop(manager);
+        let reopened = VaultManager::new(root.clone());
+        unlock_account(&reopened, "guardian_allowance", "a-long-qa-password").unwrap();
+        assert_eq!(
+            with_db(&reopened, |db| db.query_row(
+                "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
+                [session_id],
+                |row| row.get::<_, i64>(0)
+            ))
+            .unwrap(),
+            600
+        );
+        drop(reopened);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_closure_consent_requires_monitoring_and_emergency_stop_is_session_scoped() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_emergency", "a-long-qa-password").unwrap();
+        assert!(local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "STRICT".into(),
+                app_monitoring_consent: false,
+                apply_to_new_sessions: false,
+                closure_consent: true,
+                background_runtime_consent: false,
+            }
+        )
+        .is_err());
+        let (active_id, scheduled_id) = with_db(&manager, |db| {
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status) VALUES('Active',25,'ACTIVE')", [])?;
+            let active = db.last_insert_rowid();
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status) VALUES('Scheduled',25,'SCHEDULED')", [])?;
+            Ok((active, db.last_insert_rowid()))
+        }).unwrap();
+        emergency_stop_guardian_in(&manager).unwrap();
+        assert!(with_db(&manager, |db| db.query_row(
+            "SELECT guardian_intervention_disabled FROM calendar_sessions WHERE id=?1",
+            [active_id],
+            |row| row.get::<_, bool>(0)
+        ))
+        .unwrap());
+        assert!(!with_db(&manager, |db| db.query_row(
+            "SELECT guardian_intervention_disabled FROM calendar_sessions WHERE id=?1",
+            [scheduled_id],
+            |row| row.get::<_, bool>(0)
+        ))
+        .unwrap());
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn strict_policy_rechecks_phase_and_revoked_consent_before_identity_intervention() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_policy", "a-long-qa-password").unwrap();
+        let session_id = with_db(&manager, |db| {
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring) VALUES('Policy',25,'ACTIVE','FOCUS','STRICT',1)", [])?;
+            Ok(db.last_insert_rowid())
+        }).unwrap();
+        local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "STRICT".into(),
+                app_monitoring_consent: true,
+                apply_to_new_sessions: true,
+                closure_consent: true,
+                background_runtime_consent: false,
+            },
+        )
+        .unwrap();
+        let process = shinpo_shield::observer::ObservedDistraction {
+            pid: 4_000_000_000,
+            process_name: "steam".into(),
+            process_started_at: 1,
+            catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
+            category: "GAMING",
+            rationale: "disposable test identity",
+            identity: Some(shinpo_shield::process_identity::ProcessIdentity {
+                pid: 4_000_000_000,
+                process_name: "steam".into(),
+                process_start_ticks: 1,
+                executable_path: PathBuf::from("/tmp/test-only-steam"),
+                executable_device: 1,
+                executable_inode: 1,
+                executable_size: 1,
+                owner_id: 1,
+            }),
+        };
+        let armed = apply_guardian_app_policy(
+            &manager,
+            session_id,
+            "STRICT",
+            "FOCUS",
+            std::slice::from_ref(&process),
+        )
+        .unwrap();
+        assert_eq!(armed[0].2, "LIMITED_CLOSE_UNAVAILABLE");
+
+        local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "STRICT".into(),
+                app_monitoring_consent: true,
+                apply_to_new_sessions: true,
+                closure_consent: false,
+                background_runtime_consent: false,
+            },
+        )
+        .unwrap();
+        let revoked = apply_guardian_app_policy(
+            &manager,
+            session_id,
+            "STRICT",
+            "FOCUS",
+            std::slice::from_ref(&process),
+        )
+        .unwrap();
+        assert_eq!(revoked[0].2, "LIMITED_NO_CLOSURE_CONSENT");
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE calendar_sessions SET current_phase='BREAK' WHERE id=?1",
+                [session_id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        let during_break =
+            apply_guardian_app_policy(&manager, session_id, "STRICT", "BREAK", &[process]).unwrap();
+        assert_eq!(during_break[0].2, "ALLOWED_OUTSIDE_FOCUS");
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn guardian_observer_persists_discovered_apps_once_and_isolates_vault_accounts() {
         let owner_root = scratch_path();
         let owner = VaultManager::new(owner_root.clone());
@@ -5931,6 +7153,7 @@ mod tests {
             catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             category: "GAMING",
             rationale: "Game launcher and store",
+            identity: None,
         };
         for _ in 0..2 {
             observe_local_guardian_apps_with(&owner, || Ok(vec![candidate.clone()])).unwrap();
@@ -6004,7 +7227,8 @@ mod tests {
             .manage(manager)
             .invoke_handler(tauri::generate_handler![
                 local_get_guardian_status,
-                local_get_guardian_observations
+                local_get_guardian_observations,
+                local_emergency_stop_guardian
             ])
             .build(tauri::test::mock_context(tauri::test::noop_assets()))
             .unwrap();
@@ -6055,10 +7279,13 @@ mod tests {
             shinpo_shield::observer::APP_CATALOG_VERSION
         );
         assert_eq!(found.category, "GAMING");
-        assert_eq!(found.outcome, "WARNING_STANDARD");
+        assert_eq!(found.outcome, "LIMITED_IDENTITY_UNVERIFIED");
         let ipc_status = invoke("local_get_guardian_status", serde_json::json!({})).unwrap();
         assert_eq!(ipc_status["observerStatus"], "MONITORING");
-        assert_eq!(ipc_status["applicationPolicyStatus"], "WARNING_ONLY");
+        assert_eq!(
+            ipc_status["applicationPolicyStatus"],
+            "LIMITED_NO_CLOSURE_CONSENT"
+        );
         let ipc_history = invoke(
             "local_get_guardian_observations",
             serde_json::json!({"sessionId": session_id}),
@@ -6124,6 +7351,7 @@ mod tests {
             catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             category: "COMMUNICATION",
             rationale: "Game and social chat platform",
+            identity: None,
         };
         with_db(&manager, |db| {
             persist_guardian_observations(
@@ -6141,7 +7369,8 @@ mod tests {
             .manage(manager)
             .invoke_handler(tauri::generate_handler![
                 local_get_guardian_status,
-                local_get_guardian_observations
+                local_get_guardian_observations,
+                local_emergency_stop_guardian
             ])
             .build(tauri::test::mock_context(tauri::test::noop_assets()))
             .unwrap();
@@ -6174,13 +7403,20 @@ mod tests {
         assert_eq!(status["status"], "ACTIVE");
         assert_eq!(status["guardianMode"], "STRICT");
         assert_eq!(status["focusPhase"], "FOCUS");
-        assert_eq!(status["applicationPolicyStatus"], "WARNING_ONLY");
+        assert_eq!(status["applicationPolicyStatus"], "OBSERVER_STARTING");
         assert_eq!(status["warningOnly"], true);
         assert!(status["applicationCatalog"]
             .as_array()
             .unwrap()
             .iter()
             .any(|entry| entry["processName"] == "discord"));
+        invoke("local_emergency_stop_guardian", serde_json::json!({})).unwrap();
+        assert_eq!(
+            local_get_guardian_status_from(app.state::<VaultManager>().inner())
+                .unwrap()
+                .application_policy_status,
+            "EMERGENCY_STOPPED"
+        );
 
         let history = invoke(
             "local_get_guardian_observations",
@@ -6211,15 +7447,17 @@ mod tests {
         create_account(&manager, "guardian_v7", "a-long-qa-password").unwrap();
         with_db(&manager, |db| {
             db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,guardian_app_monitoring) VALUES('Existing active focus',25,'ACTIVE',0)", [])?;
+            let session_id = db.last_insert_rowid();
             db.execute(
                 "INSERT INTO guardian_observations(event_key,session_id,pid,process_name,process_started_at,observed_at)
-                 VALUES('legacy-event',42,4242,'steam',9001,'2026-10-30T10:00:00Z')",
-                [],
+                 VALUES('legacy-event',?1,4242,'steam',9001,'2026-10-30T10:00:00Z')",
+                [session_id],
             )?;
             db.execute_batch(
                 "ALTER TABLE guardian_observations DROP COLUMN catalog_version;
                  ALTER TABLE guardian_observations DROP COLUMN category;
-                 ALTER TABLE guardian_observations DROP COLUMN rationale;",
+                 ALTER TABLE guardian_observations DROP COLUMN rationale;
+                 DROP TABLE guardian_preferences;",
             )?;
             db.pragma_update(None, "user_version", 6)?;
             apply_schema_migrations(db).map_err(|_| rusqlite::Error::InvalidQuery)?;
@@ -6240,8 +7478,8 @@ mod tests {
             let version: i64 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
             assert_eq!(version, LATEST_SCHEMA_VERSION);
             let monitoring: bool = db.query_row(
-                "SELECT guardian_app_monitoring FROM calendar_sessions WHERE id=1",
-                [],
+                "SELECT guardian_app_monitoring FROM calendar_sessions WHERE id=?1",
+                [session_id],
                 |row| row.get(0),
             )?;
             assert!(!monitoring);
@@ -6318,6 +7556,7 @@ mod tests {
                 "INSERT INTO guardian_observations(event_key,session_id,pid,process_name,process_started_at,catalog_version,category,rationale,guardian_mode,focus_phase,outcome) VALUES('kept-event',?1,4242,'steam',9001,'guardian-apps-v1','GAMING','catalog match','PROTECTED','FOCUS','WARNING_STANDARD')",
                 [session_id],
             )?;
+            db.execute("DROP TABLE guardian_preferences", [])?;
             db.pragma_update(None, "user_version", 12)?;
             apply_schema_migrations(db).map_err(|_| rusqlite::Error::InvalidQuery)?;
             let monitoring: bool = db.query_row(
@@ -6333,7 +7572,7 @@ mod tests {
             assert!(!monitoring);
             assert_eq!(history, ("steam".into(), session_id));
             let version: i64 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
-            assert_eq!(version, 13);
+            assert_eq!(version, LATEST_SCHEMA_VERSION);
             Ok(())
         })
         .unwrap();
@@ -6683,6 +7922,15 @@ mod tests {
         let mut db = db;
         let response = send_local_eonpai(&mut db, "what is my next task?", None).unwrap();
         assert!(response.reply.contains("Review chapter"));
+        db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,duration_minutes,status,current_phase) VALUES(?1,1,'Review chapter',25,'ACTIVE','FOCUS')", [goal]).unwrap();
+        let greeting = send_local_eonpai(&mut db, "hello", None).unwrap();
+        assert!(greeting.reply.contains("Hello."));
+        assert!(!greeting.reply.contains("seconds remain"));
+        let unclear = send_local_eonpai(&mut db, "huh", None).unwrap();
+        assert!(unclear.reply.contains("can’t answer unrestricted questions"));
+        assert!(!unclear.reply.contains("seconds remain"));
+        let focus_question = send_local_eonpai(&mut db, "How much time is left in my focus session?", None).unwrap();
+        assert!(focus_question.reply.contains("Review chapter"));
         assert!(send_local_eonpai(&mut db, "stale conversation", Some("local-999")).is_err());
         let conversation: i64 = ensure_active_eonpai_conversation(&db).unwrap();
         let conversation_id = response.conversation_id.clone();
@@ -6691,9 +7939,11 @@ mod tests {
         let reopened = open_encrypted_database(&path, &key, "eonpai_user", false).unwrap();
         let recovered = local_eonpai_conversation(&reopened, conversation).unwrap();
         assert_eq!(recovered.conversation_id, conversation_id);
-        assert_eq!(recovered.messages.len(), 2);
+        assert_eq!(recovered.messages.len(), 8);
         assert_eq!(recovered.messages[0].role, "USER");
         assert!(recovered.messages[1].content.contains("Review chapter"));
+        assert_eq!(recovered.messages[6].role, "USER");
+        assert!(recovered.messages[7].content.contains("Review chapter"));
         assert_eq!(
             ensure_active_eonpai_conversation(&reopened).unwrap(),
             conversation
@@ -6796,6 +8046,65 @@ mod tests {
         );
         drop(other);
         drop(reopened);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_app_policies_persist_survive_reopen_and_reject_protected_processes() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "policy_user", "a-long-qa-password").unwrap();
+
+        // 1. Protected process cannot be blocked
+        let protected_req = SaveAppPolicyRequest {
+            app_id: "systemd.desktop".to_string(),
+            app_name: "Systemd Daemon".to_string(),
+            exec_name: "systemd".to_string(),
+            policy_type: "BLOCKED".to_string(),
+            source: Some("system".to_string()),
+        };
+        assert!(local_save_app_policy_in(&manager, protected_req).is_err());
+
+        // 2. Valid apps can be blocked and allowed
+        let block_req = SaveAppPolicyRequest {
+            app_id: "code.desktop".to_string(),
+            app_name: "Visual Studio Code".to_string(),
+            exec_name: "code".to_string(),
+            policy_type: "BLOCKED".to_string(),
+            source: Some("system".to_string()),
+        };
+        let saved_block = local_save_app_policy_in(&manager, block_req).unwrap();
+        assert_eq!(saved_block.policy_type, "BLOCKED");
+
+        let allow_req = SaveAppPolicyRequest {
+            app_id: "discord.desktop".to_string(),
+            app_name: "Discord Chat".to_string(),
+            exec_name: "discord".to_string(),
+            policy_type: "ALLOWED".to_string(),
+            source: Some("system".to_string()),
+        };
+        let saved_allow = local_save_app_policy_in(&manager, allow_req).unwrap();
+        assert_eq!(saved_allow.policy_type, "ALLOWED");
+
+        let policies = local_get_app_policies_from(&manager).unwrap();
+        assert_eq!(policies.len(), 2);
+
+        // 3. Discovered apps reflect saved policies
+        let discovered = local_get_discovered_apps_from(&manager).unwrap();
+        if let Some(app) = discovered.iter().find(|a| a.id == "code.desktop" || a.exec_name.as_deref() == Some("code")) {
+            assert_eq!(app.policy, "BLOCKED");
+        }
+        if let Some(app) = discovered.iter().find(|a| a.id == "discord.desktop" || a.exec_name.as_deref() == Some("discord")) {
+            assert_eq!(app.policy, "ALLOWED");
+        }
+
+        // 4. Policy deletion works
+        local_remove_app_policy_in(&manager, "code.desktop").unwrap();
+        let remaining = local_get_app_policies_from(&manager).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].app_id, "discord.desktop");
+
+        drop(manager);
         fs::remove_dir_all(root).unwrap();
     }
 }

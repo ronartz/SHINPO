@@ -213,7 +213,7 @@ public class AiGateway {
         if (isProfileIntent(msgLower)) {
             Map<String, Object> prof = toolRegistry.getUserExecutionProfile(userId);
             String statusMsg = prof.get("statusMessage") instanceof String s ? s : "Personal execution profile unavailable.";
-            String reply = "📊 **Personal Execution Profile:**\n\n" + statusMsg;
+            String reply = "**Personal Execution Profile:**\n\n" + statusMsg;
             logSuggestion(userId, "PROFILE", rawMsg, reply);
             return new AiChatResponse(reply, "PROFILE", prof);
         }
@@ -221,9 +221,9 @@ public class AiGateway {
         // 5.6 SESSION DEBRIEF ANALYSIS INTENT
         if (isDebriefIntent(msgLower)) {
             SessionDebriefAnalysisResponse debrief = analyzeSessionDebrief(request.contextualSessionId(), userId);
-            String reply = "📊 **Sprint Debrief Analysis:** " + debrief.sessionName() + " (" + debrief.velocityAssessment() + ")\n\n"
+            String reply = "**Sprint Debrief Analysis:** " + debrief.sessionName() + " (" + debrief.velocityAssessment() + ")\n\n"
                     + debrief.tacticalCritique() + "\n\n"
-                    + "⚡ **Next Recommendation:** " + debrief.nextSprintRecommendation();
+                    + "**Next Recommendation:** " + debrief.nextSprintRecommendation();
             logSuggestion(userId, "DEBRIEF_ANALYSIS", rawMsg, reply);
             return new AiChatResponse(reply, "DEBRIEF_ANALYSIS", debrief);
         }
@@ -231,7 +231,7 @@ public class AiGateway {
         // 5.7 COGNITIVE RECOVERY WORKFLOW INTENT
         if (isRecoveryIntent(msgLower)) {
             RecoveryResponse recovery = getSessionRecovery(request.contextualSessionId(), userId, null, null, null);
-            String reply = "🧘 **Cognitive Recovery Protocol:**\n\n"
+            String reply = "**Cognitive Recovery Protocol:**\n\n"
                     + recovery.diagnosticMessage() + "\n\n"
                     + "Select a recovery strategy below to recharge your cognitive reserves without losing momentum.";
             logSuggestion(userId, "SESSION_RECOVERY", rawMsg, reply);
@@ -246,7 +246,7 @@ public class AiGateway {
                 String sessionName = (String) activeSession.get("name");
                 Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
                 long remainingMins = Math.max(0, remainingSecs / 60);
-                String reply = "🛡️ **Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
+                String reply = "**Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
                         + "Please complete or pause this sprint before scheduling new blocks to protect your cognitive flow.";
                 logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
                 return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");
@@ -264,7 +264,7 @@ public class AiGateway {
                 String sessionName = (String) activeSession.get("name");
                 Long remainingSecs = activeSession.get("remainingSeconds") instanceof Number n ? n.longValue() : 0L;
                 long remainingMins = Math.max(0, remainingSecs / 60);
-                String reply = "🛡️ **Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
+                String reply = "**Focus sprint in progress:** \"" + sessionName + "\" (" + remainingMins + "m remaining).\n\n"
                         + "Avoid task switching during an active sprint. Focus on completing your current mission before decomposing new strategic goals.";
                 logSuggestion(userId, "SILENCE_ENGINE", rawMsg, reply);
                 return AiChatResponse.conversational(reply, "FOCUS_ASSISTANT");

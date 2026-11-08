@@ -108,7 +108,7 @@ public class DailyPlanningService {
             cursor = activeEnd.plusMinutes(10);
             items.add(new DailyPlanItem(
                     null,
-                    "☕ 10m Attention Restoration Recess",
+                    "10m Attention Restoration Recess",
                     "Cognitive Recovery",
                     10,
                     "NORMAL",
@@ -214,7 +214,7 @@ public class DailyPlanningService {
                 LocalTime breakEnd = cursor.plusMinutes(10);
                 items.add(new DailyPlanItem(
                         null,
-                        "🌿 10m Neural Reset & Hydration",
+                        "10m Neural Reset & Hydration",
                         "Cognitive Recovery",
                         10,
                         "LOW",

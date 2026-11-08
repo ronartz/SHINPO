@@ -36,9 +36,51 @@ export interface DeviceSystemInfo {
   processCount: number | null
 }
 
+export interface CoreTelemetry {
+  name: string
+  usagePercent: number
+  frequencyMhz: number
+}
+
+export interface DiskTelemetry {
+  name: string
+  mountPoint: string
+  totalBytes: number
+  availableBytes: number
+  fileSystem: string
+}
+
+export interface NetworkTelemetry {
+  interfaceName: string
+  rxBytes: number
+  txBytes: number
+}
+
+export interface SystemTelemetry {
+  deviceName: string
+  osName: string
+  osVersion: string
+  osArch: string
+  availableProcessors: number
+  cpuUsagePercent: number
+  cores: CoreTelemetry[]
+  totalMemoryBytes: number
+  usedMemoryBytes: number
+  freeMemoryBytes: number
+  availableMemoryBytes: number
+  totalSwapBytes: number
+  usedSwapBytes: number
+  freeSwapBytes: number
+  disks: DiskTelemetry[]
+  networks: NetworkTelemetry[]
+  processCount: number
+  timestamp: string
+}
+
 export interface ProcessSnapshot {
   systemInfo: DeviceSystemInfo
   processes: ProcessInfo[]
+  telemetry?: SystemTelemetry
   timestamp: string
 }
 
@@ -52,7 +94,38 @@ function requireBackendDeviceApi(): void {
   }
 }
 
+export async function fetchLocalSystemTelemetry(): Promise<SystemTelemetry> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<SystemTelemetry>('local_get_system_telemetry')
+  }
+  const sysInfo = await fetchDeviceSystemInfo()
+  return {
+    deviceName: sysInfo.deviceName,
+    osName: sysInfo.osName,
+    osVersion: sysInfo.osVersion,
+    osArch: sysInfo.osArch,
+    availableProcessors: sysInfo.availableProcessors,
+    cpuUsagePercent: sysInfo.systemCpuLoad ?? 0,
+    cores: [],
+    totalMemoryBytes: sysInfo.totalMemoryBytes,
+    usedMemoryBytes: sysInfo.totalMemoryBytes - sysInfo.freeMemoryBytes,
+    freeMemoryBytes: sysInfo.freeMemoryBytes,
+    availableMemoryBytes: sysInfo.freeMemoryBytes,
+    totalSwapBytes: 0,
+    usedSwapBytes: 0,
+    freeSwapBytes: 0,
+    disks: [],
+    networks: [],
+    processCount: sysInfo.processCount ?? 0,
+    timestamp: new Date().toISOString(),
+  }
+}
+
 export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const snapshot = await invokeTauriCommand<ProcessSnapshot>('local_get_process_snapshot', {})
+    return snapshot.systemInfo
+  }
   requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${API_BASE}/system-info`, {
     headers: authHeaders(),
@@ -62,6 +135,10 @@ export async function fetchDeviceSystemInfo(): Promise<DeviceSystemInfo> {
 }
 
 export async function fetchProcesses(search?: string, policy?: string): Promise<ProcessInfo[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const snapshot = await invokeTauriCommand<ProcessSnapshot>('local_get_process_snapshot', { search, policy })
+    return snapshot.processes
+  }
   requireBackendDeviceApi()
   const params = new URLSearchParams()
   if (search) params.set('search', search)
@@ -76,6 +153,9 @@ export async function fetchProcesses(search?: string, policy?: string): Promise<
 }
 
 export async function fetchDeviceSnapshot(search?: string, policy?: string): Promise<ProcessSnapshot> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<ProcessSnapshot>('local_get_process_snapshot', { search, policy })
+  }
   requireBackendDeviceApi()
   const params = new URLSearchParams()
   if (search) params.set('search', search)
@@ -137,6 +217,8 @@ export interface SentinelStatus {
   guardianAppCatalogVersion?: string
   guardianDomainCatalogVersion?: string
   warningOnly?: boolean
+  interventionCapability?: string
+  standardAllowanceSeconds?: number | null
   lastGuardianObservationAt?: string | null
   observerStatus?: string
   applicationPolicyStatus?: string
@@ -220,6 +302,8 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
       appCatalogVersion: string
       domainCatalogVersion: string
       warningOnly: boolean
+      interventionCapability: string
+      standardAllowanceSeconds: number | null
       observerStatus: string
       applicationPolicyStatus: string
       applicationCatalog: GuardianCatalogEntry[]
@@ -247,6 +331,8 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
       guardianAppCatalogVersion: local.appCatalogVersion,
       guardianDomainCatalogVersion: local.domainCatalogVersion,
       warningOnly: local.warningOnly,
+      interventionCapability: local.interventionCapability,
+      standardAllowanceSeconds: local.standardAllowanceSeconds,
       lastGuardianObservationAt: local.lastObservationAt,
       observerStatus: local.observerStatus,
       applicationPolicyStatus: local.applicationPolicyStatus,
@@ -282,7 +368,20 @@ export async function fetchSentinelQuarantines(sessionId?: number): Promise<Sent
 }
 
 export async function fetchSentinelRules(): Promise<PolicyRule[]> {
-  if (isTauriEnvironment() && isLocalVaultSession()) return []
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    try {
+      const policies = await fetchGuardianAppPolicies()
+      return policies.map((p) => ({
+        id: p.id,
+        processNamePattern: p.execName,
+        policyType: p.policyType,
+        isCustom: true,
+        createdAt: p.createdAt,
+      }))
+    } catch {
+      return []
+    }
+  }
   requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     headers: authHeaders(),
@@ -292,6 +391,22 @@ export async function fetchSentinelRules(): Promise<PolicyRule[]> {
 }
 
 export async function addSentinelRule(processNamePattern: string, policyType: string = 'BLOCKED'): Promise<PolicyRule> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const p = await saveGuardianAppPolicy({
+      appId: processNamePattern.trim().toLowerCase(),
+      appName: processNamePattern.trim(),
+      execName: processNamePattern.trim().toLowerCase(),
+      policyType: policyType === 'ALLOWED' ? 'ALLOWED' : 'BLOCKED',
+      source: 'custom',
+    })
+    return {
+      id: p.id,
+      processNamePattern: p.execName,
+      policyType: p.policyType,
+      isCustom: true,
+      createdAt: p.createdAt,
+    }
+  }
   requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules`, {
     method: 'POST',
@@ -303,6 +418,14 @@ export async function addSentinelRule(processNamePattern: string, policyType: st
 }
 
 export async function deleteSentinelRule(ruleId: number): Promise<void> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    const policies = await fetchGuardianAppPolicies()
+    const target = policies.find((p) => p.id === ruleId)
+    if (target) {
+      await removeGuardianAppPolicy(target.appId)
+    }
+    return
+  }
   requireBackendDeviceApi()
   const res = await fetchWithoutRedirects(`${SENTINEL_BASE}/rules/${ruleId}`, {
     method: 'DELETE',
@@ -312,6 +435,66 @@ export async function deleteSentinelRule(ruleId: number): Promise<void> {
     const errData = await res.json().catch(() => null)
     throw new Error(errData?.message || `Failed to delete policy rule: ${res.status}`)
   }
+}
+
+export interface DiscoveredApp {
+  id: string
+  name: string
+  platform: string
+  source: string
+  icon?: string | null
+  execName?: string | null
+  isRunning: boolean
+  policy: 'BLOCKED' | 'ALLOWED' | 'NONE'
+  enforcementCapability: 'TERMINATE' | 'MONITOR_ONLY' | 'UNSUPPORTED'
+  unsupportedReason?: string | null
+}
+
+export interface GuardianAppPolicy {
+  id: number
+  appId: string
+  appName: string
+  execName: string
+  policyType: 'BLOCKED' | 'ALLOWED'
+  source: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SaveAppPolicyRequest {
+  appId: string
+  appName: string
+  execName: string
+  policyType: 'BLOCKED' | 'ALLOWED'
+  source?: string
+}
+
+export async function fetchDiscoveredApps(): Promise<DiscoveredApp[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<DiscoveredApp[]>('local_get_discovered_apps')
+  }
+  return []
+}
+
+export async function fetchGuardianAppPolicies(): Promise<GuardianAppPolicy[]> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<GuardianAppPolicy[]>('local_get_app_policies')
+  }
+  return []
+}
+
+export async function saveGuardianAppPolicy(payload: SaveAppPolicyRequest): Promise<GuardianAppPolicy> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<GuardianAppPolicy>('local_save_app_policy', { request: payload })
+  }
+  throw new Error('Local policy save is unavailable in this environment')
+}
+
+export async function removeGuardianAppPolicy(appId: string): Promise<void> {
+  if (isTauriEnvironment() && isLocalVaultSession()) {
+    return invokeTauriCommand<void>('local_remove_app_policy', { appId })
+  }
+  throw new Error('Local policy deletion is unavailable in this environment')
 }
 
 export async function updateSentinelMode(enforcementMode: string): Promise<SentinelStatus> {
@@ -350,7 +533,8 @@ export async function fetchSentinelTamperEvents(sessionId?: number): Promise<Sen
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch tamper events: ${res.status}`)
-  return res.json()
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
 }
 
 export interface SentinelWarningItem {
@@ -372,7 +556,8 @@ export async function fetchActiveWarnings(): Promise<SentinelWarningItem[]> {
     headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Failed to fetch active warnings: ${res.status}`)
-  return res.json()
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
 }
 
 export async function respondToWarning(

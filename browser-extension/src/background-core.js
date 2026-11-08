@@ -21,7 +21,7 @@
   const LEASE_ALARM = 'shinpo-policy-lease-expiry'
   const PHASE_ALARM = 'shinpo-phase-deadline'
   const MAX_INTERVENTIONS = 32
-  const DEFAULT_REVIEW_URL = 'http://127.0.0.1:5173/focus'
+  const DEFAULT_REVIEW_URL = ''
 
   const state = {
     ready: false,
@@ -423,7 +423,13 @@
 
   async function reviewRules() {
     const target = safeReviewUrl(state.reviewUrl)
-    if (!target) throw codedError('INVALID_REVIEW_URL', 'The Focus Rules URL is not configured safely')
+    if (!target) {
+      if (typeof api?.runtime?.openOptionsPage === 'function') {
+        await api.runtime.openOptionsPage()
+        return { opened: true }
+      }
+      return { opened: false }
+    }
     await apiCall('tabs', 'create', { url: target })
     return { opened: true }
   }
@@ -438,6 +444,11 @@
   }
 
   async function setReviewUrl(reviewUrl) {
+    if (!reviewUrl || String(reviewUrl).trim() === '') {
+      state.reviewUrl = ''
+      await storageSet('local', { [STORAGE_KEYS.REVIEW_URL]: '' })
+      return { reviewUrl: '' }
+    }
     const normalized = safeReviewUrl(reviewUrl)
     if (!normalized) {
       throw codedError('INVALID_REVIEW_URL', 'Use HTTPS, or HTTP only for localhost/loopback')
@@ -577,6 +588,7 @@
     return {
       connection: { ...state.connection },
       monitoringEnabled: state.monitoringEnabled,
+      reviewUrl: state.reviewUrl || '',
       policy: {
         active: state.policy.active,
         degraded: state.policy.degraded === true,

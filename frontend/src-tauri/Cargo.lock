@@ -3969,6 +3969,7 @@ dependencies = [
  "shinpo-browser-host",
  "shinpo-shield",
  "subtle",
+ "sysinfo",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
@@ -3983,6 +3984,7 @@ dependencies = [
 name = "shinpo-shield"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "sysinfo",
