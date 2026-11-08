@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-brand="aurora" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SHINPO EONPAI UI fixture</title>
+    <script>
+      localStorage.setItem('shinpo_local_vault_account', 'eonpai-ui-fixture')
+      window.__TAURI_INTERNALS__ = {
+        invoke: async (command) => {
+          if (command === 'local_eonpai_provider_status') return { provider: 'none', status: 'OFFLINE', enabled: false, available: false, message: 'No external model configured.' }
+          if (command === 'local_eonpai_list' || command === 'local_eonpai_actions') return []
+          if (command === 'local_eonpai_get_active') return { conversationId: 'fixture', title: 'Fixture', messages: [] }
+          return null
+        },
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/e2e/EonpaiPreview.tsx"></script>
+  </body>
+</html>
