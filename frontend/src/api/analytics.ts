@@ -50,7 +50,7 @@ export interface AnalyticsActivityBucket {
 
 export interface AnalyticsPeriodResponse {
   range: AnalyticsRange
-  timezone: 'UTC'
+  timezone: string
   currentStart: string
   currentEnd: string
   previousStart: string
@@ -73,67 +73,96 @@ async function localDashboard(): Promise<AnalyticsDashboardResponse> {
   const [sessions, missions] = await Promise.all([getFocusSessions(), getMissions()])
   const completed = localCompletedSessions(sessions)
   const completedMissions = missions.filter((mission) => mission.status.toUpperCase() === 'COMPLETED').length
-  const dates = new Set(completed.map((session) => (session.endedAt ?? session.createdAt).slice(0, 10)))
-  const today = new Date().toISOString().slice(0, 10)
-  let cursor = dates.has(today) ? today : dates.has(new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)) ? new Date(Date.now() - 86_400_000).toISOString().slice(0, 10) : ''
-  let currentStreak = 0
-  while (cursor && dates.has(cursor)) {
-    currentStreak++
-    cursor = new Date(Date.parse(`${cursor}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+
+  const ref = new Date()
+  const y = ref.getFullYear()
+  const m = ref.getMonth()
+  const d = ref.getDate()
+
+  const dateSet = new Set<string>()
+  for (const session of completed) {
+    const t = new Date(session.endedAt ?? session.createdAt)
+    dateSet.add(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`)
   }
+  const todayKey = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const yesterdayDate = new Date(y, m, d - 1)
+  const yesterdayKey = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
+  const cursorDate = dateSet.has(todayKey) ? ref : dateSet.has(yesterdayKey) ? yesterdayDate : null
+  let currentStreak = 0
+  if (cursorDate) {
+    let checkDate = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), cursorDate.getDate())
+    while (true) {
+      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`
+      if (dateSet.has(key)) {
+        currentStreak++
+        checkDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate() - 1)
+      } else {
+        break
+      }
+    }
+  }
+
   const recentDebriefs = completed.filter((session) => session.accomplishment || session.reflectionNote)
     .sort((a, b) => (b.endedAt ?? b.createdAt).localeCompare(a.endedAt ?? a.createdAt)).slice(0, 20)
-    .map((session) => ({ sessionId: session.id, sessionName: session.name, intention: session.intention ?? '', durationMinutes: session.durationMinutes,
-      actualFocusMinutes: Math.round(session.activeSeconds / 60), quality: session.completionQuality ?? null,
-      accomplishment: session.accomplishment ?? 'Session completed', reflectionNote: session.reflectionNote ?? '', completedAt: session.endedAt ?? session.createdAt }))
+    .map((session) => ({
+      sessionId: session.id,
+      sessionName: session.name,
+      intention: session.intention ?? '',
+      durationMinutes: session.durationMinutes,
+      actualFocusMinutes: Math.round(session.activeSeconds / 60),
+      quality: session.completionQuality ?? null,
+      accomplishment: session.accomplishment ?? 'Session completed',
+      reflectionNote: session.reflectionNote ?? '',
+      completedAt: session.endedAt ?? session.createdAt,
+    }))
+
   const weeklyVelocity = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(Date.now() - (6 - index) * 86_400_000).toISOString().slice(0, 10)
-    const day = completed.filter((session) => (session.endedAt ?? session.createdAt).slice(0, 10) === date)
-    return { date, dayName: new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase(),
-      focusMinutes: day.reduce((sum, session) => sum + Math.round(session.activeSeconds / 60), 0), completedCount: day.length }
+    const dayOffset = 6 - index
+    const start = new Date(y, m, d - dayOffset, 0, 0, 0, 0)
+    const end = new Date(y, m, d - dayOffset + 1, 0, 0, 0, 0)
+    const startMs = start.getTime()
+    const endMs = end.getTime()
+    const date = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+    const daySessions = completed.filter((session) => {
+      const time = new Date(session.endedAt ?? session.createdAt).getTime()
+      return time >= startMs && time < endMs
+    })
+    return {
+      date,
+      dayName: start.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+      focusMinutes: Math.round(daySessions.reduce((sum, session) => sum + session.activeSeconds, 0) / 60),
+      completedCount: daySessions.length,
+    }
   })
+
   const quality = completed.map((session) => session.completionQuality).filter((value): value is number => value != null && value > 0)
-  return { summary: { totalFocusMinutes: Math.round(completed.reduce((sum, session) => sum + session.activeSeconds, 0) / 60),
-    sessionsCompleted: completed.length, sessionsStarted: sessions.filter((session) => session.startedAt != null).length,
-    missionsCompleted: completedMissions, missionsTotal: missions.length,
-    avgQuality: quality.length ? Math.round(quality.reduce((sum, value) => sum + value, 0) / quality.length * 10) / 10 : null,
-    completionRate: missions.length ? Math.round(completedMissions / missions.length * 100) : null, currentStreak,
-    completionRatePopulation: 'MISSIONS', completionRateNumerator: completedMissions, completionRateDenominator: missions.length }, weeklyVelocity, recentDebriefs }
+
+  return {
+    summary: {
+      totalFocusMinutes: Math.round(completed.reduce((sum, session) => sum + session.activeSeconds, 0) / 60),
+      sessionsCompleted: completed.length,
+      sessionsStarted: sessions.filter((session) => session.startedAt != null).length,
+      missionsCompleted: completedMissions,
+      missionsTotal: missions.length,
+      avgQuality: quality.length ? Math.round(quality.reduce((sum, value) => sum + value, 0) / quality.length * 10) / 10 : null,
+      completionRate: missions.length ? Math.round(completedMissions / missions.length * 100) : null,
+      currentStreak,
+      completionRatePopulation: 'MISSIONS',
+      completionRateNumerator: completedMissions,
+      completionRateDenominator: missions.length,
+    },
+    weeklyVelocity,
+    recentDebriefs,
+  }
 }
 
 async function localPeriod(range: AnalyticsRange): Promise<AnalyticsPeriodResponse> {
-  const { getFocusSessions } = await import('./focusSessions.ts')
-  const sessions = localCompletedSessions(await getFocusSessions())
-  const nowMs = Date.now()
-  const bucketCount = range === '24h' ? 12 : range === '90d' ? 13 : range === '30d' ? 30 : 7
-  const rangeSeconds = range === '90d' ? 90 * 86400 : bucketCount * (range === '24h' ? 7200 : 86400)
-  const currentStartMs = nowMs - rangeSeconds * 1000
-  const previousStartMs = currentStartMs - rangeSeconds * 1000
-  const makeBuckets = (startMs: number, endMs: number): AnalyticsActivityBucket[] => Array.from({ length: bucketCount }, (_, index) => {
-    const firstSpan = range === '90d' ? 6 * 86400 : range === '24h' ? 7200 : 86400
-    const span = range === '90d' && index > 0 ? 7 * 86400 : firstSpan
-    const start = startMs + (range === '90d' && index > 0 ? (6 + (index - 1) * 7) * 86400_000 : index * span * 1000)
-    const end = index === bucketCount - 1 ? endMs : start + span * 1000
-    return { start: new Date(start).toISOString(), end: new Date(end).toISOString(), activeSeconds: 0, completedSessions: 0 }
-  })
-  const currentBuckets = makeBuckets(currentStartMs, nowMs)
-  const previousBuckets = makeBuckets(previousStartMs, currentStartMs)
-  let currentActiveSeconds = 0, previousActiveSeconds = 0, currentCompletedSessions = 0, previousCompletedSessions = 0
-  for (const session of sessions) {
-    const ended = Date.parse(session.endedAt ?? session.createdAt)
-    const isCurrent = ended >= currentStartMs && ended < nowMs
-    if (!isCurrent && !(ended >= previousStartMs && ended < currentStartMs)) continue
-    const start = isCurrent ? currentStartMs : previousStartMs
-    const index = Math.min(bucketCount - 1, Math.max(0, range === '90d' ? ended - start < 6 * 86400_000 ? 0 : 1 + Math.floor((ended - start - 6 * 86400_000) / (7 * 86400_000)) : Math.floor((ended - start) / (range === '24h' ? 7200_000 : 86400_000))))
-    const buckets = isCurrent ? currentBuckets : previousBuckets
-    buckets[index].activeSeconds += session.activeSeconds
-    buckets[index].completedSessions++
-    if (isCurrent) { currentActiveSeconds += session.activeSeconds; currentCompletedSessions++ }
-    else { previousActiveSeconds += session.activeSeconds; previousCompletedSessions++ }
-  }
-  return { range, timezone: 'UTC', currentStart: new Date(currentStartMs).toISOString(), currentEnd: new Date(nowMs).toISOString(),
-    previousStart: new Date(previousStartMs).toISOString(), previousEnd: new Date(currentStartMs).toISOString(), currentBuckets, previousBuckets,
-    currentActiveSeconds, currentCompletedSessions, previousActiveSeconds, previousCompletedSessions }
+  const [{ getFocusSessions }, { aggregateSessionsIntoPeriod }] = await Promise.all([
+    import('./focusSessions.ts'),
+    import('../utils/analyticsEngine.ts'),
+  ])
+  const sessions = await getFocusSessions()
+  return aggregateSessionsIntoPeriod(sessions, range)
 }
 
 const API_BASE = `${getBackendBaseUrl()}/api/analytics`

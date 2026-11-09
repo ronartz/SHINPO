@@ -68,7 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onReplayTutorial,
 }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
-    isTauriEnvironment() && initialSection === 'connection' ? 'appearance' : initialSection,
+    initialSection === 'connection' ? 'appearance' : initialSection,
   )
 
   // Appearance - Time Format state
@@ -718,7 +718,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               { id: 'protection', label: 'Focus Protection', icon: 'shield' as const },
               { id: 'companion', label: 'Browser Companion', icon: 'apps' as const },
               { id: 'eonpai', label: 'EONPAI (AI)', icon: 'zap' as const },
-              ...(!isTauriEnvironment() ? [{ id: 'connection', label: 'Cloud Connection', icon: 'arrow-up-right' as const }] : []),
               { id: 'privacy', label: 'Privacy & Data', icon: 'lock' as const },
               { id: 'about', label: 'About & Health', icon: 'dashboard' as const },
             ].map((tab) => {

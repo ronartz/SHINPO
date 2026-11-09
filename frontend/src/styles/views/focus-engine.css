@@ -28,7 +28,7 @@
   gap: var(--space-5);
   width: 100%;
   box-sizing: border-box;
-  align-items: start;
+  align-items: stretch;
 }
 
 .focus-workspace-container[data-focus-mode='active'] .focus-hero-split,
@@ -48,7 +48,7 @@
 }
 
 .focus-left-column {
-  height: auto;
+  height: 100%;
 }
 
 .focus-hero-split .card-timer-hud,
@@ -282,9 +282,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   height: auto;
-  min-height: 0;
+  min-height: 200px;
 }
 
 .intention-helper-text {
@@ -615,10 +615,15 @@
 }
 
 .btn-timer.primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: 600;
+  background: var(--color-primary-active, #7c3aed);
+  color: #ffffff !important;
+  font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
+}
+
+.btn-timer.primary span {
+  color: #ffffff !important;
+  font-weight: 700;
 }
 
 html[data-theme='light'] .btn-timer.primary,
@@ -644,8 +649,12 @@ html[data-theme='light'] .btn-timer.primary:hover,
 .btn-timer.secondary {
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: #f8fafc !important;
   font-weight: 600;
+}
+
+.btn-timer.secondary span {
+  color: #f8fafc !important;
 }
 
 .btn-timer.secondary:hover {

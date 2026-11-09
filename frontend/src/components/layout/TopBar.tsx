@@ -119,7 +119,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
       </div>
 
       {/* Centered Search Input */}
-      <div className="top-search-command" role="search">
+      <div className="top-search-command aurora-glass" role="search">
         <Icon name="search" size={15} />
         <input
           ref={searchInputRef}

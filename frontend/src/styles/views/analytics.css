@@ -1,6 +1,8 @@
 .analytics-view {
   --analytics-accent: var(--color-primary);
   --analytics-blue: var(--color-primary);
+  --analytics-chart-bar: var(--chart-1, var(--color-primary));
+  --analytics-chart-bar-hover: var(--chart-2, var(--color-primary));
   --analytics-green: var(--status-success);
   --analytics-link: var(--color-primary);
   --analytics-action: var(--color-primary);
@@ -16,8 +18,40 @@
   padding: 4px 0 32px;
 }
 
+/* 4-Theme Authoritative Semantic Color Bindings */
+html[data-brand='aurora'] .analytics-view,
+html:not([data-brand='classic']) .theme-aurora .analytics-view {
+  --analytics-chart-bar: #9757FA;
+  --analytics-chart-bar-hover: #4D77F9;
+}
+
+html[data-brand='aurora'][data-theme='light'] .analytics-view,
+html:not([data-brand='classic']) .theme-aurora.theme-light .analytics-view,
+html:not([data-brand='classic']) .theme-aurora .theme-light .analytics-view {
+  --analytics-chart-bar: #7C3AED;
+  --analytics-chart-bar-hover: #2563EB;
+}
+
+html[data-brand='classic'] .analytics-view,
+html[data-brand='classic'] .theme-aurora .analytics-view,
+html:not([data-brand='aurora']) .analytics-view {
+  --analytics-chart-bar: #AFF33E;
+  --analytics-chart-bar-hover: #38BDF8;
+}
+
+html[data-brand='classic'][data-theme='light'] .analytics-view,
+html[data-brand='classic'][data-theme='light'] .theme-aurora .analytics-view,
+html:not([data-brand='aurora'])[data-theme='light'] .analytics-view,
+html[data-brand='classic'] .theme-light .analytics-view,
+html:not([data-brand='aurora']) .theme-light .analytics-view {
+  --analytics-chart-bar: #4D7C0F;
+  --analytics-chart-bar-hover: #14532D;
+}
+
 html[data-theme='light'] .analytics-view,
 .theme-light .analytics-view {
+  --analytics-chart-bar: var(--chart-1, var(--color-primary));
+  --analytics-chart-bar-hover: var(--chart-2, var(--color-primary));
   --analytics-link: var(--color-primary);
   --analytics-action: var(--color-primary);
   --analytics-action-text: var(--color-on-primary);
@@ -133,17 +167,158 @@ html[data-theme='light'] .analytics-view,
 .analytics-chart-wrap { position: relative; min-width: 0; }
 .analytics-chart-legend { display: flex; min-height: 25px; align-items: center; justify-content: flex-end; gap: 18px; color: var(--text-2); font-size: 12.5px; }
 .analytics-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
-.analytics-chart-legend i { width: 18px; height: 0; border-top: 2px solid var(--analytics-blue); }
-.analytics-chart-legend i.is-previous { border-color: var(--text-3); border-top-style: dashed; }
+.analytics-chart-legend i { width: 14px; height: 14px; border-radius: 4px; background: var(--analytics-chart-bar); }
+.analytics-chart-legend i.is-previous { width: 14px; height: 14px; border-radius: 4px; background: transparent; border: 1.5px dashed var(--text-3); }
+
+.analytics-chart-canvas-container {
+  position: relative;
+  width: 100%;
+}
+
 .analytics-activity-chart { display: block; width: 100%; height: auto; overflow: visible; }
-.analytics-chart-gridline { stroke: var(--border); stroke-width: 1; }
-.analytics-chart-axis { fill: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
-.analytics-line-current { fill: none; stroke: var(--analytics-blue); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.analytics-line-previous { fill: none; stroke: color-mix(in srgb, var(--text-3) 72%, transparent); stroke-width: 2; stroke-dasharray: 5 6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.analytics-point-current { fill: var(--brand-cool-sky); stroke: var(--surface-card); stroke-width: 2; cursor: help; }
-.analytics-point-previous { fill: var(--text-3); stroke: var(--surface-card); stroke-width: 1.5; cursor: help; }
-.analytics-point-current:focus,
-.analytics-point-previous:focus { outline: none; stroke: var(--text-1); stroke-width: 3; }
+.analytics-chart-gridline { stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4; }
+.analytics-chart-baseline { stroke: var(--border-strong, var(--border)); stroke-width: 1.5; }
+.analytics-chart-axis { fill: var(--text-3); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.analytics-chart-axis-x { fill: var(--text-2); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.analytics-bar-current {
+  fill: var(--analytics-chart-bar);
+  cursor: pointer;
+  outline: none;
+  transition: fill 0.16s ease, filter 0.16s ease;
+}
+
+html[data-brand='classic'] .analytics-bar-current,
+.theme-classic .analytics-bar-current {
+  fill: #AFF33E !important;
+}
+
+html[data-brand='classic'][data-theme='light'] .analytics-bar-current,
+.theme-classic.theme-light .analytics-bar-current,
+html[data-brand='classic'] .theme-light .analytics-bar-current {
+  fill: #4D7C0F !important;
+}
+
+.analytics-bar-current:hover,
+.analytics-bar-current:focus-visible {
+  filter: brightness(1.22);
+  stroke: var(--text-1);
+  stroke-width: 2px;
+}
+
+.analytics-bar-zero {
+  fill: color-mix(in srgb, var(--border) 80%, transparent);
+  cursor: pointer;
+  outline: none;
+  transition: fill 0.16s ease;
+}
+
+.analytics-bar-zero:hover,
+.analytics-bar-zero:focus-visible {
+  fill: var(--text-3);
+  stroke: var(--text-2);
+  stroke-width: 1.5px;
+}
+
+.analytics-bar-previous {
+  fill: color-mix(in srgb, var(--text-3) 12%, transparent);
+  stroke: color-mix(in srgb, var(--text-3) 45%, transparent);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+
+.analytics-chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+  padding: 8px 12px;
+  background: var(--surface-elevated, var(--surface-card));
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-1);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 25;
+  display: grid;
+  gap: 4px;
+}
+
+.analytics-tooltip-title {
+  font-weight: 750;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+.analytics-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analytics-tooltip-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.analytics-tooltip-badge.is-current {
+  background: var(--analytics-chart-bar);
+}
+
+.analytics-tooltip-badge.is-prev {
+  background: transparent;
+  border: 1px dashed var(--text-3);
+}
+
+.analytics-activity-zero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--surface-card) 60%, transparent);
+  backdrop-filter: blur(2px);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.analytics-zero-copy {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.analytics-zero-btn {
+  pointer-events: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--analytics-action);
+  border-radius: 9px;
+  background: var(--analytics-action);
+  color: var(--analytics-action-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.analytics-zero-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
 .analytics-chart-placeholder button { min-height: 36px; padding: 0 13px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .analytics-chart-placeholder { display: flex; min-height: 180px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-2); font-size: 13px; }
 .analytics-activity-empty { display: flex; min-height: 140px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-2); font-size: 13px; text-align: center; }

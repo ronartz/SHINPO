@@ -712,10 +712,16 @@ export function DesktopApp() {
       } else if (currentTheme === 'dark' && !isDarkMode) {
         setIsDarkMode(true)
       }
+      const currentBrand = document.documentElement.getAttribute('data-brand')
+      if (currentBrand === 'classic' && isV2Preview) {
+        setIsV2Preview(false)
+      } else if (currentBrand === 'aurora' && !isV2Preview) {
+        setIsV2Preview(true)
+      }
     })
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-brand'] })
     return () => observer.disconnect()
-  }, [isDarkMode])
+  }, [isDarkMode, isV2Preview])
 
   useEffect(() => {
     if (!activeTaskMenu) return

@@ -14,24 +14,50 @@
 }
 
 .cockpit-top-bar {
-  padding: 0 var(--space-6);
-  height: 70px;
-  min-height: 70px;
-  max-height: 70px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 16px);
-  background: var(--surface);
-  box-shadow: var(--shadow-glass);
+  padding: 0;
+  height: auto;
+  min-height: 52px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .bento-card,
 .ai-sidebar-card,
 .ai-chat-card,
 .auth-card,
-.taskmaster-active-session-banner {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
+.taskmaster-active-session-banner,
+.flight-deck-board-panel,
+.top-search-command {
+  background: var(--glass-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+/* Fallback for environments without backdrop-filter support */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bento-card,
+  .ai-sidebar-card,
+  .ai-chat-card,
+  .auth-card,
+  .taskmaster-active-session-banner,
+  .flight-deck-board-panel {
+    background: var(--surface-card) !important;
+  }
+}
+
+/* Special Requirement: Outer board is frosted glass, inner columns & task cards are crisp solid surfaces */
+.bento-task-subcard,
+.status-column,
+.flight-deck-card,
+.kanban-column,
+.schedule-session-item,
+.goal-card-item {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface-subtle);
 }
 
 .bento-task-subcard,

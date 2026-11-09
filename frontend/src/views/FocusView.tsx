@@ -512,17 +512,33 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   {guardianModeAvailable && !activeSession && <div className="study-mode-section" id="study-mode-section">
                     <span className="study-section-label">Guardian mode</span>
                     <div className="study-mode-options" role="group" aria-label="Guardian mode">
-                      {GUARDIAN_MODE_OPTIONS.map(({ mode, label }) => <button key={mode} type="button" className={`study-mode-option ${guardianMode === mode ? 'is-active' : ''}`} aria-pressed={guardianMode === mode} onClick={() => setGuardianMode(mode)}><strong>{label}</strong></button>)}
+                      {GUARDIAN_MODE_OPTIONS.map(({ mode, label }) => {
+                        const isSelected = guardianMode === mode || (mode === 'PROTECTED' && (guardianMode as string) === 'STANDARD')
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            className={`study-mode-option ${isSelected ? 'is-active' : ''}`}
+                            aria-pressed={isSelected}
+                            onClick={() => setGuardianMode(mode)}
+                          >
+                            <strong>{label}</strong>
+                          </button>
+                        )
+                      })}
                     </div>
-                    <p className="study-mode-description" aria-live="polite">{GUARDIAN_MODE_OPTIONS.find(({ mode }) => mode === guardianMode)?.detail}</p>
+                    {(() => {
+                      const opt = GUARDIAN_MODE_OPTIONS.find(({ mode }) => mode === guardianMode || (mode === 'PROTECTED' && (guardianMode as string) === 'STANDARD'))
+                      return opt?.detail ? <p className="study-mode-description" aria-live="polite">{opt.detail}</p> : null
+                    })()}
                     <fieldset className="guardian-consent-group">
                       <legend>App observation consent</legend>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={guardianAppMonitoring} onChange={(event) => setGuardianAppMonitoring(event.target.checked)} />Allow SHINPO to observe matching process names during this Focus session</label>
                       <p className="guardian-observation-note">On Fedora Wayland, foreground time is unavailable. Standard uses sampled app-running time—not foreground time—and requires separate consent.</p>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={backgroundRuntimeConsent} disabled={!guardianAppMonitoring} onChange={(event) => setBackgroundRuntimeConsent(event.target.checked)} />Allow Standard to count up to 10 minutes while a recognized app is running</label>
                     </fieldset>
-                    <p className="guardian-observation-note">Guardian is warning-only in this release. SHINPO never closes applications.</p>
-                    <div className="guardian-preference-actions">
+                    <p className="guardian-observation-note" style={{ margin: '12px 0' }}>Guardian is warning-only in this release. SHINPO never closes applications.</p>
+                    <div className="guardian-preference-actions" style={{ marginTop: 6, marginBottom: 8 }}>
                       <button type="button" disabled={savingGuardianPreference} onClick={() => void saveGuardianPreference(true)}>
                         {savingGuardianPreference ? 'Saving…' : 'Remember for future sessions'}
                       </button>

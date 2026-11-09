@@ -312,7 +312,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               background: isDone
                 ? isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)' : '#f1f1f1'
                 : isDarkMode ? 'color-mix(in srgb, var(--brand-primary) 16.0%, transparent)' : '#d6d6d6',
-              color: isDone ? 'var(--brand-primary)' : 'var(--brand-primary)',
+              color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : (isDarkMode ? '#c084fc' : '#7c3aed'),
               border: `1px solid ${isDone ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' : 'color-mix(in srgb, var(--brand-primary) 30.0%, transparent)'}`,
             }}
           >
@@ -1189,7 +1189,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                       <Typography
                         sx={{
                           fontSize: 13,
-                          color: 'text.secondary',
+                          color: isDarkMode ? '#94a3b8' : 'text.secondary',
                           lineHeight: 1.25,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -1219,7 +1219,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                               : isActive
                                 ? isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)' : '#dddddd'
                                 : isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 14.0%, transparent)' : '#e4e4e4',
-                          color: 'var(--color-primary)',
+                          color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : isActive ? (isDarkMode ? '#c084fc' : '#7c3aed') : (isDarkMode ? '#94a3b8' : '#64748b'),
                           border: `1px solid ${isDone
                             ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)'
                             : s.status === 'PAUSED'
@@ -1264,12 +1264,13 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 </button>
               </Box>
             )}
+          </Box>
 
-            {/* Bottom Card Footer: Symmetrical anchor eliminating dead space */}
-            <Box
-              sx={{
-                mt: 'auto',
-                pt: 1.5,
+          {/* Bottom Card Footer: Symmetrical anchor eliminating dead space */}
+          <Box
+            sx={{
+              mt: 'auto',
+              pt: 1.5,
                 borderTop: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.07)' : 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)'}`,
                 display: 'flex',
                 alignItems: 'center',
@@ -1303,11 +1304,10 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                 </Box>
               )}
             </Box>
-          </Box>
         </AuroraCard>
 
         <AuroraCard className="dashboard-rewards-summary" glass noPadding tiltVariant="none">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.3, height: '100%', p: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.3, height: '100%', p: '16px 18px', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
               <Typography sx={{ fontSize: 15, fontWeight: 750 }}>Rewards &amp; Progress</Typography>
               <button type="button" className="dashboard-insight-link" onClick={() => setActiveTab('Rewards')}>
@@ -1366,7 +1366,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               </Typography>
             </Box>
 
-            <Box sx={{ mt: 'auto', pt: 0.8, pb: 0.5 }}>
+            <Box sx={{ mt: 'auto', pt: 0.8, pb: 1.2 }}>
               <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
                 <Box sx={{ width: `${totalMissionsCount ? Math.min(100, Math.round((completedMissionsCount / totalMissionsCount) * 100)) : 0}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
               </Box>
@@ -1387,7 +1387,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           4. FULL-WIDTH TASKS BOARD: 3 Kanban Lanes (In Progress, Ready, Completed)
           ========================================================================= */}
       <Box
-        className="flight-deck-board-panel"
+        className="flight-deck-board-panel aurora-glass"
         id="aurora-tasks-board"
         sx={{
           display: 'flex',
@@ -1500,10 +1500,14 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         >
           {/* Column 1: In Progress */}
           <AuroraCard
+            className="status-column"
             tiltVariant="none"
-            glass
+            glass={false}
             noPadding
             sx={{
+              bgcolor: 'var(--surface-subtle)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
               height: '100%',
@@ -1612,10 +1616,14 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
           {/* Column 2: Ready */}
           <AuroraCard
+            className="status-column"
             tiltVariant="none"
-            glass
+            glass={false}
             noPadding
             sx={{
+              bgcolor: 'var(--surface-subtle)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
               height: '100%',
@@ -1715,11 +1723,15 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
           {/* Column 3: Completed */}
           <AuroraCard
+            className="status-column"
             tiltVariant="none"
-            glass
+            glass={false}
             noPadding
             data-tutorial="completed-column"
             sx={{
+              bgcolor: 'var(--surface-subtle)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
               height: '100%',

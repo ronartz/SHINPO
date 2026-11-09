@@ -1,50 +1,145 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="aurora-dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SHINPO Browser Companion</title>
   <link rel="stylesheet" href="ui.css">
+  <script>
+    try {
+      const theme = localStorage.getItem('shinpo_extension_theme') || 'aurora-dark';
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (_) {}
+  </script>
 </head>
 <body class="popup">
-  <main>
-    <div class="eyebrow">SHINPO</div>
-    <h1>Browser Companion</h1>
-
-    <section class="card">
-      <div class="status-row">
-        <span id="status-dot" class="status-dot"></span>
-        <strong id="connection-label">Checking connection…</strong>
+  <main class="popup-container">
+    <!-- Header: Logo, Identity, Theme & Live Status -->
+    <header class="header-bar">
+      <div class="brand-identity">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="128" height="128" rx="28" fill="var(--surface-elevated)"/>
+            <path d="M29 43L76 15C79 13 83 13 86 15L99 23C102 25 104 28 104 32V38C104 42 102 45 98 47L64 68L48 58L79 39L36 64C33 66 29 66 26 64L22 62V53C22 49 24 45 29 43Z" fill="url(#popup-brand-blue)"/>
+            <path d="M45 79L82 56C85 54 89 54 92 56L107 65C110 67 112 70 112 74V87C112 91 110 94 106 96L65 120C62 122 58 122 55 120L39 111C36 109 34 106 34 102V93C34 89 36 86 40 84L68 67L82 76L53 94L73 82L60 74Z" fill="url(#popup-brand-purple)"/>
+            <defs>
+              <linearGradient id="popup-brand-blue" x1="22" y1="40" x2="104" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#3B82F6"/>
+                <stop offset="1" stop-color="#22D3EE"/>
+              </linearGradient>
+              <linearGradient id="popup-brand-purple" x1="34" y1="88" x2="112" y2="88" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#7C3AED"/>
+                <stop offset="1" stop-color="#9757FA"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-titles">
+          <span class="eyebrow">SHINPO</span>
+          <h1 class="app-title">Companion</h1>
+        </div>
       </div>
-      <p id="connection-detail" class="muted"></p>
-    </section>
 
-    <section id="focus-card" class="card hidden">
-      <div id="task-title" class="task"></div>
-      <div id="focus-mode" class="mode"></div>
-      <div id="phase-status" class="mode"></div>
-      <p id="lease" class="muted"></p>
-    </section>
+      <div class="header-controls">
+        <label for="theme-select" class="visually-hidden" style="display:none">Theme</label>
+        <select id="theme-select" class="theme-select" title="Switch Theme" aria-label="Switch Theme">
+          <option value="aurora-dark">Aurora Dark</option>
+          <option value="aurora-light">Aurora Light</option>
+          <option value="classic-dark">Classic Dark</option>
+          <option value="classic-light">Classic Light</option>
+        </select>
+        <div id="status-pill" class="status-pill warning" role="status" aria-live="polite">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="connection-label">Checking…</span>
+        </div>
+      </div>
+    </header>
 
-    <section id="pair-card" class="card hidden">
-      <h2>Pair this browser</h2>
-      <label for="pairing-code">One-time pairing code</label>
-      <input id="pairing-code" type="text" autocomplete="off" spellcheck="false" maxlength="128">
-      <div class="actions"><button id="pair" class="primary">Pair securely</button></div>
-    </section>
-
-    <section class="card switch-row">
-      <div><strong>Browser monitoring</strong><div class="muted">Disable without closing your tabs</div></div>
-      <input id="monitoring" type="checkbox" aria-label="Enable browser monitoring">
-    </section>
-
-    <div class="actions">
-      <button id="sync">Sync now</button>
-      <button id="options">Permissions &amp; setup</button>
-      <button id="disconnect">Disconnect</button>
+    <!-- Recoverable Alert / Degraded Banner -->
+    <div id="status-alert" class="alert alert-warning hidden" role="alert">
+      <span id="status-alert-icon" aria-hidden="true">⚠️</span>
+      <span id="status-alert-text"></span>
     </div>
-    <p id="message" class="message" role="status"></p>
+
+    <!-- Active Focus Session Card -->
+    <section id="focus-card" class="card focus-card hidden">
+      <div class="focus-header">
+        <div class="focus-meta">
+          <span id="focus-mode" class="badge-mode">STANDARD FOCUS</span>
+          <span id="paused-badge" class="badge-paused hidden">⏸ Paused</span>
+        </div>
+        <span id="lease" class="muted font-mono">Lease: --</span>
+      </div>
+
+      <div class="countdown-display">
+        <span id="countdown-time">--:--</span>
+        <span class="countdown-unit">remaining</span>
+      </div>
+
+      <p id="task-title" class="task-title">Loading focus task…</p>
+      <div id="phase-status" class="phase-text">Focus phase active</div>
+    </section>
+
+    <!-- Empty Focus Card (Connected but no active session) -->
+    <section id="empty-focus-card" class="card hidden">
+      <div class="card-title">Ready for Focus</div>
+      <p id="empty-focus-detail" class="muted">Connected to SHINPO Desktop. Start a focus session in the desktop app to activate contextual website protection.</p>
+    </section>
+
+    <!-- Pairing Card (Shown when unpaired) -->
+    <section id="pair-card" class="card hidden">
+      <div class="card-title">Pair with SHINPO Desktop</div>
+      <p class="muted">In SHINPO Desktop, open Settings → Browser Companion and click "Generate Pairing Code". Enter that one-time code below:</p>
+      <div>
+        <label for="pairing-code">One-time pairing code</label>
+        <input id="pairing-code" class="input-code" type="text" autocomplete="off" spellcheck="false" maxlength="128" placeholder="Paste pairing code">
+      </div>
+      <div class="btn-group">
+        <button id="pair" class="btn primary" type="button">Pair securely</button>
+      </div>
+    </section>
+
+    <!-- Monitoring Toggle Switch Card -->
+    <section id="monitoring-card" class="card switch-row">
+      <div class="switch-label-group">
+        <span class="switch-label">Browser monitoring</span>
+        <span class="switch-description">Pause tab evaluation without closing tabs</span>
+      </div>
+      <label class="switch">
+        <input id="monitoring" type="checkbox" aria-label="Enable browser monitoring" checked>
+        <span class="slider"></span>
+      </label>
+    </section>
+
+    <!-- Sync and Quick Navigation Actions -->
+    <section class="card" style="padding: 10px 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+        <span id="last-sync" class="muted font-mono">Sync: checking…</span>
+        <span id="connection-source" class="muted">Host: com.shinpo.companion</span>
+      </div>
+      <div class="btn-group" style="margin-top:0;">
+        <button id="sync" class="btn" type="button" title="Synchronize Focus rules with SHINPO Desktop">Sync now</button>
+        <button id="options" class="btn" type="button" title="Open Settings &amp; Diagnostics">Settings</button>
+        <button id="disconnect" class="btn danger" type="button" title="Disconnect this browser">Disconnect</button>
+      </div>
+    </section>
+
+    <!-- Status & Feedback Messages -->
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <!-- Disconnect Confirmation Modal -->
+    <div id="disconnect-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="disconnect-modal-title">
+      <div class="modal-dialog">
+        <div id="disconnect-modal-title" class="card-title" style="color:var(--status-danger)">Disconnect Browser Companion?</div>
+        <p class="text-sm muted" style="margin:0;">Disconnecting will remove the local pairing token and disable all active focus website protections until you pair again from SHINPO Desktop.</p>
+        <div class="btn-group" style="justify-content:flex-end;">
+          <button id="cancel-disconnect" class="btn" type="button">Cancel</button>
+          <button id="confirm-disconnect" class="btn danger" type="button">Disconnect</button>
+        </div>
+      </div>
+    </div>
   </main>
-  <script src="popup.js"></script>
+
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

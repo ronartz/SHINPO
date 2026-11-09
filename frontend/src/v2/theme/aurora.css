@@ -165,22 +165,14 @@ html[data-brand='classic'][data-theme='light'] .aurora-glass {
   }
 }
 
-.app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar {
-  position: relative;
-  z-index: 500;
-  background: var(--surface, #0c101d);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
-}
-
-
-
+.app-shell.theme-aurora .cockpit-top-bar,
+.app-shell.theme-aurora:not(.theme-light) .cockpit-top-bar,
 .app-shell.theme-aurora.theme-light .cockpit-top-bar {
   position: relative;
   z-index: 500;
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--border, var(--color-surface-3));
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Aurora Navigation Button Styling on Classic Sidebar */
@@ -266,13 +258,18 @@ html[data-brand='classic'][data-theme='light'] .aurora-glass {
 }
 
 /* Aurora Search Input Pill */
+.app-shell.theme-aurora .top-search-command {
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
 .app-shell.theme-aurora:not(.theme-light) .top-search-command:not(:focus-within) {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .app-shell.theme-aurora.theme-light .top-search-command:not(:focus-within) {
-  background: var(--color-surface-1);
+  background: var(--glass-surface);
   border: 1px solid var(--border);
 }
 
@@ -339,11 +336,11 @@ html[data-brand='classic'][data-theme='light'] .aurora-glass {
 
 .aurora-btn-primary,
 button.aurora-btn-primary {
-  background: var(--color-primary) !important;
-  color: var(--color-on-primary) !important;
+  background: var(--color-primary-active, #7c3aed) !important;
+  color: #ffffff !important;
   border: none !important;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   height: 38px;
   padding: 0 var(--space-6);

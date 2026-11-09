@@ -286,14 +286,22 @@ test.describe('SHINPO Comprehensive Tabs Audit', () => {
   test('Settings modal opens and switches tabs properly', async ({ page }) => {
     await loginAndNavigate(page, 'Dashboard', true, 'dark')
 
-    // Click Settings button in TopBar
-    const settingsBtn = page.getByRole('button', { name: /settings/i }).first()
-    await expect(settingsBtn).toBeVisible()
-    await settingsBtn.click()
+    // Open Settings via profile menu or sidebar utility action
+    const profileBtn = page.locator('.profile-badge-card')
+    if (await profileBtn.count() > 0 && await profileBtn.isVisible()) {
+      await profileBtn.click()
+      const allSettingsBtn = page.locator('button:has-text("All settings")')
+      await expect(allSettingsBtn).toBeVisible()
+      await allSettingsBtn.click()
+    } else {
+      const settingsBtn = page.locator('[aria-label="Settings"]').first()
+      await expect(settingsBtn).toBeVisible()
+      await settingsBtn.click()
+    }
 
     // Expect Settings dialog to be visible
     const dialog = page.locator('.settings-modal-dialog, [role="dialog"]')
-    await expect(dialog).toBeVisible()
+    await expect(dialog.first()).toBeVisible()
 
     // Test switching to Protection tab
     const protectionTab = dialog.getByRole('tab', { name: /protection/i }).or(dialog.locator('button:has-text("Protection")')).first()
@@ -332,6 +340,8 @@ test.describe('SHINPO Comprehensive Tabs Audit', () => {
     const keyTabs = ['Dashboard', 'Focus Engine', 'Task Manager', 'Goals & Missions']
     for (const tab of keyTabs) {
       await loginAndNavigate(page, tab, true, 'dark')
+      // Wait for tab entry animations to fully settle before color contrast analysis
+      await page.waitForTimeout(600)
       const scanResults = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa'])
         .disableRules(['region']) // Main landmarks verified in semantic spec

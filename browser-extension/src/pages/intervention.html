@@ -1,33 +1,85 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="aurora-dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Return to your Focus plan · SHINPO</title>
   <link rel="stylesheet" href="ui.css">
+  <script>
+    try {
+      const theme = localStorage.getItem('shinpo_extension_theme') || 'aurora-dark';
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (_) {}
+  </script>
 </head>
 <body>
   <main class="intervention-shell">
-    <section class="card intervention-card">
-      <div class="eyebrow">Contextual Focus Protection</div>
-      <h1>This page is outside your current focus plan</h1>
-      <p>Current task: <strong id="task-title">Loading…</strong></p>
-      <p id="reason" class="muted"></p>
-      <p class="destination">Destination: <span id="destination"></span></p>
-
-      <div class="actions">
-        <button id="return" class="primary">Return to Study</button>
-        <button id="allow">Allow for 5 Minutes</button>
-        <button id="review">Review Focus Rules</button>
+    <section class="card intervention-card" role="region" aria-labelledby="intervention-title">
+      <!-- Header -->
+      <div style="display:flex; align-items:center; gap: 10px;">
+        <div class="brand-icon" style="width:28px; height:28px;" aria-hidden="true">
+          <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="128" height="128" rx="28" fill="var(--surface-elevated)"/>
+            <path d="M29 43L76 15C79 13 83 13 86 15L99 23C102 25 104 28 104 32V38C104 42 102 45 98 47L64 68L48 58L79 39L36 64C33 66 29 66 26 64L22 62V53C22 49 24 45 29 43Z" fill="url(#int-brand-blue)"/>
+            <path d="M45 79L82 56C85 54 89 54 92 56L107 65C110 67 112 70 112 74V87C112 91 110 94 106 96L65 120C62 122 58 122 55 120L39 111C36 109 34 106 34 102V93C34 89 36 86 40 84L68 67L82 76L53 94L73 82L60 74Z" fill="url(#int-brand-purple)"/>
+            <defs>
+              <linearGradient id="int-brand-blue" x1="22" y1="40" x2="104" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#3B82F6"/>
+                <stop offset="1" stop-color="#22D3EE"/>
+              </linearGradient>
+              <linearGradient id="int-brand-purple" x1="34" y1="88" x2="112" y2="88" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#7C3AED"/>
+                <stop offset="1" stop-color="#9757FA"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-titles">
+          <span class="eyebrow">Contextual Focus Protection</span>
+          <span class="muted" style="font-size:11px;">SHINPO Browser Companion</span>
+        </div>
       </div>
 
-      <div id="confirmation" class="confirmation hidden">
-        <p>This grants this resource—not the whole website—for five minutes.</p>
-        <button id="confirm-allow">Confirm 5-minute exception</button>
+      <h1 id="intervention-title" class="intervention-title">This page is outside your current focus plan</h1>
+
+      <!-- Active Focus Context -->
+      <div style="background:var(--surface-elevated); border:1px solid var(--border-subtle); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="muted">Active task:</span>
+            <strong id="task-title" style="color:var(--text-primary);">Loading…</strong>
+          </div>
+          <span id="focus-mode" class="badge-mode">STANDARD FOCUS</span>
+        </div>
+        <p id="reason" class="muted" style="margin:0; font-size:12px;"></p>
       </div>
-      <p id="message" class="message" role="status"></p>
+
+      <!-- Destination Box -->
+      <div class="destination-box">
+        <span class="muted">Destination: </span>
+        <span id="destination">checking…</span>
+      </div>
+
+      <!-- Primary & Secondary Actions -->
+      <div class="btn-group" style="margin-top: 6px;">
+        <button id="return" class="btn primary" type="button" style="padding: 10px 20px; font-size: 13px;">Return to Study</button>
+        <button id="allow" class="btn" type="button">Allow for 5 Minutes</button>
+        <button id="review" class="btn" type="button">Review Focus Rules</button>
+      </div>
+
+      <!-- Strict Confirmation Banner -->
+      <div id="confirmation" class="confirmation-banner hidden" role="alert">
+        <p>You are in Strict Focus mode. Confirming will grant access exclusively to this resource for five minutes and record this exception in your daily focus analytics.</p>
+        <div>
+          <button id="confirm-allow" class="btn primary" type="button">Confirm 5-minute exception</button>
+        </div>
+      </div>
+
+      <!-- Feedback message -->
+      <p id="message" class="message" role="status" aria-live="polite"></p>
     </section>
   </main>
+
   <script src="intervention.js"></script>
 </body>
 </html>

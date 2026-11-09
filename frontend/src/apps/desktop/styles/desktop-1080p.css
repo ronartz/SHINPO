@@ -110,11 +110,17 @@
   }
 
   .priority-hero-card,
-  .schedule-card,
-  .dashboard-rewards-summary {
+  .schedule-card {
     min-height: 0 !important;
     height: 100% !important;
     padding: 16px 18px !important;
+    border-radius: var(--radius-lg, 16px) !important;
+  }
+
+  .dashboard-rewards-summary {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 0 !important;
     border-radius: var(--radius-lg, 16px) !important;
   }
 
@@ -262,13 +268,13 @@
   .focus-hero-split {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) !important;
     gap: 14px !important;
-    align-items: start !important;
+    align-items: stretch !important;
   }
 
   .focus-left-column {
     display: flex !important;
     flex-direction: column !important;
-    height: auto !important;
+    height: 100% !important;
     gap: 14px !important;
   }
 
@@ -288,8 +294,8 @@
   }
 
   .card-session-intention {
-    flex: 0 0 auto !important;
-    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 220px !important;
     height: auto !important;
     display: flex !important;
     flex-direction: column !important;

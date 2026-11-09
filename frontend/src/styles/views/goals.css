@@ -835,7 +835,7 @@
 }
 
 .mission-list-row.is-completed {
-  opacity: 0.72;
+  opacity: 0.88;
 }
 
 .task-row-check-btn {
@@ -887,7 +887,7 @@
 
 .task-row-desc {
   font-size: 12px;
-  color: var(--text-3);
+  color: var(--text-2, #cbd5e1);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -943,7 +943,7 @@
 }
 
 .task-row-chip.duration {
-  color: var(--color-primary, var(--brand-primary));
+  color: var(--color-primary-text, #c084fc);
   background: color-mix(in srgb, var(--brand-highlight) 10.0%, transparent);
   border-color: color-mix(in srgb, var(--brand-highlight) 25.0%, transparent);
   font-weight: 700;
@@ -964,19 +964,19 @@
 
 .task-row-status-pill.ready {
   background: color-mix(in srgb, var(--brand-highlight) 12.0%, transparent);
-  color: var(--color-primary, var(--brand-primary));
+  color: var(--color-primary-text, #c084fc);
   border: 1px solid color-mix(in srgb, var(--brand-highlight) 30.0%, transparent);
 }
 
 .task-row-status-pill.in-progress {
   background: color-mix(in srgb, var(--brand-highlight) 14.0%, transparent);
-  color: var(--brand-primary);
+  color: var(--color-primary-text, #c084fc);
   border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
 }
 
 .task-row-status-pill.completed {
   background: color-mix(in srgb, var(--brand-highlight) 12.0%, transparent);
-  color: var(--brand-primary);
+  color: var(--color-primary-text, #c084fc);
   border: 1px solid color-mix(in srgb, var(--brand-highlight) 30.0%, transparent);
 }
 
@@ -993,7 +993,7 @@
   height: 28px;
   padding: 0 var(--space-3);
   border-radius: 6px;
-  background: var(--primary-coral, var(--brand-primary));
+  background: var(--color-primary-active, #7c3aed);
   color: #ffffff;
   border: none;
   font-size: 12px;
@@ -1005,7 +1005,7 @@
 }
 
 .task-row-focus-btn:hover {
-  background: var(--brand-coral-hover, var(--brand-primary));
+  background: var(--color-primary-hover, #6d28d9);
   transform: translateY(-1px);
 }
 

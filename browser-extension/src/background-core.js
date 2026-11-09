@@ -152,6 +152,7 @@
       case 'GET_PAGE_SETTINGS':
         return pageSettings(sender)
       case 'GET_STATUS':
+      case 'STATUS':
         requireExtensionPage(sender)
         return publicStatus()
       case 'PAIR':

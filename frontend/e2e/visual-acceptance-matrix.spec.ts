@@ -444,9 +444,8 @@ test.describe('SHINPO Comprehensive Automated Visual Acceptance & Geometry Suite
     await page.setViewportSize({ width: 1440, height: 900 })
     await attachMockHarness(page, 'READY')
 
-    await page.goto('/?v2=true&theme=dark')
-    const focusNav = page.locator('[data-tab="Focus Engine"]').first()
-    await focusNav.click()
+    await page.goto('/?tab=Focus%20Engine&v2=true&theme=dark')
+    await expect(page.locator('.app-shell')).toBeVisible()
 
     // 1. READY STATE
     const startBtn = page.locator('[data-tutorial="start-timer-btn"], button:has-text("Start Focus"), button:has-text("Start Session")').first()
