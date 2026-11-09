@@ -197,7 +197,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: "false"
       - name: Semgrep SAST scan
-        uses: semgrep/semgrep-action@713eb38cdeaf80cf0eb820d6b63ca0e06001ef04 # v1
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
         with:
           config: >-
             p/default
@@ -206,7 +206,7 @@ jobs:
         env:
           SEMGREP_RULES: p/default
       - name: OSV-Scanner dependency scan
-        uses: google/osv-scanner-action@856b3cb4787a27ebca872ca58cb619a9d0337b83 # v1.9.2
+        uses: google/osv-scanner-action@764c91816374ff2d8fc2095dab36eecd42d61638 # v1.9.2
         with:
           scan-args: |-
             -r
