@@ -9,7 +9,6 @@ import {
   formatTimerDigits,
   describeFocusPlan,
   durationPresets,
-  pomodoroPlans,
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
@@ -105,7 +104,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
   setSelectedDuration,
   isCustomDuration,
   setIsCustomDuration,
-  selectedPomodoroPlan,
+  selectedPomodoroPlan: _selectedPomodoroPlan,
   setSelectedPomodoroPlan,
   handleStartSession,
   handlePause,
@@ -323,6 +322,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 <span className="focus-paused-note">Paused · {formatTimerDigits(timerSeconds)} remaining</span>
               )}
             </div>
+
+            {!activeSession && (
+              <p className="timer-plan-preview" style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--text-2)', textAlign: 'center', lineHeight: 1.45 }}>
+                <strong style={{ color: 'var(--text-1)' }}>Plan preview:</strong> {describeFocusPlan(selectedDuration, pomodoroEnabled, pomodoroLongBreakMinutes, pomodoroGraceMinutes)}
+              </p>
+            )}
 
             <div className="timer-action-buttons">
               {!activeSession && (
@@ -607,26 +612,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </div>
                   </div>
                 )}
-
-                <div className="pomodoro-plan-grid">
-                  {pomodoroPlans.map((plan) => (
-                    <div
-                      key={plan.name}
-                      className={`plan-card-item ${selectedPomodoroPlan === plan.name ? 'active' : ''
-                        }`}
-                      onClick={() => {
-                        setSelectedPomodoroPlan(plan.name)
-                        setSelectedDuration(plan.totalMinutes)
-                      }}
-                    >
-                      <div>
-                        <div className="plan-name">{plan.name}</div>
-                        <div className="plan-schedule-sub">{plan.schedule}</div>
-                      </div>
-                      <span className="badge-tag blue">{plan.totalMinutes}m</span>
-                    </div>
-                  ))}
-                </div>
               </>
             )}
           </div>
