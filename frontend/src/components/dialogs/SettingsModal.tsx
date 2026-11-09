@@ -115,6 +115,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null)
   const [companionLoading, setCompanionLoading] = useState(false)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState(false)
 
   // EONPAI AI state
   const [aiStatus, setAiStatus] = useState<{
@@ -1371,35 +1372,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     <div className="companion-steps-list">
                       <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : 'step-active'}`}>
-                        <div className="companion-step-num">1</div>
-                        <div className="companion-step-content">
-                          <strong>Install or enable the extension</strong>
-                          <span>Add the SHINPO Browser Companion to Chromium (Chrome, Brave, Edge) or Firefox.</span>
+                        <div className="companion-step-header">
+                          <div className="companion-step-num">1</div>
+                          <strong>Install Extension</strong>
                         </div>
+                        <span className="companion-step-desc">Chromium or Firefox</span>
                       </div>
 
                       <div className={`companion-step ${pairingCode ? 'step-active' : companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
-                        <div className="companion-step-num">2</div>
-                        <div className="companion-step-content">
-                          <strong>Generate a one-time pairing code</strong>
-                          <span>Create a secure 10-minute verification code from your local desktop vault.</span>
+                        <div className="companion-step-header">
+                          <div className="companion-step-num">2</div>
+                          <strong>Generate Code</strong>
                         </div>
+                        <span className="companion-step-desc">From desktop vault</span>
                       </div>
 
                       <div className={`companion-step ${pairingCode ? 'step-active' : ''}`}>
-                        <div className="companion-step-num">3</div>
-                        <div className="companion-step-content">
-                          <strong>Enter the code in Browser Companion</strong>
-                          <span>Click the SHINPO extension icon in your browser toolbar and paste the code.</span>
+                        <div className="companion-step-header">
+                          <div className="companion-step-num">3</div>
+                          <strong>Enter in Popup</strong>
                         </div>
+                        <span className="companion-step-desc">Paste 10m token</span>
                       </div>
 
                       <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
-                        <div className="companion-step-num">4</div>
-                        <div className="companion-step-content">
-                          <strong>Verify the connection</strong>
-                          <span>The extension status switches to Connected, and active Focus restrictions apply.</span>
+                        <div className="companion-step-header">
+                          <div className="companion-step-num">4</div>
+                          <strong>Active Sync</strong>
                         </div>
+                        <span className="companion-step-desc">Focus rules applied</span>
                       </div>
                     </div>
 
@@ -1431,6 +1432,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="companion-code-label">Active Pairing Code (expires in 10 minutes):</span>
                         <div className="companion-code-box">
                           <code>{pairingCode}</code>
+                          <button
+                            type="button"
+                            className="btn-timer secondary companion-copy-code-btn"
+                            onClick={() => {
+                              if (pairingCode) {
+                                void navigator.clipboard.writeText(pairingCode)
+                                setCopiedCode(true)
+                                setTimeout(() => setCopiedCode(false), 2000)
+                              }
+                            }}
+                            title="Copy pairing code to clipboard"
+                          >
+                            {copiedCode ? '✓ Copied' : 'Copy Code'}
+                          </button>
                         </div>
                         <span className="companion-code-help">Paste this code into the browser extension popup to complete pairing.</span>
                       </div>

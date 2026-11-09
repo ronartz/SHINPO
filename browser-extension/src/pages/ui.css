@@ -13,8 +13,8 @@
   color-scheme: dark;
   --bg-page: #0B0F19;
   --bg-page-gradient: radial-gradient(ellipse 90% 60% at 50% -20%, rgba(151, 87, 250, 0.16), transparent 75%),
-                      radial-gradient(ellipse 60% 50% at 85% 15%, rgba(27, 201, 222, 0.09), transparent 65%),
-                      #0B0F19;
+    radial-gradient(ellipse 60% 50% at 85% 15%, rgba(27, 201, 222, 0.09), transparent 65%),
+    #0B0F19;
   --surface-card: rgba(19, 27, 46, 0.78);
   --surface-elevated: rgba(26, 35, 58, 0.92);
   --surface-hover: rgba(35, 45, 74, 0.88);
@@ -49,8 +49,8 @@
   color-scheme: light;
   --bg-page: #F8FAFC;
   --bg-page-gradient: radial-gradient(ellipse 90% 60% at 50% -20%, rgba(124, 58, 237, 0.09), transparent 75%),
-                      radial-gradient(ellipse 60% 50% at 85% 15%, rgba(2, 132, 199, 0.07), transparent 65%),
-                      #F8FAFC;
+    radial-gradient(ellipse 60% 50% at 85% 15%, rgba(2, 132, 199, 0.07), transparent 65%),
+    #F8FAFC;
   --surface-card: rgba(255, 255, 255, 0.88);
   --surface-elevated: rgba(241, 245, 249, 0.95);
   --surface-hover: rgba(226, 232, 240, 0.85);
@@ -85,7 +85,7 @@
   color-scheme: dark;
   --bg-page: #030712;
   --bg-page-gradient: radial-gradient(ellipse 90% 60% at 50% -20%, rgba(158, 235, 42, 0.08), transparent 75%),
-                      #030712;
+    #030712;
   --surface-card: rgba(15, 23, 42, 0.82);
   --surface-elevated: rgba(30, 41, 59, 0.92);
   --surface-hover: rgba(51, 65, 85, 0.82);
@@ -120,7 +120,7 @@
   color-scheme: light;
   --bg-page: #F4EDE0;
   --bg-page-gradient: radial-gradient(ellipse 90% 60% at 50% -20%, rgba(77, 124, 15, 0.07), transparent 75%),
-                      #F4EDE0;
+    #F4EDE0;
   --surface-card: rgba(245, 236, 216, 0.65);
   --surface-elevated: rgba(255, 249, 240, 0.94);
   --surface-hover: rgba(232, 220, 196, 0.80);
@@ -154,7 +154,9 @@
 /* ==========================================================================
    Base styles & Animations
    ========================================================================== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -175,6 +177,7 @@
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -186,6 +189,7 @@
     opacity: 0;
     transform: scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -193,8 +197,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 body {
@@ -402,8 +411,25 @@ h1.app-title {
   transition: transform 0.2s ease;
 }
 
+@keyframes pulseDot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px var(--status-connected);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+    box-shadow: 0 0 10px var(--status-connected);
+  }
+}
+
 .status-pill.connected .status-dot {
   box-shadow: 0 0 6px var(--status-connected);
+  animation: pulseDot 2.5s ease-in-out infinite;
 }
 
 /* Hero Focus Card in Popup */
@@ -576,22 +602,22 @@ h1.app-title {
   border-radius: 50%;
 }
 
-.switch input:checked + .slider {
+.switch input:checked+.slider {
   background: var(--accent-gradient);
   border-color: var(--accent-primary);
 }
 
-.switch input:checked + .slider::before {
+.switch input:checked+.slider::before {
   transform: translateX(18px);
   background-color: var(--accent-text);
 }
 
-.switch input:focus-visible + .slider {
+.switch input:focus-visible+.slider {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
 }
 
-.switch input:disabled + .slider {
+.switch input:disabled+.slider {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -787,8 +813,13 @@ input.input-code {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Intervention Page Specific Styles */
@@ -981,7 +1012,10 @@ details.companion-diagnostics summary:hover {
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

@@ -124,3 +124,27 @@ The following screenshot proof files have been generated and archived in \`docs/
   - \`intervention/intervention-aurora-light.png\`
   - \`intervention/intervention-classic-dark.png\`
   - \`intervention/intervention-classic-light.png\`
+
+
+---
+
+## 5. Reconciled Distribution Packages & Checksums
+
+All development branches (`chore/remove-legacy-backend`, `feature/standalone-release-hardening`, `fix/classic-dashboard-glass-composition`, `fix/frontend-layout-systematic`, `fix/release-blockers-20261106`, `feature/separate-desktop-mobile-architecture`) were reconciled into integration branch `fix/systematic-layout-and-composition`.
+
+A fresh installer was produced from this exact source via `scripts/package-linux.sh`:
+
+| Artifact | Filepath | Size | SHA-256 Digest |
+|---|---|---|---|
+| **RPM Installer** | `release/rc/SHINPO-1.0.0-1.x86_64.rpm` | 10.82 MiB | `c5caffcfae111c7ccc1d0e3096ced7a46e184504766a3a5990eb446cfb2486d8` |
+| **AppImage** | `release/rc/SHINPO_1.0.0_amd64.AppImage` | 116.77 MiB | `04cdfdb67a882b13b7c81975707be87448614e37ba86b33bafc6e30ca3ab78f8` |
+| **Debian (.deb)** | `release/rc/SHINPO_1.0.0_amd64.deb` | 10.81 MiB | `a718518d9a25c33b37d3fb808a243c02812e0b046fe8285d391a64ed0210597d` |
+| **Portable Tarball** | `release/rc/SHINPO_1.0.0_linux_x86_64.tar.gz` | 11.23 MiB | `7b7fe8c041dc41bafe8d5aa34663246c627c27589397c01e7a0d4ff48bfe57f3` |
+| **Desktop Binary** | `release/rc/shinpo-desktop` | 28.45 MiB | `6930b7350a1671b8c2f6c03d2345fa8c7b98915892973df1f4070d8ea203e1c1` |
+| **Native Companion Host** | `release/rc/shinpo-browser-host` | 4.88 MiB | `fdcc5a6ffae4a830da85f18f779ece293eed35b9b0d7bf51a5653e19a40eddad` |
+| **Chromium Extension** | `release/rc/shinpo-browser-companion-chromium.zip` | 42.1 kB | `7f72b2c8ae77f4e55f3f4d148fd35ee3a3201c32afc76f124031b763689ea1e2` |
+| **Firefox Extension** | `release/rc/shinpo-browser-companion-firefox.zip` | 42.2 kB | `d23a6d7d1a26c1e58d7e209c718069d38d3b96e327cb450c8f3d421e1efbe689` |
+
+### Platform Truthfulness Statement
+- **Fedora Linux:** Production RPM, AppImage, and Debian packages verified.
+- **Microsoft Windows:** Host platform is Fedora Linux; Windows distribution remains unauthorized and marked **NOT TESTED**.

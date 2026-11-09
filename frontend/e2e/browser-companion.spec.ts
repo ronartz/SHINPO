@@ -303,6 +303,7 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
   })
 
   test('Popup: Renders all 4 themes cleanly with zero WCAG AA violations', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 560 })
     const activeStatus = createMockStatus()
     await injectExtensionMock(page, activeStatus)
     await page.goto(`${baseUrl}/popup.html`)
@@ -314,7 +315,8 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
       await page.selectOption('#theme-select', theme)
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
 
-      // Allow CSS transitions to settle
+      // Allow CSS transitions to settle and scroll to top
+      await page.evaluate(() => window.scrollTo(0, 0))
       await page.waitForTimeout(150)
 
       // Capture screenshot
@@ -331,6 +333,7 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
   })
 
   test('Options: Loads diagnostics, saves review URL, and maintains accessibility', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 })
     const status = createMockStatus()
     await injectExtensionMock(page, status)
     await page.goto(`${baseUrl}/options.html`)
@@ -362,6 +365,7 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
     for (const theme of themes) {
       await page.selectOption('#theme-select', theme)
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+      await page.evaluate(() => window.scrollTo(0, 0))
       await page.waitForTimeout(150)
 
       const screenshotPath = path.join(SCREENSHOT_DIR, 'options', `options-${theme}.png`)
@@ -376,6 +380,7 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
   })
 
   test('Intervention: Displays blocked domain, primary Return button, and strict confirmation', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
     const mockIntervention = {
       id: 'interv-uuid-1234',
       taskTitle: 'Mastering Advanced Algorithms',
