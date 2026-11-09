@@ -40,6 +40,9 @@ const injectMocks = async (page: any) => {
     localStorage.setItem('shinpo_access_token', 'mock-valid-token')
     localStorage.setItem('shinpo_local_vault_account', 'eonx_dev')
     localStorage.setItem('shinpo_vault_unlocked', 'true')
+    localStorage.setItem('shinpo_tutorial_completed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_completed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_dismissed', 'true')
     localStorage.setItem(
       'shinpo_auth_user',
       JSON.stringify({ id: 1, username: 'eonx_dev', email: 'eonx@local.shinpo' })
@@ -48,6 +51,7 @@ const injectMocks = async (page: any) => {
       value: {
         invoke: async (cmd: string, _args: any) => {
           if (cmd === 'local_vault_status') return { unlocked: true, username: 'eonx_dev' }
+          if (cmd === 'local_get_onboarding_state') return { status: 'COMPLETED', currentStep: 6 }
           if (cmd === 'get_guardian_status') return {
             status: 'idle',
             observerStatus: 'active',
@@ -184,10 +188,14 @@ test.describe('SHINPO Core User Journeys Release Gate', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    // Click Settings button in TopBar
-    const settingsBtn = page.getByRole('button', { name: /settings/i }).first()
-    await expect(settingsBtn).toBeVisible()
-    await settingsBtn.click()
+    // Open Settings via profile/account menu or topbar action
+    const profileBtn = page.getByRole('button', { name: /Account menu/i }).or(page.locator('.profile-badge-card')).first()
+    await expect(profileBtn).toBeVisible({ timeout: 10000 })
+    await profileBtn.click()
+
+    const allSettingsBtn = page.locator('button:has-text("All settings"), [role="menuitem"]:has-text("All settings")').first()
+    await expect(allSettingsBtn).toBeVisible({ timeout: 5000 })
+    await allSettingsBtn.click()
 
     // Wait for dialog
     const dialog = page.locator('.settings-modal-dialog, [role="dialog"]').first()

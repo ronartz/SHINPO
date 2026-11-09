@@ -69,6 +69,10 @@ const MOCK_LOCAL_STATUS = {
   standardAllowanceSeconds: 600,
   observerStatus: 'MONITORING',
   applicationPolicyStatus: 'LIMITED_NO_CLOSURE_CONSENT',
+  guardianApplicationCatalog: [
+    { processName: 'discord', category: 'COMMUNICATION', rationale: 'Game and social chat platform' },
+    { processName: 'steam', category: 'GAMING', rationale: 'Game launcher and store' },
+  ],
   applicationCatalog: [
     { processName: 'discord', category: 'COMMUNICATION', rationale: 'Game and social chat platform' },
     { processName: 'steam', category: 'GAMING', rationale: 'Game launcher and store' },
@@ -115,6 +119,12 @@ test.describe('Focus Protection - Installed App Discovery & Policy Management', 
           invoke: async (command: string, args?: any) => {
             if (command === 'local_vault_status') {
               return { unlocked: true, username: 'qa_local_user' }
+            }
+            if (command === 'local_platform_capabilities') {
+              return {
+                guardian: 'OBSERVE_AND_WARN',
+                browserCompanionSupported: true,
+              }
             }
             if (command === 'local_get_guardian_preferences') {
               return {

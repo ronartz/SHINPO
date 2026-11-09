@@ -240,7 +240,7 @@ async function run() {
   // Clean shutdown
   await browserContext.close()
   mockServer.close()
-  try { desktopProc.kill('SIGTERM') } catch {}
+  try { desktopProc.kill('SIGTERM') } catch { }
 
   console.log('\n======================================================================')
   console.log('  STANDALONE OFFLINE ACCEPTANCE GATE: PASS')

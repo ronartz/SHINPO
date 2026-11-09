@@ -31,6 +31,9 @@ const setupMocks = async (page: any, populated = false) => {
     localStorage.setItem('shinpo_access_token', 'mock-valid-token')
     localStorage.setItem('shinpo_local_vault_account', 'eonx_dev')
     localStorage.setItem('shinpo_vault_unlocked', 'true')
+    localStorage.setItem('shinpo_tutorial_completed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_completed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_dismissed', 'true')
     localStorage.setItem(
       'shinpo_auth_user',
       JSON.stringify({ id: 1, username: 'eonx_dev', email: 'eonx@local.shinpo' })
@@ -39,6 +42,7 @@ const setupMocks = async (page: any, populated = false) => {
       value: {
         invoke: async (cmd: string) => {
           if (cmd === 'local_vault_status') return { unlocked: true, username: 'eonx_dev' }
+          if (cmd === 'local_get_onboarding_state') return { status: 'COMPLETED', currentStep: 6 }
           if (cmd === 'get_guardian_status') return {
             status: 'idle',
             observerStatus: 'active',
