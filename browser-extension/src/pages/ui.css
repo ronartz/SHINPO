@@ -429,7 +429,12 @@ h1.app-title {
 
 .status-pill.connected .status-dot {
   box-shadow: 0 0 6px var(--status-connected);
-  animation: pulseDot 2.5s ease-in-out infinite;
+  animation: pulseDot 1s ease-out 1;
+}
+
+.status-pill.syncing .status-dot {
+  box-shadow: 0 0 8px var(--status-connected);
+  animation: pulseDot 1s ease-in-out infinite;
 }
 
 /* Hero Focus Card in Popup */
