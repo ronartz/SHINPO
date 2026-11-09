@@ -4,7 +4,7 @@
 - [ ] **Branch**: Created dedicated feature/fix branch (`feature/*` or `gsd/*`)
 - [ ] **Code**: Implemented targeted changes aligned with GSD phase or Ralph Loop plan
 - [ ] **Tests**: Verified local backpressure gates:
-  - [ ] Backend: `./mvnw test-compile` & `./mvnw test`
+  - [ ] Desktop & Native: `scripts/qa-check-all.sh`
   - [ ] Frontend: `npm run build` & `npm run lint`
 - [ ] **Pull Request**: Opened PR against `main`
 - [ ] **CodeRabbit Review**: Awaiting automated review by `@coderabbitai`

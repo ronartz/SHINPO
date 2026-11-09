@@ -89,6 +89,11 @@ run_security_gate() {
   echo "--- [2/5] EXECUTING SECURITY & SUPPLY-CHAIN GATE ---"
   
   local sec_pass=true
+  echo ">> Verifying legacy backend exclusion guardrail..."
+  if ! ./scripts/check-no-legacy-backend.sh; then
+    sec_pass=false
+  fi
+
   if ! node scripts/qa-security.mjs; then
     sec_pass=false
   fi

@@ -26,7 +26,7 @@ pub struct ShieldConfig {
 }
 
 fn default_api_url() -> String {
-    "http://localhost:8080".to_string()
+    "http://127.0.0.1:3000".to_string()
 }
 
 fn default_poll_seconds() -> u64 {
@@ -147,7 +147,7 @@ COMMANDS:
 OPTIONS:
     -d, --dry-run          Audit-only mode (logs matches but does not terminate processes)
     --flush                Flush buffered offline telemetry to Sentinel API immediately
-    --url <URL>            Spring Boot base URL (default: http://localhost:8080)
+    --url <URL>            SHINPO base URL (default: http://127.0.0.1:3000)
     --token <JWT>          Bearer token for authenticated API requests
     --interval <SECONDS>   Polling interval in seconds (default: 2)
     -h, --help             Print help information
@@ -232,17 +232,17 @@ mod url_tests {
     #[test]
     fn backend_url_policy_allows_only_https_or_explicit_loopback_http() {
         for url in [
-            "http://localhost:8080",
-            "http://127.0.0.1:8080",
-            "http://[::1]:8080",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://[::1]:3000",
             "https://api.example.com",
         ] {
             assert!(validate_backend_url(url).is_ok(), "{url}");
         }
         for url in [
-            "http://192.168.1.2:8080",
-            "http://127.0.0.2:8080",
-            "http://localhost.example:8080",
+            "http://192.168.1.2:3000",
+            "http://127.0.0.2:3000",
+            "http://localhost.example:3000",
             "https://user:pass@example.com",
             "https://@example.com",
             "https://example.com/?token=x",

@@ -145,7 +145,7 @@ impl SentinelClient {
         }
     }
 
-    /// Fetches the unified daemon sync contract from Spring Boot.
+    /// Fetches the unified daemon sync contract from the application.
     /// If unauthenticated or falling back, gracefully probes legacy /api/focus-sessions.
     pub fn sync(&self) -> Result<SentinelDaemonSyncResponse, String> {
         let sync_url = format!("{}/api/device/sentinel/sync", self.base_url);

@@ -55,8 +55,8 @@ async function run() {
   const p8080 = await checkPortFree(8080)
   const p5432 = await checkPortFree(5432)
   console.log(`  Port 5173 (Vite dev server):       ${p5173 ? 'FREE (OK)' : 'IN USE (FAIL)'}`)
-  console.log(`  Port 8080 (Spring Boot backend):    ${p8080 ? 'FREE (OK)' : 'IN USE (FAIL)'}`)
-  console.log(`  Port 5432 (PostgreSQL database):    ${p5432 ? 'FREE (OK)' : 'IN USE (FAIL)'}`)
+  console.log(`  Port 8080 (Legacy server canary):   ${p8080 ? 'FREE (OK)' : 'IN USE (FAIL)'}`)
+  console.log(`  Port 5432 (Legacy database canary): ${p5432 ? 'FREE (OK)' : 'IN USE (FAIL)'}`)
   if (!p5173 || !p8080 || !p5432) {
     throw new Error('Preflight failed: dev or backend servers are currently running on target ports')
   }

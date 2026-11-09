@@ -67,6 +67,8 @@ if git ls-files | grep -E '(^|/)(target|dist|node_modules)/|(^|/)(release|bundle
 else
   echo "PASS: no tracked build directories or release binaries"
 fi
+
+run "Legacy backend exclusion guardrail" "$TMP/no-legacy-backend.log" ./scripts/check-no-legacy-backend.sh
 release_artifact=""
 release_scan_status=0
 if [ -d release ]; then

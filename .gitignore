@@ -1,6 +1,6 @@
-# Java / Maven
+# Build targets
 target/
-.mvn/timing.properties
+**/target/
 
 # IntelliJ IDEA
 .idea/

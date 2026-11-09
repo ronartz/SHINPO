@@ -344,7 +344,7 @@ fn handle_run(client: &SentinelClient, config: &config::ShieldConfig, dry_run: b
                             p.policy_action, p.pid, p.name, p.reason
                         );
 
-                        // Forward telemetry to Spring Boot database, spool locally on network failure
+                        // Forward telemetry to local database, spool locally on network failure
                         let req = ShieldEnforcer::to_quarantine_request(p);
                         if let Err(e) = client.report_quarantine(&req) {
                             eprintln!(

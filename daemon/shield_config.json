@@ -1,5 +1,5 @@
 {
-  "api_url": "http://localhost:8080",
+  "api_url": "http://127.0.0.1:3000",
   "poll_interval_seconds": 2,
   "fallback_blacklist": [
     "steam",
