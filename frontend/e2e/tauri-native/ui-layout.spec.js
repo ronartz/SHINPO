@@ -53,6 +53,8 @@ describe('SHINPO native Focus and Goals layout acceptance', function () {
     await $('#recovery-continue-btn').click()
     const dismiss = await $('[aria-label="Dismiss welcome"]')
     try { await dismiss.waitForDisplayed({ timeout: 3000 }); await dismiss.click() } catch {}
+    const skipTutorial = await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip')
+    try { await skipTutorial.waitForDisplayed({ timeout: 3000 }); await skipTutorial.click() } catch {}
 
     const sidebar = await $('aside[aria-label="Main navigation"]')
     assert.ok(await sidebar.isDisplayed())

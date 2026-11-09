@@ -34,6 +34,8 @@ describe('SHINPO native authenticated screen smoke', function () {
     await $('#recovery-continue-btn').click()
     const welcome = await $('[aria-label="Dismiss welcome"]')
     try { await welcome.waitForDisplayed({ timeout: 3000 }); await welcome.click() } catch {}
+    const skipTutorial = await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip')
+    try { await skipTutorial.waitForDisplayed({ timeout: 3000 }); await skipTutorial.click() } catch {}
 
     const sidebar = await $('aside[aria-label="Main navigation"]')
     const particleCanvas = await $('[data-testid="shinpo-particles"]')
@@ -220,7 +222,40 @@ describe('SHINPO native authenticated screen smoke', function () {
       console.log(`Native tab ${tab} rendered, title=${page.title}, horizontalOverflow=${page.overflow}`)
     }
 
-    await $('[aria-label="Settings"]').click()
+    async function openSettingsModal() {
+      const directSettings = await $('[aria-label="Settings"]')
+      if (await directSettings.isExisting()) {
+        await directSettings.click()
+      } else {
+        const accountMenu = await $('button[aria-label*="Account"]')
+        if (await accountMenu.isExisting()) {
+          await accountMenu.click()
+          await browser.pause(200)
+          const allSettings = await $('button*=All settings')
+          if (await allSettings.isExisting()) {
+            await allSettings.click()
+          } else {
+            const menuitem = await $('[role="menuitem"]*=All settings')
+            if (await menuitem.isExisting()) {
+              await menuitem.click()
+            } else {
+              await browser.keys(['Control', ','])
+            }
+          }
+        } else {
+          await browser.keys(['Control', ','])
+        }
+      }
+    }
+
+    async function closeSettingsModal(dialog) {
+      const close = await $('[aria-label="Close Settings"]')
+      if (await close.isExisting()) await close.click()
+      else await browser.keys('Escape')
+      await dialog.waitForDisplayed({ reverse: true, timeout: 10000 })
+    }
+
+    await openSettingsModal()
     const settings = await $('[role="dialog"]')
     await settings.waitForDisplayed({ timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'settings-native.png'))
@@ -230,42 +265,39 @@ describe('SHINPO native authenticated screen smoke', function () {
     await $('button*=Light Theme').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.getAttribute('data-theme') === 'light'), { timeout: 10000 })
     assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Classic Light switch must preserve the mounted canvas')
-    const close = await $('[aria-label="Close Settings"]')
-    if (await close.isExisting()) await close.click()
-    else await browser.keys('Escape')
-    await settings.waitForDisplayed({ reverse: true, timeout: 10000 })
+    await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })
     await browser.waitUntil(async () => await browser.execute(() => !document.querySelector('.app-content-stage [role="status"][aria-busy="true"]')), { timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'dashboard-classic-light-particles-native.png'))
-    await $('[aria-label="Settings"]').click()
+    await openSettingsModal()
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Dark Theme').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.getAttribute('data-theme') === 'dark'), { timeout: 10000 })
-    await $('[aria-label="Close Settings"]').click()
+    await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })
     await browser.waitUntil(async () => await browser.execute(() => !document.querySelector('.app-content-stage [role="status"][aria-busy="true"]')), { timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'dashboard-classic-dark-particles-native.png'))
-    await $('[aria-label="Settings"]').click()
+    await openSettingsModal()
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Aurora').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.dataset.brand === 'aurora'), { timeout: 10000 })
     assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Aurora switch must preserve the mounted canvas')
-    await $('[aria-label="Close Settings"]').click()
+    await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })
     await browser.waitUntil(async () => await browser.execute(() => !document.querySelector('.app-content-stage [role="status"][aria-busy="true"]')), { timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'dashboard-aurora-dark-particles-native.png'))
-    await $('[aria-label="Settings"]').click()
+    await openSettingsModal()
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Light Theme').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.getAttribute('data-theme') === 'light'), { timeout: 10000 })
     assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Aurora Light switch must preserve the mounted canvas')
-    await $('[aria-label="Close Settings"]').click()
+    await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })

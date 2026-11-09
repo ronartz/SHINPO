@@ -42,6 +42,12 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
       await welcomeDismiss.click()
     } catch {}
 
+    const skipTutorial = await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip')
+    try {
+      await skipTutorial.waitForDisplayed({ timeout: 3000 })
+      await skipTutorial.click()
+    } catch {}
+
     // -------------------------------------------------------------------------
     // 2. GOALS & TASKS CREATION
     // -------------------------------------------------------------------------
@@ -160,9 +166,29 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     // -------------------------------------------------------------------------
     // 6. LOCK / SIGN OUT & VERIFY PERSISTENCE AFTER UNLOCK
     // -------------------------------------------------------------------------
-    const signOutBtn = await $('button[aria-label="Sign Out"]')
-    await signOutBtn.waitForDisplayed({ timeout: 10000 })
-    await signOutBtn.click()
+    async function lockWorkspace() {
+      const accountBtn = await $('button[aria-label*="Account"]')
+      if (await accountBtn.isExisting()) {
+        await accountBtn.click()
+        await browser.pause(300)
+        const lockBtn = await $('.dropdown-menu-item-danger')
+        if (await lockBtn.isExisting()) {
+          await lockBtn.click()
+        } else {
+          const lockText = await $('button*=Lock')
+          await lockText.click()
+        }
+      } else {
+        const signOutBtn = await $('button[aria-label="Sign Out"]')
+        if (await signOutBtn.isExisting()) {
+          await signOutBtn.click()
+        } else {
+          await browser.keys(['Control', 'Shift', 'L'])
+        }
+      }
+    }
+
+    await lockWorkspace()
     console.log('Step 6: Locked/Signed out of vault')
 
     // Wait for auth screen to return
@@ -193,15 +219,18 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     // -------------------------------------------------------------------------
     // 7. WORKSPACE RECOVERY JOURNEY WITH RECOVERY KEY
     // -------------------------------------------------------------------------
-    const signOutBtn2 = await $('button[aria-label="Sign Out"]')
-    await signOutBtn2.waitForDisplayed({ timeout: 10000 })
-    await signOutBtn2.click()
+    await lockWorkspace()
     await $('h1').waitForDisplayed({ timeout: 20000 })
 
-    // Click Forgot password? Recover with key
-    const recoverBtn = await $('button*=Forgot password? Recover with key')
-    await recoverBtn.waitForDisplayed({ timeout: 10000 })
-    await recoverBtn.click()
+    // Click Forgot password?
+    const recoverBtn = await $('.animated-forgot-btn')
+    if (await recoverBtn.isExisting()) {
+      await recoverBtn.click()
+    } else {
+      const legacyRecoverBtn = await $('button*=Forgot password')
+      await legacyRecoverBtn.waitForDisplayed({ timeout: 10000 })
+      await legacyRecoverBtn.click()
+    }
 
     // Fill recovery form
     const recoveryKeyInput = await $('#auth-recovery-key')

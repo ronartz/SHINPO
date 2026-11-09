@@ -1,11 +1,64 @@
 import { chromium } from 'playwright'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync, statSync, readFileSync } from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 
 const EVIDENCE_DIR = '/home/eonx/.gemini/antigravity/brain/f0afd28c-f135-40af-b1b6-06fb605de59b/screenshots/final-ui-repair'
 mkdirSync(EVIDENCE_DIR, { recursive: true })
 
-const FRONTEND_URL = process.env.SHINPO_URL || 'http://127.0.0.1:5173'
+const DEFAULT_URL = process.env.SHINPO_URL || 'http://127.0.0.1:5173'
+
+async function ensureServer(initialUrl) {
+  try {
+    const res = await fetch(initialUrl, { method: 'HEAD', signal: AbortSignal.timeout(1000) })
+    if (res.ok || res.status === 404) return { url: initialUrl, close: () => {} }
+  } catch {}
+
+  const distDir = path.resolve('frontend/dist')
+  if (!existsSync(distDir)) {
+    throw new Error(`Frontend build dist directory not found at ${distDir}. Run build first.`)
+  }
+
+  const mimeTypes = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+  }
+
+  const server = http.createServer((req, res) => {
+    const parsed = new URL(req.url, 'http://127.0.0.1')
+    let filePath = path.join(distDir, parsed.pathname)
+    if (!existsSync(filePath) || statSync(filePath).isDirectory()) {
+      filePath = path.join(distDir, 'index.html')
+    }
+    const ext = path.extname(filePath).toLowerCase()
+    const contentType = mimeTypes[ext] || 'application/octet-stream'
+    try {
+      const data = readFileSync(filePath)
+      res.writeHead(200, { 'Content-Type': contentType })
+      res.end(data)
+    } catch {
+      res.writeHead(404)
+      res.end('Not Found')
+    }
+  })
+
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port
+      resolve({
+        url: `http://127.0.0.1:${port}`,
+        close: () => server.close(),
+      })
+    })
+  })
+}
 
 console.log('=== SHINPO FINAL COMPOSITION REPAIR PLAYWRIGHT VERIFICATION ===')
 
@@ -15,9 +68,20 @@ const userMockScript = () => {
     'shinpo_auth_user',
     JSON.stringify({ id: 1, username: 'eonx_dev', email: 'eonx@local.shinpo' })
   )
+  localStorage.setItem('shinpo_tutorial_completed', 'true')
+  localStorage.setItem('shinpo_tutorial_dismissed', 'true')
+  localStorage.setItem('shinpo_onboarding_completed', 'true')
   Object.defineProperty(window, '__TAURI_INTERNALS__', {
     value: {
       invoke: async (cmd, args) => {
+        if (cmd === 'local_get_onboarding_state') return { status: 'COMPLETED', currentStep: 6 }
+        if (cmd === 'local_platform_capabilities') return {
+          hasAppMonitoring: true,
+          hasAppClosure: false,
+          hasWindowTracking: true,
+          platform: 'linux',
+          warningOnlyRelease: true,
+        }
         if (cmd === 'local_vault_status') return { unlocked: true, username: 'eonx_dev' }
         if (cmd === 'get_guardian_status') return {
           status: 'idle',
@@ -109,14 +173,18 @@ const userMockScript = () => {
 }
 
 async function main() {
+  const serverHandle = await ensureServer(DEFAULT_URL)
+  const activeUrl = serverHandle.url
+  console.log(`Connecting to frontend at: ${activeUrl}`)
   const browser = await chromium.launch({ headless: true })
 
+  try {
   // 1. AUTH REGISTRATION VALIDATION SCREENSHOT
   console.log('1. Testing Auth Workspace Registration Validation...')
   {
     const page = await browser.newPage()
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?theme=dark`)
+    await page.goto(`${activeUrl}/?theme=dark`)
     await page.waitForSelector('.auth-card')
 
     // Click 'Create workspace' or 'Create Account' tab if not active
@@ -147,7 +215,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=dark`)
+    await page.goto(`${activeUrl}/?v2=true&theme=dark`)
     await page.waitForSelector('.icon-sidebar')
 
     // Navigate to Focus Engine
@@ -175,7 +243,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=dark`)
+    await page.goto(`${activeUrl}/?v2=true&theme=dark`)
     await page.waitForSelector('.icon-sidebar')
 
     await page.click('button[data-tab="Schedule"]')
@@ -218,7 +286,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=dark`)
+    await page.goto(`${activeUrl}/?v2=true&theme=dark`)
     await page.waitForSelector('.icon-sidebar')
 
     await page.click('button[data-tab="Task Manager"]')
@@ -253,7 +321,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=dark`)
+    await page.goto(`${activeUrl}/?v2=true&theme=dark`)
     await page.waitForSelector('.icon-sidebar')
 
     await page.click('button[data-tab="Analytics"]')
@@ -272,7 +340,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=light`)
+    await page.goto(`${activeUrl}/?v2=true&theme=light`)
     await page.waitForSelector('.icon-sidebar')
     await page.waitForSelector('.dashboard-metrics-grid', { timeout: 10000 })
     await page.waitForTimeout(500)
@@ -299,7 +367,7 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=false&theme=light`)
+    await page.goto(`${activeUrl}/?v2=false&theme=light`)
     await page.waitForSelector('.icon-sidebar')
 
     const classicActiveBtnColor = await page.$eval('.icon-sidebar .sidebar-btn.active', (el) => window.getComputedStyle(el).color).catch(() => 'unknown')
@@ -326,22 +394,33 @@ async function main() {
     const page = await browser.newPage()
     await page.addInitScript(userMockScript)
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto(`${FRONTEND_URL}/?v2=true&theme=dark`)
+    await page.goto(`${activeUrl}/?v2=true&theme=dark`)
     await page.waitForSelector('.icon-sidebar')
 
-    // Open settings by clicking the settings button
-    const settingsBtn = await page.$('button[aria-label="Settings"]')
-    if (settingsBtn) {
-      await settingsBtn.click()
+    // Open settings by clicking account menu -> All settings or settings button
+    const profileBtn = await page.$('button[aria-label*="Account"], .profile-badge-card, button[aria-label="Settings"]')
+    if (profileBtn) {
+      await profileBtn.click()
+      await page.waitForTimeout(300)
+      const allSettingsBtn = await page.$('button:has-text("All settings"), [role="menuitem"]:has-text("All settings")')
+      if (allSettingsBtn) {
+        await allSettingsBtn.click()
+      } else {
+        await page.keyboard.press('Control+,')
+      }
     } else {
       await page.keyboard.press('Control+,')
     }
-    await page.waitForSelector('.settings-modal-box', { timeout: 5000 }).catch(() => null)
+
+    await page.waitForSelector('.settings-modal-dialog, [role="dialog"], .settings-modal-box', { timeout: 5000 }).catch(() => null)
     await page.waitForTimeout(400)
 
     // Click EONPAI tab in settings
-    await page.click('.settings-modal button[data-section="eonpai"]')
-    await page.waitForSelector('#native-ai-provider', { timeout: 5000 }).catch(() => null)
+    const eonpaiBtn = await page.$('button:has-text("EONPAI"), button[data-section="eonpai"], [role="tab"]:has-text("EONPAI")')
+    if (eonpaiBtn) {
+      await eonpaiBtn.click({ force: true })
+    }
+    await page.waitForSelector('#native-ai-provider, select', { timeout: 5000 }).catch(() => null)
     await page.waitForTimeout(400)
 
     const settingsShotPath = path.join(EVIDENCE_DIR, '08_settings_ai_provider.png')
@@ -350,8 +429,11 @@ async function main() {
     await page.close()
   }
 
-  await browser.close()
   console.log('\n=== ALL SCREENSHOTS CAPTURED SUCCESSFULLY ===')
+  } finally {
+    if (browser) await browser.close()
+    if (serverHandle) serverHandle.close()
+  }
 }
 
 main().catch((err) => {
