@@ -1325,74 +1325,175 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* 4. BROWSER COMPANION SECTION */}
               {activeSection === 'companion' && (
-                <div>
-                  <h3 className="settings-section-title">
-                    Browser Companion & URL Interception
-                  </h3>
-                  <p className="settings-section-desc">
-                    Inspect browser extension pairing, YouTube distraction policies, and native messaging status.
-                  </p>
+                <div className="companion-settings-container">
+                  {/* A. Header */}
+                  <div className="companion-settings-header">
+                    <div>
+                      <h3 className="settings-section-title" style={{ margin: 0 }}>
+                        Browser Companion
+                      </h3>
+                      <p className="settings-section-desc" style={{ margin: '4px 0 0' }}>
+                        Connect your browser to SHINPO's local Focus protection.
+                      </p>
+                    </div>
+                    <div className={`companion-header-pill ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'connected' : companionLoading ? 'checking' : companionStatus?.state === 'UNREACHABLE' ? 'danger' : 'standby'}`}>
+                      <span className="companion-status-dot" />
+                      <span>{companionLoading ? 'Checking...' : companionStatus?.state === 'PAIRED' ? 'Paired' : companionStatus?.state === 'CONNECTED' ? 'Connected' : companionStatus?.state === 'UNREACHABLE' ? 'Host Unreachable' : 'Not Paired'}</span>
+                    </div>
+                  </div>
 
-                  {/* Connection Status Card */}
-                  <div className="settings-group-card">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Companion Link: {companionStatus?.state || (companionLoading ? 'Checking...' : 'Standby')}
-                      </span>
+                  {/* B. Connection Status Panel */}
+                  <div className="companion-card companion-status-card">
+                    <div className="companion-status-row">
+                      <div className="companion-status-info">
+                        <span className="companion-status-title">
+                          Status: {companionLoading ? 'Checking connection...' : companionStatus?.state === 'PAIRED' ? 'Paired with browser' : companionStatus?.state === 'CONNECTED' ? 'Active connection established' : companionStatus?.state === 'UNREACHABLE' ? 'Native host unavailable' : 'Standby · Ready to pair'}
+                        </span>
+                        <p className="companion-status-detail">
+                          {companionStatus?.detail || (companionStatus?.state === 'PAIRED' ? 'Extension is paired with SHINPO local vault. Focus session rules will synchronize automatically.' : 'Extension is not yet paired. Generate a 10-minute code below to link your browser.')}
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={fetchCompanionInfo}
                         disabled={companionLoading}
-                        className="btn-timer secondary"
-                        style={{ padding: '5px 12px', fontSize: '12.5px' }}
+                        className="btn-timer secondary companion-refresh-btn"
                       >
-                        {companionLoading ? 'Checking...' : isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') ? 'Refresh Pairing Status' : 'Test Connection'}
+                        {companionLoading ? 'Checking...' : isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') ? 'Refresh Status' : 'Test Connection'}
                       </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: '12.5px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Coverage:</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.coverage || 'FULL'}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>Adapter:</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{companionStatus?.adapterName || 'SHINPO Contextual Host'}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>Diagnostics:</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        {companionStatus?.detail || 'Native host registered for Chrome, Brave, Edge, and Firefox.'}
-                      </span>
+                  </div>
+
+                  {/* C. Guided Pairing Section */}
+                  <div className="companion-card companion-pairing-card">
+                    <h4 className="companion-card-heading">Pairing Setup</h4>
+                    <p className="companion-card-subheading">Follow these steps to connect your browser to SHINPO desktop:</p>
+
+                    <div className="companion-steps-list">
+                      <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : 'step-active'}`}>
+                        <div className="companion-step-num">1</div>
+                        <div className="companion-step-content">
+                          <strong>Install or enable the extension</strong>
+                          <span>Add the SHINPO Browser Companion to Chromium (Chrome, Brave, Edge) or Firefox.</span>
+                        </div>
+                      </div>
+
+                      <div className={`companion-step ${pairingCode ? 'step-active' : companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
+                        <div className="companion-step-num">2</div>
+                        <div className="companion-step-content">
+                          <strong>Generate a one-time pairing code</strong>
+                          <span>Create a secure 10-minute verification code from your local desktop vault.</span>
+                        </div>
+                      </div>
+
+                      <div className={`companion-step ${pairingCode ? 'step-active' : ''}`}>
+                        <div className="companion-step-num">3</div>
+                        <div className="companion-step-content">
+                          <strong>Enter the code in Browser Companion</strong>
+                          <span>Click the SHINPO extension icon in your browser toolbar and paste the code.</span>
+                        </div>
+                      </div>
+
+                      <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
+                        <div className="companion-step-num">4</div>
+                        <div className="companion-step-content">
+                          <strong>Verify the connection</strong>
+                          <span>The extension status switches to Connected, and active Focus restrictions apply.</span>
+                        </div>
+                      </div>
                     </div>
+
                     {isTauriEnvironment() && localStorage.getItem('shinpo_local_vault_account') && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                        <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void createCompanionPairingCode()}>
-                          Generate 10-minute pairing code
+                      <div className="companion-pairing-actions">
+                        <button
+                          type="button"
+                          className="btn-timer primary companion-primary-btn"
+                          disabled={companionLoading}
+                          onClick={() => void createCompanionPairingCode()}
+                        >
+                          {companionLoading ? 'Generating...' : 'Generate 10-minute pairing code'}
                         </button>
-                        {companionStatus?.state === 'PAIRED' && (
-                          <button type="button" className="btn-timer secondary" disabled={companionLoading} onClick={() => void revokeCompanionPairing()}>
+                        {(companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED') && (
+                          <button
+                            type="button"
+                            className="btn-timer secondary companion-revoke-btn"
+                            disabled={companionLoading}
+                            onClick={() => void revokeCompanionPairing()}
+                          >
                             Revoke pairing
                           </button>
                         )}
                       </div>
                     )}
+
                     {pairingCode && (
-                      <p role="status" style={{ marginTop: 10, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>
-                        Enter this code in the Browser Companion within 10 minutes: <code>{pairingCode}</code>
-                      </p>
+                      <div className="companion-code-display" role="status">
+                        <span className="companion-code-label">Active Pairing Code (expires in 10 minutes):</span>
+                        <div className="companion-code-box">
+                          <code>{pairingCode}</code>
+                        </div>
+                        <span className="companion-code-help">Paste this code into the browser extension popup to complete pairing.</span>
+                      </div>
                     )}
                   </div>
 
-                  {/* Registration Guide */}
-                  <div className="settings-group-card">
-                    <label>
-                      Native Messaging Setup
-                    </label>
-                    <p>
-                      Install the SHINPO Browser Companion, then register its native host for this workstation:
-                    </p>
-                    <div className="settings-code-box">
-                      bash scripts/register-browser-companion.sh
+                  {/* D. Browser Status / Coverage Overview */}
+                  <div className="companion-card companion-details-card">
+                    <h4 className="companion-card-heading">Protection & Adapter Status</h4>
+                    <div className="companion-grid-details">
+                      <div className="companion-grid-item">
+                        <span className="companion-grid-label">Native Messaging:</span>
+                        <span className="companion-grid-val">{isTauriEnvironment() ? 'Registered host (com.shinpo.companion)' : 'Web fallback mode'}</span>
+                      </div>
+                      <div className="companion-grid-item">
+                        <span className="companion-grid-label">Pairing State:</span>
+                        <span className="companion-grid-val">{companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'Paired' : 'Unpaired'}</span>
+                      </div>
+                      <div className="companion-grid-item">
+                        <span className="companion-grid-label">Policy Coverage:</span>
+                        <span className="companion-grid-val">{companionStatus?.coverage || 'Awaiting connection'}</span>
+                      </div>
+                      <div className="companion-grid-item">
+                        <span className="companion-grid-label">Host Adapter:</span>
+                        <span className="companion-grid-val">{companionStatus?.adapterName || 'SHINPO Contextual Host'}</span>
+                      </div>
                     </div>
-                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      Windows users: Run <code style={{ color: 'var(--brand-primary)' }}>.\scripts\register-browser-companion.ps1</code> in PowerShell.
-                    </span>
                   </div>
+
+                  {/* E. Diagnostics & Troubleshooting Collapsible */}
+                  <details className="companion-troubleshooting-accordion">
+                    <summary className="companion-accordion-summary">
+                      <span>Troubleshooting & Diagnostic Remedies</span>
+                      <Icon name="chevron-down" size={16} />
+                    </summary>
+                    <div className="companion-accordion-content">
+                      <div className="companion-remedy-item">
+                        <strong>Native host unreachable</strong>
+                        <p>Verify that your browser is closed during host manifest installation, or restart your browser after registration.</p>
+                      </div>
+                      <div className="companion-remedy-item">
+                        <strong>Expired pairing code</strong>
+                        <p>Pairing codes expire after 10 minutes for security. Click "Generate 10-minute pairing code" to create a fresh code.</p>
+                      </div>
+                      <div className="companion-remedy-item">
+                        <strong>Web distraction policies not applying</strong>
+                        <p>Website rules are only evaluated during an active Focus session with a valid lease. Start a focus session in SHINPO to activate protection.</p>
+                      </div>
+
+                      <div className="companion-developer-area">
+                        <span className="companion-dev-tag">Developer & Workstation Setup</span>
+                        <p style={{ margin: '4px 0 8px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                          To register the native messaging host directly from repository source:
+                        </p>
+                        <div className="settings-code-box">
+                          bash scripts/register-browser-companion.sh
+                        </div>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                          Windows: <code style={{ color: 'var(--brand-primary)' }}>.\scripts\register-browser-companion.ps1</code>
+                        </span>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               )}
 

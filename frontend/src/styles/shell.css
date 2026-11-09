@@ -800,9 +800,9 @@
   letter-spacing: 0.5px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--brand-highlight) 12.0%, transparent);
-  color: var(--color-primary, var(--brand-primary));
-  border: 1px solid color-mix(in srgb, var(--brand-highlight) 25.0%, transparent);
+  background: color-mix(in srgb, var(--brand-highlight) 18.0%, transparent);
+  color: var(--color-text-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
   margin-top: 2px;
   width: fit-content;
 }
