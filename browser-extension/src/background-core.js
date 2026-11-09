@@ -29,7 +29,7 @@
     monitoringEnabled: true,
     policy: policyEngine.inactivePolicy('Browser Companion is starting'),
     connection: {
-      state: 'DISCONNECTED',
+      state: 'UNPAIRED',
       paired: false,
       lastSyncAt: null,
       error: null,
@@ -67,7 +67,17 @@
 
     await configureAlarms()
     await updateAction()
-    if (state.pairingToken) await synchronizePolicy()
+    if (state.pairingToken) {
+      await synchronizePolicy()
+    } else {
+      state.connection = {
+        state: 'UNPAIRED',
+        paired: false,
+        lastSyncAt: null,
+        error: null,
+        source: null,
+      }
+    }
   }
 
   async function configureAlarms() {

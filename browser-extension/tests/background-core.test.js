@@ -102,3 +102,26 @@ test('reevaluates the same break URL after grace expires under an unchanged poli
   assert.equal((await handleNavigation(9, 'https://game.example/', 'test')).decision, 'RESTRICT')
   assert.equal(calls.scripts, 1)
 })
+
+test('initializes with UNPAIRED state when no pairing token is stored', async () => {
+  const { api } = apiStub()
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { state };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  const { state } = context.__testHooks
+  assert.equal(state.connection.state, 'UNPAIRED')
+  assert.equal(state.connection.paired, false)
+})

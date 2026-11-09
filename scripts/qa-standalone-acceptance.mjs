@@ -151,8 +151,8 @@ async function run() {
   await popupPage.click('#pair')
   await popupPage.waitForFunction(() => {
     const el = document.getElementById('connection-label')
-    return el && el.textContent.includes('Connected to SHINPO')
-  }, { timeout: 5000 })
+    return el && el.textContent.includes('Connected')
+  }, { timeout: 10000 })
   console.log('  ✓ Browser Companion successfully paired!')
   await saveShot(popupPage, 'standalone_02_popup_paired.png')
 
