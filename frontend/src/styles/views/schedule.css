@@ -1077,7 +1077,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
 }
 
 .schedule-time-label:first-child {
-  transform: translateY(-7px);
+  transform: translateY(2px);
 }
 
 .schedule-time-label:not(:first-child) {

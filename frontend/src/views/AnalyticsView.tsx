@@ -10,9 +10,11 @@ import { Icon } from '../components/common/Icon'
 import { formatCount } from '../utils/pluralize'
 import { trackRender } from '../utils/renderTracker'
 import { buildAnalyticsCsv } from '../utils/analyticsCsv'
+import { buildFocusContributionData } from '../utils/focusContributionData'
+import { FocusContributionSkyline } from '../components/analytics/FocusContributionSkyline'
 import {
-  calculateNiceAxis,
-  formatAxisTick,
+  calculateActivityAxis,
+  formatActivityAxisTick,
   formatFocusDuration,
   formatDailyAverage,
   formatDateRange,
@@ -69,10 +71,10 @@ function ActivityChart({
   const count = Math.max(current.length, previous.length)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
-  const currentMinutes = current.map((b) => (b.activeSeconds || 0) / 60)
-  const previousMinutes = previous.map((b) => (b.activeSeconds || 0) / 60)
-  const maxValue = Math.max(...currentMinutes, ...previousMinutes, 0)
-  const { axisMax, ticks } = calculateNiceAxis(maxValue)
+  const currentSeconds = current.map((b) => b.activeSeconds || 0)
+  const previousSeconds = previous.map((b) => b.activeSeconds || 0)
+  const maxSeconds = Math.max(...currentSeconds, ...previousSeconds, 0)
+  const { axisMax, ticks, unit: axisUnit } = calculateActivityAxis(maxSeconds)
 
   // Chart coordinate boundaries (viewBox 0 0 920 280)
   const left = 56
@@ -92,9 +94,9 @@ function ActivityChart({
       ? Math.min(16, Math.max(8, slotWidth * 0.6))
       : Math.min(38, Math.max(16, slotWidth * 0.52))
 
-  const yCoord = (valMin: number) => bottom - plotHeight * Math.min(1, Math.max(0, valMin / axisMax))
+  const yCoord = (tickValue: number) => bottom - plotHeight * Math.min(1, Math.max(0, axisMax > 0 ? tickValue / axisMax : 0))
 
-  const allZero = maxValue === 0
+  const allZero = maxSeconds === 0
 
   const currentRangeLabel = formatDateRange(
     data.currentStart,
@@ -175,7 +177,7 @@ function ActivityChart({
               <g key={`tick-${tick}`}>
                 <line x1={left} x2={right} y1={yy} y2={yy} className="analytics-chart-gridline" />
                 <text x={left - 10} y={yy + 4} textAnchor="end" className="analytics-chart-axis">
-                  {formatAxisTick(tick)}
+                  {formatActivityAxisTick(tick, axisUnit)}
                 </text>
               </g>
             )
@@ -188,18 +190,19 @@ function ActivityChart({
           {Array.from({ length: count }, (_, i) => {
             const slotCenter = left + i * slotWidth + slotWidth / 2
             const bx = slotCenter - barWidth / 2
-            const cMin = currentMinutes[i] ?? 0
-            const pMin = previousMinutes[i] ?? 0
+            const cSeconds = currentSeconds[i] ?? 0
+            const pSeconds = previousSeconds[i] ?? 0
             const b = current[i]
 
-            const cHeight = (cMin / axisMax) * plotHeight
-            const pHeight = (pMin / axisMax) * plotHeight
+            const axisMaxSeconds = axisUnit === 'minutes' ? axisMax * 60 : axisMax
+            const cHeight = axisMaxSeconds > 0 ? (cSeconds / axisMaxSeconds) * plotHeight : 0
+            const pHeight = axisMaxSeconds > 0 ? (pSeconds / axisMaxSeconds) * plotHeight : 0
 
-            const currentBarY = bottom - (cMin > 0 ? Math.max(4, cHeight) : 2)
-            const currentBarHeight = cMin > 0 ? Math.max(4, cHeight) : 2
+            const currentBarHeight = cSeconds > 0 ? Math.min(plotHeight, Math.max(4, cHeight)) : 2
+            const currentBarY = bottom - currentBarHeight
 
-            const prevBarY = bottom - (pMin > 0 ? Math.max(4, pHeight) : 0)
-            const prevBarHeight = pMin > 0 ? Math.max(4, pHeight) : 0
+            const prevBarHeight = pSeconds > 0 ? Math.min(plotHeight, Math.max(4, pHeight)) : 0
+            const prevBarY = bottom - prevBarHeight
 
             const labelText = formatBucketLabel(b?.start ?? '', range, b?.end)
             const showLabel = shouldShowLabel(i)
@@ -209,7 +212,7 @@ function ActivityChart({
             return (
               <g key={`bucket-${i}`} className="analytics-bucket-group">
                 {/* Previous period benchmark ghost bar */}
-                {pMin > 0 && (
+                {pSeconds > 0 && (
                   <rect
                     x={bx - 2}
                     y={prevBarY}
@@ -227,8 +230,8 @@ function ActivityChart({
                   y={currentBarY}
                   width={barWidth}
                   height={currentBarHeight}
-                  rx={cMin > 0 ? 5 : 1}
-                  className={cMin > 0 ? 'analytics-bar-current' : 'analytics-bar-zero'}
+                    rx={cSeconds > 0 ? 5 : 1}
+                    className={cSeconds > 0 ? 'analytics-bar-current' : 'analytics-bar-zero'}
                   tabIndex={0}
                   role="graphics-symbol"
                   aria-label={ariaLabel}
@@ -299,10 +302,10 @@ function ActivityChart({
 
 function FocusedDays({ analyticsData }: { analyticsData: AnalyticsDashboardResponse | null }) {
   const days = [...(analyticsData?.weeklyVelocity ?? [])]
-    .filter((day) => day.focusMinutes > 0)
-    .sort((left, right) => right.focusMinutes - left.focusMinutes)
+    .filter((day) => (day.focusSeconds ?? day.focusMinutes * 60) > 0)
+    .sort((left, right) => (right.focusSeconds ?? right.focusMinutes * 60) - (left.focusSeconds ?? left.focusMinutes * 60))
     .slice(0, 3)
-  const maxMinutes = Math.max(...days.map((day) => day.focusMinutes), 1)
+  const maxSeconds = Math.max(...days.map((day) => day.focusSeconds ?? day.focusMinutes * 60), 1)
 
   return (
     <section className="analytics-panel analytics-focused-days" aria-labelledby="analytics-focused-days-title">
@@ -319,9 +322,9 @@ function FocusedDays({ analyticsData }: { analyticsData: AnalyticsDashboardRespo
               <span className="analytics-focused-rank">{index + 1}</span>
               <span className="analytics-focused-date">{formatCalendarDate(day.date)}</span>
               <span className="analytics-focused-track" aria-hidden="true">
-                <span style={{ width: `${(day.focusMinutes / maxMinutes) * 100}%` }} />
+                <span style={{ width: `${((day.focusSeconds ?? day.focusMinutes * 60) / maxSeconds) * 100}%` }} />
               </span>
-              <strong>{formatFocusDuration(day.focusMinutes * 60)}</strong>
+              <strong>{formatFocusDuration(day.focusSeconds ?? day.focusMinutes * 60, { showSecondsIfSmall: true })}</strong>
             </li>
           ))}
         </ol>
@@ -367,7 +370,7 @@ function Reflection({ entry }: { entry: RecentDebrief }) {
       </div>
       <div className="analytics-debrief-meta">
         <span className="analytics-duration-chip">
-          <strong>{formatFocusDuration(entry.actualFocusMinutes * 60)}</strong>
+          <strong>{formatFocusDuration(entry.actualFocusSeconds ?? entry.actualFocusMinutes * 60, { showSecondsIfSmall: true })}</strong>
           <small>actual focus</small>
         </span>
         <span className="analytics-duration-chip analytics-planned-chip">
@@ -379,19 +382,7 @@ function Reflection({ entry }: { entry: RecentDebrief }) {
           aria-label={entry.quality != null ? `Rated ${rating} out of 5` : 'Not rated'}
         >
           {entry.quality != null ? (
-            <>
-              <span className="analytics-quality-stars" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, index) => (
-                  <Icon
-                    key={index}
-                    name="star"
-                    size={12}
-                    className={index < rating ? 'is-filled' : undefined}
-                  />
-                ))}
-              </span>
-              <small>{rating}/5</small>
-            </>
+            <><Icon name="star" size={14} /><small>{rating}/5</small></>
           ) : (
             'Not rated'
           )}
@@ -417,6 +408,24 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   })
   const [period, setPeriod] = useState<AnalyticsPeriodResponse | null>(null)
   const [periodErrorFor, setPeriodErrorFor] = useState<AnalyticsRange | null>(null)
+  const [contributionData, setContributionData] = useState<ReturnType<typeof buildFocusContributionData> | null>(null)
+  const [contributionError, setContributionError] = useState(false)
+  const [contributionRefresh, setContributionRefresh] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    import('../api/focusSessions.ts').then(({ getFocusSessions }) => getFocusSessions())
+      .then((sessions) => {
+        if (!cancelled) {
+          setContributionData(buildFocusContributionData(sessions))
+          setContributionError(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setContributionError(true)
+      })
+    return () => { cancelled = true }
+  }, [userId, contributionRefresh])
 
   useEffect(() => {
     if (storageKey) localStorage.setItem(storageKey, range)
@@ -467,6 +476,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const refresh = () => {
     loadAnalytics()
+    setContributionRefresh((value) => value + 1)
     setPeriod(null)
     setPeriodErrorFor(null)
     fetchAnalyticsPeriod(range).then(setPeriod).catch(() => setPeriodErrorFor(range))
@@ -607,17 +617,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             <div className="analytics-metric-support">
               <small>Current completed tasks · all time</small>
             </div>
-            <div
+          {completedRate != null && <div
               className="analytics-task-progress"
               role="img"
-              aria-label={completedRate == null ? 'No tasks yet' : `${completedRate}% of all tasks completed`}
+              aria-label={`${completedRate}% of all tasks completed`}
             >
               <span
                 style={{
                   transform: `scaleX(${Math.min(100, Math.max(0, completedRate ?? 0)) / 100})`,
                 }}
               />
-            </div>
+            </div>}
           </div>
         </article>
 
@@ -638,6 +648,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
         </article>
       </section>
+
+      {contributionData ? (
+        <FocusContributionSkyline data={contributionData} />
+      ) : (
+        <section className="analytics-panel focus-contribution-skyline" aria-live="polite" aria-busy={!contributionError}>
+          <h2>Focus contribution skyline</h2>
+          <p>{contributionError ? 'Yearly Focus history could not be loaded.' : 'Loading your Focus history…'}</p>
+          {contributionError && <button type="button" onClick={() => { setContributionError(false); setContributionRefresh((value) => value + 1); }}>Try again</button>}
+        </section>
+      )}
 
       <section className="analytics-main-grid">
         <article className="analytics-panel analytics-activity-panel">
@@ -713,13 +733,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               <span>Tasks completed · all time</span>
               <strong>{completedRate == null ? 'No tasks' : `${completedRate}%`}</strong>
             </div>
-            <div className="analytics-progress-track">
-              <span
-                style={{
-                  transform: `scaleX(${Math.min(100, Math.max(0, completedRate ?? 0)) / 100})`,
-                }}
-              />
-            </div>
+            {completedRate != null && <div className="analytics-progress-track">
+              <span style={{ transform: `scaleX(${Math.min(100, Math.max(0, completedRate)) / 100})` }} />
+            </div>}
           </div>
           <p className="analytics-week-note">
             Period comparisons use the immediately preceding interval of equal duration. Daily buckets derive from your local calendar days.

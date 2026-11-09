@@ -744,23 +744,37 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
           </div>
 
           <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title">
-            <header>
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <h2 id="guardian-apps-title">Installed Applications</h2>
-                <p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h2 id="guardian-apps-title" style={{ margin: 0 }}>
+                    Installed Applications
+                  </h2>
+                  <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
+                    {discoveredApps.length}
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0' }}>
                   {discoveredApps.length ? `${discoveredApps.length} installed apps discovered on this system` : 'Native app discovery'}
                   {blockedCount > 0 && ` · ${blockedCount} blocked`}
                   {allowedCount > 0 && ` · ${allowedCount} allowed`}
                 </p>
               </div>
-              <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
-                {discoveredApps.length}
-              </span>
+              <button
+                type="button"
+                className="guardian-refresh-apps-btn"
+                onClick={() => void loadDiscoveredApps()}
+                disabled={appsLoading}
+                title="Rescan installed applications and running status"
+              >
+                <Icon name="refresh" size={13} />
+                <span>{appsLoading ? 'Scanning...' : 'Rescan'}</span>
+              </button>
             </header>
 
             <div className="guardian-app-toolbar">
               <div className="guardian-app-search-row">
-                <div className="guardian-app-search-box">
+                <div className="guardian-app-search-box" style={{ flex: 1, maxWidth: 'none' }}>
                   <Icon name="search" size={14} />
                   <input
                     type="text"
@@ -780,16 +794,6 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="guardian-refresh-apps-btn"
-                  onClick={() => void loadDiscoveredApps()}
-                  disabled={appsLoading}
-                  title="Rescan installed applications and running status"
-                >
-                  <Icon name="refresh" size={13} />
-                  <span>{appsLoading ? 'Scanning...' : 'Rescan'}</span>
-                </button>
               </div>
 
               <div className="guardian-app-filter-tabs" role="tablist" aria-label="Filter applications">

@@ -466,14 +466,14 @@ html[data-theme='light'],
   --sidebar-status-title: var(--color-text-primary);
   --sidebar-status-sub: var(--text-3);
 
-  --glass-surface: rgba(250, 248, 245, 0.84);
-  --glass-surface-elevated: rgba(244, 237, 224, 0.92);
-  --glass-border: 1px solid rgba(77, 124, 15, 0.20);
-  --glass-border-hover: 1px solid rgba(77, 124, 15, 0.38);
-  --glass-blur: blur(18px) saturate(120%);
-  --glass-elevated: rgba(244, 237, 224, 0.92);
-  --glass-elevated-blur: blur(20px) saturate(130%);
-  --glass-elevated-border: 1px solid var(--border-strong);
+  --glass-surface: rgba(245, 236, 216, 0.60);
+  --glass-surface-elevated: rgba(248, 242, 228, 0.75);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.45);
+  --glass-border-hover: 1px solid rgba(77, 124, 15, 0.32);
+  --glass-blur: blur(16px) saturate(135%);
+  --glass-elevated: rgba(248, 242, 228, 0.75);
+  --glass-elevated-blur: blur(16px) saturate(135%);
+  --glass-elevated-border: 1px solid rgba(255, 255, 255, 0.55);
   --opaque-card: var(--color-surface-2);
   --opaque-card-elevated: var(--color-surface-2);
   --opaque-border: 1px solid var(--border);

@@ -183,10 +183,10 @@ export function Icon({
     case 'more-horizontal':
     case 'ellipsis':
       return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="1.5" />
-          <circle cx="19" cy="12" r="1.5" />
-          <circle cx="5" cy="12" r="1.5" />
+        <svg {...common} stroke="none" fill="currentColor">
+          <circle cx="12" cy="12" r="2.5" />
+          <circle cx="19" cy="12" r="2.5" />
+          <circle cx="5" cy="12" r="2.5" />
         </svg>
       )
     case 'play':

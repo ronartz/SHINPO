@@ -22,6 +22,13 @@ export const DashboardInsights: React.FC<DashboardInsightsProps> = ({ goals, mis
   const recentActivity = (analyticsData?.recentDebriefs ?? []).slice(0, 4)
   const activeGoals = goals?.filter((goal) => (goal.status || '').toUpperCase() !== 'COMPLETED').slice(0, 3)
 
+  const chartDays = weeklyActivity.length > 0 ? weeklyActivity : Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
+    return { date: d.toISOString().slice(0, 10), dayName, focusMinutes: 0, completedCount: 0 }
+  })
+
   return (
     <div className="dashboard-insight-grid" aria-label="Focus overview and recent activity">
       <article className="dashboard-insight-card dashboard-activity-card">
@@ -36,21 +43,22 @@ export const DashboardInsights: React.FC<DashboardInsightsProps> = ({ goals, mis
             <span>this week</span>
           </div>
         </header>
-        {weeklyActivity.length > 0 ? (
-          <div className="dashboard-activity-chart" role="img" aria-label={`Focus time over the last seven days: ${weeklyActivity.map((day) => `${day.dayName} ${day.focusMinutes} minutes`).join(', ')}`}>
-            <div className="dashboard-chart-bars">
-              {weeklyActivity.map((day, index) => (
-                <div className={`dashboard-chart-day${index === weeklyActivity.length - 1 ? ' is-today' : ''}`} key={day.date} title={`${day.dayName || day.date}: ${day.focusMinutes}m focused, ${day.completedCount ?? 0} completed tasks`}>
-                  <div className="dashboard-chart-bar-track">
-                    <span className="dashboard-chart-bar" style={{ height: `${day.focusMinutes ? Math.max(5, day.focusMinutes / weeklyFocusScale * 100) : 2}%` }} />
-                  </div>
-                  <span className="dashboard-chart-day-label">{(day.dayName || day.date || '').slice(0, 3)}</span>
+        <div className="dashboard-activity-chart" role="img" aria-label={`Focus time over the last seven days: ${chartDays.map((day) => `${day.dayName} ${day.focusMinutes} minutes`).join(', ')}`}>
+          <div className="dashboard-chart-bars">
+            {chartDays.map((day, index) => (
+              <div className={`dashboard-chart-day${index === chartDays.length - 1 ? ' is-today' : ''}`} key={day.date} title={`${day.dayName || day.date}: ${day.focusMinutes}m focused, ${day.completedCount ?? 0} completed tasks`}>
+                <div className="dashboard-chart-bar-track">
+                  <span className="dashboard-chart-bar" style={{ height: `${day.focusMinutes ? Math.max(5, day.focusMinutes / weeklyFocusScale * 100) : 2}%` }} />
                 </div>
-              ))}
-            </div>
+                <span className="dashboard-chart-day-label">{(day.dayName || day.date || '').slice(0, 3)}</span>
+              </div>
+            ))}
           </div>
-        ) : (
-          <p className="dashboard-insight-empty">Focus activity will appear here after your first session.</p>
+        </div>
+        {weeklyActivity.length === 0 && (
+          <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', display: 'block', margin: '4px 0 6px', textAlign: 'center' }}>
+            Zero focus logged this week · Sessions will appear here
+          </span>
         )}
         <button type="button" className="dashboard-insight-link" onClick={() => setActiveTab('Analytics')}>View analytics <Icon name="arrow-up-right" size={13} /></button>
       </article>

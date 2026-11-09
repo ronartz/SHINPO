@@ -651,12 +651,12 @@ html[data-theme='light'] .btn-timer.primary:hover,
 .btn-timer.secondary {
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  color: #f8fafc !important;
+  color: var(--text);
   font-weight: 600;
 }
 
 .btn-timer.secondary span {
-  color: #f8fafc !important;
+  color: inherit;
 }
 
 .btn-timer.secondary:hover {
