@@ -312,7 +312,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               background: isDone
                 ? isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)' : '#f1f1f1'
                 : isDarkMode ? 'color-mix(in srgb, var(--brand-primary) 16.0%, transparent)' : '#d6d6d6',
-              color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : (isDarkMode ? '#c084fc' : '#7c3aed'),
+              color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : (isDarkMode ? '#e9d5ff' : '#5b21b6'),
               border: `1px solid ${isDone ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' : 'color-mix(in srgb, var(--brand-primary) 30.0%, transparent)'}`,
             }}
           >
@@ -1219,7 +1219,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                               : isActive
                                 ? isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)' : '#dddddd'
                                 : isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 14.0%, transparent)' : '#e4e4e4',
-                          color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : isActive ? (isDarkMode ? '#c084fc' : '#7c3aed') : (isDarkMode ? '#94a3b8' : '#64748b'),
+                          color: isDone ? (isDarkMode ? '#38bdf8' : '#0284c7') : isActive ? (isDarkMode ? '#e9d5ff' : '#5b21b6') : (isDarkMode ? '#cbd5e1' : '#475569'),
                           border: `1px solid ${isDone
                             ? 'color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)'
                             : s.status === 'PAUSED'
