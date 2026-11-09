@@ -18,7 +18,7 @@ const baseDraft: StudyResourceDraft = {
   resourceType: 'WEBSITE',
   matchType: 'EXACT',
   disposition: 'APPROVED',
-  destination: 'https://docs.spring.io/spring-security/reference/',
+  destination: 'https://docs.rs/tauri/latest/tauri/',
 }
 
 function resource(overrides: Partial<StudyResource> = {}): StudyResource {
@@ -31,9 +31,9 @@ function resource(overrides: Partial<StudyResource> = {}): StudyResource {
     matchType: 'EXACT',
     disposition: 'APPROVED',
     breakOnly: false,
-    destination: 'https://docs.spring.io/security',
-    canonicalDestination: 'https://docs.spring.io/security',
-    displayName: 'Spring Security',
+    destination: 'https://docs.rs/tauri',
+    canonicalDestination: 'https://docs.rs/tauri',
+    displayName: 'Rust Documentation',
     expiresAt: null,
     createdAt: '2026-10-16T10:00:00Z',
     updatedAt: '2026-10-16T10:00:00Z',
@@ -46,17 +46,17 @@ test('contextual Focus resource validation is scope-aware and resists lookalike 
   assert.equal(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'docs.spring.io',
+    destination: 'docs.rs',
   }), null)
   assert.equal(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'https://docs.spring.io/',
+    destination: 'https://docs.rs/',
   }), null)
   assert.match(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'https://docs.spring.io/reference',
+    destination: 'https://docs.rs/reference',
   }) ?? '', /exact domain/)
 
   assert.match(validateStudyResourceDraft({
@@ -161,8 +161,8 @@ test('coverage normalization never upgrades absent status to connected', () => {
 
 test('open-resource helper permits http(s) only and excludes process rules', () => {
   assert.equal(
-    getOpenableResourceUrl(resource({ matchType: 'DOMAIN', canonicalDestination: 'docs.spring.io' })),
-    'https://docs.spring.io/',
+    getOpenableResourceUrl(resource({ matchType: 'DOMAIN', canonicalDestination: 'docs.rs' })),
+    'https://docs.rs/',
   )
   assert.equal(
     getOpenableResourceUrl(resource({

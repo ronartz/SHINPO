@@ -1,7 +1,10 @@
-import { Client } from '@stomp/stompjs'
-import { getAuthToken, getAuthenticatedUserId, isLocalVaultSession } from './auth.ts'
-import { getWsBaseUrl } from './config.ts'
-import { isTauriEnvironment } from './tauri.ts'
+/**
+ * SHINPO (進歩) — Standalone Native Telemetry & Event Dispatcher
+ * In-process event bus for distraction warnings, Sentinel status, and Focus sessions.
+ * Decoupled from legacy broker protocols and external network sockets.
+ */
+
+import { getAuthenticatedUserId } from './auth.ts'
 import {
   normalizeFocusSessionEvent,
   normalizeSentinelQuarantineEvent,
@@ -48,130 +51,23 @@ export type SentinelStatusListener = (event: SentinelStatusEvent) => void
 export type FocusSessionListener = (event: FocusSessionEvent) => void
 export type ConnectionListener = (connected: boolean) => void
 
-class ShinpoWebSocketClient {
-  private client: Client | null = null
+class ShinpoTelemetryBus {
   private quarantineListeners = new Set<QuarantineListener>()
   private statusListeners = new Set<SentinelStatusListener>()
   private focusSessionListeners = new Set<FocusSessionListener>()
   private connectionListeners = new Set<ConnectionListener>()
   private currentUserId: number | null = null
-  private isConnecting = false
+  private connected = false
 
   public connect(userId?: number) {
-    if (isTauriEnvironment() || isLocalVaultSession()) {
-      this.disconnect()
-      return
-    }
-
     const targetUserId = userId ?? getAuthenticatedUserId()
-    if (!targetUserId) {
-      console.warn('[STOMP] Cannot connect without authenticated user ID')
-      return
-    }
-
-    if (this.client && this.client.active && this.currentUserId === targetUserId) {
-      return
-    }
-
-    this.disconnect()
-    this.currentUserId = targetUserId
-    this.isConnecting = true
-
-    const token = getAuthToken() || ''
-    const brokerUrl = getWsBaseUrl()
-    if (!brokerUrl) {
-      this.currentUserId = null
-      this.isConnecting = false
-      this.notifyConnection(false)
-      return
-    }
-
-    this.client = new Client({
-      brokerURL: brokerUrl,
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-        token: token,
-      },
-      beforeConnect: () => {
-        const freshToken = getAuthToken() || ''
-        if (this.client) {
-          this.client.connectHeaders = {
-            Authorization: `Bearer ${freshToken}`,
-            token: freshToken,
-          }
-        }
-      },
-      debug: (msg: string) => {
-        if (import.meta.env.DEV) {
-          console.debug('[STOMP]', msg)
-        }
-      },
-      reconnectDelay: 4000,
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-    })
-
-    this.client.onConnect = () => {
-      this.isConnecting = false
-      this.notifyConnection(true)
-      console.log(`[STOMP] Connected to Shinpo Telemetry Broker for user #${targetUserId}`)
-
-      // 1. Subscribe to Quarantine Events (User-specific + Broadcast)
-      this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/quarantine`, (message) => {
-        try {
-          const raw = JSON.parse(message.body)
-          const payload = normalizeSentinelQuarantineEvent(raw)
-          this.quarantineListeners.forEach((listener) => listener(payload))
-        } catch (err) {
-          console.error('[STOMP] Failed to parse quarantine event:', err)
-        }
-      })
-
-      // 2. Subscribe to Sentinel Status Events
-      this.client?.subscribe(`/topic/users/${targetUserId}/sentinel/status`, (message) => {
-        try {
-          const raw = JSON.parse(message.body)
-          const payload = normalizeSentinelStatusEvent(raw)
-          this.statusListeners.forEach((listener) => listener(payload))
-        } catch (err) {
-          console.error('[STOMP] Failed to parse status event:', err)
-        }
-      })
-
-      // 3. Subscribe to Focus Session Events (Real-time sprint lockdown sync across tabs)
-      this.client?.subscribe(`/topic/users/${targetUserId}/focus-session`, (message) => {
-        try {
-          const raw = JSON.parse(message.body)
-          const payload = normalizeFocusSessionEvent(raw)
-          this.focusSessionListeners.forEach((listener) => listener(payload))
-        } catch (err) {
-          console.error('[STOMP] Failed to parse focus session event:', err)
-        }
-      })
-    }
-
-    this.client.onStompError = (frame) => {
-      console.warn('[STOMP] Broker error:', frame.headers['message'], frame.body)
-    }
-
-    this.client.onWebSocketClose = () => {
-      this.isConnecting = false
-      this.notifyConnection(false)
-    }
-
-    this.client.activate()
+    this.currentUserId = targetUserId ?? null
+    this.connected = true
+    this.notifyConnection(true)
   }
 
   public disconnect() {
-    if (this.client) {
-      try {
-        this.client.deactivate()
-      } catch (err) {
-        console.warn('[STOMP] Error deactivating client:', err)
-      }
-      this.client = null
-    }
-    this.isConnecting = false
+    this.connected = false
     this.currentUserId = null
     this.notifyConnection(false)
   }
@@ -201,8 +97,23 @@ class ShinpoWebSocketClient {
     return () => this.focusSessionListeners.delete(listener)
   }
 
+  public emitQuarantine(raw: unknown) {
+    const payload = normalizeSentinelQuarantineEvent(raw)
+    this.quarantineListeners.forEach((listener) => listener(payload))
+  }
+
+  public emitSentinelStatus(raw: unknown) {
+    const payload = normalizeSentinelStatusEvent(raw)
+    this.statusListeners.forEach((listener) => listener(payload))
+  }
+
+  public emitFocusSession(raw: unknown) {
+    const payload = normalizeFocusSessionEvent(raw)
+    this.focusSessionListeners.forEach((listener) => listener(payload))
+  }
+
   public isConnected(): boolean {
-    return !!this.client && this.client.connected
+    return this.connected
   }
 
   public getCurrentUserId(): number | null {
@@ -210,8 +121,8 @@ class ShinpoWebSocketClient {
   }
 
   public isConnectingToBroker(): boolean {
-    return this.isConnecting
+    return false
   }
 }
 
-export const wsClient = new ShinpoWebSocketClient()
+export const wsClient = new ShinpoTelemetryBus()

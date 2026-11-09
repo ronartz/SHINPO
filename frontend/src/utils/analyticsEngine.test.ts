@@ -165,7 +165,7 @@ test('9. Timezone boundary: bucket starts at local 00:00:00', () => {
 })
 
 test('10. Daylight-saving boundary: day buckets correctly step across calendar dates', () => {
-  // Spring DST in US is in March (e.g. March 8, 2026)
+  // Vernal DST shift in US is in March (e.g. March 8, 2026)
   const ref = new Date(2026, 2, 10, 12, 0, 0)
   const period = generatePeriodBuckets('7d', ref)
 

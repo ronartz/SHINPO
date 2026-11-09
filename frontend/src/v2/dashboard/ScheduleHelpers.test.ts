@@ -25,8 +25,8 @@ test('getSortedScheduleSessions prioritizes active/paused first, then scheduled,
 test('getSessionSecondaryInfo never duplicates session name', () => {
   const sessionWithDuplicateIntention = {
     id: 10,
-    name: 'Learn Spring Boot Authentication',
-    intention: 'Learn Spring Boot Authentication',
+    name: 'Learn Rust Desktop Architecture',
+    intention: 'Learn Rust Desktop Architecture',
     durationMinutes: 45,
     status: 'SCHEDULED',
     scheduledAt: '2026-10-19T15:30:00Z',
@@ -34,7 +34,7 @@ test('getSessionSecondaryInfo never duplicates session name', () => {
 
   const secondary = getSessionSecondaryInfo(sessionWithDuplicateIntention)
   // Must NOT include the duplicated intention string
-  assert.ok(!secondary.includes('• Learn Spring Boot Authentication'))
+  assert.ok(!secondary.includes('• Learn Rust Desktop Architecture'))
   assert.ok(secondary.includes('Scheduled for'))
 })
 

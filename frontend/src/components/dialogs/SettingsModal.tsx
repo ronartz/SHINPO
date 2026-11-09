@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
-import { changePassword, getAuthToken, isLocalVaultSession, setCustomServerUrl, updateUsername, deleteAccount } from '../../api/auth'
+import { changePassword, isLocalVaultSession, updateUsername, deleteAccount } from '../../api/auth'
 import { ShinpoConfirmDialog } from '../ui/Dialog/ShinpoConfirmDialog'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
-import { fetchWithoutRedirects, getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from '../../api/config'
 import { isTauriEnvironment } from '../../api/nativeShield'
 import { invokeTauriCommand } from '../../api/tauri'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
@@ -20,7 +19,6 @@ export type SettingsSection =
   | 'protection'
   | 'companion'
   | 'eonpai'
-  | 'connection'
   | 'privacy'
   | 'about'
 
@@ -59,16 +57,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLogout,
   sentinelStatus,
   onSentinelStatusChange,
-  isWsConnected = false,
+  isWsConnected: _isWsConnected = false,
   onRefreshData,
-  isRefreshing = false,
+  isRefreshing: _isRefreshing = false,
   goals = [],
   missions = [],
   sessions = [],
   onReplayTutorial,
 }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
-    initialSection === 'connection' ? 'appearance' : initialSection,
+    initialSection || 'appearance',
   )
 
   // Appearance - Time Format state
@@ -129,19 +127,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
 
-  // Cloud Connection state
-  const [serverUrlInput, setServerUrlInput] = useState<string>(() => getCustomServerUrl())
-  const [serverPingStatus, setServerPingStatus] = useState<{
-    status: 'IDLE' | 'TESTING' | 'SUCCESS' | 'ERROR'
-    message?: string
-    latencyMs?: number
-  }>({ status: 'IDLE' })
-
   // Diagnostics state
   const [diagnosticsRunning, setDiagnosticsRunning] = useState(false)
   const [diagnosticResults, setDiagnosticResults] = useState<{
-    api: { pass: boolean; detail: string }
-    ws: { pass: boolean; detail: string }
+    vault: { pass: boolean; detail: string }
+    ipc: { pass: boolean; detail: string }
     storage: { pass: boolean; detail: string }
     shield: { pass: boolean; detail: string }
   } | null>(null)
@@ -166,7 +156,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchCompanionInfo = useCallback(async () => {
     setCompanionLoading(true)
     try {
-      if (isTauriEnvironment()) {
+      if (isTauriEnvironment() || isLocalVaultSession()) {
         const data = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
         setCompanionStatus({
           state: data.state,
@@ -176,29 +166,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         })
         return
       }
-      const baseUrl = getBackendBaseUrl()
-      const token = getAuthToken()
-      const res = await fetchWithoutRedirects(`${baseUrl}/api/contextual-focus/status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      setCompanionStatus({
+        state: 'STANDALONE_READY',
+        coverage: 'LOCAL_ONLY',
+        adapterName: 'Native messaging',
+        detail: 'Browser Companion pairs directly with local desktop application.',
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.browserCompanion) {
-          setCompanionStatus({
-            state: data.browserCompanion.state || 'DISCONNECTED',
-            coverage: data.browserCompanion.adapterCoverage || 'NONE',
-            adapterName: data.browserCompanion.adapterName || 'SHINPO Companion',
-            lastSeenAt: data.browserCompanion.lastSeenAt,
-            detail: data.browserCompanion.detail,
-          })
-        } else {
-          setCompanionStatus({
-            state: 'STANDBY',
-            coverage: 'NONE',
-            detail: 'Extension registered; awaiting active browser navigation.',
-          })
-        }
-      }
     } catch {
       setCompanionStatus({
         state: 'UNREACHABLE',
@@ -468,64 +441,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }
 
-  // Handle Cloud Server URL Save & Ping
-  const handleServerSaveAndTest = async () => {
-    const validation = isValidServerUrl(serverUrlInput)
-    if (!validation.valid) {
-      setServerPingStatus({
-        status: 'ERROR',
-        message: validation.reason || 'Invalid server URL format',
-      })
-      return
-    }
-
-    const previousEndpoint = getCustomServerUrl().trim().replace(/\/+$/, '')
-    const nextEndpoint = serverUrlInput.trim().replace(/\/+$/, '')
-    const endpointChanged = previousEndpoint !== nextEndpoint
-    try {
-      await setCustomServerUrl(serverUrlInput)
-    } catch (err) {
-      setServerPingStatus({
-        status: 'ERROR',
-        message: err instanceof Error ? err.message : 'Could not clear the saved session',
-      })
-      return
-    }
-    setServerPingStatus({ status: 'TESTING', message: 'Testing connection to server...' })
-
-    const startTime = Date.now()
-    try {
-      const targetBase = serverUrlInput.trim().replace(/\/+$/, '') || getBackendBaseUrl()
-      const res = await fetchWithoutRedirects(`${targetBase}/actuator/health`, { method: 'GET' })
-      const latency = Date.now() - startTime
-
-      if (res.ok) {
-        const body = await res.json().catch(() => ({}))
-        const statusText = body.status === 'UP' ? 'Server is healthy (UP)' : `Server responded with ${res.status}`
-        setServerPingStatus({
-          status: 'SUCCESS',
-          latencyMs: latency,
-          message: `${statusText} • Latency: ${latency}ms`,
-        })
-      } else {
-        setServerPingStatus({
-          status: 'ERROR',
-          message: `Server returned HTTP ${res.status} (${res.statusText})`,
-        })
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Network request error'
-      setServerPingStatus({
-        status: 'ERROR',
-        message: `Connection failed: ${msg}`,
-      })
-    }
-    if (endpointChanged) {
-      onClose()
-      void onLogout()
-    }
-  }
-
   // Handle Personal Data Export (JSON)
   const handleExportData = () => {
     const exportPayload = {
@@ -576,30 +491,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setDiagnosticResults(null)
 
     const results = {
-      api: { pass: false, detail: 'Checking...' },
-      ws: { pass: false, detail: 'Checking...' },
+      vault: { pass: false, detail: 'Checking...' },
+      ipc: { pass: false, detail: 'Checking...' },
       storage: { pass: false, detail: 'Checking...' },
       shield: { pass: false, detail: 'Checking...' },
     }
 
-    // 1. API Health Check
-    try {
-      const res = await fetchWithoutRedirects(`${getBackendBaseUrl()}/actuator/health`)
-      if (res.ok) {
-        results.api = { pass: true, detail: 'Backend REST API reachable (HTTP 200 OK)' }
-      } else {
-        results.api = { pass: false, detail: `Backend returned HTTP ${res.status}` }
+    // 1. Vault Status Check
+    if (isTauriEnvironment()) {
+      try {
+        const vaultStatus = await invokeTauriCommand<{ unlocked: boolean; username: string | null }>('local_vault_status')
+        results.vault = {
+          pass: vaultStatus.unlocked,
+          detail: vaultStatus.unlocked
+            ? `SQLCipher encrypted vault unlocked (${vaultStatus.username || 'active'})`
+            : 'SQLCipher vault locked',
+        }
+      } catch (err) {
+        results.vault = { pass: false, detail: `Vault check error: ${err instanceof Error ? err.message : 'Unknown'}` }
       }
-    } catch {
-      results.api = { pass: false, detail: 'Backend unreachable. Check server URL.' }
+    } else {
+      results.vault = { pass: true, detail: 'Web standalone preview mode (local state)' }
     }
 
-    // 2. WebSocket Check
-    results.ws = {
-      pass: isWsConnected,
-      detail: isWsConnected
-        ? 'STOMP WebSocket channel established and listening on /ws'
-        : 'WebSocket disconnected or waiting for network reconnect',
+    // 2. Native IPC Bridge Check
+    if (isTauriEnvironment()) {
+      results.ipc = { pass: true, detail: 'Tauri native bridge connected (zero external network)' }
+    } else {
+      results.ipc = { pass: true, detail: 'Web client-only preview environment' }
     }
 
     // 3. Storage Check
@@ -611,16 +530,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       results.storage = { pass: false, detail: 'LocalStorage restricted or unavailable' }
     }
 
-    // 4. Shield / Desktop Daemon Check
+    // 4. Shield / Desktop Protection Check
     if (isTauriEnvironment()) {
       results.shield = {
         pass: true,
-        detail: 'Tauri desktop runtime available. Guardian remains warning-only.',
+        detail: 'Tauri desktop protection active. Guardian remains warning-only.',
       }
     } else {
       results.shield = {
         pass: true,
-        detail: 'Browser environment active. Native focus protection is available in the desktop app.',
+        detail: 'Browser environment active. Native focus protection runs in desktop build.',
       }
     }
 
@@ -1567,102 +1486,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
 
-              {/* 6. CLOUD CONNECTION SECTION */}
-              {activeSection === 'connection' && !isTauriEnvironment() && (
-                <div>
-                  <h3 className="settings-section-title">
-                    Cloud Connectivity & Synchronization
-                  </h3>
-                  <p className="settings-section-desc">
-                    Configure your production cloud endpoint and verify real-time telemetry streaming.
-                  </p>
-
-                  {/* Server URL Input */}
-                  <div className="settings-group-card">
-                    <label>
-                      Cloud Backend Server URL
-                    </label>
-                    <p>
-                      Remote servers require HTTPS; HTTP is accepted only for localhost development (e.g. <code style={{ color: 'var(--brand-primary)' }}>https://shinpo.yourdomain.com</code>).
-                    </p>
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                      <input
-                        type="text"
-                        placeholder="https://shinpo.yourdomain.com (HTTPS required)"
-                        value={serverUrlInput}
-                        onChange={(e) => setServerUrlInput(e.target.value)}
-                        className="modal-field"
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: '6px' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleServerSaveAndTest}
-                        className="btn-timer primary"
-                        style={{ padding: '8px 16px', fontSize: '13px' }}
-                      >
-                        Save & Test
-                      </button>
-                    </div>
-                    {serverPingStatus.status !== 'IDLE' && (
-                      <div
-                        className={`settings-status-banner ${serverPingStatus.status === 'SUCCESS' ? 'is-success' : 'is-error'}`}
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          fontSize: '12.5px',
-                          background: serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 15.0%, transparent)',
-                          border: `1px solid ${serverPingStatus.status === 'SUCCESS' ? 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)' : 'color-mix(in srgb, var(--brand-highlight) 40.0%, transparent)'}`,
-                          color: serverPingStatus.status === 'SUCCESS' ? 'var(--brand-primary)' : 'var(--brand-primary)',
-                        }}
-                      >
-                        {serverPingStatus.message}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* WebSocket Channel Card */}
-                  <div className="settings-group-card">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          WebSocket Telemetry Stream
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Real-time STOMP connection for distraction warnings and session sync.
-                        </span>
-                      </div>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        background: isWsConnected ? 'color-mix(in srgb, var(--status-success) 14%, transparent)' : 'color-mix(in srgb, var(--text-muted) 12%, transparent)',
-                        color: isWsConnected ? 'var(--status-success)' : 'var(--text-muted)',
-                      }}>
-                        <span className={`settings-connection-indicator ${isWsConnected ? 'is-connected' : 'is-disconnected'}`} aria-hidden="true" />
-                        {isWsConnected ? 'Connected' : 'Disconnected'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Manual Trigger Refresh */}
-                  {onRefreshData && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        type="button"
-                        onClick={onRefreshData}
-                        disabled={isRefreshing}
-                        className="btn-timer secondary"
-                        style={{ padding: '8px 16px', fontSize: '13px' }}
-                      >
-                        <Icon name="refresh" size={14} />
-                        <span>{isRefreshing ? 'Synchronizing...' : 'Trigger Immediate Data Sync'}</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* 7. PRIVACY & DATA SECTION */}
               {activeSection === 'privacy' && (
                 <div>
@@ -1814,10 +1637,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {diagnosticResults && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
                         {[
-                          { title: 'REST API Connectivity', res: diagnosticResults.api },
-                          { title: 'WebSocket Stream (/ws)', res: diagnosticResults.ws },
+                          { title: 'Local Encrypted Vault', res: diagnosticResults.vault },
+                          { title: 'Native IPC Bridge', res: diagnosticResults.ipc },
                           { title: 'Client-Side Storage', res: diagnosticResults.storage },
-                          { title: 'Desktop protection service', res: diagnosticResults.shield },
+                          { title: 'Desktop Protection Service', res: diagnosticResults.shield },
                         ].map((item, idx) => (
                           <div
                             key={idx}

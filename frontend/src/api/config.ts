@@ -85,7 +85,7 @@ export function getWsBaseUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${protocol}//${window.location.host}/ws`
   }
-  return 'ws://localhost:8080/ws'
+  return ''
 }
 
 export function isValidWebSocketUrl(raw: string): { valid: boolean; reason?: string } {

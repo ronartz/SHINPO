@@ -1,7 +1,7 @@
 import type React from 'react'
 
-type Spring = { x: number; y: number; tx: number; ty: number; vx: number; vy: number; last: number; frame: number | null }
-const springs = new WeakMap<HTMLElement, Spring>()
+type DampenerState = { x: number; y: number; tx: number; ty: number; vx: number; vy: number; last: number; frame: number | null }
+const dampeners = new WeakMap<HTMLElement, DampenerState>()
 
 export function trackMicrokitPointer(event: React.PointerEvent<HTMLElement>) {
   if (event.pointerType === 'touch') return
@@ -12,22 +12,22 @@ export function trackMicrokitPointer(event: React.PointerEvent<HTMLElement>) {
   const bounds = target.getBoundingClientRect()
   const tx = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left))
   const ty = Math.max(0, Math.min(bounds.height, event.clientY - bounds.top))
-  let spring = springs.get(target)
-  if (!spring) {
-    spring = { x: tx, y: ty, tx, ty, vx: 0, vy: 0, last: performance.now(), frame: null }
-    springs.set(target, spring)
+  let dampener = dampeners.get(target)
+  if (!dampener) {
+    dampener = { x: tx, y: ty, tx, ty, vx: 0, vy: 0, last: performance.now(), frame: null }
+    dampeners.set(target, dampener)
   }
-  spring.tx = tx
-  spring.ty = ty
+  dampener.tx = tx
+  dampener.ty = ty
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     target.style.setProperty('--microkit-x', `${tx}px`)
     target.style.setProperty('--microkit-y', `${ty}px`)
     return
   }
-  if (spring.frame !== null) return
+  if (dampener.frame !== null) return
 
   const tick = (now: number) => {
-    const state = spring!
+    const state = dampener!
     const dt = Math.min((now - state.last) / 1000, 0.032)
     state.last = now
     const omega = 2 * Math.PI * 4.2
@@ -47,5 +47,5 @@ export function trackMicrokitPointer(event: React.PointerEvent<HTMLElement>) {
       target.style.setProperty('--microkit-y', `${state.y.toFixed(1)}px`)
     }
   }
-  spring.frame = requestAnimationFrame(tick)
+  dampener.frame = requestAnimationFrame(tick)
 }

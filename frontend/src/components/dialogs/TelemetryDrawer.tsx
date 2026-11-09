@@ -49,7 +49,7 @@ export const TelemetryDrawer: React.FC<TelemetryDrawerProps> = ({
           {liveAlerts.length === 0 ? (
             <div className="telemetry-empty-state">
               <Icon name="shield" size={24} />
-              <span>No telemetry events recorded yet. Distraction intercepts and focus session state changes stream here live via STOMP WebSocket.</span>
+              <span>No telemetry events recorded yet. Distraction intercepts and focus session state changes stream here live via the native desktop event bus.</span>
             </div>
           ) : (
             liveAlerts.map((item) => (

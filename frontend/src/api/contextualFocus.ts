@@ -260,7 +260,7 @@ export function validateStudyResourceDraft(draft: StudyResourceDraft): string | 
 
   if (draft.matchType === 'DOMAIN') {
     if (!parseDomain(destination)) {
-      return 'Enter one exact domain, such as docs.spring.io. Paths and wildcards are not allowed.'
+      return 'Enter one exact domain, such as docs.rs. Paths and wildcards are not allowed.'
     }
     return null
   }

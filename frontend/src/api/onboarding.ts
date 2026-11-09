@@ -16,7 +16,7 @@ export type OnboardingResponse = {
 }
 
 /**
- * Fetch authenticated user's current onboarding state from PostgreSQL ledger.
+ * Fetch authenticated user's current onboarding state from encrypted local vault ledger.
  */
 export async function getOnboardingState(): Promise<OnboardingResponse> {
   if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<OnboardingResponse>('local_get_onboarding_state')

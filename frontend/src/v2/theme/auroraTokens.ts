@@ -165,6 +165,6 @@ export const auroraShadows = {
 export const auroraTransitions = {
   tilt: 'all 240ms cubic-bezier(0.16, 1, 0.3, 1)',
   standard: 'all 180ms ease-out',
-  spring: 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+  bounce: 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
 }
 

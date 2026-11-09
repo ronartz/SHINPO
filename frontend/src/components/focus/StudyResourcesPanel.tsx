@@ -101,7 +101,7 @@ function destinationPlaceholder(type: StudyResourceType, matchType: StudyResourc
   if (type === 'DISCORD_CHANNEL') return 'https://discord.com/channels/123/456'
   if (type === 'YOUTUBE_VIDEO') return 'https://www.youtube.com/watch?v=...'
   if (type === 'YOUTUBE_PLAYLIST') return 'https://www.youtube.com/playlist?list=...'
-  if (matchType === 'DOMAIN') return 'docs.spring.io'
+  if (matchType === 'DOMAIN') return 'docs.rs'
   if (matchType === 'URL_PATTERN') return 'https://example.com/course/*'
   return 'https://example.com/study/resource'
 }
@@ -476,7 +476,7 @@ export function StudyResourcesPanel({
                   label="Label (optional)"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Spring Security guide"
+                  placeholder="Rust Documentation guide"
                   maxLength={120}
                 />
                 <ShinpoTextField
