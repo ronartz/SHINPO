@@ -4,7 +4,7 @@ SHINPO is a local-first desktop productivity application for organizing goals an
 
 ## Runtime model
 
-The local desktop account path uses Tauri IPC and native Rust persistence. It does not require Spring Boot, PostgreSQL, Docker, or a SHINPO-operated server. The legacy Spring Boot/PostgreSQL source remains in this repository for migration and parity work; it is not required to launch the local-vault desktop flow.
+The local desktop account path uses Tauri IPC and native Rust persistence. It does not require Spring Boot, PostgreSQL, Docker, or any external server infrastructure. All user data, goals, tasks, focus sessions, telemetry, and settings are stored locally in an encrypted SQLCipher vault.
 
 EONPAI can provide deterministic offline planning. Model-generated responses require a separately configured provider; enabling a remote provider sends the request context to that provider. Guardian application handling is warning-only. Browser website policy is effective only while the Browser Companion is installed, paired, and connected; a saved pairing alone does not prove a live connection.
 
@@ -33,10 +33,10 @@ The gate includes frontend and Rust checks, SQLCipher regressions, a disposable 
 
 ## Repository map
 
-- `frontend/` — React UI, Tauri shell, and native Rust application.
+- `frontend/` — React UI, Tauri shell, and native Rust application with embedded SQLCipher vault.
 - `crates/shinpo-shield/` — process observation and identity helpers; desktop Guardian remains warning-only.
 - `crates/shinpo-browser-host/`, `browser-extension/` — native-messaging host and browser companion.
-- `backend/` — legacy Spring Boot/PostgreSQL implementation retained for parity and migration work.
+- `daemon/` — systemd service configuration for native shield daemon.
 - `docs/` — architecture, installation, privacy, security, known limits, and QA evidence.
 
 ## Qualification status
