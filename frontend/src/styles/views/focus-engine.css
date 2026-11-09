@@ -28,7 +28,7 @@
   gap: var(--space-5);
   width: 100%;
   box-sizing: border-box;
-  align-items: stretch;
+  align-items: start;
 }
 
 .focus-workspace-container[data-focus-mode='active'] .focus-hero-split,
@@ -48,7 +48,8 @@
 }
 
 .focus-left-column {
-  height: 100%;
+  height: auto;
+  justify-content: flex-start;
 }
 
 .focus-hero-split .card-timer-hud,
@@ -282,9 +283,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   height: auto;
-  min-height: 200px;
+  min-height: auto;
 }
 
 .intention-helper-text {
@@ -991,14 +992,47 @@ html[data-theme='light'] .btn-timer.warning:hover,
   margin: var(--space-2) 0 var(--space-3);
 }
 
+.card-session-creator .study-mode-options {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: var(--space-2) !important;
+  margin: var(--space-2) 0 var(--space-3) !important;
+}
+
+.card-session-creator .study-mode-option {
+  min-height: 52px !important;
+  padding: 8px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+
+.card-session-creator .study-mode-option strong {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+.card-session-creator .study-mode-option .study-mode-option-detail {
+  font-size: 11px !important;
+  color: var(--text-3) !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
 .study-mode-description {
-  margin: 12px 0 16px;
-  padding: 11px 16px;
+  margin: 8px 0 12px;
+  padding: 9px 14px;
   background: color-mix(in srgb, var(--brand-highlight, #7c3aed) 8%, transparent);
   border-radius: var(--radius-md, 10px);
   border-left: 3px solid var(--brand-primary, #8b5cf6);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--text-2);
 }
 

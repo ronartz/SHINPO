@@ -633,6 +633,12 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   padding: 12px 14px !important;
 }
 
+.app-shell.theme-aurora .card-session-creator .study-mode-option {
+  min-height: 52px !important;
+  padding: 8px 12px !important;
+  gap: 3px !important;
+}
+
 .app-shell.theme-aurora .study-mode-option strong {
   display: block !important;
   color: var(--text) !important;

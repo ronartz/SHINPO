@@ -433,7 +433,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   </button>
                 ))}
               </div>
-              <div className="intention-guidance-footer" style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
                   Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
                 </p>
@@ -523,6 +523,9 @@ export const FocusView: React.FC<FocusViewProps> = ({
                             onClick={() => setGuardianMode(mode)}
                           >
                             <strong>{label}</strong>
+                            <span className="study-mode-option-detail">
+                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Strict warning'}
+                            </span>
                           </button>
                         )
                       })}

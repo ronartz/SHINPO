@@ -753,8 +753,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   {allowedCount > 0 && ` · ${allowedCount} allowed`}
                 </p>
               </div>
-              <span className="guardian-alpha-count" title={`${blockedCount + allowedCount} configured policies`}>
-                {blockedCount + allowedCount}
+              <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
+                {discoveredApps.length}
               </span>
             </header>
 

@@ -2175,7 +2175,7 @@ html[data-theme='light'] .protection-secondary-action,
   max-height: none;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 4px;
+  padding: 0 4px 0 0;
   margin: 0;
   list-style: none;
 }

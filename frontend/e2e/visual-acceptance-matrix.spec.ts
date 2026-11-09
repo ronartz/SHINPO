@@ -243,11 +243,17 @@ async function attachMockHarness(page: any, sessionState: 'READY' | 'ACTIVE' | '
 
   await page.addInitScript((state: string) => {
     sessionStorage.setItem('shinpo_splash_shown', 'true')
+    sessionStorage.setItem('shinpo_startup_completed', 'true')
     localStorage.setItem('shinpo_access_token', 'mock_jwt_token_for_visual_qa')
     localStorage.setItem('shinpo_local_vault_account', 'visual_qa_lead')
     localStorage.setItem('shinpo_vault_unlocked', 'true')
     localStorage.setItem('shinpo_tutorial_completed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_dismissed', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_dismissed_1', 'true')
+    localStorage.setItem('shinpo_interactive_tutorial_dismissed_user_visual_qa_lead', 'true')
     localStorage.setItem('shinpo_onboarding_dismissed', 'true')
+    localStorage.setItem('shinpo_onboarding_dismissed_1', 'true')
+    localStorage.setItem('shinpo_onboarding_dismissed_user_visual_qa_lead', 'true')
     localStorage.setItem('shinpo_auth_user', JSON.stringify({
       id: 1,
       username: 'visual_qa_lead',

@@ -268,13 +268,13 @@
   .focus-hero-split {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) !important;
     gap: 14px !important;
-    align-items: stretch !important;
+    align-items: start !important;
   }
 
   .focus-left-column {
     display: flex !important;
     flex-direction: column !important;
-    height: 100% !important;
+    height: auto !important;
     gap: 14px !important;
   }
 
@@ -294,8 +294,8 @@
   }
 
   .card-session-intention {
-    flex: 1 1 auto !important;
-    min-height: 220px !important;
+    flex: 0 0 auto !important;
+    min-height: auto !important;
     height: auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -335,7 +335,7 @@
   /* Session Configuration Card */
   .card-session-creator {
     min-height: 0 !important;
-    height: 100% !important;
+    height: auto !important;
     padding: 18px 20px !important;
     border-radius: var(--radius-lg, 16px) !important;
   }
