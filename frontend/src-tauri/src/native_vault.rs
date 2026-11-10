@@ -2307,8 +2307,30 @@ pub fn local_complete_focus_session(
     let session = with_db(&state, |db| {
         let now = unix_now_seconds();
         let current = advance_focus_session_at(db, session_id, now, true)?;
-        if current.status != "ACTIVE" {
+        if current.status == "COMPLETED" {
+            if quality.is_some() || reflection_note.is_some() || accomplishment.is_some() {
+                let now_formatted = format_epoch_seconds(now);
+                db.execute(
+                    "UPDATE calendar_sessions SET
+                        completion_quality = COALESCE(?2, completion_quality),
+                        reflection_note = COALESCE(?3, reflection_note),
+                        accomplishment = COALESCE(?4, accomplishment),
+                        updated_at = ?5
+                     WHERE id=?1",
+                    params![
+                        session_id,
+                        quality,
+                        reflection_note,
+                        accomplishment,
+                        now_formatted
+                    ],
+                )?;
+                return focus_session_by_id(db, session_id);
+            }
             return Ok(current);
+        }
+        if current.status != "ACTIVE" && current.status != "PAUSED" {
+            return Err(rusqlite::Error::InvalidQuery);
         }
         complete_focus_session(
             db,
@@ -8287,6 +8309,62 @@ mod tests {
                 .status,
             "ACTIVE"
         );
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn focus_session_can_complete_while_paused_and_duplicate_is_idempotent() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "pause_complete_user", "a-long-qa-password").unwrap();
+        let session_id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes) VALUES('Test Pause Complete',25)",
+                [],
+            )?;
+            Ok(db.last_insert_rowid())
+        })
+        .unwrap();
+
+        let now = 1_800_000_000;
+        with_db(&manager, |db| start_focus_session(db, session_id, now)).unwrap();
+        let paused = with_db(&manager, |db| pause_focus_session(db, session_id, now + 60)).unwrap();
+        assert_eq!(paused.status, "PAUSED");
+
+        // Complete while paused
+        let completed = with_db(&manager, |db| {
+            complete_focus_session(
+                db,
+                session_id,
+                now + 120,
+                Some(5),
+                Some("Great session despite pause".into()),
+                Some("Wrote systems code".into()),
+                false,
+            )
+        })
+        .unwrap();
+        assert_eq!(completed.status, "COMPLETED");
+        assert_eq!(
+            completed.reflection_note.as_deref(),
+            Some("Great session despite pause")
+        );
+        assert_eq!(
+            completed.accomplishment.as_deref(),
+            Some("Wrote systems code")
+        );
+        assert_eq!(completed.completion_quality, Some(5));
+
+        // Duplicate complete call is idempotent and preserves completed status
+        let duplicate = with_db(&manager, |db| {
+            let current = advance_focus_session_at(db, session_id, now + 150, true)?;
+            assert_eq!(current.status, "COMPLETED");
+            Ok(current)
+        })
+        .unwrap();
+        assert_eq!(duplicate.status, "COMPLETED");
+
         drop(manager);
         fs::remove_dir_all(root).unwrap();
     }

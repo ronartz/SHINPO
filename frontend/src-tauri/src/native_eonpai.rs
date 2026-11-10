@@ -666,14 +666,13 @@ pub(super) fn offline_reply(
         let reflection = saved_session["reflectionNote"].as_str().unwrap_or_default();
         return Ok((format!("Offline summary from your saved records: **{} XP**. Today's UTC totals: **{} focused minutes**, **{} qualifying Focus sessions**, **{} completed tasks**.\n\nLatest saved session: **{name}**, {minutes} active minutes. {accomplishment} {reflection}",ctx["progress"]["totalProgress"],ctx["dailyObjectives"]["focusMinutes"]["current"],ctx["dailyObjectives"]["focusSprints"]["current"],ctx["dailyObjectives"]["tasksCompleted"]["current"]),"OFFLINE_SUMMARY".into(),None));
     }
-    Ok((
-        format!(
-            "Offline guidance. {}",
-            deterministic_eonpai_reply(db, message)?
-        ),
-        "OFFLINE_GUIDANCE".into(),
-        None,
-    ))
+    let reply = deterministic_eonpai_reply(db, message)?;
+    let final_reply = if reply.starts_with("Hello") {
+        reply
+    } else {
+        format!("Offline guidance. {reply}")
+    };
+    Ok((final_reply, "OFFLINE_GUIDANCE".into(), None))
 }
 
 fn decomposition(db: &Connection, goal_id: i64) -> rusqlite::Result<Action> {
