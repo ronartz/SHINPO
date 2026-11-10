@@ -1,9 +1,9 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-10T09:22:14Z  
-**Evaluated Commit:** `ab298c6803d36b386490ddfc114b90d7827b5bcf` (`fix/systematic-layout-and-composition`)  
-**Worktree Status:** DIRTY (205 modified/untracked files strictly preserved)  
-**Release Decision:** **PARTIAL_RUN (Executed mode 'deep')**
+**Execution Timestamp:** 2026-11-10T13:01:47Z  
+**Evaluated Commit:** `24638d3dac3c016dd4226aabf41445ae51d0c1a6` (`fix/systematic-layout-and-composition`)  
+**Worktree Status:** DIRTY (194 modified/untracked files strictly preserved)  
+**Release Decision:** **PARTIAL_RUN (Executed mode 'quick')**
 
 ---
 
@@ -11,15 +11,15 @@
 
 | Artifact | Local Filepath | SHA-256 Digest |
 |---|---|---|
-| **Git Head** | `.git` | `ab298c6803d36b386490ddfc114b90d7827b5bcf` |
-| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `bff0fe8f4047bae2641bcc2231deed98b09316075079e721e4d4ff9cfce2a36a` |
+| **Git Head** | `.git` | `24638d3dac3c016dd4226aabf41445ae51d0c1a6` |
+| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `b64b44dfbbe18367643e0bc836bc3fb1e3410478410bfb6cc089f3412cf88768` |
 | **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm` | `c5caffcfae111c7ccc1d0e3096ced7a46e184504766a3a5990eb446cfb2486d8` |
 
 ---
 
 ## Platform Release Verdicts
 
-- **Fedora Linux:** **PARTIAL_RUN (Executed mode 'deep')**
+- **Fedora Linux:** **PARTIAL_RUN (Executed mode 'quick')**
 - **Microsoft Windows:** **NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)** *(Distribution Unauthorized)*
 
 ---
@@ -32,7 +32,7 @@
 | **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **NOT_RUN** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
 | **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **NOT_RUN** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
 | **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, upgrade simulation | **NOT_RUN** | Pass criteria: binary executable, 0 missing libs, vault preserved across upgrade |
-| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **PASS** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
+| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **NOT_RUN** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
 | **6. Windows Desktop** | Windows NSIS installer and WebView2 execution | **NOT_TESTED** | Linux host cannot execute Windows native tests; must remain blocked |
 
 ---
@@ -51,5 +51,5 @@
 
 ## Final Recommendation
 
-- **Verdict:** **PARTIAL_RUN (Executed mode 'deep')**
+- **Verdict:** **PARTIAL_RUN (Executed mode 'quick')**
 - Machine-readable results saved to `docs/qa/latest-release-gate.json`.

@@ -3869,7 +3869,14 @@ pub fn compute_consistency_streak(
 }
 
 fn local_progress(db: &Connection) -> rusqlite::Result<LocalProgress> {
-    let streak = compute_consistency_streak(db, OffsetDateTime::now_utc().date())?;
+    local_progress_at(db, OffsetDateTime::now_utc().date())
+}
+
+fn local_progress_at(
+    db: &Connection,
+    reference_date: time::Date,
+) -> rusqlite::Result<LocalProgress> {
+    let streak = compute_consistency_streak(db, reference_date)?;
     let total: i64 = db.query_row(
         "SELECT COALESCE(SUM(amount),0) FROM progress_events",
         [],
@@ -9033,7 +9040,7 @@ mod tests {
             assert_eq!(streak_future_check.current_streak, 4);
 
             // Case 16: Existing XP rewards remain unchanged
-            let progress = local_progress(db)?;
+            let progress = local_progress_at(db, ref_date)?;
             assert_eq!(progress.streak.current_streak, streak_future_check.current_streak);
 
             Ok(())
