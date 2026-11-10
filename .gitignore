@@ -75,3 +75,9 @@ release/rc/*
 .planning/agentic-awesome-skills/
 test-results/
 playwright-report/
+
+# Test coverage reports
+coverage/
+
+# Temporary script artifacts
+*_tmp/

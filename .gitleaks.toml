@@ -1,0 +1,12 @@
+# Gitleaks Configuration for SHINPO
+# Extends default rules while allowing non-secret public keys and fixtures
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Chromium WebExtension public key used to fix extension ID for native messaging"
+paths = [
+  '''browser-extension/manifests/chromium\.json''',
+  '''browser-extension/dist/manifest\.json'''
+]

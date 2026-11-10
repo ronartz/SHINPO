@@ -1,6 +1,6 @@
 [package]
 name = "shinpo-desktop"
-version = "1.0.0"
+version = "0.1.0-beta.1"
 description = "SHINPO Personal Execution Operating System"
 authors = ["SHINPO Team"]
 edition = "2021"
