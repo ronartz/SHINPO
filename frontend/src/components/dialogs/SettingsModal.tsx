@@ -3,6 +3,7 @@ import { Icon } from '../common/Icon'
 import type { AuthUser } from '../../api/auth'
 import { changePassword, isLocalVaultSession, updateUsername, deleteAccount } from '../../api/auth'
 import { ShinpoConfirmDialog } from '../ui/Dialog/ShinpoConfirmDialog'
+import { ShinpoSelect } from '../ui'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
 import { isTauriEnvironment } from '../../api/nativeShield'
@@ -1527,11 +1528,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <form className="settings-group-card" onSubmit={handleSaveNativeAiProvider}>
                       <div className="settings-field-group">
                         <label htmlFor="native-ai-provider" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Native AI provider</label>
-                        <select id="native-ai-provider" value={(nativeProvider || defaultNativeProvider).provider} onChange={(event) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), provider: event.target.value as NativeAiProviderConfig['provider'] })}>
-                          <option value="none">Offline planning (no model)</option>
-                          <option value="ollama">Ollama on this computer</option>
-                          <option value="openai">OpenAI-compatible provider (your key)</option>
-                        </select>
+                        <ShinpoSelect<NativeAiProviderConfig['provider']>
+                          id="native-ai-provider"
+                          value={(nativeProvider || defaultNativeProvider).provider}
+                          onChange={(val) => setNativeProvider({ ...(nativeProvider || defaultNativeProvider), provider: val })}
+                          options={[
+                            { value: 'none', label: 'Offline planning (no model)' },
+                            { value: 'ollama', label: 'Ollama on this computer' },
+                            { value: 'openai', label: 'OpenAI-compatible provider (your key)' },
+                          ]}
+                          size="md"
+                        />
                       </div>
                       {(nativeProvider || defaultNativeProvider).provider !== 'none' && <div className="settings-field-group" style={{ marginTop: 12 }}>
                         <label htmlFor="native-ai-model" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Installed or provider model name</label>
@@ -1736,7 +1743,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           Live System Diagnostics
                         </span>
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Run a real-time verification pass of all cloud and local subsystems.
+                          Run a real-time verification pass of local subsystems.
                         </span>
                       </div>
                       <button
