@@ -265,11 +265,52 @@ run_native_gate() {
 }
 
 # ------------------------------------------------------------------------------
+# 5b. DEEP PRODUCT JOURNEYS GATE (Full E2E Native Product Acceptance)
+# ------------------------------------------------------------------------------
+run_deep_native_gate() {
+  echo ""
+  echo "--- [5b] EXECUTING DEEP FULL PRODUCT JOURNEYS GATE ---"
+  
+  if [ ! -f "$BIN_PATH" ]; then
+    echo "  ! Release binary not found at $BIN_PATH. Building release..."
+    if ! (cd frontend/src-tauri && cargo build --release); then
+      echo "  ✗ Cargo release build failed!"
+      GATE_NATIVE_STATUS="FAIL"
+      record_gate_result "Native Deep Product Journeys" "FAIL"
+      return
+    fi
+  fi
+
+  local webkit_fallback="/tmp/shinpo-warp-driver/root/usr/bin/WebKitWebDriver"
+  local webkit_driver="${WEBKIT_WEBDRIVER_PATH:-$([ -f "$webkit_fallback" ] && echo "$webkit_fallback" || which WebKitWebDriver 2>/dev/null || echo "")}"
+  
+  if [ -z "$webkit_driver" ] && [ ! -f "$webkit_fallback" ] && ! command -v WebKitWebDriver &>/dev/null; then
+    echo "  ✗ WebKitWebDriver driver not found on host. Required native desktop gate cannot execute!"
+    GATE_NATIVE_STATUS="UNAVAILABLE"
+    record_gate_result "Native Deep Product Journeys" "UNAVAILABLE"
+    return
+  fi
+
+  echo "  ✓ WebKitWebDriver and Tauri release binary present. Testing full product journeys..."
+  if (cd frontend && node scripts/run-tauri-qa.mjs --spec ./e2e/tauri-native/full-product-journeys.spec.js); then
+    GATE_NATIVE_STATUS="PASS"
+    record_gate_result "Native Deep Product Journeys" "PASS"
+  else
+    GATE_NATIVE_STATUS="FAIL"
+    record_gate_result "Native Deep Product Journeys" "FAIL"
+  fi
+}
+
+# ------------------------------------------------------------------------------
 # DISPATCH BY MODE
 # ------------------------------------------------------------------------------
 case "$MODE" in
   quick)
     run_quick_gate
+    ;;
+  deep)
+    run_quick_gate
+    run_deep_native_gate
     ;;
   security)
     run_security_gate

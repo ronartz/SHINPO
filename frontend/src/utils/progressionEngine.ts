@@ -231,9 +231,9 @@ export function deriveAchievements(
 }
 
 export function findNewProgressEvents(previous: ProgressResponse | null, current: ProgressResponse | null) {
-  if (!previous || !current) return []
-  const seen = new Set(previous.recentEvents.map((event) => event.id))
-  return current.recentEvents.filter((event) => !seen.has(event.id))
+  if (!previous || !current || !Array.isArray(previous.recentEvents) || !Array.isArray(current.recentEvents)) return []
+  const seen = new Set((previous.recentEvents || []).map((event) => event.id))
+  return (current.recentEvents || []).filter((event) => !seen.has(event.id))
 }
 
 /**

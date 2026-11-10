@@ -184,7 +184,7 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
                   <span className="day-tile-indicator">
                     <Icon name={day.qualified ? 'check' : 'clock'} size={14} />
                   </span>
-                  <span className="day-tile-date">{day.date.slice(8)}</span>
+                  <span className="day-tile-date">{day.date ? day.date.slice(8) : ''}</span>
                 </div>
               ))}
             </div>
@@ -246,7 +246,7 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
               style={{ '--milestone-order': index } as React.CSSProperties}
               onClick={() => setSelectedId(item.id)}
             >
-              <span className={`rewards-badge badge-${item.id}`}><Icon name={achievementIcons[item.id]} size={22} />{item.unlocked && <i><Icon name="check" size={10} /></i>}</span>
+              <span className={`rewards-badge badge-${item.id}`}><Icon name={achievementIcons[item.id] || 'sparkle'} size={22} />{item.unlocked && <i><Icon name="check" size={10} /></i>}</span>
               <span className="rewards-milestone-content"><strong>{item.title}</strong><small>{item.description}</small></span>
               <span className="rewards-milestone-progress"><i><span style={{ width: item.progress === null ? '0%' : `${ratio * 100}%` }} /></i><small>{item.unlocked ? 'Record met' : item.progressLabel}</small></span>
               <span className="rewards-milestone-state">{item.unlocked ? item.evidence === 'persisted' ? 'Earned' : 'Currently met' : item.evidence === 'unavailable' ? 'Unverified' : 'In progress'}</span>
@@ -254,7 +254,7 @@ export const RewardsView: React.FC<RewardsViewProps> = ({ progress, analytics, g
           })}
         </div>
         {selected && <aside className="rewards-detail-panel" aria-live="polite" aria-labelledby="rewards-detail-title">
-          <span className={`rewards-detail-badge badge-${selected.id}`}><Icon name={achievementIcons[selected.id]} size={27} /></span>
+          <span className={`rewards-detail-badge badge-${selected.id}`}><Icon name={achievementIcons[selected.id] || 'sparkle'} size={27} /></span>
           <div className="rewards-detail-copy">
             <span className="rewards-eyebrow">{selected.unlocked ? selected.evidence === 'persisted' ? 'Milestone earned' : 'Currently met' : selected.evidence === 'unavailable' ? 'Verification unavailable' : 'Next steps'}</span>
             <h3 id="rewards-detail-title">{selected.title}</h3>
