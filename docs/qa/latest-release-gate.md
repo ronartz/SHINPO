@@ -1,8 +1,8 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-10T13:01:47Z  
-**Evaluated Commit:** `24638d3dac3c016dd4226aabf41445ae51d0c1a6` (`fix/systematic-layout-and-composition`)  
-**Worktree Status:** DIRTY (194 modified/untracked files strictly preserved)  
+**Execution Timestamp:** 2026-11-12T18:25:55Z
+**Evaluated Commit:** `63e0e17e75486218ae050cb5a7f119908ffd12c1` (`fix/systematic-layout-and-composition`)
+**Worktree Status:** DIRTY (215 modified/untracked files strictly preserved)
 **Release Decision:** **PARTIAL_RUN (Executed mode 'quick')**
 
 ---
@@ -11,9 +11,9 @@
 
 | Artifact | Local Filepath | SHA-256 Digest |
 |---|---|---|
-| **Git Head** | `.git` | `24638d3dac3c016dd4226aabf41445ae51d0c1a6` |
-| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `b64b44dfbbe18367643e0bc836bc3fb1e3410478410bfb6cc089f3412cf88768` |
-| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm` | `c5caffcfae111c7ccc1d0e3096ced7a46e184504766a3a5990eb446cfb2486d8` |
+| **Git Head** | `.git` | `63e0e17e75486218ae050cb5a7f119908ffd12c1` |
+| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `ab1fb95f1322626e457e6174cb4a3b827b4c2f1997d1e6add2d634683d545d97` |
+| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm` | `3ee4a9181cdd0d3ef3c116108e160cedfcf0c8ae2322d8d0505be022a7e46d41` |
 
 ---
 
@@ -28,10 +28,10 @@
 
 | Gate | Scope | Status | Notes |
 |---|---|---|---|
-| **1. Quick** | 158 Node.js unit tests + TypeScript compile + Vite production bundle | **PASS** | Pass criteria: 0 test failures, 0 TS build errors |
+| **1. Quick** | Node.js unit tests + TypeScript compile + Vite production bundle | **PASS** | Pass criteria: 0 test failures, 0 TS build errors |
 | **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **NOT_RUN** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
 | **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **NOT_RUN** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
-| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, upgrade simulation | **NOT_RUN** | Pass criteria: binary executable, 0 missing libs, vault preserved across upgrade |
+| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **NOT_RUN** | Package extraction checks do not substitute for a clean-VM install/upgrade test |
 | **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **NOT_RUN** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
 | **6. Windows Desktop** | Windows NSIS installer and WebView2 execution | **NOT_TESTED** | Linux host cannot execute Windows native tests; must remain blocked |
 
