@@ -1,6 +1,8 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "qa-clock")]
+use std::sync::atomic::AtomicI64;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
@@ -23,6 +25,9 @@ const ARGON_MEMORY_KIB: u32 = 65_536;
 const ARGON_ITERATIONS: u32 = 3;
 const LATEST_SCHEMA_VERSION: i64 = 17;
 const LOCAL_VAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+#[cfg(feature = "qa-clock")]
+static QA_CLOCK_OFFSET_SECONDS: AtomicI64 = AtomicI64::new(0);
 
 #[path = "native_eonpai.rs"]
 pub mod eonpai;
@@ -2274,7 +2279,26 @@ fn return_to_focus(
 }
 
 fn unix_now_seconds() -> i64 {
-    OffsetDateTime::now_utc().unix_timestamp()
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    #[cfg(feature = "qa-clock")]
+    {
+        return now.saturating_add(QA_CLOCK_OFFSET_SECONDS.load(Ordering::Relaxed));
+    }
+    #[cfg(not(feature = "qa-clock"))]
+    now
+}
+
+/// Controls process-local time only in an opt-in native QA build. This command
+/// is not compiled into ordinary development or release binaries.
+#[cfg(feature = "qa-clock")]
+#[tauri::command]
+pub fn qa_set_clock_offset(offset_seconds: i64) -> Result<(), String> {
+    const MAX_OFFSET_SECONDS: i64 = 366 * 86_400;
+    if !(-MAX_OFFSET_SECONDS..=MAX_OFFSET_SECONDS).contains(&offset_seconds) {
+        return Err("QA clock offset is outside the permitted range".into());
+    }
+    QA_CLOCK_OFFSET_SECONDS.store(offset_seconds, Ordering::Relaxed);
+    Ok(())
 }
 
 fn format_epoch_seconds(seconds: i64) -> String {

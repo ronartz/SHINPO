@@ -1,3 +1,6 @@
+#[cfg(all(feature = "qa-clock", not(debug_assertions)))]
+compile_error!("the qa-clock feature must never be enabled in release builds");
+
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -361,7 +364,9 @@ pub fn run() {
             delete_secure_refresh_token,
             desktop_minimize_window,
             desktop_restart_app,
-            desktop_exit_app
+            desktop_exit_app,
+            #[cfg(feature = "qa-clock")]
+            native_vault::qa_set_clock_offset
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

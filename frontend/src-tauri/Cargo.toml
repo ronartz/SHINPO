@@ -9,6 +9,11 @@ edition = "2021"
 name = "shinpo_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Explicitly opt-in local QA clock for disposable native acceptance profiles.
+# Never enable this feature in release builds or distribution workflows.
+qa-clock = []
+
 [build-dependencies]
 tauri-build = { version = "2.7.1", features = [] }
 
@@ -25,7 +30,7 @@ sysinfo = "0.33"
 argon2 = "0.6"
 chacha20poly1305 = "0.11"
 getrandom = "0.3"
-rusqlite = { version = "0.41", default-features = false, features = ["bundled-sqlcipher"] }
+rusqlite = { version = "0.42", default-features = false, features = ["bundled-sqlcipher"] }
 zeroize = "1.8"
 subtle = "2.6"
 time = { version = "0.3", features = ["formatting", "parsing"] }
