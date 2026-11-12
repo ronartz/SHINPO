@@ -4,7 +4,8 @@ set -eo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-RPM_PATH="$REPO_ROOT/frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm"
+PACKAGE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
+RPM_PATH="$REPO_ROOT/frontend/src-tauri/target/release/bundle/rpm/SHINPO-${PACKAGE_VERSION}-1.x86_64.rpm"
 
 echo "=== SHINPO LINUX RELEASE PACKAGE (RPM) ACCEPTANCE GATE ==="
 
@@ -79,21 +80,22 @@ if [ ! -f "$COMPANION_DIR/chromium/manifest.json" ] || [ ! -f "$COMPANION_DIR/fi
 fi
 echo "  ✓ Browser companion binaries, manifests, and registration scripts verified in package"
 
-# 6. Simulate Install, Vault Persistence, and Upgrade
+# 6. Confirm that extracting package payloads does not touch an existing user-data directory.
+# This is an archive-isolation check, not an installer or upgrade test.
 MOCK_USER_DIR="$TEST_DIR/mock-home"
 mkdir -p "$MOCK_USER_DIR/data/com.shinpo.app/vaults"
 echo "SIMULATED_ENCRYPTED_VAULT_BYTES" > "$MOCK_USER_DIR/data/com.shinpo.app/vaults/user.vault"
+VAULT_SHA256_BEFORE=$(sha256sum "$MOCK_USER_DIR/data/com.shinpo.app/vaults/user.vault" | awk '{print $1}')
 
-echo "  >> Simulating package upgrade over existing user data..."
-# Unpack again over same structure
+echo "  >> Re-checking archive extraction is isolated from the mock user-data directory..."
 rpm2cpio "$RPM_PATH" | cpio -idmv > /dev/null 2>&1
 
-VAULT_CONTENT=$(cat "$MOCK_USER_DIR/data/com.shinpo.app/vaults/user.vault")
-if [ "$VAULT_CONTENT" != "SIMULATED_ENCRYPTED_VAULT_BYTES" ]; then
-  echo "  ✗ Vault data corrupted during package upgrade simulation!"
+VAULT_SHA256_AFTER=$(sha256sum "$MOCK_USER_DIR/data/com.shinpo.app/vaults/user.vault" | awk '{print $1}')
+if [ "$VAULT_SHA256_BEFORE" != "$VAULT_SHA256_AFTER" ]; then
+  echo "  ✗ Isolated archive extraction modified the mock user-data directory!"
   exit 1
 fi
-echo "  ✓ Package upgrade preserves existing encrypted vault files unharmed"
+echo "  ✓ Archive extraction did not modify mock user data (not an install/upgrade test)"
 
 echo "=== LINUX RPM PACKAGE GATE: PASS ==="
 exit 0

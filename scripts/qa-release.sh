@@ -23,7 +23,8 @@ else
 fi
 
 BIN_PATH="$REPO_ROOT/frontend/src-tauri/target/release/shinpo-desktop"
-RPM_PATH="$REPO_ROOT/frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm"
+PACKAGE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
+RPM_PATH="$REPO_ROOT/frontend/src-tauri/target/release/bundle/rpm/SHINPO-${PACKAGE_VERSION}-1.x86_64.rpm"
 
 BIN_SHA256="UNKNOWN"
 if [ -f "$BIN_PATH" ]; then
@@ -419,7 +420,7 @@ cat <<EOF > "$MD_REPORT"
 |---|---|---|
 | **Git Head** | \`.git\` | \`$GIT_COMMIT\` |
 | **Linux Tauri Binary** | \`frontend/src-tauri/target/release/shinpo-desktop\` | \`$BIN_SHA256\` |
-| **Linux Release Package** | \`frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm\` | \`$RPM_SHA256\` |
+| **Linux Release Package** | \`frontend/src-tauri/target/release/bundle/rpm/SHINPO-${PACKAGE_VERSION}-1.x86_64.rpm\` | \`$RPM_SHA256\` |
 
 ---
 
@@ -434,10 +435,10 @@ cat <<EOF > "$MD_REPORT"
 
 | Gate | Scope | Status | Notes |
 |---|---|---|---|
-| **1. Quick** | 158 Node.js unit tests + TypeScript compile + Vite production bundle | **$GATE_QUICK_STATUS** | Pass criteria: 0 test failures, 0 TS build errors |
+| **1. Quick** | Node.js unit tests + TypeScript compile + Vite production bundle | **$GATE_QUICK_STATUS** | Pass criteria: 0 test failures, 0 TS build errors |
 | **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **$GATE_SECURITY_STATUS** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
 | **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **$GATE_VISUAL_STATUS** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
-| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, upgrade simulation | **$GATE_PACKAGE_STATUS** | Pass criteria: binary executable, 0 missing libs, vault preserved across upgrade |
+| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **$GATE_PACKAGE_STATUS** | Package extraction checks do not substitute for a clean-VM install/upgrade test |
 | **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **$GATE_NATIVE_STATUS** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
 | **6. Windows Desktop** | Windows NSIS installer and WebView2 execution | **$GATE_WINDOWS_STATUS** | Linux host cannot execute Windows native tests; must remain blocked |
 
