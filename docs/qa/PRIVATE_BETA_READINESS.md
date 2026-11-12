@@ -1,5 +1,7 @@
 # SHINPO — Private Beta Release Readiness Report
 
+> **Superseding decision — 2026-11-12:** The historical assessment below is not current approval. The previously stated GLib private-beta acceptance is not evidenced as an owner-approved risk acceptance and is withdrawn as a release basis. The latest integrated gate evaluated commit `d4d63b88d6c82801ac0580e4210c043685be0ff1`: quick, visual, RPM archive, and Fedora native gates passed; strict RustSec audit failed on `glib 0.18.5` (`RUSTSEC-2024-0429`); Windows is not tested. Linux package installation, Browser Companion live pairing/intervention, current-commit hosted CI, and signed updater upgrade are not verified. **Current recommendation: NO-GO for private beta or release.** See [HANDOFF](HANDOFF.md) and [latest release gate](latest-release-gate.md). No owner waiver is implied.
+
 **Evaluated Version:** `v0.1.0-beta.1`  
 **Execution Timestamp:** 2026-11-10T13:05:00Z  
 **Base Commit:** `24638d3dac3c016dd4226aabf41445ae51d0c1a6` (`fix/systematic-layout-and-composition`)  
