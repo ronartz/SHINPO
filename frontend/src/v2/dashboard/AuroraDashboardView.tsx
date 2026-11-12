@@ -1310,76 +1310,74 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
         </AuroraCard>
 
         <AuroraCard className="dashboard-rewards-summary" glass noPadding tiltVariant="none">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.3, height: '100%', p: '16px 18px', boxSizing: 'border-box' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
               <Typography sx={{ fontSize: 15, fontWeight: 750 }}>Rewards &amp; Progress</Typography>
               <button type="button" className="dashboard-insight-link" onClick={() => setActiveTab('Rewards')}>
                 View Rewards <Icon name="arrow-up-right" size={13} />
               </button>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{ display: 'grid', placeItems: 'center', width: 44, height: 44, flex: '0 0 auto', borderRadius: 2, bgcolor: 'color-mix(in srgb, var(--brand-primary) 18%, transparent)', color: 'var(--brand-primary)' }}>
+            <Box
+              data-testid="dashboard-rewards-summary-row"
+              sx={{ display: 'grid', gridTemplateColumns: '44px minmax(0, 1fr) auto', alignItems: 'center', columnGap: 1.5, minWidth: 0 }}
+            >
+              <Box data-testid="dashboard-rewards-level-icon" sx={{ display: 'grid', placeItems: 'center', width: 44, height: 44, borderRadius: 2, bgcolor: 'color-mix(in srgb, var(--brand-primary) 18%, transparent)', color: 'var(--brand-primary)' }}>
                 <Icon name="target" size={22} />
               </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                  <Typography sx={{ color: 'text.secondary', fontSize: 12.5, fontWeight: 650 }}>
-                    {_progress ? `Level ${_progress.level} • ${_progress.levelTitle || 'Novice'}` : 'Execution Progress'}
-                  </Typography>
-                  {_progress && (
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)' }}>
-                      {_progress.totalProgress} XP
-                    </Typography>
-                  )}
-                </Box>
-                <Typography noWrap sx={{ fontSize: 15.5, fontWeight: 750 }}>
+              <Box data-testid="dashboard-rewards-summary-copy" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 0.5 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12.5, fontWeight: 650, lineHeight: 1.25 }}>
+                  {_progress ? `Level ${_progress.level} • ${_progress.levelTitle || 'Novice'}` : 'Execution Progress'}
+                </Typography>
+                <Typography sx={{ fontSize: 15.5, fontWeight: 750, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                   {totalMissionsCount > 0 ? `${completedMissionsCount} of ${totalMissionsCount} tasks complete` : 'Ready to begin work'}
                 </Typography>
-                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12, lineHeight: 1.4, overflowWrap: 'anywhere' }}>
                   {totalMissionsCount > 0
                     ? `${goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length} active goals · ${completedSessionsCount} focus sessions`
                     : 'Create your first goal & task to build progress'}
                 </Typography>
               </Box>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: _progress?.streak ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: 1, p: 1.1, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)' }}>
-              <Box>
-                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Active Goals</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Focus Sessions</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 750 }}>{completedSessionsCount}</Typography>
-              </Box>
-              {_progress?.streak && (
-                <Box data-testid="dashboard-streak-tile">
-                  <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Streak</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 750, color: _progress.streak.currentStreak > 0 ? 'var(--accent-orange, #f97316)' : 'inherit' }}>
-                    {_progress.streak.currentStreak}d
-                  </Typography>
-                </Box>
+              {_progress && (
+                <Typography data-testid="dashboard-rewards-xp" sx={{ alignSelf: 'center', textAlign: 'right', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)' }}>
+                  {_progress.totalProgress} XP
+                </Typography>
               )}
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 0.6, borderTop: '1px solid var(--border)' }}>
-              <Typography sx={{ color: 'text.secondary', fontSize: 12.5, flexShrink: 0 }}>Next Milestone</Typography>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)', textAlign: 'right', wordBreak: 'break-word' }}>
-                First Step (0/1 tasks)
-              </Typography>
+            <Box data-testid="dashboard-rewards-statistics" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
+              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Active Goals</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
+              </Box>
+              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Focus Sessions</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750 }}>{completedSessionsCount}</Typography>
+              </Box>
+              <Box data-testid="dashboard-rewards-stat" data-stat-kind="streak" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Streak</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750, color: _progress?.streak?.currentStreak ? 'var(--accent-orange, #f97316)' : 'inherit' }}>
+                  {_progress?.streak?.currentStreak ?? 0}d
+                </Typography>
+              </Box>
             </Box>
 
-            <Box sx={{ mt: 'auto', pt: 0.8, pb: 1.2 }}>
-              <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
-                <Box sx={{ width: `${totalMissionsCount ? Math.min(100, Math.round((completedMissionsCount / totalMissionsCount) * 100)) : 0}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.8 }}>
-                <Typography sx={{ color: 'text.secondary', fontSize: 11.5, fontWeight: 500 }}>
-                  {totalMissionsCount > 0 ? `${Math.round((completedMissionsCount / totalMissionsCount) * 100)}% complete` : '0% complete'}
-                </Typography>
-                <Typography sx={{ color: 'text.secondary', fontSize: 11.5, fontWeight: 500 }}>
-                  {totalMissionsCount > 0 ? `${totalMissionsCount - completedMissionsCount} open tasks` : '0 open tasks'}
-                </Typography>
+            <Box data-testid="dashboard-rewards-milestone" sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', columnGap: 1, rowGap: 1, pt: 1.5, borderTop: '1px solid var(--border)', minWidth: 0 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: 12.5, lineHeight: 1.3 }}>Next Milestone</Typography>
+              <Typography sx={{ fontSize: 12.5, lineHeight: 1.3, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)', textAlign: 'right', overflowWrap: 'anywhere' }}>
+                First Step · 0/1 tasks
+              </Typography>
+              <Box data-testid="dashboard-rewards-progress" sx={{ gridColumn: '1 / -1' }}>
+                <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 99, bgcolor: 'color-mix(in srgb, var(--brand-primary) 16%, transparent)' }}>
+                  <Box sx={{ width: `${totalMissionsCount ? Math.min(100, Math.round((completedMissionsCount / totalMissionsCount) * 100)) : 0}%`, height: '100%', borderRadius: 'inherit', bgcolor: 'var(--brand-primary)' }} />
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mt: 0.8 }}>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 11.5, lineHeight: 1.3, fontWeight: 500 }}>
+                    {totalMissionsCount > 0 ? `${Math.round((completedMissionsCount / totalMissionsCount) * 100)}% complete` : '0% complete'}
+                  </Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 11.5, lineHeight: 1.3, fontWeight: 500, textAlign: 'right' }}>
+                    {totalMissionsCount > 0 ? `${totalMissionsCount - completedMissionsCount} open tasks` : '0 open tasks'}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Box>
