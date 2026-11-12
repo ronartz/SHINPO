@@ -131,14 +131,17 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
     const gridHeight = 7 * (cellSize + gap) - gap
     const gridLeft = (width - gridWidth) / 2
     const gridTop = (height - gridHeight) / 2
+    const activeWeeks = cells.filter((cell) => cell.count > 0).map((cell) => cell.week)
+    const sceneStartWeek = view === '3d' && activeWeeks.length ? Math.max(0, Math.min(...activeWeeks) - 4) : 0
+    const sceneEndWeek = view === '3d' && activeWeeks.length ? Math.min(weeks, Math.max(...activeWeeks) + 5) : weeks
     let yaw = Math.PI / 4 + yawRef.current
     const elevation = Math.PI / 5
     const worldCell = Math.min(12, cellSize * 0.76)
     const project3d = (week: number, day: number, z: number): Point => ({
-      x: (week * worldCell * Math.cos(yaw) - day * worldCell * Math.sin(yaw)),
-      y: (week * worldCell * Math.sin(yaw) + day * worldCell * Math.cos(yaw)) * Math.sin(elevation) - z * Math.cos(elevation),
+      x: ((week - sceneStartWeek) * worldCell * Math.cos(yaw) - day * worldCell * Math.sin(yaw)),
+      y: ((week - sceneStartWeek) * worldCell * Math.sin(yaw) + day * worldCell * Math.cos(yaw)) * Math.sin(elevation) - z * Math.cos(elevation),
     })
-    const extentPoints = [project3d(0, 0, 0), project3d(weeks, 0, 0), project3d(0, 7, 0), project3d(weeks, 7, 0), project3d(weeks, 0, 48)]
+    const extentPoints = [project3d(sceneStartWeek, 0, 0), project3d(sceneEndWeek, 0, 0), project3d(sceneStartWeek, 7, 0), project3d(sceneEndWeek, 7, 0), project3d(sceneEndWeek, 0, 48)]
     const minX = Math.min(...extentPoints.map((point) => point.x))
     const maxX = Math.max(...extentPoints.map((point) => point.x))
     const minY = Math.min(...extentPoints.map((point) => point.y))
@@ -206,8 +209,8 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
       context.textBaseline = 'top'
       for (const cell of cells) {
         const date = new Date(`${cell.date}T12:00:00`)
-        if (date.getDate() === 1) {
-          context.fillText(date.toLocaleDateString(undefined, { month: 'short' }), gridLeft + cell.week * (cellSize + gap), 8)
+        if (date.getDate() === 1 && cell.week >= sceneStartWeek && cell.week < sceneEndWeek) {
+          context.fillText(date.toLocaleDateString(undefined, { month: 'short' }), gridLeft + (cell.week - sceneStartWeek) * (cellSize + gap), 8)
         }
       }
       if (reduced || Math.abs(target - progress) <= 0.001) morphRef.current = target
@@ -281,7 +284,7 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
       canvas.removeEventListener('keydown', onKeyDown)
       canvas.removeEventListener('dblclick', onDoubleClick)
     }
-  }, [cells, legendLevel, size, view])
+  }, [cells, legendLevel, size, view, weeks])
 
   const active = activeIndex >= 0 ? cells[activeIndex] : null
   const dateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -308,7 +311,7 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
         <div>
           <span className="analytics-eyebrow">Last 12 months</span>
           <h2 id="focus-skyline-title">Focus contribution skyline</h2>
-          <p>{stats.total} completed {stats.total === 1 ? 'session' : 'sessions'} · daily totals use your local calendar</p>
+          <p>{stats.total} completed {stats.total === 1 ? 'session' : 'sessions'} · daily totals use your local calendar{stats.total > 0 ? ' · 3D frames recorded weeks; 2D shows the full year' : ''}</p>
         </div>
         <div className="focus-skyline-switch" role="group" aria-label="Contribution chart view">
           <button type="button" aria-label="Flat heat map" aria-pressed={view === '2d'} onClick={() => setView('2d')}>2D</button>

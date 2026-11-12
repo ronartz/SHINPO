@@ -14,8 +14,8 @@ interface Particle {
   scale: number
 }
 
-const DESKTOP_QUANTITY = 200
-const MOBILE_QUANTITY = 45
+const DESKTOP_QUANTITY = 96
+const MOBILE_QUANTITY = 28
 const MAX_DPR = 1.5
 const TAU = Math.PI * 2
 const COLOR_TOKENS = ['--color-primary', '--chart-2', '--chart-3']
@@ -88,10 +88,10 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 2.8 + Math.random() * 1.4,
+        size: 1.8 + Math.random() * 1.2,
         angularSpeed: (Math.random() - 0.5) * 0.0016,
         driftSpeed: 0.18 + Math.random() * 0.08,
-        opacity: 0.35 + Math.random() * 0.20,
+        opacity: 0.12 + Math.random() * 0.10,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
         screenY: 0,
@@ -121,7 +121,7 @@ export function ShinpoParticles() {
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
         const renderRadius = Math.max(1.2, particle.size * particle.scale)
-        const renderAlpha = Math.min(0.85, Math.max(0.20, particle.opacity * (particle.scale * 0.85)))
+        const renderAlpha = Math.min(0.26, Math.max(0.06, particle.opacity * (particle.scale * 0.75)))
         context.globalAlpha = renderAlpha
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()

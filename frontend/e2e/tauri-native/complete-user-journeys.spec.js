@@ -14,7 +14,7 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
 
     async function safeClick(el) {
       await el.waitForDisplayed({ timeout: 20000 })
-      await el.scrollIntoView({ block: 'center' }).catch(() => {})
+      await el.scrollIntoView({ block: 'center' }).catch(() => { })
       await browser.pause(200)
       try {
         await el.click()
@@ -51,13 +51,13 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     try {
       await welcomeDismiss.waitForDisplayed({ timeout: 5000 })
       await welcomeDismiss.click()
-    } catch {}
+    } catch { }
 
     const skipTutorial = await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip')
     try {
       await skipTutorial.waitForDisplayed({ timeout: 3000 })
       await skipTutorial.click()
-    } catch {}
+    } catch { }
 
     // -------------------------------------------------------------------------
     // 2. GOALS & TASKS CREATION
@@ -161,7 +161,7 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
         await celebrationBtn.waitForDisplayed({ timeout: 3000 })
         await celebrationBtn.click()
         await browser.pause(300)
-      } catch {}
+      } catch { }
     } else {
       const continueBtn = await $('button*=Continue')
       if (await continueBtn.isExisting().catch(() => false)) {
@@ -169,7 +169,7 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
           await continueBtn.waitForDisplayed({ timeout: 3000 })
           await continueBtn.click()
           await browser.pause(300)
-        } catch {}
+        } catch { }
       }
     }
     console.log('Step 3: Focus lifecycle (start, pause, resume, finish & reflection) verified')
@@ -232,7 +232,7 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     await eonpaiInput.setValue('Hello EONPAI, summarize my focus progress')
 
     const eonpaiSendBtn = await $('.eonpai-composer-send-btn')
-    await browser.waitUntil(async () => !(await eonpaiSendBtn.getAttribute('disabled')), { timeout: 5000 }).catch(() => {})
+    await browser.waitUntil(async () => !(await eonpaiSendBtn.getAttribute('disabled')), { timeout: 5000 }).catch(() => { })
     await safeClick(eonpaiSendBtn)
 
     // Verify assistant reply arrives
@@ -308,7 +308,7 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     await browser.waitUntil(async () => !(await $('.settings-modal-dialog').isDisplayed().catch(() => false)), {
       timeout: 10000,
       timeoutMsg: 'Settings dialog did not close',
-    }).catch(() => {})
+    }).catch(() => { })
     console.log('Step 8b: Settings ShinpoSelect dropdown and Browser Companion verified')
 
     // -------------------------------------------------------------------------
@@ -341,10 +341,10 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
       // Cleanup the fixture process
       try {
         process.kill(fixtureProc.pid, 'SIGKILL')
-      } catch {}
+      } catch { }
       try {
         rmSync(fixtureDir, { recursive: true, force: true })
-      } catch {}
+      } catch { }
       console.log('Step 5: Disposable process terminated and fixture cleaned up safely')
     }
 

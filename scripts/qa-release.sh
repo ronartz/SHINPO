@@ -406,9 +406,9 @@ EOF
 cat <<EOF > "$MD_REPORT"
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** $TIMESTAMP  
-**Evaluated Commit:** \`$GIT_COMMIT\` (\`$GIT_BRANCH\`)  
-**Worktree Status:** $WORKTREE_STATE  
+**Execution Timestamp:** $TIMESTAMP
+**Evaluated Commit:** \`$GIT_COMMIT\` (\`$GIT_BRANCH\`)
+**Worktree Status:** $WORKTREE_STATE
 **Release Decision:** **$OVERALL_DECISION**
 
 ---

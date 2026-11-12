@@ -97,7 +97,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               style={{
                 padding: '8px 18px',
                 borderRadius: '8px',
-                background: 'var(--primary-violet, var(--brand-primary))',
+                background: 'var(--color-primary-active, #6d28d9)',
                 color: '#ffffff',
                 border: 'none',
                 fontWeight: 600,

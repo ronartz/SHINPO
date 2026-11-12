@@ -155,6 +155,31 @@ html[data-theme='light'] .analytics-view,
 .analytics-task-progress { height: 5px; margin-top: 10px; overflow: hidden; background: var(--surface-hover); border-radius: 99px; }
 .analytics-task-progress span { display: block; width: 100%; height: 100%; background: var(--analytics-blue); border-radius: inherit; transform-origin: left; transition: transform .35s ease; }
 
+.focus-contribution-skyline { padding: 18px 20px 14px; }
+.focus-skyline-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.focus-skyline-heading h2 { margin: 3px 0 0; color: var(--text-1); font-size: 19px; line-height: 1.25; }
+.focus-skyline-heading p { margin: 5px 0 0; color: var(--text-3); font-size: 13px; }
+.focus-skyline-switch { display: inline-flex; flex: 0 0 auto; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-subtle); }
+.focus-skyline-switch button { min-width: 42px; min-height: 34px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.focus-skyline-switch button[aria-pressed='true'] { background: var(--analytics-action); color: var(--analytics-action-text); }
+.focus-skyline-stage { position: relative; min-width: 0; height: 276px; margin-top: 8px; overflow: hidden; }
+.focus-skyline-stage canvas { display: block; width: 100%; height: 100%; outline: none; cursor: default; touch-action: pan-y; }
+.focus-skyline-stage canvas[data-view='3d'] { cursor: grab; }
+.focus-skyline-stage canvas:focus-visible { outline: 2px solid var(--analytics-action); outline-offset: -3px; border-radius: 8px; }
+.focus-skyline-tooltip { position: absolute; top: 8px; right: 8px; display: grid; gap: 3px; max-width: min(260px, 70%); padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-card); color: var(--text-2); box-shadow: var(--shadow-sm); font-size: 12px; pointer-events: none; }
+.focus-skyline-tooltip strong { color: var(--text-1); }
+.focus-skyline-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 12px 0 4px; border-top: 1px solid var(--border); }
+.focus-skyline-stats > div { display: grid; min-width: 0; gap: 3px; }
+.focus-skyline-stats span { color: var(--text-3); font-size: 12px; }
+.focus-skyline-stats strong { color: var(--text-1); font-size: 17px; font-variant-numeric: tabular-nums; }
+.focus-skyline-stats small { overflow: hidden; color: var(--text-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.focus-skyline-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 10px; color: var(--text-3); font-size: 12px; }
+.focus-skyline-legend { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
+.focus-skyline-legend button { width: 13px; height: 13px; padding: 0; border: 1px solid color-mix(in srgb, var(--text-1) 12%, transparent); border-radius: 3px; background: color-mix(in srgb, var(--analytics-chart-bar) calc(var(--activity-level) * 20%), var(--surface-hover)); cursor: pointer; }
+.focus-skyline-legend button[aria-pressed='true'], .focus-skyline-legend button:focus-visible { outline: 2px solid var(--analytics-action); outline-offset: 2px; }
+.focus-contribution-skyline > p { color: var(--text-2); }
+.focus-contribution-skyline > button { min-height: 36px; padding: 0 12px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; cursor: pointer; }
+
 .analytics-main-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .85fr); gap: 14px; align-items: start; }
 .analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; }
 .analytics-activity-panel { display: flex; flex-direction: column; }
@@ -175,7 +200,7 @@ html[data-theme='light'] .analytics-view,
   width: 100%;
 }
 
-.analytics-activity-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.analytics-activity-chart { display: block; width: 100%; height: auto; overflow: hidden; }
 .analytics-chart-gridline { stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4; }
 .analytics-chart-baseline { stroke: var(--border-strong, var(--border)); stroke-width: 1.5; }
 .analytics-chart-axis { fill: var(--text-3); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -351,19 +376,18 @@ html[data-brand='classic'] .theme-light .analytics-bar-current {
 .analytics-recent-panel { padding-bottom: 18px; }
 .analytics-recent-count { flex: 0 0 auto; padding: 5px 9px; color: var(--text-2); background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; font-weight: 700; }
 .analytics-debrief-list { display: grid; gap: 0; }
-.analytics-debrief-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.analytics-debrief-card { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); }
 .analytics-debrief-card:last-child { border-bottom: 0; }
 .analytics-debrief-main { min-width: 0; }
 .analytics-debrief-title { color: var(--text-1); font-size: 14.5px; font-weight: 750; line-height: 1.4; overflow-wrap: anywhere; }
 .analytics-debrief-date { display: block; margin-top: 4px; color: var(--text-3); font-size: 12.5px; }
-.analytics-debrief-meta { display: flex; flex: 0 0 auto; align-items: stretch; justify-content: flex-end; gap: 7px; }
+.analytics-debrief-meta { display: flex; flex: 0 0 auto; align-items: stretch; justify-content: flex-start; gap: 7px; }
 .analytics-duration-chip { display: grid; gap: 2px; min-width: 70px; padding: 4px 8px; color: var(--text-1); border-left: 1px solid var(--border); font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .analytics-duration-chip small { color: var(--text-3); font-size: 11.5px; font-weight: 600; }
 .analytics-planned-chip { color: var(--text-2); }
-.analytics-quality { display: grid; align-content: center; justify-items: center; gap: 2px; min-width: 66px; color: var(--status-warning); font-size: 13px; letter-spacing: .04em; white-space: nowrap; }
-.analytics-quality-stars { display: inline-flex; gap: 1px; }
-.analytics-quality-stars svg.is-filled { fill: currentColor; }
-.analytics-quality small { color: var(--text-3); font-size: 11.5px; letter-spacing: 0; }
+.analytics-quality { display: inline-flex; align-items: center; gap: 5px; min-width: 0; padding: 4px 8px; color: var(--status-warning); background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 9px; font-size: 13px; white-space: nowrap; }
+.analytics-quality svg { fill: currentColor; }
+.analytics-quality small { color: var(--text-2); font-size: 12px; font-weight: 700; letter-spacing: 0; }
 .analytics-reflection-details { margin-top: 8px; color: var(--text-2); font-size: 13px; }
 .analytics-reflection-details summary { width: fit-content; color: var(--analytics-link); cursor: pointer; font-weight: 700; }
 .analytics-reflection-details p { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px; margin: 8px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
@@ -417,6 +441,10 @@ html[data-brand='classic'] .theme-light .analytics-bar-current {
   .analytics-focused-days-list li { grid-template-columns: 28px minmax(82px, auto) minmax(28px, 1fr) auto; gap: 8px; }
   .analytics-debrief-card { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .analytics-debrief-meta { justify-content: flex-start; flex-wrap: wrap; }
+  .focus-contribution-skyline { padding: 14px 12px 12px; }
+  .focus-skyline-stage { height: 220px; }
+  .focus-skyline-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .focus-skyline-footer { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 420px) {

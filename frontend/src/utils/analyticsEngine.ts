@@ -6,6 +6,23 @@ export interface AxisScale {
   ticks: number[]
 }
 
+export interface ActivityAxisScale extends AxisScale {
+  unit: 'seconds' | 'minutes'
+}
+
+export function calculateActivityAxis(maxSeconds: number): ActivityAxisScale {
+  if (maxSeconds > 0 && maxSeconds < 60) {
+    const axisMax = [5, 10, 15, 30, 45, 60].find((limit) => maxSeconds <= limit) ?? 60
+    return { axisMax, ticks: [0, axisMax / 2, axisMax], unit: 'seconds' }
+  }
+  return { ...calculateNiceAxis(Math.max(0, maxSeconds) / 60), unit: 'minutes' }
+}
+
+export function formatActivityAxisTick(value: number, unit: ActivityAxisScale['unit']): string {
+  if (unit === 'seconds') return value === 0 ? '0s' : `${Number.isInteger(value) ? value : value.toFixed(1)}s`
+  return formatAxisTick(value)
+}
+
 /**
  * Format a focus duration cleanly.
  * Never outputs '0m' for nonzero seconds.
@@ -17,6 +34,9 @@ export function formatFocusDuration(
   if (!seconds || seconds <= 0) return '0m'
   if (seconds < 60) {
     return options?.showSecondsIfSmall ? `${Math.round(seconds)}s` : '<1m'
+  }
+  if (options?.showSecondsIfSmall && seconds < 600 && seconds % 60 !== 0) {
+    return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
   }
   const totalMinutes = seconds / 60
   if (totalMinutes < 60) {

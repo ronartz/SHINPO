@@ -2040,6 +2040,33 @@ html[data-theme='light'] .schedule-filter-btn.active {
   font-size: 11px;
 }
 
+.schedule-grid-event.is-overlapping .schedule-grid-event-select {
+  gap: 0;
+  padding: 6px;
+}
+
+.schedule-grid-event.is-overlapping .schedule-grid-event-icon,
+.schedule-grid-event.is-overlapping .schedule-grid-event-heading time {
+  display: none;
+}
+
+.schedule-grid-event.is-overlapping .schedule-grid-event-heading,
+.schedule-grid-event.is-overlapping .schedule-grid-event-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-grid-event.is-overlapping .schedule-grid-event-title {
+  display: -webkit-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .schedule-current-time,
 .schedule-current-time::before {
   background: var(--status-danger);
@@ -2174,7 +2201,7 @@ html[data-theme='light'] .schedule-filter-btn.active {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .schedule-calendar-layout {
     grid-template-columns: 1fr;
   }

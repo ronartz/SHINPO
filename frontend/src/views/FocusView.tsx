@@ -274,7 +274,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       Focus protection paused for <strong>{activeGraceWarning.processName}</strong>
                     </div>
                     <div className="grace-banner-subtitle">
-                      The app will close when the countdown ends.
+                      Guardian is warning-only; applications are not closed.
                     </div>
                   </div>
                 </div>
@@ -565,7 +565,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
                     <label>Grace<input type="number" min={1} max={10} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} /></label>
                   </div>}
-                  <p className="pomodoro-config-summary"><strong>Plan preview:</strong> {describeFocusPlan(selectedDuration, pomodoroEnabled, pomodoroLongBreakMinutes, pomodoroGraceMinutes)}</p>
                   {pomodoroEnabled && <div className="pomodoro-config-fields">
                     <label className="pomodoro-toggle"><input type="checkbox" checked={latePenaltyEnabled} onChange={(event) => setLatePenaltyEnabled(event.target.checked)} />Apply a progress adjustment only if I miss the return deadline</label>
                     {latePenaltyEnabled && <>

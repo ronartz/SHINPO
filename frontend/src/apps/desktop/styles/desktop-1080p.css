@@ -53,7 +53,7 @@
    -------------------------------------------------------------------------- */
 @media (min-width: 1440px) and (min-height: 800px) {
   .shinpo-dashboard {
-    gap: 12px !important;
+    gap: 14px !important;
   }
 
   .dashboard-header-bar {
@@ -155,7 +155,7 @@
   /* Row 3: Tasks Board (3 Kanban Columns) */
   .flight-deck-board-panel {
     gap: 10px !important;
-    margin-top: 2px !important;
+    margin-top: 8px !important;
   }
 
   .flight-deck-board-header {
@@ -302,12 +302,12 @@
   }
 
   .focus-time-orbit {
-    width: min(250px, 28vh) !important;
-    height: min(250px, 28vh) !important;
+    width: min(360px, 40vh) !important;
+    height: min(360px, 40vh) !important;
   }
 
   .timer-digits-display {
-    font-size: clamp(38px, 4.2vw, 54px) !important;
+    font-size: clamp(52px, 6vw, 80px) !important;
     line-height: 1 !important;
     margin: 4px 0 !important;
   }

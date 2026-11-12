@@ -292,17 +292,17 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                 const rawTop = startMinutes / 60 * 62
                 const top = Math.max(0, rawTop)
                 const height = Math.max(50, session.durationMinutes / 60 * 62)
-                const layout = dayLayout.positions.get(session.id) ?? { lane: 0, laneCount: 1 }
+                const layout = dayLayout.positions.get(session.id) ?? { lane: 0, laneCount: 1, laneSpan: 1 }
                 const laneWidth = 100 / layout.laneCount
-                return <div key={session.id} className={`schedule-grid-event${session.durationMinutes >= 45 ? ' is-roomy' : ' is-compact'} status-${session.status}${selectedSession?.id === session.id ? ' selected' : ''}`} style={{
+                return <div key={session.id} className={`schedule-grid-event${session.durationMinutes >= 45 ? ' is-roomy' : ' is-compact'}${layout.laneCount > 1 ? ' is-overlapping' : ''} status-${session.status}${selectedSession?.id === session.id ? ' selected' : ''}`} style={{
                   top,
                   height: Math.max(0, Math.min(height + Math.min(0, rawTop), hours.length * 62 - top)),
                   left: `calc(${layout.lane * laneWidth}% + 4px)`,
-                  width: `calc(${laneWidth}% - 8px)`,
+                  width: `calc(${layout.laneSpan * laneWidth}% - 8px)`,
                   right: 'auto',
                 }}>
                   <div className="schedule-grid-event-accent" />
-                  <button type="button" className="schedule-grid-event-select" aria-label={`Select ${session.name}, ${eventTime} to ${eventEndTime}`} aria-pressed={selectedSession?.id === session.id} onClick={() => selectSession(session)}>
+                  <button type="button" className="schedule-grid-event-select" aria-label={`Select ${session.name}, ${eventTime} to ${eventEndTime}`} title={`${session.name} · ${eventTime}–${eventEndTime}`} aria-pressed={selectedSession?.id === session.id} onClick={() => selectSession(session)}>
                     <span className="schedule-grid-event-icon"><Icon name="focus" size={16} /></span>
                     <span className="schedule-grid-event-heading">
                       <span className="schedule-grid-event-title" title={session.name}>{session.name}</span>

@@ -1,7 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  calculateActivityAxis,
   calculateNiceAxis,
+  formatActivityAxisTick,
   formatAxisTick,
   formatFocusDuration,
   formatDailyAverage,
@@ -301,4 +303,15 @@ test('18. formatBucketLabel formats range labels properly', () => {
   assert.ok(label24h.length > 0)
   const label7d = formatBucketLabel(d, '7d')
   assert.ok(label7d.length > 0)
+})
+
+test('sub-minute Focus data receives a seconds axis instead of being flattened into minutes', () => {
+  const axis = calculateActivityAxis(10)
+  assert.equal(axis.unit, 'seconds')
+  assert.deepEqual(axis.ticks, [0, 5, 10])
+  assert.equal(formatActivityAxisTick(10, axis.unit), '10s')
+})
+
+test('Focus durations retain remaining seconds for short completed sessions', () => {
+  assert.equal(formatFocusDuration(90, { showSecondsIfSmall: true }), '1m 30s')
 })

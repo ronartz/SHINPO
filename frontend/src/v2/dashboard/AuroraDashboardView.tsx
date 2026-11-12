@@ -254,6 +254,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              wordBreak: 'break-word',
               pl: 3.8,
             }}
           >
@@ -390,7 +392,8 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            md: 'repeat(4, minmax(0, 1fr))',
+            md: 'repeat(2, minmax(0, 1fr))',
+            lg: 'repeat(4, minmax(0, 1fr))',
           },
           gridAutoRows: '1fr',
           gap: '16px', // Exact V1 metrics grid gap
@@ -426,7 +429,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Focus Time
             </Typography>
@@ -491,7 +494,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Tasks Completed
             </Typography>
@@ -557,7 +560,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Planned sessions
             </Typography>
@@ -622,7 +625,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: 'text.secondary' }}>
               Open tasks
             </Typography>
@@ -714,7 +717,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                         : 'var(--brand-coral-subtle)',
                       color: activeSession.status === 'PAUSED'
                         ? 'var(--accent-yellow)'
-                        : 'var(--brand-coral)',
+                        : isDarkMode ? '#ffa39e' : 'var(--brand-coral)',
                       border: activeSession.status === 'PAUSED'
                         ? '1px solid var(--accent-yellow-border)'
                         : '1px solid var(--brand-coral-border)',
@@ -1289,7 +1292,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                   sx={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--color-primary)',
+                    color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--color-primary)',
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -1324,7 +1327,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
                     {_progress ? `Level ${_progress.level} • ${_progress.levelTitle || 'Novice'}` : 'Execution Progress'}
                   </Typography>
                   {_progress && (
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-primary)' }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)' }}>
                       {_progress.totalProgress} XP
                     </Typography>
                   )}
@@ -1361,7 +1364,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 0.6, borderTop: '1px solid var(--border)' }}>
               <Typography sx={{ color: 'text.secondary', fontSize: 12.5, flexShrink: 0 }}>Next Milestone</Typography>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'var(--brand-primary)', textAlign: 'right', wordBreak: 'break-word' }}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: isDarkMode ? 'var(--color-primary-text, #c084fc)' : 'var(--brand-primary)', textAlign: 'right', wordBreak: 'break-word' }}>
                 First Step (0/1 tasks)
               </Typography>
             </Box>
@@ -1394,7 +1397,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           flexDirection: 'column',
           gap: 2,
           width: '100%',
-          mt: 0.5,
+          mt: 1,
         }}
         aria-label="Tasks Board"
       >
@@ -1490,12 +1493,13 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
 
         {/* 3-Column Kanban Grid */}
         <Box
+          className="dashboard-lane-grid"
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gridTemplateColumns: { xs: '1fr', sm: '1fr', md: 'repeat(auto-fit, minmax(220px, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
             gap: '20px', // Exact V1 board gap
             width: '100%',
-            alignItems: 'stretch',
+            alignItems: 'start',
           }}
         >
           {/* Column 1: In Progress */}
@@ -1510,7 +1514,6 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
-              height: '100%',
               display: 'flex',
               flexDirection: 'column',
               boxSizing: 'border-box',
@@ -1626,7 +1629,6 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
-              height: '100%',
               display: 'flex',
               flexDirection: 'column',
               boxSizing: 'border-box',
@@ -1734,7 +1736,6 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               borderRadius: '14px',
               p: '18px 20px',
               minHeight: 180,
-              height: '100%',
               display: 'flex',
               flexDirection: 'column',
               boxSizing: 'border-box',
@@ -1863,7 +1864,7 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               boxShadow: '0 24px 60px rgba(0,0,0, 0.6)',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <span className="aurora-badge purple">TASK DETAILS</span>
                 <span className="aurora-badge blue">{inspectingMission.estimatedMinutes || 25}m Session</span>

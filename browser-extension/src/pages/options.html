@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" data-theme="aurora-dark">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,9 +10,10 @@
     try {
       const theme = localStorage.getItem('shinpo_extension_theme') || 'aurora-dark';
       document.documentElement.setAttribute('data-theme', theme);
-    } catch (_) {}
+    } catch (_) { }
   </script>
 </head>
+
 <body>
   <main class="page-container">
     <!-- Header -->
@@ -19,17 +21,21 @@
       <div class="brand-identity">
         <div class="brand-icon" style="width:32px; height:32px;" aria-hidden="true">
           <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="128" height="128" rx="28" fill="var(--surface-elevated)"/>
-            <path d="M29 43L76 15C79 13 83 13 86 15L99 23C102 25 104 28 104 32V38C104 42 102 45 98 47L64 68L48 58L79 39L36 64C33 66 29 66 26 64L22 62V53C22 49 24 45 29 43Z" fill="url(#opt-brand-blue)"/>
-            <path d="M45 79L82 56C85 54 89 54 92 56L107 65C110 67 112 70 112 74V87C112 91 110 94 106 96L65 120C62 122 58 122 55 120L39 111C36 109 34 106 34 102V93C34 89 36 86 40 84L68 67L82 76L53 94L73 82L60 74Z" fill="url(#opt-brand-purple)"/>
+            <rect width="128" height="128" rx="28" fill="var(--surface-elevated)" />
+            <path
+              d="M29 43L76 15C79 13 83 13 86 15L99 23C102 25 104 28 104 32V38C104 42 102 45 98 47L64 68L48 58L79 39L36 64C33 66 29 66 26 64L22 62V53C22 49 24 45 29 43Z"
+              fill="url(#opt-brand-blue)" />
+            <path
+              d="M45 79L82 56C85 54 89 54 92 56L107 65C110 67 112 70 112 74V87C112 91 110 94 106 96L65 120C62 122 58 122 55 120L39 111C36 109 34 106 34 102V93C34 89 36 86 40 84L68 67L82 76L53 94L73 82L60 74Z"
+              fill="url(#opt-brand-purple)" />
             <defs>
               <linearGradient id="opt-brand-blue" x1="22" y1="40" x2="104" y2="40" gradientUnits="userSpaceOnUse">
-                <stop stop-color="var(--accent-cyan)"/>
-                <stop offset="1" stop-color="var(--accent-primary)"/>
+                <stop stop-color="var(--accent-cyan)" />
+                <stop offset="1" stop-color="var(--accent-primary)" />
               </linearGradient>
               <linearGradient id="opt-brand-purple" x1="34" y1="88" x2="112" y2="88" gradientUnits="userSpaceOnUse">
-                <stop stop-color="var(--accent-primary)"/>
-                <stop offset="1" stop-color="var(--accent-cyan)"/>
+                <stop stop-color="var(--accent-primary)" />
+                <stop offset="1" stop-color="var(--accent-cyan)" />
               </linearGradient>
             </defs>
           </svg>
@@ -63,14 +69,17 @@
     <!-- Section 1: Connection & Pairing -->
     <section class="card">
       <div class="card-title">1. Connection &amp; Pairing</div>
-      <p class="muted">Communicates securely with your local SHINPO desktop app via private native messaging. The pairing proof is kept exclusively in local browser storage.</p>
-      
+      <p class="muted">Communicates securely with your local SHINPO desktop app via private native messaging. The
+        pairing proof is kept exclusively in local browser storage.</p>
+
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 8px 0;">
-        <div style="background:var(--surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+        <div
+          style="background:var(--surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
           <span class="muted" style="display:block; margin-bottom: 4px;">Host Status</span>
           <strong id="opt-host-status">Checking…</strong>
         </div>
-        <div style="background:var(--surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+        <div
+          style="background:var(--surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
           <span class="muted" style="display:block; margin-bottom: 4px;">Last Synchronized</span>
           <strong id="opt-last-sync">--</strong>
         </div>
@@ -79,10 +88,13 @@
       <div id="pairing-input-group" style="margin-top: 8px;">
         <label for="pairing-code">One-time pairing code</label>
         <div style="display:flex; gap: 8px; flex-wrap: wrap;">
-          <input id="pairing-code" class="input-code" type="text" autocomplete="off" spellcheck="false" maxlength="128" placeholder="Paste pairing code from SHINPO Desktop" style="flex: 1; min-width: 240px;">
+          <input id="pairing-code" class="input-code" type="text" autocomplete="off" spellcheck="false" maxlength="128"
+            placeholder="Paste pairing code from SHINPO Desktop" style="flex: 1; min-width: 240px;">
           <button id="pair" class="btn primary" type="button">Pair this browser</button>
         </div>
-        <p class="muted" style="margin-top: 6px;">To generate a pairing code, open SHINPO Desktop, navigate to <strong>Settings → Browser Companion</strong>, and click <strong>Generate Pairing Code</strong>.</p>
+        <p class="muted" style="margin-top: 6px;">To generate a pairing code, open SHINPO Desktop, navigate to
+          <strong>Settings → Browser Companion</strong>, and click <strong>Generate Pairing Code</strong>.
+        </p>
       </div>
 
       <div class="btn-group" style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
@@ -99,7 +111,8 @@
       <div class="switch-row" style="padding: 12px 0; border-bottom: 1px solid var(--border-subtle);">
         <div class="switch-label-group">
           <span class="switch-label">Active Focus Monitoring</span>
-          <span class="switch-description">Checks active tabs against approved websites for your active Focus session. Disabling monitoring leaves your tabs open without intervention.</span>
+          <span class="switch-description">Checks active tabs against approved websites for your active Focus session.
+            Disabling monitoring leaves your tabs open without intervention.</span>
         </div>
         <label class="switch">
           <input id="opt-monitoring" type="checkbox" checked aria-label="Toggle active focus monitoring">
@@ -109,7 +122,9 @@
 
       <div style="padding-top: 12px;">
         <span class="switch-label">Distraction Shielding</span>
-        <p class="muted" style="margin: 4px 0 0;">In GUIDED and STRICT modes, SHINPO evaluates top-level URLs against approved resources. YouTube short routes and recommendation feeds are restricted while allowing explicit learning videos approved in your task.</p>
+        <p class="muted" style="margin: 4px 0 0;">In GUIDED and STRICT modes, SHINPO evaluates top-level URLs against
+          approved resources. YouTube short routes and recommendation feeds are restricted while allowing explicit
+          learning videos approved in your task.</p>
       </div>
     </section>
 
@@ -123,34 +138,39 @@
           <div class="permission-icon">✓</div>
           <div class="permission-text">
             <strong>Native Messaging</strong>
-            <span>Communicates solely with the per-user SHINPO host application installed on this machine over standard input/output.</span>
+            <span>Communicates solely with the per-user SHINPO host application installed on this machine over standard
+              input/output.</span>
           </div>
         </li>
         <li class="permission-item">
           <div class="permission-icon">✓</div>
           <div class="permission-text">
             <strong>Tabs &amp; Web Navigation</strong>
-            <span>Evaluates top-level addresses strictly on your device against your active task rules. Browsing history is never collected, logged to disk, or transmitted over the network.</span>
+            <span>Evaluates top-level addresses strictly on your device against your active task rules. Browsing history
+              is never collected, logged to disk, or transmitted over the network.</span>
           </div>
         </li>
         <li class="permission-item">
           <div class="permission-icon">✓</div>
           <div class="permission-text">
             <strong>Page Scripting</strong>
-            <span>Injects SHINPO's intervention screen only when an unapproved website is visited during active Focus. It does not read webpage text, credentials, or cookies.</span>
+            <span>Injects SHINPO's intervention screen only when an unapproved website is visited during active Focus.
+              It does not read webpage text, credentials, or cookies.</span>
           </div>
         </li>
         <li class="permission-item">
           <div class="permission-icon">✓</div>
           <div class="permission-text">
             <strong>Local Storage &amp; Alarms</strong>
-            <span>Stores the pairing token and local lease snapshot. Automatically expires policy restrictions when your Focus lease elapses.</span>
+            <span>Stores the pairing token and local lease snapshot. Automatically expires policy restrictions when your
+              Focus lease elapses.</span>
           </div>
         </li>
       </ul>
 
       <div class="alert alert-info" style="margin-top: 10px;">
-        <span><strong>Zero telemetry guarantee:</strong> No remote servers, analytics platforms, or external tracking scripts exist in this extension. All evaluation is local.</span>
+        <span><strong>Zero telemetry guarantee:</strong> No remote servers, analytics platforms, or external tracking
+          scripts exist in this extension. All evaluation is local.</span>
       </div>
     </section>
 
@@ -162,10 +182,12 @@
       <div style="margin-bottom: 14px;">
         <label for="review-url">SHINPO Focus rules destination</label>
         <div style="display:flex; gap: 8px; flex-wrap: wrap;">
-          <input id="review-url" type="url" placeholder="Optional: https://... or leave blank for desktop app" style="flex: 1; min-width: 240px;">
+          <input id="review-url" type="url" placeholder="Optional: https://... or leave blank for desktop app"
+            style="flex: 1; min-width: 240px;">
           <button id="save-url" class="btn" type="button">Save Destination</button>
         </div>
-        <p class="muted" style="margin-top: 4px;">HTTPS is required for remote URLs; HTTP is permitted for localhost development.</p>
+        <p class="muted" style="margin-top: 4px;">HTTPS is required for remote URLs; HTTP is permitted for localhost
+          development.</p>
       </div>
 
       <table class="diagnostics-table" aria-label="Technical Diagnostics">
@@ -203,10 +225,13 @@
     </section>
 
     <!-- Disconnect Modal -->
-    <div id="disconnect-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="opt-disconnect-title">
+    <div id="disconnect-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"
+      aria-labelledby="opt-disconnect-title">
       <div class="modal-dialog">
-        <div id="opt-disconnect-title" class="card-title" style="color:var(--status-danger)">Disconnect Browser Companion?</div>
-        <p class="text-sm muted" style="margin:0;">Disconnecting will invalidate the pairing credential on this device and remove all active website protections until you pair again from SHINPO Desktop.</p>
+        <div id="opt-disconnect-title" class="card-title" style="color:var(--status-danger)">Disconnect Browser
+          Companion?</div>
+        <p class="text-sm muted" style="margin:0;">Disconnecting will invalidate the pairing credential on this device
+          and remove all active website protections until you pair again from SHINPO Desktop.</p>
         <div class="btn-group" style="justify-content:flex-end;">
           <button id="cancel-disconnect" class="btn" type="button">Cancel</button>
           <button id="confirm-disconnect" class="btn danger" type="button">Disconnect</button>
@@ -217,4 +242,5 @@
 
   <script type="module" src="options.js"></script>
 </body>
+
 </html>

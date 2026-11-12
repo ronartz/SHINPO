@@ -17,6 +17,8 @@ const data = path.join(profile, 'data')
 const config = path.join(profile, 'config')
 const cache = path.join(profile, 'cache')
 const evidence = path.join(profile, 'evidence')
+// Keep the clock fixture under XDG_DATA_HOME so the native runtime's isolated
+// sandbox can read it alongside the disposable vault.
 for (const dir of [data, config, cache, evidence]) mkdirSync(dir, { mode: 0o700 })
 
 const isListening = (port) => new Promise((resolve, reject) => {

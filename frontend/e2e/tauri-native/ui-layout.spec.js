@@ -20,12 +20,46 @@ async function particleFrame() {
   })
 }
 
+async function setAppearance(brand, theme) {
+  console.log(`Setting appearance to ${brand} ${theme}: open account menu`)
+  await $('[aria-label^="Account menu for"]').click()
+  console.log(`Setting appearance to ${brand} ${theme}: open settings`)
+  await $('button*=All settings').click()
+  const settings = await $('[role="dialog"][aria-labelledby="settings-dialog-title"]')
+  await settings.waitForDisplayed()
+  await browser.pause(250)
+  console.log(`Setting appearance to ${brand} ${theme}: open appearance section`)
+  await $('[data-section="appearance"]').click()
+  await browser.pause(250)
+  const current = await browser.execute(() => ({ brand: document.documentElement.dataset.brand, theme: document.documentElement.dataset.theme }))
+  if (current.brand !== brand) {
+    const brandButton = await $(`button*=${brand === 'classic' ? 'Classic' : 'Aurora'}`)
+    await brandButton.scrollIntoView()
+    console.log(`Setting appearance to ${brand} ${theme}: click brand; button text=${JSON.stringify(await brandButton.getText())}`)
+    await brandButton.click()
+  }
+  await browser.waitUntil(async () => await browser.execute((expected) => document.documentElement.dataset.brand === expected, brand), { timeout: 10000 })
+  await browser.pause(300)
+  const currentTheme = await browser.execute(() => document.documentElement.dataset.theme)
+  if (currentTheme !== theme) {
+    const themeButton = await $(`button*=${theme === 'light' ? 'Light Theme' : 'Dark Theme'}`)
+    await themeButton.scrollIntoView()
+    console.log(`Setting appearance to ${brand} ${theme}: click theme; button text=${JSON.stringify(await themeButton.getText())}`)
+    await themeButton.click()
+  }
+  await browser.waitUntil(async () => await browser.execute((expected) => document.documentElement.dataset.theme === expected, theme), { timeout: 10000 })
+  await browser.pause(300)
+  console.log(`Setting appearance to ${brand} ${theme}: close settings`)
+  await browser.keys('Escape')
+  await browser.waitUntil(async () => !(await $('[role="dialog"][aria-labelledby="settings-dialog-title"]').isDisplayed().catch(() => false)), { timeout: 10000 })
+}
+
 describe('SHINPO native Focus and Goals layout acceptance', function () {
   it('renders, resizes and operates Focus and Goals in the current Tauri build', async function () {
     assert.ok(process.env.SHINPO_TAURI_QA_PROFILE)
     const evidence = process.env.SHINPO_PARTICLES_EVIDENCE_DIR || process.env.SHINPO_TAURI_EVIDENCE_DIR
     mkdirSync(evidence, { recursive: true })
-    const sizes = [[1400, 900], [1280, 720], [1440, 900]]
+    const sizes = [[960, 600], [1400, 900], [1280, 720], [1440, 900], [1920, 1080], [2560, 1440]]
 
     await $('h1').waitForDisplayed({ timeout: 120000 })
     const windowHandles = await browser.getWindowHandles()
@@ -73,12 +107,16 @@ describe('SHINPO native Focus and Goals layout acceptance', function () {
         const workspace = document.querySelector('.focus-workspace-container')
         const timer = document.querySelector('.card-timer-hud')
         const config = document.querySelector('.focus-configuration-panel, .focus-config-panel, .pomodoro-config')
-        const rect = (node) => node && ({ x: node.getBoundingClientRect().x, y: node.getBoundingClientRect().y, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })
-        return { overflow: workspace.scrollWidth > workspace.clientWidth, timer: rect(timer), config: rect(config), viewport: { width: innerWidth, height: innerHeight } }
+        const rect = (node) => node && ({ x: node.getBoundingClientRect().x, y: node.getBoundingClientRect().y, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, bottom: node.getBoundingClientRect().bottom })
+        const start = timer.querySelector('.btn-timer.primary')
+        return { overflow: workspace.scrollWidth > workspace.clientWidth, timer: rect(timer), config: rect(config), start: rect(start), viewport: { width: innerWidth, height: innerHeight } }
       })
       assert.equal(layout.overflow, false, `Focus horizontal overflow at ${width}x${height}`)
       assert.ok(layout.timer?.width > 0, 'Focus timer card is rendered')
       assert.ok(layout.config?.width > 0, 'Focus configuration is rendered')
+      if (actual.width <= 1024 && actual.height <= 700) {
+        assert.ok(layout.start.bottom <= actual.height, `Focus start action is clipped below the compact window: ${JSON.stringify(layout)}`)
+      }
       console.log(`Focus native ${actual.width}x${actual.height}: timer=${JSON.stringify(layout.timer)} config=${JSON.stringify(layout.config)}`)
     }
 
@@ -108,6 +146,49 @@ describe('SHINPO native Focus and Goals layout acceptance', function () {
       await observerConsent.click()
       assert.equal(await observerConsent.isSelected(), false, 'Guardian observation consent can be revoked before Focus starts')
     }
+
+    await browser.setWindowSize(1280, 720)
+    const breakToggle = await $('label*=Include one midpoint break')
+    assert.ok(await breakToggle.isDisplayed(), 'midpoint-break option is visible in session configuration')
+    await breakToggle.click()
+    const breakConfiguration = await browser.execute(() => {
+      const panel = document.querySelector('.pomodoro-config')
+      const preview = document.querySelector('.timer-plan-preview')
+      const fields = [...panel.querySelectorAll('.pomodoro-config-fields label')].map((label) => {
+        const rect = label.getBoundingClientRect()
+        return { text: label.textContent.trim(), x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }
+      })
+      const penaltyLabel = [...panel.querySelectorAll('.pomodoro-config-fields label.pomodoro-toggle')]
+        .find((label) => label.textContent.includes('progress adjustment'))
+      const penaltyCheckbox = penaltyLabel?.querySelector('input[type="checkbox"]')
+      const textNode = penaltyLabel && [...penaltyLabel.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+      const textRange = document.createRange()
+      if (textNode) textRange.selectNode(textNode)
+      const checkboxRect = penaltyCheckbox?.getBoundingClientRect()
+      const textRect = textRange.getBoundingClientRect()
+      const configuration = panel.getBoundingClientRect()
+      return {
+        preview: preview?.textContent?.replace(/\s+/g, ' ').trim(),
+        fields,
+        penalty: checkboxRect && { checkboxWidth: checkboxRect.width, checkboxRight: checkboxRect.right, textX: textRect.x, label: penaltyLabel.textContent.trim() },
+        panel: { x: configuration.x, y: configuration.y, right: configuration.right, bottom: configuration.bottom, width: configuration.width, height: configuration.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      }
+    })
+    assert.match(breakConfiguration.preview || '', /midpoint break/i, `break plan preview must explain the configured cycle: ${JSON.stringify(breakConfiguration)}`)
+    assert.ok(breakConfiguration.fields.length >= 2, 'break and grace controls are rendered')
+    assert.ok(breakConfiguration.fields.every((field) => field.width >= 120 && field.height > 0), `break controls remain usable at compact desktop size: ${JSON.stringify(breakConfiguration)}`)
+    assert.ok(breakConfiguration.penalty.checkboxWidth <= 20, `late-return checkbox must retain a compact checkbox hit area: ${JSON.stringify(breakConfiguration.penalty)}`)
+    assert.ok(breakConfiguration.penalty.textX >= breakConfiguration.penalty.checkboxRight, `late-return label text must follow, not collide with, its checkbox: ${JSON.stringify(breakConfiguration.penalty)}`)
+    const timingFields = breakConfiguration.fields.filter((field) => /Long break|Grace/.test(field.text))
+    if (timingFields.length === 2 && Math.abs(timingFields[0].y - timingFields[1].y) < 2) {
+      assert.ok(timingFields[0].right <= timingFields[1].x || timingFields[1].right <= timingFields[0].x, `break and grace fields must not overlap: ${JSON.stringify(breakConfiguration)}`)
+    }
+    await browser.execute(() => document.querySelector('.pomodoro-config').scrollIntoView({ block: 'center' }))
+    await browser.saveScreenshot(path.join(evidence, 'focus-midpoint-break-configuration-native.png'))
+    console.log(`Native Focus break configuration: ${JSON.stringify(breakConfiguration)}`)
+    await breakToggle.click()
+
     await start.click()
     await browser.waitUntil(async () => await focus.getAttribute('data-focus-mode') === 'active', { timeout: 30000 })
     const activeFrame = await particleFrame()
@@ -123,6 +204,31 @@ describe('SHINPO native Focus and Goals layout acceptance', function () {
     await browser.waitUntil(async () => await focus.getAttribute('data-focus-mode') === 'active', { timeout: 30000 })
     await $('button*=Cancel Session').click()
     await browser.waitUntil(async () => await focus.getAttribute('data-focus-mode') === 'ready', { timeout: 30000 })
+
+    await setAppearance('aurora', 'light')
+    await $('[data-tab="Focus Engine"]').click()
+    await browser.waitUntil(async () => await $('[data-tab="Focus Engine"]').getAttribute('aria-current') === 'page', { timeout: 30000 })
+    await browser.setWindowSize(1280, 720)
+    await dismissVisibleToasts()
+    const themedFocus = await browser.execute(() => {
+      const timer = document.querySelector('.card-timer-hud').getBoundingClientRect()
+      const config = document.querySelector('.focus-configuration-panel, .focus-config-panel, .pomodoro-config').getBoundingClientRect()
+      const start = document.querySelector('[data-tutorial="start-timer-btn"]').getBoundingClientRect()
+      return {
+        brand: document.documentElement.dataset.brand,
+        theme: document.documentElement.dataset.theme,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        timer: { width: timer.width, height: timer.height },
+        config: { width: config.width, height: config.height },
+        start: { width: start.width, height: start.height, bottom: start.bottom },
+      }
+    })
+    assert.equal(themedFocus.brand, 'aurora')
+    assert.equal(themedFocus.theme, 'light')
+    assert.equal(themedFocus.overflow, false, `Aurora Light Focus should not overflow: ${JSON.stringify(themedFocus)}`)
+    assert.ok(themedFocus.timer.width > 0 && themedFocus.config.width > 0 && themedFocus.start.height > 0, JSON.stringify(themedFocus))
+    await browser.saveScreenshot(path.join(evidence, 'focus-aurora-light-1280x720-native.png'))
+    console.log(`Native Focus Aurora Light: ${JSON.stringify(themedFocus)}`)
 
     await $('[data-tab="Goals & Missions"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Goals & Missions"]').getAttribute('aria-current') === 'page', { timeout: 30000 })

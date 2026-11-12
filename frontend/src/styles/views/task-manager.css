@@ -1679,7 +1679,7 @@ html[data-theme='light'] .protection-secondary-action,
 
 /* Standalone Guardian is warning-only; keep its alpha surface focused on observable data. */
 .guardian-alpha {
-  gap: 16px;
+  gap: 12px;
 }
 
 .guardian-alpha-header {
@@ -1687,7 +1687,7 @@ html[data-theme='light'] .protection-secondary-action,
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 0 0 14px;
+  padding: 0 0 8px;
   border-bottom: 1px solid var(--border);
 }
 

@@ -360,10 +360,21 @@ export async function getStudyResources(params: {
   missionId?: number
   sessionId?: number
 }): Promise<StudyResource[]> {
-  if (shouldUseLocalFocusServices()) return invokeTauriCommand('local_get_study_resources', {
-    missionId: params.missionId ?? null, sessionId: params.sessionId ?? null,
-  })
-  return apiClient.get<StudyResource[]>('/contextual-focus/resources', { params })
+  const result: unknown = shouldUseLocalFocusServices()
+    ? await invokeTauriCommand<unknown>('local_get_study_resources', {
+        missionId: params.missionId ?? null,
+        sessionId: params.sessionId ?? null,
+      })
+    : await apiClient.get<unknown>('/contextual-focus/resources', { params })
+
+  return normalizeStudyResourceList(result)
+}
+
+export function normalizeStudyResourceList(value: unknown): StudyResource[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Study resource service returned an invalid list.')
+  }
+  return value as StudyResource[]
 }
 
 export async function createStudyResource(

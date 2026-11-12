@@ -664,7 +664,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </section>
 
           {/* Today's Schedule Card */}
-          <section className="dashboard-sidecar-card schedule-card" aria-label="Today's Schedule">
+          <section
+            className={`dashboard-sidecar-card schedule-card${sortedSessions.length === 0 ? ' is-empty' : ''}`}
+            aria-label="Today's Schedule"
+          >
             <div className="sidecar-card-header">
               <div className="sidecar-header-left">
                 <div className="sidecar-icon-box blue">

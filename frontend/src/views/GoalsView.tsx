@@ -475,7 +475,7 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                 aria-label="Goal Options"
                 aria-expanded={showGoalMenu}
               >
-                ···
+                <Icon name="more-horizontal" size={15} />
               </button>
               {showGoalMenu && (
                 <div className="overflow-menu-dropdown microkit-glide-menu">

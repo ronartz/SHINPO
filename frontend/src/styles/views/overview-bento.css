@@ -2646,6 +2646,18 @@ html[data-theme='light'] .duration-pill.paused {
   }
 }
 
+/* An empty schedule should occupy only its own dashboard row, not the full
+   height created by the neighboring focus/activity cards. */
+.shinpo-dashboard .schedule-card.is-empty {
+  grid-row: 1;
+}
+
+@media (max-width: 720px) {
+  .shinpo-dashboard .schedule-card.is-empty {
+    grid-row: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   .dashboard-quick-action-grid button,

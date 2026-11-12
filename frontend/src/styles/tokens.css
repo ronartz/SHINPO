@@ -87,7 +87,7 @@
   --aurora-dark-text-secondary: #CBD5E1;
   --aurora-dark-text-muted: #94A3B8;
   --aurora-dark-primary-hover: #B588FD;
-  --aurora-dark-on-primary: #FFFFFF;
+  --aurora-dark-on-primary: var(--aurora-dark-background);
   --aurora-light-background: #F8FAFC;
   --aurora-light-surface-1: #FFFFFF;
   --aurora-light-surface-2: #F1F5F9;

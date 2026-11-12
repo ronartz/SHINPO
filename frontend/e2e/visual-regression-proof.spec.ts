@@ -289,6 +289,124 @@ test.describe('SHINPO — Operation Visual Regression Proof (Phase 1 Red-Green D
     expect(correctedFinding, 'Corrected card hugging content must have zero dead space findings').toBeUndefined()
   })
 
+  // 9b. Oversized empty Schedule card fixture (Phase 4 requirement)
+  test('Detector 9b: Oversized empty Schedule card (DEAD_SPACE) vs Naturally sized empty state', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+
+    // Defective: 500px tall schedule card with tiny empty state message at the top
+    await page.setContent(`
+      <div>
+        <div class="schedule-card card" style="height: 500px; width: 360px; padding: 20px; box-sizing: border-box;">
+          <h3 class="card-title">Today's Schedule</h3>
+          <div class="empty-state" style="margin-top: 16px;">
+            <p>No scheduled sessions today</p>
+          </div>
+        </div>
+      </div>
+    `)
+    const defectiveReport = await runAudit(page)
+    const deadSpaceFinding = defectiveReport.findings.find(f => f.type === 'DEAD_SPACE')
+    expect(deadSpaceFinding, 'Detector must catch oversized empty schedule card').toBeDefined()
+
+    // Corrected: Naturally sized empty state hugs content cleanly (<= 200px)
+    await page.setContent(`
+      <div>
+        <div class="schedule-card card" style="min-height: 140px; max-height: 200px; width: 360px; padding: 20px; box-sizing: border-box;">
+          <h3 class="card-title">Today's Schedule</h3>
+          <div class="empty-state" style="margin-top: 16px;">
+            <p>No scheduled sessions today</p>
+            <button class="btn">+ Schedule Focus Block</button>
+          </div>
+        </div>
+      </div>
+    `)
+    const correctedReport = await runAudit(page)
+    const correctedFinding = correctedReport.findings.find(f => f.type === 'DEAD_SPACE')
+    expect(correctedFinding, 'Naturally sized empty schedule card must pass with zero dead space findings').toBeUndefined()
+  })
+
+  // 9c. Footer pushed to the bottom of an otherwise empty panel (FOOTER_VOID)
+  test('Detector 9c: Footer pushed to bottom of empty panel (FOOTER_VOID)', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+
+    // Defective: 480px tall card with header at top, footer at bottom, and 300px void in between
+    await page.setContent(`
+      <div>
+        <div class="panel card" style="height: 480px; width: 360px; position: relative; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="panel-header">
+            <h3>Focus Summary</h3>
+            <p>0 sessions completed</p>
+          </div>
+          <footer class="panel-footer" style="padding-top: 12px; border-top: 1px solid #475569;">
+            <span>Auto-sync enabled</span>
+          </footer>
+        </div>
+      </div>
+    `)
+    const defectiveReport = await runAudit(page)
+    const footerVoidFinding = defectiveReport.findings.find(f => f.type === 'FOOTER_VOID')
+    expect(footerVoidFinding, 'Detector must catch footer pushed to bottom of empty panel with large void').toBeDefined()
+    expect(footerVoidFinding?.measuredValue).toBeGreaterThan(180)
+
+    // Corrected: Panel has natural content flow without huge empty gap before footer
+    await page.setContent(`
+      <div>
+        <div class="panel card" style="height: auto; width: 360px; padding: 20px; box-sizing: border-box;">
+          <div class="panel-header">
+            <h3>Focus Summary</h3>
+            <p>0 sessions completed</p>
+          </div>
+          <footer class="panel-footer" style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #475569;">
+            <span>Auto-sync enabled</span>
+          </footer>
+        </div>
+      </div>
+    `)
+    const correctedReport = await runAudit(page)
+    const correctedFooterVoid = correctedReport.findings.find(f => f.type === 'FOOTER_VOID')
+    expect(correctedFooterVoid, 'Natural panel layout must pass with zero footer void findings').toBeUndefined()
+  })
+
+  // 9d. Empty chart with excessive fixed height vs Populated chart
+  test('Detector 9d: Empty chart with excessive height (DEAD_SPACE) vs Populated chart (PASS)', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+
+    // Defective: 450px tall chart card with only "No activity recorded"
+    await page.setContent(`
+      <div>
+        <div class="analytics-card card" style="height: 450px; width: 500px; padding: 24px; box-sizing: border-box;">
+          <h3>Activity Distribution</h3>
+          <div class="chart-empty" style="margin-top: 40px; text-align: center;">
+            <p>No activity recorded in this period</p>
+          </div>
+        </div>
+      </div>
+    `)
+    const defectiveReport = await runAudit(page)
+    const deadSpaceFinding = defectiveReport.findings.find(f => f.type === 'DEAD_SPACE')
+    expect(deadSpaceFinding, 'Detector must catch empty chart with excessive fixed height').toBeDefined()
+
+    // Populated chart: Legitimate visualization with SVG bars and axis
+    await page.setContent(`
+      <div>
+        <div class="analytics-card card" style="height: 380px; width: 500px; padding: 24px; box-sizing: border-box;">
+          <h3>Activity Distribution</h3>
+          <svg width="450" height="300" style="margin-top: 16px;">
+            <rect x="20" y="50" width="30" height="200" fill="#7c3aed" />
+            <rect x="70" y="80" width="30" height="170" fill="#7c3aed" />
+            <rect x="120" y="30" width="30" height="220" fill="#7c3aed" />
+            <rect x="170" y="110" width="30" height="140" fill="#7c3aed" />
+            <rect x="220" y="70" width="30" height="180" fill="#7c3aed" />
+            <rect x="270" y="90" width="30" height="160" fill="#7c3aed" />
+          </svg>
+        </div>
+      </div>
+    `)
+    const populatedReport = await runAudit(page)
+    const populatedDeadSpace = populatedReport.findings.find(f => f.type === 'DEAD_SPACE')
+    expect(populatedDeadSpace, 'Populated chart must pass cleanly without dead space finding').toBeUndefined()
+  })
+
   // 10. Rewards statistics overflowing or colliding inside their card
   test('Detector 10: Rewards statistics overflowing bottom of card (CLIPPING)', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })

@@ -161,7 +161,7 @@ function ActivityChart({
           className="analytics-activity-chart"
           viewBox="0 0 920 280"
           role="img"
-          aria-label={`${labels[range]} Focus activity compared with the immediately preceding period. Current total ${formatFocusDuration(data.currentActiveSeconds)}.`}
+          aria-label={`${labels[range]} Focus activity compared with the immediately preceding period. Current total ${formatFocusDuration(data.currentActiveSeconds, { showSecondsIfSmall: true })}.`}
         >
           <defs>
             <linearGradient id="analytics-bar-gradient" x1="0" x2="0" y1="0" y2="1">

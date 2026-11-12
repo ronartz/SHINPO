@@ -18,6 +18,7 @@ export interface DailyFocusVelocity {
   date: string
   dayName: string
   focusMinutes: number
+  focusSeconds?: number
   completedCount: number
 }
 
@@ -27,6 +28,7 @@ export interface RecentDebrief {
   intention: string
   durationMinutes: number
   actualFocusMinutes: number
+  actualFocusSeconds?: number
   quality: number | null
   accomplishment: string
   reflectionNote: string
@@ -110,6 +112,7 @@ async function localDashboard(): Promise<AnalyticsDashboardResponse> {
       intention: session.intention ?? '',
       durationMinutes: session.durationMinutes,
       actualFocusMinutes: Math.round(session.activeSeconds / 60),
+      actualFocusSeconds: session.activeSeconds,
       quality: session.completionQuality ?? null,
       accomplishment: session.accomplishment ?? 'Session completed',
       reflectionNote: session.reflectionNote ?? '',
@@ -130,6 +133,7 @@ async function localDashboard(): Promise<AnalyticsDashboardResponse> {
     return {
       date,
       dayName: start.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+      focusSeconds: daySessions.reduce((sum, session) => sum + session.activeSeconds, 0),
       focusMinutes: Math.round(daySessions.reduce((sum, session) => sum + session.activeSeconds, 0) / 60),
       completedCount: daySessions.length,
     }

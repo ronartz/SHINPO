@@ -7,6 +7,7 @@ import {
   getContextualFocusStatus,
   getOpenableResourceUrl,
   getStudyResources,
+  normalizeStudyResourceList,
   normalizeContextualFocusStatus,
   updateStudyFocusMode,
   validateStudyResourceDraft,
@@ -92,6 +93,13 @@ test('contextual Focus resource validation is scope-aware and resists lookalike 
     matchType: 'PROCESS',
     destination: 'code',
   }) ?? '', /active Focus session/)
+})
+
+test('study resource API responses must be arrays so malformed success payloads cannot crash Focus', () => {
+  assert.deepEqual(normalizeStudyResourceList([]), [])
+  assert.deepEqual(normalizeStudyResourceList([resource()]), [resource()])
+  assert.throws(() => normalizeStudyResourceList(null), /invalid list/)
+  assert.throws(() => normalizeStudyResourceList({ resources: [] }), /invalid list/)
 })
 
 test('temporary resource request uses the selected scope and produces a bounded expiry', () => {

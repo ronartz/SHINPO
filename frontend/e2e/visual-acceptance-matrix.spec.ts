@@ -385,7 +385,7 @@ test.describe('SHINPO Comprehensive Automated Visual Acceptance & Geometry Suite
           const tabBtn = page.locator(tab.selector).first()
           if (await tabBtn.count() > 0) {
             await tabBtn.click()
-            await page.waitForTimeout(300)
+            await page.waitForTimeout(500)
 
             // Verify active focus banner/timer continuity
             const activeSessionPill = page.locator('.shield-active, .focus-engaged, [data-focus-mode="active"]')

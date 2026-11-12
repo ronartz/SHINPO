@@ -32,6 +32,7 @@ export type FindingType =
   | 'CONTRAST'
   | 'MISSING_GLASS'
   | 'DUPLICATE_ACTION'
+  | 'FOOTER_VOID'
 
 export interface VisualFinding {
   type: FindingType
@@ -157,13 +158,18 @@ export function getBrowserGeometryAuditScript() {
           let ancestor = currentNode.parentElement
           while (ancestor && ancestor !== document.body) {
             const aStyle = window.getComputedStyle(ancestor)
-            if (aStyle.overflow === 'hidden' || aStyle.overflowX === 'hidden' || aStyle.overflowY === 'hidden' ||
-                aStyle.overflow === 'clip' || aStyle.overflowX === 'clip' || aStyle.overflowY === 'clip') {
+            const clipsX = ['hidden', 'clip', 'scroll', 'auto'].includes(aStyle.overflowX)
+            const clipsY = ['hidden', 'clip', 'scroll', 'auto'].includes(aStyle.overflowY)
+            if (clipsX || clipsY) {
               const aRect = ancestor.getBoundingClientRect()
-              vLeft = Math.max(vLeft, aRect.left)
-              vRight = Math.min(vRight, aRect.right)
-              vTop = Math.max(vTop, aRect.top)
-              vBottom = Math.min(vBottom, aRect.bottom)
+              if (clipsX) {
+                vLeft = Math.max(vLeft, aRect.left)
+                vRight = Math.min(vRight, aRect.right)
+              }
+              if (clipsY) {
+                vTop = Math.max(vTop, aRect.top)
+                vBottom = Math.min(vBottom, aRect.bottom)
+              }
             }
             ancestor = ancestor.parentElement
           }
@@ -172,6 +178,29 @@ export function getBrowserGeometryAuditScript() {
           const vHeight = Math.max(0, vBottom - vTop)
 
           if (vWidth > 3 && vHeight > 3) {
+            // A sticky table/calendar header can cover a scrolled row label while both
+            // DOM ranges still report intersecting rectangles. Ignore text actually
+            // occluded by that sticky surface; it is not simultaneously visible.
+            const hit = document.elementFromPoint(vLeft + vWidth / 2, vTop + vHeight / 2)
+            if (hit && hit !== currentNode.parentElement && !currentNode.parentElement.contains(hit)) {
+              const hitStyle = window.getComputedStyle(hit)
+              if (['sticky', 'fixed'].includes(hitStyle.position)) continue
+            }
+
+            // Full-page Playwright captures can audit content below the viewport, where
+            // elementFromPoint returns null. In a scrolled weekly grid, the hour label
+            // can geometrically pass beneath the opaque sticky corner header; only the
+            // header is visible there, so don't report the covered label as a collision.
+            const timeLabel = currentNode.parentElement.closest('.schedule-time-label')
+            if (timeLabel) {
+              const grid = timeLabel.closest('.schedule-week-grid')
+              const corner = grid?.querySelector('.schedule-grid-corner')
+              const cornerRect = corner?.getBoundingClientRect()
+              const labelRect = timeLabel.getBoundingClientRect()
+              if (cornerRect && labelRect.left < cornerRect.right && labelRect.right > cornerRect.left &&
+                  labelRect.top < cornerRect.bottom && labelRect.bottom > cornerRect.top) continue
+            }
+
             textNodes.push({
               node: currentNode,
               parent: currentNode.parentElement,
@@ -289,37 +318,66 @@ export function getBrowserGeometryAuditScript() {
       }
     })
 
-    // 5. DEAD SPACE DETECTOR (Unusually tall cards with sparse visible content)
-    const cards = document.querySelectorAll('.card, .panel, .glass-card, .dashboard-card, .analytics-card')
+    // 5. DEAD SPACE & FOOTER VOID DETECTOR (D1 & D5)
+    const cards = document.querySelectorAll('.card, .panel, .glass-card, .dashboard-card, .analytics-card, .bento-card, .aurora-card, .schedule-card, .chart-card')
     cards.forEach(card => {
       if (!isVisible(card)) return
       const rCard = card.getBoundingClientRect()
       // Skip the main focus timer circle / dial which intentionally preserves breathing room
       if (card.closest('.focus-workspace-container') || card.querySelector('.focus-timer-display') || card.querySelector('.timer-circle')) return
-      
-      if (rCard.height > 300) {
-        // Measure children content bounds
+
+      // Check if populated chart or canvas exists
+      const hasPopulatedChart = card.querySelector('canvas') || (card.querySelector('svg') && card.querySelectorAll('svg rect, svg path, svg circle').length > 5)
+
+      if (rCard.height > 260) {
+        // Measure children content bounds excluding explicit bottom footers
+        const footerEl = card.querySelector('footer, .card-footer, .panel-footer, .schedule-card-footer')
+        const rFooter = footerEl && isVisible(footerEl) ? footerEl.getBoundingClientRect() : null
+
         let minTop = Infinity, maxBottom = -Infinity
-        const children = card.querySelectorAll('h1, h2, h3, h4, p, span, button, input, table, ul, ol, .badge')
+        const children = card.querySelectorAll('h1, h2, h3, h4, p, span, button, input, table, ul, ol, .badge, .empty-state')
         children.forEach(c => {
-          if (isVisible(c)) {
+          if (isVisible(c) && (!footerEl || !footerEl.contains(c))) {
             const r = c.getBoundingClientRect()
             if (r.top < minTop) minTop = r.top
             if (r.bottom > maxBottom) maxBottom = r.bottom
           }
         })
-        if (minTop !== Infinity && maxBottom !== -Infinity) {
-          const contentHeight = maxBottom - minTop
-          const emptyRatio = 1 - (contentHeight / rCard.height)
-          if (emptyRatio > 0.70 && contentHeight < 80) {
+
+        // Check FOOTER_VOID (D5): if footer exists and is separated from upper content by > 180px void
+        if (rFooter && minTop !== Infinity && maxBottom !== -Infinity) {
+          const voidGap = rFooter.top - maxBottom
+          const upperContentHeight = maxBottom - minTop
+          if (voidGap > 180 && upperContentHeight < 120 && !hasPopulatedChart && card.querySelectorAll('li, tr, .item, .task-row').length === 0) {
             findings.push({
-              type: 'DEAD_SPACE',
+              type: 'FOOTER_VOID',
               severity: 'P2',
               selector: getCssPath(card),
+              conflictingSelector: getCssPath(footerEl),
               bounds: rCard,
-              measuredValue: Math.round(emptyRatio * 100),
-              message: 'Card height is ' + Math.round(rCard.height) + 'px but visible content occupies only ' + Math.round(contentHeight) + 'px (' + Math.round(emptyRatio * 100) + '% dead void)'
+              conflictingBounds: rFooter,
+              measuredValue: Math.round(voidGap),
+              message: 'Footer separated by unnecessary empty void of ' + Math.round(voidGap) + 'px from upper content'
             })
+          }
+        }
+
+        // Check DEAD_SPACE (D1): unusually tall card with sparse content (e.g. empty card or empty chart)
+        if (!hasPopulatedChart) {
+          if (minTop !== Infinity && maxBottom !== -Infinity) {
+            const contentHeight = maxBottom - minTop
+            const emptyRatio = 1 - (contentHeight / rCard.height)
+            const isExplicitEmpty = card.querySelector('.empty-state, .chart-empty, .empty-chart') || card.textContent?.includes('No scheduled sessions') || card.textContent?.includes('No activity recorded') || card.textContent?.includes('No data')
+            if ((emptyRatio > 0.65 && contentHeight < 120) || (isExplicitEmpty && rCard.height > 280)) {
+              findings.push({
+                type: 'DEAD_SPACE',
+                severity: 'P2',
+                selector: getCssPath(card),
+                bounds: rCard,
+                measuredValue: Math.round(emptyRatio * 100),
+                message: 'Card height is ' + Math.round(rCard.height) + 'px but visible content occupies only ' + Math.round(contentHeight) + 'px (' + Math.round(emptyRatio * 100) + '% dead void)'
+              })
+            }
           }
         }
       }

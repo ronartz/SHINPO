@@ -537,7 +537,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
       </header>
 
       {/* Sub-tab navigation bar */}
-      <div className="guardian-subtab-bar" style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+      <div className="guardian-subtab-bar" style={{ display: 'flex', gap: '8px', marginBottom: 0 }}>
         <button
           type="button"
           className={`guardian-subtab-btn ${activeSubTab === 'guardian' ? 'active' : ''}`}

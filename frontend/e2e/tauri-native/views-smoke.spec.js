@@ -94,7 +94,7 @@ describe('SHINPO native authenticated screen smoke', function () {
     assert.equal(await sidebar.$$('input').then((inputs) => inputs.length), 0, 'collapsed sidebar remains free of search controls')
     assert.ok(await topSearch.isDisplayed(), 'global search remains in the topbar when sidebar collapses')
     await browser.saveScreenshot(path.join(evidence, 'sidebar-collapsed-native.png'))
-    await toggle.click()
+    await browser.execute((el) => el.click(), toggle)
     await browser.waitUntil(async () => await toggle.getAttribute('aria-expanded') === 'true', { timeout: 10000 })
 
     for (const [tab, filename, root] of [
@@ -131,17 +131,48 @@ describe('SHINPO native authenticated screen smoke', function () {
         title: document.querySelector('main h1, main h2, .view-header h1, .page-heading h1')?.textContent?.trim() || document.title,
       }))
       assert.equal(page.overflow, false, `${tab} has horizontal overflow`)
+      if (tab === 'Dashboard') {
+        const dashboardGeometry = await browser.execute(() => {
+          const bounds = (selector) => {
+            const element = document.querySelector(selector)
+            if (!element) return null
+            const rect = element.getBoundingClientRect()
+            return { top: rect.top, bottom: rect.bottom, height: rect.height }
+          }
+          const schedule = document.querySelector('.schedule-card')
+          return {
+            scheduleText: schedule.textContent,
+            schedule: bounds('.schedule-card'),
+            priority: bounds('.priority-hero-card'),
+            companion: bounds('.dashboard-quick-actions, .dashboard-rewards-summary'),
+            classic: document.documentElement.dataset.brand !== 'aurora',
+          }
+        })
+        assert.ok(dashboardGeometry.priority && dashboardGeometry.companion, `dashboard geometry hooks missing: ${JSON.stringify(dashboardGeometry)}`)
+        if (dashboardGeometry.classic && dashboardGeometry.scheduleText.includes('No scheduled sessions today')) {
+          assert.ok(
+            dashboardGeometry.schedule.height <= Math.max(dashboardGeometry.priority.height, dashboardGeometry.companion.height) + 2,
+            `Classic empty schedule must not stretch across the lower insight row: ${JSON.stringify(dashboardGeometry)}`,
+          )
+        }
+      }
       if (tab === 'Task Manager') {
         const guardianLayout = await browser.execute(() => {
+          const header = document.querySelector('.guardian-alpha-header')
+          const tabs = document.querySelector('.guardian-subtab-bar')
+          const content = document.querySelector('.guardian-alpha-workspace')
           const workspace = document.querySelector('.guardian-alpha-workspace')
           const info = document.querySelector('.guardian-alpha-info-column')
           const apps = document.querySelector('.guardian-installed-panel')
           const list = document.querySelector('.guardian-app-list')
           const bounds = (element) => {
             const rect = element.getBoundingClientRect()
-            return { left: rect.left, right: rect.right, width: rect.width, height: rect.height }
+            return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
           }
           return {
+            header: bounds(header),
+            tabs: bounds(tabs),
+            content: bounds(content),
             workspace: bounds(workspace),
             info: bounds(info),
             apps: bounds(apps),
@@ -152,8 +183,10 @@ describe('SHINPO native authenticated screen smoke', function () {
         assert.ok(guardianLayout.apps.left > guardianLayout.info.left, 'Installed Applications must be in the right column')
         assert.ok(guardianLayout.apps.width > guardianLayout.info.width * 1.45, 'Installed Applications must receive the larger workspace share')
         assert.equal(guardianLayout.list.overflowY, 'auto', 'application inventory keeps its own vertical scroll')
+        assert.ok(guardianLayout.tabs.top - guardianLayout.header.bottom <= 32, `Guardian tabs are detached from the header: ${JSON.stringify(guardianLayout)}`)
+        assert.ok(guardianLayout.content.top - guardianLayout.tabs.bottom <= 32, `Guardian content has an excessive gap below tabs: ${JSON.stringify(guardianLayout)}`)
         await browser.saveScreenshot(path.join(evidence, 'guardian-balanced-native.png'))
-        console.log(`Native Guardian layout: left=${Math.round(guardianLayout.info.width)}px, applications=${Math.round(guardianLayout.apps.width)}px, list=${guardianLayout.list.height}/${guardianLayout.list.scrollHeight}px`)
+        console.log(`Native Guardian layout: header/tab gap=${Math.round(guardianLayout.tabs.top - guardianLayout.header.bottom)}px, tab/content gap=${Math.round(guardianLayout.content.top - guardianLayout.tabs.bottom)}px, left=${Math.round(guardianLayout.info.width)}px, applications=${Math.round(guardianLayout.apps.width)}px, list=${guardianLayout.list.height}/${guardianLayout.list.scrollHeight}px`)
         const guardianSizes = [[960, 600], [1280, 720], [1440, 900], [1920, 1080], [2560, 1440]]
         for (const [width, height] of guardianSizes) {
           await browser.setWindowSize(width, height)
@@ -217,6 +250,30 @@ describe('SHINPO native authenticated screen smoke', function () {
           parentElement.scrollTop = initialParentScroll
         }, calendar, parent, parentScrollBefore)
         console.log(`Native Calendar scroll: vertical ${before.scrollHeight}/${before.clientHeight}; page wheel handoff passed; horizontal ${before.scrollWidth}/${before.clientWidth}`)
+
+        await browser.setWindowSize(960, 650)
+        await browser.pause(250)
+        const compactCalendar = await browser.execute(() => {
+          const layout = document.querySelector('.schedule-calendar-layout')
+          const sidebar = layout.querySelector('.schedule-sidebar').getBoundingClientRect()
+          const main = layout.querySelector('.schedule-calendar-main').getBoundingClientRect()
+          const summary = document.querySelector('.schedule-week-summary').getBoundingClientRect()
+          return {
+            viewportWidth: innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            sidebarBottom: sidebar.bottom,
+            mainTop: main.top,
+            mainWidth: main.width,
+            summaryWidth: summary.width,
+            columns: getComputedStyle(layout).gridTemplateColumns,
+          }
+        })
+        assert.ok(compactCalendar.mainTop >= compactCalendar.sidebarBottom, `compact Calendar sidebar must stack above the week view: ${JSON.stringify(compactCalendar)}`)
+        assert.ok(compactCalendar.documentWidth <= compactCalendar.viewportWidth, `compact Calendar must not introduce horizontal page overflow: ${JSON.stringify(compactCalendar)}`)
+        assert.ok(compactCalendar.summaryWidth > 0, `compact Calendar summary should remain visible: ${JSON.stringify(compactCalendar)}`)
+        await browser.saveScreenshot(path.join(evidence, 'calendar-compact-960x650-native.png'))
+        console.log(`Native compact Calendar 960x650: ${JSON.stringify(compactCalendar)}`)
+        await browser.setWindowSize(1400, 900)
       }
       await browser.saveScreenshot(path.join(evidence, `${filename}-native.png`))
       console.log(`Native tab ${tab} rendered, title=${page.title}, horizontalOverflow=${page.overflow}`)
@@ -281,6 +338,28 @@ describe('SHINPO native authenticated screen smoke', function () {
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })
     await browser.waitUntil(async () => await browser.execute(() => !document.querySelector('.app-content-stage [role="status"][aria-busy="true"]')), { timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'dashboard-classic-dark-particles-native.png'))
+    const classicDashboardGeometry = await browser.execute(() => {
+      const bounds = (selector) => {
+        const element = document.querySelector(selector)
+        if (!element) return null
+        const rect = element.getBoundingClientRect()
+        return { top: rect.top, bottom: rect.bottom, height: rect.height }
+      }
+      return {
+        scheduleEmpty: Boolean(document.querySelector('.schedule-card .sidecar-empty-state')),
+        schedule: bounds('.schedule-card'),
+        priority: bounds('.priority-hero-card'),
+        quickActions: bounds('.dashboard-quick-actions'),
+      }
+    })
+    assert.ok(classicDashboardGeometry.schedule && classicDashboardGeometry.priority && classicDashboardGeometry.quickActions, `Classic dashboard geometry hooks missing: ${JSON.stringify(classicDashboardGeometry)}`)
+    console.info(`Native Classic empty schedule geometry: ${JSON.stringify(classicDashboardGeometry)}`)
+    if (classicDashboardGeometry.scheduleEmpty) {
+      assert.ok(
+        classicDashboardGeometry.schedule.height <= Math.max(classicDashboardGeometry.priority.height, classicDashboardGeometry.quickActions.height) + 2,
+        `Classic empty schedule must not stretch across the lower insight row: ${JSON.stringify(classicDashboardGeometry)}`,
+      )
+    }
     await openSettingsModal()
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Aurora').click()
