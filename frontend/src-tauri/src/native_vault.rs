@@ -2282,7 +2282,7 @@ fn unix_now_seconds() -> i64 {
     let now = OffsetDateTime::now_utc().unix_timestamp();
     #[cfg(feature = "qa-clock")]
     {
-        return now.saturating_add(QA_CLOCK_OFFSET_SECONDS.load(Ordering::Relaxed));
+        now.saturating_add(QA_CLOCK_OFFSET_SECONDS.load(Ordering::Relaxed))
     }
     #[cfg(not(feature = "qa-clock"))]
     now
