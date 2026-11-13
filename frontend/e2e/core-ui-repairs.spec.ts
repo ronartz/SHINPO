@@ -248,12 +248,22 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     await page.setViewportSize({ width: 1920, height: 1080 })
     await page.goto('/')
     await page.waitForSelector('.cockpit-top-bar')
-    const debugInfo = await page.locator('.cockpit-top-bar').evaluate(el => ({
-      computedHeight: window.getComputedStyle(el).height,
-      minHeight: window.getComputedStyle(el).minHeight,
-      offsetHeight: (el as HTMLElement).offsetHeight,
-      innerHTML: el.innerHTML.slice(0, 100),
-    }))
+    const debugInfo = await page.locator('.cockpit-top-bar').evaluate((el) => {
+      if (el instanceof HTMLElement) {
+        return {
+          computedHeight: window.getComputedStyle(el).height,
+          minHeight: window.getComputedStyle(el).minHeight,
+          offsetHeight: el.offsetHeight,
+          innerHTML: el.innerHTML.slice(0, 100),
+        }
+      }
+      return {
+        computedHeight: window.getComputedStyle(el).height,
+        minHeight: window.getComputedStyle(el).minHeight,
+        offsetHeight: null,
+        innerHTML: el.textContent?.slice(0, 100) ?? '',
+      }
+    })
     console.log('TopBar debug info:', debugInfo)
     let topBarBox = await page.locator('.cockpit-top-bar').boundingBox()
     expect(topBarBox).not.toBeNull()
