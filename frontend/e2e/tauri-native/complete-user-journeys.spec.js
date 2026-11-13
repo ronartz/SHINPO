@@ -294,8 +294,21 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     // Assert custom select listbox appears
     const listbox = await $('[role="listbox"]')
     await listbox.waitForDisplayed({ timeout: 5000 })
-    const offlineOption = await $('.shinpo-select-option')
-    await safeClick(offlineOption)
+    // Use the real combobox keyboard contract here. Clicking a portaled option
+    // was intermittently intercepted by the dialog in WebKitGTK and produced a
+    // stale-element failure unrelated to the select's own interaction path.
+    await browser.keys(['ArrowDown'])
+    await browser.keys(['Enter'])
+    await browser.waitUntil(async () => (await browser.execute(
+      () => document.querySelector('#native-ai-provider .shinpo-select-value')?.textContent || ''
+    )).includes('Ollama on this computer'), { timeout: 5000 })
+    await browser.keys(['Enter'])
+    await $('[role="listbox"]').waitForDisplayed({ timeout: 5000 })
+    await browser.keys(['Home'])
+    await browser.keys(['Enter'])
+    await browser.waitUntil(async () => (await browser.execute(
+      () => document.querySelector('#native-ai-provider .shinpo-select-value')?.textContent || ''
+    )).includes('Offline planning (no model)'), { timeout: 5000 })
 
     // Close settings dialog
     const closeSettingsBtn = await $('.settings-modal-close')
