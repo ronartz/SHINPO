@@ -3,7 +3,7 @@
 **Document Version:** 1.1.0<br>
 **Updated:** 2026-11-13<br>
 **Active Branch:** `fix/systematic-layout-and-composition`<br>
-**Candidate Remote HEAD:** `316e1b49d99c142319fc484ee715f37c2d0a9f4f`<br>
+**Candidate Remote HEAD:** `fcfc250b1f983a75a839fa0a43d1008ba2863e14`<br>
 **Current Release Target:** `SHINPO v0.1.0-beta.1` (Private Beta)<br>
 **Overall Release Verdict:** **NO-GO FOR PRODUCTION / PRIVATE BETA RELEASE**
 
@@ -11,9 +11,9 @@
 
 ## 1. Executive Summary & Release Verdict
 
-The canonical status of the SHINPO repository candidate on branch `fix/systematic-layout-and-composition` (remote commit `316e1b49d99c142319fc484ee715f37c2d0a9f4f`) is **NO-GO**.
+The canonical status of the SHINPO repository candidate on branch `fix/systematic-layout-and-composition` (commit `fcfc250b1f983a75a839fa0a43d1008ba2863e14`) is **NO-GO**.
 
-While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-theme styling, brand shield assets, Linux Browser Companion integration, and hosted CI builds for both Ubuntu Linux and Windows MSVC have succeeded, mandatory release gates (security advisory resolution / formal signoff, Windows live interactive runtime verification, and clean-VM package acceptance) remain unresolved.
+While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-theme styling, brand shield assets, Linux Browser Companion integration, and hosted CI builds for both Ubuntu Linux and Windows MSVC have succeeded (Run #102: `https://github.com/ronartz/SHINPO/actions/runs/43452533604`), mandatory release gates (security advisory resolution / formal signoff, Windows live interactive runtime verification, and clean-VM package acceptance) remain unresolved.
 
 > [!IMPORTANT]
 > **Historical Precedence Rule:** Historical release documents—such as the November 7, 2026 report (`docs/qa/SHINPO_FINAL_RELEASE_AUDIT_20261107.md`) which recorded a local "GO" on commit `21244694` on branch `fix/release-blockers-20261106`—represent point-in-time historical records. **An older GO report does NOT authorize the release of the current candidate.** The current candidate must be evaluated solely against empirical execution on its own exact commit.
@@ -25,7 +25,7 @@ While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-the
 | Platform | Artifact | Execution Environment | Status | Blockers / Caveats |
 | :--- | :--- | :--- | :---: | :--- |
 | **Linux (Fedora / Ubuntu)** | RPM, DEB, AppImage | Fedora 44 (local), Ubuntu 24.04 (CI / container) | **NO-GO** | Transitive Linux GLib `RUSTSEC-2024-0429` advisory requires owner risk signoff; clean-VM graphical desktop first-run and uninstall not tested. |
-| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #101) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
+| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #102) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
 | **macOS** | Not targeted for beta | N/A | **UNSUPPORTED** | Target platform is Linux and Windows only for initial beta. |
 
 ---
@@ -55,14 +55,14 @@ To transition from **NO-GO** to **GO (Private Beta)**, the following gates must 
 
 ## 4. Hosted CI vs. Local Qualification
 
-### CI Job Results vs. Step Breakdown (Run #101 Reference: 43446628914)
+### CI Job Results vs. Step Breakdown (Run #102 Reference: 43452533604)
 
 GitHub Actions CI (`.github/workflows/ci.yml`) is structured into three discrete jobs:
 
 | CI Job | Environment | Target & Responsibility | Current Status & Conclusion |
 | :--- | :--- | :--- | :---: |
-| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43446628914: Completed successfully)* |
-| **`desktop-windows`** | Windows 2025 | 18 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43446628914: Completed successfully)* |
+| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43452533604: Completed successfully)* |
+| **`desktop-windows`** | Windows 2025 | 18 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43452533604: Completed successfully)* |
 | **`security`** | Ubuntu 24.04 | Discrete scanner suite with independent exit code capture, machine-readable JSON artifact collection, and aggregation: Gitleaks history scan, Semgrep SAST scan, verified OSV-Scanner CLI v2.7.1, Cargo Audit across 3 lockfiles, Cargo Deny (bans, licenses, sources) across 3 manifests. | **FAIL / NO-GO**<br>*(Strict security gate: fails on transitive GLib `RUSTSEC-2024-0429` and remaining dev tooling advisories)* |
 
 ### Discrete Security Scanners Breakdown
