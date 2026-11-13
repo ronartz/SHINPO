@@ -138,3 +138,17 @@ When distributing `SHINPO v0.1.0-beta.1` to the 5 initial testers, provide the f
 - [ ] **8. AI Settings Inspection:** Open Settings → EONPAI. Verify the native AI provider dropdown opens cleanly with accessible keyboard navigation across themes.
 - [ ] **9. Theme Switching:** Switch between Aurora Dark, Aurora Light, Classic Dark, and Classic Light. Verify scrollbars remain readable with appropriate contrast on light backgrounds.
 - [ ] **10. Browser Companion (Optional):** Install the unpacked extension in Chrome/Firefox. Run `register-browser-companion.sh` and verify pairing code handshake.
+
+## 2026-11-12 installation evidence superseding earlier package-only status
+
+Fresh local artifacts were built from dirty worktree HEAD `63e0e17e75486218ae050cb5a7f119908ffd12c1`; see the latest section in `HANDOFF.md` for exact sizes and SHA-256 values. A disposable Fedora 44 container installed and verified the RPM payload; a disposable Ubuntu 24.04 container installed and verified the DEB. Neither container had an interactive desktop, so installed desktop-entry launch, user workflow and uninstall remain NOT TESTED. The executable AppImage was used for native Fedora Tauri/WebKitGTK smoke, while the complete core workflow ran against the rebuilt native Tauri binary with isolated profile data.
+
+A live native Browser Companion pairing/intervention was not performed. The registration script's isolated registration/unregistration regression passes, which is not browser pairing evidence. Windows runtime and signed updater upgrade remain NOT TESTED. The GLib RustSec finding remains unresolved and unaccepted; **private-beta status remains NO-GO**.
+
+## 2026-11-13 Browser Companion Acceptance & Push Update
+
+- **Browser Companion Verified:** Resolved native messaging discovery under custom `--user-data-dir` profiles by targeting `<USER_DATA_DIR>/NativeMessagingHosts/`. Full 12-point acceptance test verified with Playwright (`verify_browser_companion_integration.mjs` and `qa-browser-companion.mjs`). Pairing code handshake, live policy push, approved site access, restricted site modal intervention, session end release, and restart reconnection all PASSED with screenshot evidence saved to `docs/qa/screenshots/browser-companion-manual/`.
+- **Brand Assets:** Final shield logo successfully generated and applied across Tauri icons, favicons, React components, and extension assets (`eccb3ef`).
+- **Remote Push:** Branch `fix/systematic-layout-and-composition` pushed to `origin/fix/systematic-layout-and-composition` at commit `ad37dd4`.
+- **Remaining Blockers for GA/Release:** Linux GLib `RUSTSEC-2024-0429` advisory resolution/formal risk signoff, native Windows runtime verification, and signed automated updater delivery. Private beta status remains gated on these final non-Linux items.
+
