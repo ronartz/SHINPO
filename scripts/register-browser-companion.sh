@@ -26,6 +26,7 @@ FIREFOX_TARGETS=("${HOME}/.mozilla/native-messaging-hosts")
 SELECTED_TARGETS=()
 REGISTER_FIREFOX=false
 REGISTER_ALL=false
+UNINSTALL=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -49,6 +50,10 @@ while [[ $# -gt 0 ]]; do
             SELECTED_TARGETS+=("$2")
             shift 2
             ;;
+        --user-data-dir)
+            SELECTED_TARGETS+=("$2/NativeMessagingHosts")
+            shift 2
+            ;;
         --firefox)
             REGISTER_FIREFOX=true
             shift
@@ -58,6 +63,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --uninstall)
+            UNINSTALL=true
             shift
             ;;
         *)
@@ -76,7 +82,7 @@ is_shinpo_manifest() {
     [[ -f "$1" ]] && python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1], encoding="utf-8")).get("name") == "com.shinpo.browser_companion" else 1)' "$1" 2>/dev/null
 }
 
-if [[ "${1:-}" == "--uninstall" ]]; then
+if [[ "${UNINSTALL}" == true ]]; then
     for DIR in "${TARGET_DIRS[@]}" "${FIREFOX_TARGETS[@]}"; do
         DEST="${DIR}/${HOST_NAME}.json"
         if is_shinpo_manifest "${DEST}"; then

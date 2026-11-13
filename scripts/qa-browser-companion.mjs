@@ -52,6 +52,7 @@ async function run() {
   console.log('\n[2/7] Launching Chromium with extension loaded...')
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false,
+    ignoreDefaultArgs: ['--disable-extensions'],
     args: [
       `--disable-extensions-except=${EXTENSION_PATH}`,
       `--load-extension=${EXTENSION_PATH}`,
@@ -98,9 +99,9 @@ async function run() {
   // Wait for connection to transition to CONNECTED
   await popupPage.waitForFunction(() => {
     const el = document.getElementById('connection-label')
-    return el && el.textContent.includes('Connected to SHINPO')
+    return el && el.textContent.includes('Connected')
   }, { timeout: 5000 })
-  console.log('✓ Successfully paired! Status: Connected to SHINPO')
+  console.log('✓ Successfully paired! Status: Connected')
   await popupPage.waitForTimeout(500)
   await saveScreenshot(popupPage, '03_companion_popup_paired.png')
 

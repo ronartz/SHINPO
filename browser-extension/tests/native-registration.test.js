@@ -22,7 +22,7 @@ test('native host registrations use the extension IDs derived from packaged mani
   assert.match(linuxRegistration, new RegExp(`\\$\\{FIREFOX_ID\\}`))
   assert.match(windowsRegistration, new RegExp(`allowed_extensions\\s*=\\s*@\\("${firefoxId.replaceAll('.', '\\.')}"\\)`))
   assert.doesNotMatch(linuxRegistration + windowsRegistration, /chrome-extension:\/\/\*/)
-  for (const selector of ['--chrome', '--chromium', '--edge', '--brave', '--firefox', '--all']) {
+  for (const selector of ['--chrome', '--chromium', '--edge', '--brave', '--firefox', '--all', '--user-data-dir', '--target-dir', '--uninstall']) {
     assert.ok(linuxRegistration.includes(selector), `missing Linux selector ${selector}`)
   }
   assert.match(linuxRegistration, /Choose a browser explicitly/)
