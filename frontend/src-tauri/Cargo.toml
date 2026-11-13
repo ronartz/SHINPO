@@ -4,6 +4,8 @@ version = "0.1.0-beta.1"
 description = "SHINPO Personal Execution Operating System"
 authors = ["SHINPO Team"]
 edition = "2021"
+publish = false
+license = "UNLICENSED"
 
 [lib]
 name = "shinpo_desktop_lib"

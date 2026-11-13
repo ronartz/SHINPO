@@ -205,29 +205,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Scan repository history for secrets
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
-      - name: Semgrep SAST scan
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          config: >-
-            p/default
-            p/secrets
-            p/security-audit
-        env:
-          SEMGREP_RULES: p/default
-      - name: Install OSV-Scanner CLI
-        run: |
-          curl -sSL "https://github.com/google/osv-scanner/releases/download/v1.9.2/osv-scanner_linux_amd64" -o /tmp/osv-scanner
-          echo "d6af4b67fa5de658598bd2d445efb99e90d1734b3146962418719c4350ecb74b  /tmp/osv-scanner" | sha256sum -c -
-          chmod +x /tmp/osv-scanner
-          sudo mv /tmp/osv-scanner /usr/local/bin/osv-scanner
-          osv-scanner --version
-      - name: OSV-Scanner dependency scan
-        run: osv-scanner -r .
+      - name: Initialize security reports directory
+        run: mkdir -p security-reports
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
         with:
           toolchain: 1.99.0
@@ -235,12 +214,163 @@ jobs:
         run: |
           cargo install cargo-audit --version 0.22.2 --locked
           cargo install cargo-deny --version 0.16.4 --locked
+      - name: Install OSV-Scanner CLI v2.7.1
+        run: |
+          OSV_VERSION="v2.7.1"
+          OSV_BINARY="osv-scanner_linux_amd64"
+          EXPECTED_SHA256="fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/${OSV_BINARY}" -o /tmp/${OSV_BINARY}
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_SHA256SUMS" -o /tmp/osv-scanner_SHA256SUMS
+          grep -E "^${EXPECTED_SHA256}\s+${OSV_BINARY}$" /tmp/osv-scanner_SHA256SUMS || {
+            echo "Checksum verification failed: hash not found in upstream osv-scanner_SHA256SUMS asset"
+            exit 1
+          }
+          echo "${EXPECTED_SHA256}  /tmp/${OSV_BINARY}" | sha256sum -c -
+          chmod +x /tmp/${OSV_BINARY}
+          sudo mv /tmp/${OSV_BINARY} /usr/local/bin/osv-scanner
+          osv-scanner --version
+      - name: Scan repository history for secrets
+        id: gitleaks
+        if: always()
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Record Gitleaks outcome
+        if: always()
+        run: |
+          if [ "${{ steps.gitleaks.outcome }}" = "success" ]; then
+            echo 0 > security-reports/status-gitleaks.txt
+          else
+            echo 1 > security-reports/status-gitleaks.txt
+          fi
+      - name: Semgrep SAST scan
+        id: semgrep
+        if: always()
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: >-
+            p/default
+            p/secrets
+            p/security-audit
+          generateSarif: "1"
+        env:
+          SEMGREP_RULES: p/default
+      - name: Record Semgrep outcome
+        if: always()
+        run: |
+          if [ -f semgrep.sarif ]; then
+            cp semgrep.sarif security-reports/semgrep.sarif
+          fi
+          if [ "${{ steps.semgrep.outcome }}" = "success" ]; then
+            echo 0 > security-reports/status-semgrep.txt
+          else
+            echo 1 > security-reports/status-semgrep.txt
+          fi
+      - name: OSV-Scanner dependency scan
+        if: always()
+        run: |
+          set +e
+          osv-scanner scan source -r . --format table
+          osv-scanner scan source -r . --format json --output-file security-reports/osv-scanner.json
+          STATUS_OSV=$?
+          set -e
+          echo "$STATUS_OSV" > security-reports/status-osv-scanner.txt
       - name: Audit Rust dependency lockfiles
+        if: always()
         run: |
+          set +e
+          echo "=== Scanning crates/shinpo-shield/Cargo.lock ==="
           cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock
+          cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock --json > security-reports/cargo-audit-shield.json
+          STATUS_AUDIT_SHIELD=$?
+          echo "$STATUS_AUDIT_SHIELD" > security-reports/status-cargo-audit-shield.txt
+
+          echo "=== Scanning crates/shinpo-browser-host/Cargo.lock ==="
           cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock
+          cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock --json > security-reports/cargo-audit-browser-host.json
+          STATUS_AUDIT_HOST=$?
+          echo "$STATUS_AUDIT_HOST" > security-reports/status-cargo-audit-browser-host.txt
+
+          echo "=== Scanning frontend/src-tauri/Cargo.lock ==="
           cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock
+          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
+          STATUS_AUDIT_TAURI=$?
+          echo "$STATUS_AUDIT_TAURI" > security-reports/status-cargo-audit-frontend-tauri.txt
+          set -e
       - name: Cargo Deny checks
+        if: always()
         run: |
-          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check bans sources
-          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check bans sources
+          set +e
+          echo "=== Cargo Deny: crates/shinpo-shield ==="
+          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-shield.json
+          STATUS_DENY_SHIELD=$?
+          echo "$STATUS_DENY_SHIELD" > security-reports/status-cargo-deny-shield.txt
+
+          echo "=== Cargo Deny: crates/shinpo-browser-host ==="
+          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-browser-host.json
+          STATUS_DENY_HOST=$?
+          echo "$STATUS_DENY_HOST" > security-reports/status-cargo-deny-browser-host.txt
+
+          echo "=== Cargo Deny: frontend/src-tauri ==="
+          cargo deny --manifest-path frontend/src-tauri/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path frontend/src-tauri/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-frontend-tauri.json
+          STATUS_DENY_TAURI=$?
+          echo "$STATUS_DENY_TAURI" > security-reports/status-cargo-deny-frontend-tauri.txt
+          set -e
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: security-reports
+          path: security-reports/
+      - name: Aggregate security scan results
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "           SECURITY SCAN RESULTS SUMMARY          "
+          echo "=================================================="
+          REQUIRED_CHECKS=(
+            "gitleaks"
+            "semgrep"
+            "osv-scanner"
+            "cargo-audit-shield"
+            "cargo-audit-browser-host"
+            "cargo-audit-frontend-tauri"
+            "cargo-deny-shield"
+            "cargo-deny-browser-host"
+            "cargo-deny-frontend-tauri"
+          )
+
+          FAILED_CHECKS=()
+          PASSED_CHECKS=()
+
+          for check in "${REQUIRED_CHECKS[@]}"; do
+            status_file="security-reports/status-${check}.txt"
+            if [ ! -f "$status_file" ]; then
+              echo "❌ $check: MISSING (step did not execute or record status)"
+              FAILED_CHECKS+=("$check")
+            else
+              status_code=$(cat "$status_file" | tr -d '[:space:]')
+              if [ "$status_code" -eq 0 ]; then
+                echo "✅ $check: PASSED (exit code 0)"
+                PASSED_CHECKS+=("$check")
+              else
+                echo "❌ $check: FAILED (exit code $status_code)"
+                FAILED_CHECKS+=("$check")
+              fi
+            fi
+          done
+
+          echo "=================================================="
+          echo "Passed checks: ${#PASSED_CHECKS[@]}/${#REQUIRED_CHECKS[@]}"
+          echo "Failed checks: ${#FAILED_CHECKS[@]}/${#REQUIRED_CHECKS[@]}"
+          echo "=================================================="
+
+          if [ ${#FAILED_CHECKS[@]} -ne 0 ]; then
+            echo "Security verification failed for: ${FAILED_CHECKS[*]}"
+            exit 1
+          fi
+          echo "All mandatory security policies satisfied."
