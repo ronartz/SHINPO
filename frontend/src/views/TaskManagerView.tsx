@@ -862,8 +862,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                             <span className={`guardian-app-badge ${app.isRunning ? 'badge-running' : 'badge-idle'}`}>
                               {app.isRunning ? '● Running' : 'Idle'}
                             </span>
-                            <span className={`guardian-app-badge ${app.enforcementCapability === 'TERMINATE' ? 'badge-idle' : 'badge-unsupported'}`} title={app.unsupportedReason || undefined}>
-                              {app.enforcementCapability === 'TERMINATE' ? 'Eligible — warning only' : app.unsupportedReason?.includes('Protected') ? 'Protected system app' : 'Unsupported'}
+                            <span className={`guardian-app-badge ${app.enforcementCapability === 'TERMINATE' || app.enforcementCapability === 'MONITOR_ONLY' ? 'badge-idle' : 'badge-unsupported'}`} title={app.unsupportedReason || undefined}>
+                              {app.enforcementCapability === 'TERMINATE' ? 'Eligible — warning only' : app.enforcementCapability === 'MONITOR_ONLY' ? 'Observation only' : app.unsupportedReason?.includes('Protected') ? 'Protected system app' : 'Unsupported'}
                             </span>
                           </div>
                         </div>

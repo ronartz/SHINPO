@@ -357,12 +357,13 @@ pub fn determine_enforcement_capability(
     is_protected: bool,
     platform: &str,
 ) -> (String, Option<String>) {
+    let clean_name = exec_name.map(str::trim).filter(|s| !s.is_empty());
     if is_protected {
         (
             "UNSUPPORTED".to_string(),
             Some("Protected system application".to_string()),
         )
-    } else if exec_name.is_none() {
+    } else if clean_name.is_none() {
         (
             "UNSUPPORTED".to_string(),
             Some("Executable target unresolved".to_string()),
@@ -542,6 +543,10 @@ URL=https://example.com
     fn test_determine_enforcement_capability_cross_platform() {
         // 1. Unresolved executable is UNSUPPORTED on all platforms
         let (cap, reason) = determine_enforcement_capability(None, false, "linux");
+        assert_eq!(cap, "UNSUPPORTED");
+        assert_eq!(reason.as_deref(), Some("Executable target unresolved"));
+
+        let (cap, reason) = determine_enforcement_capability(Some("   "), false, "linux");
         assert_eq!(cap, "UNSUPPORTED");
         assert_eq!(reason.as_deref(), Some("Executable target unresolved"));
 
