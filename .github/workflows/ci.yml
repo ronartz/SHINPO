@@ -219,12 +219,18 @@ jobs:
             p/security-audit
         env:
           SEMGREP_RULES: p/default
+      - name: Install OSV-Scanner CLI
+        run: |
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/v1.9.2/osv-scanner_linux_amd64" -o /tmp/osv-scanner
+          echo "d6af4b67fa5de658598bd2d445efb99e90d1734b3146962418719c4350ecb74b  /tmp/osv-scanner" | sha256sum -c -
+          chmod +x /tmp/osv-scanner
+          sudo mv /tmp/osv-scanner /usr/local/bin/osv-scanner
+          osv-scanner --version
       - name: OSV-Scanner dependency scan
-        uses: google/osv-scanner-action@764c91816374ff2d8fc2095dab36eecd42d61638 # v1.9.2
+        run: osv-scanner -r .
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
         with:
-          scan-args: |-
-            -r
-            .
+          toolchain: 1.99.0
       - name: Install cargo-audit and cargo-deny
         run: |
           cargo install cargo-audit --version 0.22.2 --locked
@@ -236,5 +242,5 @@ jobs:
           cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock
       - name: Cargo Deny checks
         run: |
-          cargo deny check --manifest-path crates/shinpo-shield/Cargo.toml
-          cargo deny check --manifest-path crates/shinpo-browser-host/Cargo.toml
+          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check bans sources
+          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check bans sources

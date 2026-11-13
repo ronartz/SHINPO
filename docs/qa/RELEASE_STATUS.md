@@ -53,14 +53,30 @@ To transition from **NO-GO** to **GO (Private Beta)**, the following gates must 
 
 ## 4. Hosted CI vs. Local Qualification
 
+### CI Job Results vs. Step Breakdown
+
+GitHub Actions CI (`.github/workflows/ci.yml`) is structured into three discrete jobs:
+
+| CI Job | Environment | Target & Responsibility | Current Status & Conclusion |
+| :--- | :--- | :--- | :---: |
+| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** |
+| **`desktop-windows`** | Windows 2025 | 18 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** |
+| **`security`** | Ubuntu 24.04 | 7 discrete steps: Full git history checkout, Gitleaks secret scan, Semgrep SAST scan, standalone OSV-Scanner CLI installation (`v1.9.2` with SHA256 checksum) and recursive dependency scan, toolchain setup & cargo-audit/cargo-deny installation, `cargo audit --deny unsound` across all three crate lockfiles, `cargo deny ... check bans sources`. | **ADVISORY FAILURE / NO-GO**<br>*(Genuine failure: `cargo audit --deny unsound` halts on transitive GLib `RUSTSEC-2024-0429`)* |
+
+### Verification Area Details
+
 | Verification Area | Hosted CI (GitHub Actions) | Local Host Environment | Notes |
 | :--- | :---: | :---: | :--- |
-| **Frontend TypeScript Build** | Verified (Ubuntu & Windows MSVC) | Verified (`tsc -b && vite build`) | Fixed Playwright TS2339 narrowing (`core-ui-repairs.spec.ts`). |
-| **Frontend Production Audit** | Verified (`npm audit --omit=dev`) | Verified (0 vulnerabilities) | Production bundle is 100% clean. |
-| **Frontend Dev Dependency Audit** | Documented in CI logs | Documented in `qa-security.mjs` | 39 advisories in dev/test tooling (`@wdio`, `puppeteer`, `eslint`). |
-| **Rust Tauri Core Tests** | Verified (Ubuntu & Windows MSVC) | Verified (85 passed, 0 failed) | Full encrypted storage & vault integration tests pass. |
-| **Rust Shield Daemon Tests** | Verified (Ubuntu) | Verified (51 lib, 40 main pass) | Platform interceptor and app discovery tests pass. |
-| **SQLCipher Cryptographic Integrity**| Not run in CI | Verified (HMAC tamper rejection pass)| Tampered ciphertext is rejected without plaintext fallback. |
+| **Frontend TypeScript Build** | Verified (Ubuntu & Windows MSVC jobs) | Verified (`tsc -b && vite build`) | Fixed Playwright TS2339 narrowing (`core-ui-repairs.spec.ts`). |
+| **Frontend Production Audit** | Verified (`npm audit --omit=dev --audit-level=high`) | Verified (0 vulnerabilities) | Production bundle is 100% clean across all jobs. |
+| **Frontend Dev Dependency Audit** | Documented in CI job logs | Documented in `qa-security.mjs` | 39 advisories in dev/test tooling (`@wdio`, `puppeteer`, `eslint`). |
+| **Rust Tauri Core Tests** | Verified (Ubuntu & Windows MSVC jobs) | Verified (85 passed, 0 failed) | Full encrypted storage & vault integration tests pass. |
+| **Rust Shield Daemon Tests** | Verified (Ubuntu & Windows MSVC jobs) | Verified (51 lib, 40 main pass) | Platform interceptor and app discovery tests pass. |
+| **Rust Browser Host Tests** | Verified (Ubuntu & Windows MSVC jobs) | Verified (9 passed, 0 failed) | Native messaging host framing & pairing tests pass. |
+| **Secret Scanning (Gitleaks)** | Verified in `security` job | Verified (`gitleaks dir --config .gitleaks.toml`) | 0 leaks found across repository. |
+| **Semgrep SAST** | Verified in `security` job | Not run locally | Scans rulesets `p/default`, `p/secrets`, `p/security-audit`. |
+| **OSV-Scanner** | Verified in `security` job (`osv-scanner -r .`) | Verified (`/tmp/osv-scanner -r .`) | Corrected from broken action metadata to verified CLI v1.9.2. |
+| **SQLCipher Cryptographic Integrity**| Verified (`--smoke-test` on Linux & Windows) | Verified (HMAC tamper rejection pass)| Tampered ciphertext is rejected without plaintext fallback. |
 | **Native WebKitGTK User Journey** | Not run in CI (headless) | Verified (`complete-user-journeys`) | Local account, Goals, Tasks, Focus, Rewards, EONPAI pass. |
 | **Browser Companion Integration** | Not run in CI | Verified (12/12 acceptance points) | Pairing code handshake, policy push, modal intervention, release pass. |
 
