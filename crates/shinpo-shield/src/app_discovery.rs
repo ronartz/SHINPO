@@ -352,6 +352,33 @@ pub fn get_running_process_names() -> HashSet<String> {
     running
 }
 
+pub fn determine_enforcement_capability(
+    exec_name: Option<&str>,
+    is_protected: bool,
+    platform: &str,
+) -> (String, Option<String>) {
+    if is_protected {
+        (
+            "UNSUPPORTED".to_string(),
+            Some("Protected system application".to_string()),
+        )
+    } else if exec_name.is_none() {
+        (
+            "UNSUPPORTED".to_string(),
+            Some("Executable target unresolved".to_string()),
+        )
+    } else if platform == "linux" {
+        ("TERMINATE".to_string(), None)
+    } else {
+        (
+            "MONITOR_ONLY".to_string(),
+            Some(format!(
+                "Verified process identity and safe graceful close are unavailable on {platform}; monitoring only"
+            )),
+        )
+    }
+}
+
 pub fn discover_installed_apps() -> Vec<DiscoveredApp> {
     #[cfg(target_os = "linux")]
     let raw_entries = scan_linux_desktop_entries();
@@ -394,19 +421,8 @@ pub fn discover_installed_apps() -> Vec<DiscoveredApp> {
             .as_ref()
             .is_some_and(|ename| protected_process_name(ename));
 
-        let (enforcement_capability, unsupported_reason) = if is_protected {
-            (
-                "UNSUPPORTED".to_string(),
-                Some("Protected system application".to_string()),
-            )
-        } else if exec_name.is_none() {
-            (
-                "UNSUPPORTED".to_string(),
-                Some("Executable target unresolved".to_string()),
-            )
-        } else {
-            ("TERMINATE".to_string(), None)
-        };
+        let (enforcement_capability, unsupported_reason) =
+            determine_enforcement_capability(exec_name.as_deref(), is_protected, platform_name);
 
         apps.push(DiscoveredApp {
             id: entry.id,
@@ -507,5 +523,56 @@ URL=https://example.com
             .as_ref()
             .is_some_and(|ename| protected_process_name(ename));
         assert!(is_protected);
+
+        let (cap_linux, reason_linux) =
+            determine_enforcement_capability(exec_name.as_deref(), is_protected, "linux");
+        assert_eq!(cap_linux, "UNSUPPORTED");
+        assert_eq!(
+            reason_linux.as_deref(),
+            Some("Protected system application")
+        );
+
+        let (cap_win, reason_win) =
+            determine_enforcement_capability(exec_name.as_deref(), is_protected, "windows");
+        assert_eq!(cap_win, "UNSUPPORTED");
+        assert_eq!(reason_win.as_deref(), Some("Protected system application"));
+    }
+
+    #[test]
+    fn test_determine_enforcement_capability_cross_platform() {
+        // 1. Unresolved executable is UNSUPPORTED on all platforms
+        let (cap, reason) = determine_enforcement_capability(None, false, "linux");
+        assert_eq!(cap, "UNSUPPORTED");
+        assert_eq!(reason.as_deref(), Some("Executable target unresolved"));
+
+        let (cap, reason) = determine_enforcement_capability(None, false, "windows");
+        assert_eq!(cap, "UNSUPPORTED");
+        assert_eq!(reason.as_deref(), Some("Executable target unresolved"));
+
+        // 2. Protected process is UNSUPPORTED on all platforms
+        let (cap, reason) = determine_enforcement_capability(Some("init"), true, "linux");
+        assert_eq!(cap, "UNSUPPORTED");
+        assert_eq!(reason.as_deref(), Some("Protected system application"));
+
+        let (cap, reason) = determine_enforcement_capability(Some("csrss.exe"), true, "windows");
+        assert_eq!(cap, "UNSUPPORTED");
+        assert_eq!(reason.as_deref(), Some("Protected system application"));
+
+        // 3. Valid non-protected executable on Linux has verified close -> TERMINATE
+        let (cap, reason) = determine_enforcement_capability(Some("discord"), false, "linux");
+        assert_eq!(cap, "TERMINATE");
+        assert!(reason.is_none());
+
+        // 4. Valid non-protected executable on Windows lacks verified close -> MONITOR_ONLY
+        let (cap, reason) = determine_enforcement_capability(Some("discord.exe"), false, "windows");
+        assert_eq!(cap, "MONITOR_ONLY");
+        assert!(reason.is_some());
+        assert!(reason.as_ref().unwrap().contains("windows"));
+
+        // 5. Valid non-protected executable on macOS lacks verified close -> MONITOR_ONLY
+        let (cap, reason) = determine_enforcement_capability(Some("discord"), false, "macos");
+        assert_eq!(cap, "MONITOR_ONLY");
+        assert!(reason.is_some());
+        assert!(reason.as_ref().unwrap().contains("macos"));
     }
 }

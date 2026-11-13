@@ -57,17 +57,29 @@ mod tests {
 
         let win = WindowsInterceptor::new();
         assert_eq!(win.os_name(), "Windows");
-        assert!(win.network_filtering_supported());
-        assert!(win.network_filtering_status().contains("WFP"));
+        assert!(!win.network_filtering_supported());
+        assert!(
+            win.network_filtering_status().contains("not implemented")
+                || win.network_filtering_status().contains("unavailable")
+        );
+        assert!(!win
+            .network_filtering_status()
+            .contains("516629B7-SHINPO-WFP-LAYER"));
 
         let mac = MacOsInterceptor::new();
         assert_eq!(mac.os_name(), "macOS");
-        assert!(mac.network_filtering_supported());
-        assert!(mac.network_filtering_status().contains("EndpointSecurity"));
+        assert!(!mac.network_filtering_supported());
+        assert!(
+            mac.network_filtering_status().contains("not implemented")
+                || mac.network_filtering_status().contains("unavailable")
+        );
 
         let lin = LinuxInterceptor::new();
         assert_eq!(lin.os_name(), "Linux");
-        assert!(lin.network_filtering_supported());
-        assert!(lin.network_filtering_status().contains("eBPF"));
+        assert!(!lin.network_filtering_supported());
+        assert!(
+            lin.network_filtering_status().contains("not implemented")
+                || lin.network_filtering_status().contains("unavailable")
+        );
     }
 }

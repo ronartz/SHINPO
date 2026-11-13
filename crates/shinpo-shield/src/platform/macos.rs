@@ -57,10 +57,10 @@ impl PlatformInterceptor for MacOsInterceptor {
     }
 
     fn network_filtering_supported(&self) -> bool {
-        true
+        false
     }
 
     fn network_filtering_status(&self) -> &'static str {
-        "Apple EndpointSecurity (ES) & NetworkExtension ContentFilter ready"
+        "NetworkExtension ContentFilter is not implemented; active network interception is unavailable"
     }
 }

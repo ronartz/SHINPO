@@ -1158,7 +1158,17 @@ mod tests {
     fn test_enforcer_interceptor_binding() {
         let enforcer = ShieldEnforcer::new();
         assert!(!enforcer.interceptor().os_name().is_empty());
-        assert!(enforcer.interceptor().network_filtering_supported());
+        assert!(!enforcer.interceptor().network_filtering_supported());
+        assert!(
+            enforcer
+                .interceptor()
+                .network_filtering_status()
+                .contains("not implemented")
+                || enforcer
+                    .interceptor()
+                    .network_filtering_status()
+                    .contains("unavailable")
+        );
     }
 
     #[test]

@@ -51,10 +51,10 @@ impl PlatformInterceptor for LinuxInterceptor {
     }
 
     fn network_filtering_supported(&self) -> bool {
-        true
+        false
     }
 
     fn network_filtering_status(&self) -> &'static str {
-        "eBPF / cgroup2 / iptables filter available (requires CAP_BPF / root)"
+        "Kernel network filtering is not implemented; active network interception is unavailable"
     }
 }

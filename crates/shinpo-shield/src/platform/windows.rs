@@ -74,10 +74,10 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($template);
     }
 
     fn network_filtering_supported(&self) -> bool {
-        true
+        false
     }
 
     fn network_filtering_status(&self) -> &'static str {
-        "WFP (Windows Filtering Platform) Sublayer GUID: {516629B7-SHINPO-WFP-LAYER} defined"
+        "Windows Filtering Platform (WFP) driver is not implemented; active network interception is unavailable"
     }
 }
