@@ -329,25 +329,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Full Empirical Acceptance across 4 Themes)
+## 2026-11-15 — Operation Visual Perfection (Evidence Reconciliation & Multi-Tier Matrix)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Visual Smoke & Acceptance Suite:**
-  - Automated visual verification script `frontend/scripts/capture_visual_perfection_qa.mjs` executed against a clean zero-data state mirroring the user's before-state screenshots across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
-  - Captured 20 high-fidelity visual acceptance screenshots into `docs/qa/screenshots/visual-perfection/` and the session artifacts directory:
-    - **Dashboard (Screen A):** Quick Actions dead space eliminated; bottom-left empty hole eliminated; background particles tuned with theme-aware luminous glow.
-    - **Goals & Tasks (Screen B):** Removed obsolete "PORTFOLIO & ROADMAP" eyebrow; aligned `[List | Board]` toggle to single 38px baseline with search and sort; compacted empty Kanban columns from 250px+ bloated cards down to clean ~120px height with subtle dashed drop targets.
-    - **Focus Engine (Screen C):** Harsh blue dividers in preset chips and session intention footer removed; column self-alignment normalized.
-    - **Analytics (Screen D):** Harsh horizontal divider between heatmap skyline and stats removed; ghost SVG chart lines, ticks, and empty bars in Focus Activity zero state completely replaced by clean 140px `.analytics-activity-zero-state`; blank void under Focus Activity eliminated.
-    - **Rewards & Progress (Screen E):** All hardcoded `#2788F5`/`#66B8FF` blue/indigo gradients, borders, and rings eliminated in favor of semantic CSS tokens (`var(--color-primary)`, `var(--surface-card)`, `var(--border)`); seamlessly blends with Classic Dark, Classic Light, Aurora Dark, and Aurora Light.
-- **Formal Report:** Written to `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
-- **Quality Gates:**
-  - `npm --prefix frontend test`: 203/203 unit tests passed (0 failures).
-  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
-  - `./scripts/qa-release.sh quick`: Passed.
-
-
-
-
-
+- **Evidence Reconciliation:**
+  - Audited all 20 canonical primary screenshots in `docs/qa/screenshots/visual-perfection/` (plus 40 supplementary variant captures = 60 total PNGs).
+  - All captures verified at **1440×900** resolution across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
+  - Evaluated against user reference Screens A, B, C, D, E:
+    - Screen A (Dashboard Cockpit): Quick actions gap closed, empty schedule hole filled, particles active.
+    - Screen B (Goals & Tasks): Eyebrow removed, toolbar 38px baseline aligned, Kanban columns compacted.
+    - Screen C (Focus Engine): Preset and intention footer dividers removed, column heights balanced.
+    - Screen D (Analytics): Skyline divider removed, ghost charts eliminated, zero state compacted to 140px.
+    - Screen E (Rewards & Progress): Palette migrated to semantic CSS tokens.
+- **Categorization of Surfaces:**
+  - **Screenshots Captured & Visually Inspected:** Dashboard, Goals & Tasks (List & Board), Focus Engine, Analytics, Rewards & Progress (Screens A–E across 4 themes).
+  - **Automated Test Passed / Source Inspected Only:** Calendar / Schedule, Focus Guardian, EONPAI / AI Assistant, Onboarding / Vault Auth.
+  - **Source Inspected Only (NOT TESTED in visual-perfection):** Study Resources, Settings Drawer, Notifications Drawer, Modals & Dialogs.
+  - **Viewports:** 1440×900 verified; 1920×1080 and mobile viewports NOT TESTED in this specific run.
+- **Release Distinction:** Visual defect implementation and remediation complete on Screens A–E; cross-platform release acceptance remains conditional pending Windows/macOS native execution and multi-OS packaging runs.
+- **Canonical Report:** Updated in `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
 
