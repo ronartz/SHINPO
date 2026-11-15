@@ -354,6 +354,8 @@ html[data-theme='dark'],
   --glass-bg: var(--glass-surface);
   --bar-height: 240px;
   --schedule-grid-height: 720px;
+  --particle-color: rgba(163, 230, 53, 0.65);
+  --particle-color-secondary: rgba(56, 189, 248, 0.45);
 }
 
 html[data-theme='light'],
@@ -515,6 +517,8 @@ html[data-theme='light'],
   --brand-coral-deep: var(--color-surface-2);
   --coral-deep: var(--color-surface-2);
   --primary-green-hover: var(--color-success);
+  --particle-color: rgba(79, 70, 229, 0.55);
+  --particle-color-secondary: rgba(77, 124, 15, 0.45);
 }
 
 /* Aurora selects its own palette without changing the shared component system. */
@@ -597,6 +601,8 @@ html[data-brand='aurora']:not([data-theme='light']),
   --glass-border-hover: 1px solid rgba(151, 87, 250, 0.38);
   --glass-blur: blur(18px) saturate(130%);
   --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+  --particle-color: rgba(155, 140, 255, 0.7);
+  --particle-color-secondary: rgba(27, 201, 222, 0.5);
 }
 
 /* Aurora Light */
@@ -635,6 +641,8 @@ html[data-brand='aurora'][data-theme='light'],
   --glass-border-hover: 1px solid rgba(124, 58, 237, 0.35);
   --glass-blur: blur(18px) saturate(130%);
   --shadow-glass: 0 8px 32px 0 rgba(124, 58, 237, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
+  --particle-color: rgba(15, 118, 110, 0.6);
+  --particle-color-secondary: rgba(124, 58, 237, 0.45);
 }
 
 /* Historical names remain aliases so existing screens inherit the same system. */

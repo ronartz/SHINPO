@@ -18,7 +18,7 @@ const DESKTOP_QUANTITY = 96
 const MOBILE_QUANTITY = 28
 const MAX_DPR = 1.5
 const TAU = Math.PI * 2
-const COLOR_TOKENS = ['--color-primary', '--chart-2', '--chart-3']
+const COLOR_TOKENS = ['--particle-color', '--particle-color-secondary', '--color-primary']
 
 function resolveThemePalette(shell: HTMLElement): string[] {
   const isLight =
@@ -31,11 +31,11 @@ function resolveThemePalette(shell: HTMLElement): string[] {
 
   const fallbacks: string[] = isAurora
     ? isLight
-      ? ['#6936DF', '#2563EB', '#0891B2']
-      : ['#9757FA', '#4D77F9', '#1BC9DE']
+      ? ['rgba(15, 118, 110, 0.6)', 'rgba(124, 58, 237, 0.45)', '#7C3AED']
+      : ['rgba(155, 140, 255, 0.7)', 'rgba(27, 201, 222, 0.5)', '#9757FA']
     : isLight
-      ? ['#4D7C0F', '#0284C7', '#15803D']
-      : ['#AFF33E', '#38BDF8', '#22C55E']
+      ? ['rgba(79, 70, 229, 0.55)', 'rgba(77, 124, 15, 0.45)', '#4D7C0F']
+      : ['rgba(163, 230, 53, 0.65)', 'rgba(56, 189, 248, 0.45)', '#AFF33E']
 
   try {
     const probe = document.createElement('span')
@@ -88,10 +88,10 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 1.8 + Math.random() * 1.2,
+        size: 2.2 + Math.random() * 2.0,
         angularSpeed: (Math.random() - 0.5) * 0.0016,
         driftSpeed: 0.18 + Math.random() * 0.08,
-        opacity: 0.12 + Math.random() * 0.10,
+        opacity: 0.55 + Math.random() * 0.20,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
         screenY: 0,
@@ -120,14 +120,17 @@ export function ShinpoParticles() {
       for (const particle of particles) project(particle, advance)
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
-        const renderRadius = Math.max(1.2, particle.size * particle.scale)
-        const renderAlpha = Math.min(0.26, Math.max(0.06, particle.opacity * (particle.scale * 0.75)))
+        const renderRadius = Math.max(1.8, particle.size * particle.scale)
+        const renderAlpha = Math.min(0.75, Math.max(0.40, particle.opacity * particle.scale))
         context.globalAlpha = renderAlpha
+        context.shadowBlur = 4 * particle.scale
+        context.shadowColor = palette[particle.colorIndex]
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()
         context.arc(particle.screenX, particle.screenY, renderRadius, 0, TAU)
         context.fill()
       }
+      context.shadowBlur = 0
       context.globalAlpha = 1
     }
 
