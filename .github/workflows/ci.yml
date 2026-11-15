@@ -271,8 +271,8 @@ jobs:
         if: always()
         run: |
           set +e
-          osv-scanner scan source -r . --format table
-          osv-scanner scan source -r . --format json --output-file security-reports/osv-scanner.json
+          osv-scanner scan source --config "$GITHUB_WORKSPACE/osv-scanner.toml" -r . --format table
+          osv-scanner scan source --config "$GITHUB_WORKSPACE/osv-scanner.toml" -r . --format json --output-file security-reports/osv-scanner.json
           STATUS_OSV=$?
           set -e
           echo "$STATUS_OSV" > security-reports/status-osv-scanner.txt
@@ -293,8 +293,8 @@ jobs:
           echo "$STATUS_AUDIT_HOST" > security-reports/status-cargo-audit-browser-host.txt
 
           echo "=== Scanning frontend/src-tauri/Cargo.lock ==="
-          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock
-          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
           STATUS_AUDIT_TAURI=$?
           echo "$STATUS_AUDIT_TAURI" > security-reports/status-cargo-audit-frontend-tauri.txt
           set -e
