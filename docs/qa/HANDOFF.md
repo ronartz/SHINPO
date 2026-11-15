@@ -207,3 +207,22 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - Launched live interactive Chrome for Testing window (`task-59392`) on display `:0` with profile `/tmp/shinpo-companion-interactive` for manual inspection.
 - **GitHub Push:** Successfully pushed branch `fix/systematic-layout-and-composition` to remote `origin` (`git@github.com:ronartz/SHINPO.git`). Pull request creation link: `https://github.com/ronartz/SHINPO/pull/new/fix/systematic-layout-and-composition`.
 
+## 2026-11-15 — Operation Visual Perfection (Batch 1A: Design Token Enforcement)
+
+- **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
+- **Goals & Tasks eyebrow defect (Defect 3 in Screenshot B):**
+  - Removed redundant `<span>Portfolio &amp; Roadmap</span>` from `frontend/src/views/GoalsView.tsx`.
+  - Removed obsolete `.goals-page-copy>span` styles in `frontend/src/styles/views/goals.css`.
+- **Focus view divider lines (Defects 2 & 3 in Screenshot C):**
+  - In `frontend/src/views/FocusView.tsx`: removed harsh inline `borderTop: 1px solid var(--border)` from `.intention-guidance-footer`.
+  - In `frontend/src/styles/views/focus-engine.css`: removed `border-top: 1px solid var(--border)` from `.pomodoro-config` and `.card-session-creator .pomodoro-config`.
+- **Analytics view skyline horizontal partition (Defect 1 in Screenshot D):**
+  - In `frontend/src/styles/views/analytics.css`: removed `border-top: 1px solid var(--border)` from `.focus-skyline-stats`, unifying stats with the skyline heatmap stage.
+- **Rewards & Progress hardcoded blue/navy palette (Defects 1 & 2 in Screenshot E):**
+  - In `frontend/src/styles/components/progression-rewards.css`: eliminated hardcoded `#2788F5`, `#66B8FF`, `#091629`, `#112541` in `.rewards-ledger-trust`, `.rewards-hero`, `.rewards-ring-progress`, `.rewards-level-emblem`, `.rewards-hero-progress`, `.rewards-streak-icon`, `.rewards-objective`, `.rewards-detail-panel`, and badge gradients.
+  - Replaced with semantic design tokens: `var(--color-primary)`, `var(--surface-card)`, `var(--border)`, `var(--text-primary)`, `var(--text-secondary)`, and `var(--brand-highlight)`. In Classic Dark, the Task Completion card and progress ring now natively reflect the charcoal and lime-green design system.
+- **Verification:**
+  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
+  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+
+

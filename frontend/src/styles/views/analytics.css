@@ -168,7 +168,7 @@ html[data-theme='light'] .analytics-view,
 .focus-skyline-stage canvas:focus-visible { outline: 2px solid var(--analytics-action); outline-offset: -3px; border-radius: 8px; }
 .focus-skyline-tooltip { position: absolute; top: 8px; right: 8px; display: grid; gap: 3px; max-width: min(260px, 70%); padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-card); color: var(--text-2); box-shadow: var(--shadow-sm); font-size: 12px; pointer-events: none; }
 .focus-skyline-tooltip strong { color: var(--text-1); }
-.focus-skyline-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 12px 0 4px; border-top: 1px solid var(--border); }
+.focus-skyline-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 14px 0 4px; border-top: none; }
 .focus-skyline-stats > div { display: grid; min-width: 0; gap: 3px; }
 .focus-skyline-stats span { color: var(--text-3); font-size: 12px; }
 .focus-skyline-stats strong { color: var(--text-1); font-size: 17px; font-variant-numeric: tabular-nums; }

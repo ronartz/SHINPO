@@ -446,7 +446,6 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
           ========================================================================= */}
       <header className="goals-page-heading">
         <div className="goals-page-copy">
-          <span>Portfolio &amp; Roadmap</span>
           <h1>Goals &amp; Tasks</h1>
           <p>Turn your goals into focused action. Plan, track, and complete the work that matters.</p>
         </div>

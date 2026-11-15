@@ -188,7 +188,6 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   margin: var(--space-2) 0 0;
   padding: var(--space-2) 0 0;
   border: 0;
-  border-top: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
 }
@@ -1023,8 +1022,8 @@ html[data-theme='light'] .btn-timer.warning:hover,
 
 .card-session-creator .pomodoro-config {
   margin: 0 !important;
-  padding: var(--space-3) 0 0 !important;
-  border-top: 1px solid var(--border) !important;
+  padding: var(--space-2) 0 0 !important;
+  border-top: none !important;
 }
 
 .card-session-creator .study-mode-section {

@@ -438,7 +438,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   </button>
                 ))}
               </div>
-              <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 2 }}>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
                   Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
                 </p>

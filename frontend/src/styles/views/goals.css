@@ -1555,19 +1555,6 @@ html[data-theme='light'] .decomp-footer-actions,
   min-width: 0;
 }
 
-.goals-page-copy>span {
-  color: #8fb6df;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .24em;
-  text-transform: uppercase;
-}
-
-html[data-theme='light'] .goals-page-copy>span,
-.theme-light .goals-page-copy>span {
-  color: var(--color-primary, #6d28d9) !important;
-}
-
 .goals-page-copy h1 {
   margin: 5px 0 3px;
   color: var(--text);
