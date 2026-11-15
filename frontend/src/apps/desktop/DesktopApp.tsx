@@ -204,6 +204,38 @@ function hasHttpStatus(error: unknown, status: number): boolean {
   return typeof error === 'object' && error !== null && 'status' in error && error.status === status
 }
 
+function RouteSkeletonFallback({ tab }: { tab: string }) {
+  return (
+    <div className="route-skeleton-container" role="status" aria-busy="true" aria-label={`Loading ${tab}`}>
+      <div className="route-skeleton-header">
+        <div className="skeleton-bar title-bar" />
+        <div className="skeleton-bar subtitle-bar" />
+      </div>
+      <div className="route-skeleton-grid">
+        <div className="route-skeleton-card">
+          <div className="skeleton-bar w-40" />
+          <div className="skeleton-bar w-80" />
+          <div className="skeleton-bar w-60" />
+        </div>
+        <div className="route-skeleton-card">
+          <div className="skeleton-bar w-50" />
+          <div className="skeleton-circle" />
+          <div className="skeleton-bar w-70" />
+        </div>
+        <div className="route-skeleton-card">
+          <div className="skeleton-bar w-30" />
+          <div className="skeleton-grid-mini">
+            <div className="skeleton-block" />
+            <div className="skeleton-block" />
+            <div className="skeleton-block" />
+            <div className="skeleton-block" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 import { UiComponentGallery } from '../../dev/UiComponentGallery'
 
 export function DesktopApp() {
@@ -1797,15 +1829,18 @@ export function DesktopApp() {
   }
 
   const handleToggleMissionComplete = async (missionId: number) => {
+    const previousMissions = missions
+    const targetMission = missions.find((m) => m.id === missionId)
+    // 3A Optimistic UI Update: immediately mark as completed!
+    setMissions((prev) =>
+      prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
+    )
     try {
-      const targetMission = missions.find((m) => m.id === missionId)
       await completeMission(missionId)
-      setMissions((prev) =>
-        prev.map((m) => (m.id === missionId ? { ...m, status: 'COMPLETED' } : m)),
-      )
-      await loadData()
-      const updatedProg = await getCurrentUserProgress().catch(() => null)
-      if (updatedProg) setUserProgress(updatedProg)
+      void loadData()
+      void getCurrentUserProgress().then((updatedProg) => {
+        if (updatedProg) setUserProgress(updatedProg)
+      }).catch(() => null)
       const isMinimal = typeof localStorage !== 'undefined' && localStorage.getItem('shinpo_celebration_effects') === 'minimal'
       pushToast({ title: 'Task completed', description: 'Task state saved successfully.', type: 'focus', timestamp: new Date().toISOString() })
       const celebrationTimestamp = ++celebrationSequence.current
@@ -1824,6 +1859,7 @@ export function DesktopApp() {
         advanceTutorialAfterAction('COMPLETE')
       }
     } catch (err) {
+      setMissions(previousMissions)
       console.error('Failed to complete task', err)
       pushToast({
         title: 'Task Completion Failed',
@@ -2012,7 +2048,7 @@ export function DesktopApp() {
   // Sentinel Warning & Grace Computations (Item 3 & 4)
   const activeGraceWarning = Array.isArray(activeWarnings) ? activeWarnings.find((w) => w.status === 'GRACE_ACTIVE') ?? null : null
 
-  // Timer ticker with background-tab throttling resilience
+  // Timer ticker with background-tab throttling resilience and sub-second RAF synchronization
   // Only ticks when an active countdown or warning is visible/live
   const [timerNow, setTimerNow] = useState(() => Date.now())
   useEffect(() => {
@@ -2022,16 +2058,35 @@ export function DesktopApp() {
 
     if (!isTickingNeeded) return
 
-    const update = () => setTimerNow(Date.now())
+    let animFrame: number | null = null
+    let lastSecond = Math.floor(Date.now() / 1000)
+
+    const update = () => {
+      const now = Date.now()
+      lastSecond = Math.floor(now / 1000)
+      setTimerNow(now)
+    }
+
+    const tick = () => {
+      const now = Date.now()
+      const currentSecond = Math.floor(now / 1000)
+      if (currentSecond !== lastSecond) {
+        lastSecond = currentSecond
+        setTimerNow(now)
+      }
+      animFrame = requestAnimationFrame(tick)
+    }
+
     update() // immediately sync on entering live display
-    const interval = setInterval(update, 1000)
+    animFrame = requestAnimationFrame(tick)
+
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') update()
     }
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('focus', update)
     return () => {
-      clearInterval(interval)
+      if (animFrame !== null) cancelAnimationFrame(animFrame)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', update)
     }
@@ -2990,10 +3045,19 @@ export function DesktopApp() {
       return
     }
 
+    const previousSessions = sessions
+    const targetSession = sessions.find((s) => s.id === sessionId)
+    if (targetSession) {
+      // 3A Optimistic UI update: instantly transition to active state and open Focus tab!
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status: 'ACTIVE', startedAt: new Date().toISOString() } : s)),
+      )
+      setActiveTab('Focus Engine')
+    }
+
     try {
       const started = await startFocusSession(sessionId, userId)
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? started : s)))
-      setActiveTab('Focus Engine')
       advanceTutorialAfterAction('FOCUS')
       pushToast({
         type: 'focus',
@@ -3002,6 +3066,7 @@ export function DesktopApp() {
         timestamp: new Date().toISOString(),
       })
     } catch (err: unknown) {
+      setSessions(previousSessions)
       console.error('Failed to start session from schedule:', err)
       pushToast({
         type: 'focus',
@@ -3446,7 +3511,7 @@ export function DesktopApp() {
 
           <div className={`app-content-stage${activeTab === 'AI Assistant' ? ' app-content-stage-ai' : ''}`}>
             <ErrorBoundary>
-              <Suspense fallback={<div role="status" aria-busy="true" className="bento-card" style={{ margin: 20, padding: 24 }}>Loading {activeTab}…</div>}>
+              <Suspense fallback={<RouteSkeletonFallback tab={activeTab} />}>
                 {renderTabContent()}
               </Suspense>
             </ErrorBoundary>

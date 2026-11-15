@@ -95,6 +95,85 @@
 }
 
 /* ==========================================================================
+   ROUTE SHIMMER SKELETON FALLBACK (Part 3B)
+   ========================================================================== */
+.route-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap, 16px);
+  padding: var(--page-padding-y, 24px) var(--page-padding-x, 24px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.route-skeleton-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.route-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--card-gap, 16px);
+  width: 100%;
+}
+
+.route-skeleton-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 16px);
+  padding: var(--card-padding, 20px 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 220px;
+}
+
+.skeleton-bar,
+.skeleton-circle,
+.skeleton-block {
+  background: linear-gradient(90deg, var(--surface-subtle) 25%, var(--surface-hover) 50%, var(--surface-subtle) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-bar.title-bar { height: 28px; width: 220px; }
+.skeleton-bar.subtitle-bar { height: 16px; width: 340px; }
+.skeleton-bar.w-30 { height: 16px; width: 30%; }
+.skeleton-bar.w-40 { height: 16px; width: 40%; }
+.skeleton-bar.w-50 { height: 16px; width: 50%; }
+.skeleton-bar.w-60 { height: 16px; width: 60%; }
+.skeleton-bar.w-70 { height: 16px; width: 70%; }
+.skeleton-bar.w-80 { height: 16px; width: 80%; }
+
+.skeleton-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin: auto;
+}
+
+.skeleton-grid-mini {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex: 1;
+}
+
+.skeleton-block {
+  height: 60px;
+  border-radius: 8px;
+}
+
+/* ==========================================================================
    COLLAPSIBLE SIDEBAR
    ========================================================================== */
 .icon-sidebar {
