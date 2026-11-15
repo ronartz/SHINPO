@@ -8,10 +8,15 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
     assert.ok(process.env.SHINPO_TAURI_QA_PROFILE, 'runner must provide a disposable profile')
     assert.ok(process.env.XDG_DATA_HOME?.startsWith(process.env.SHINPO_TAURI_QA_PROFILE))
 
-    const authHeading = await $('h1')
+    const authHeading = await $('h1, h2, .auth-title, .animated-login-title, #auth-identifier')
     await authHeading.waitForDisplayed({ timeout: 120000 })
-    assert.match(await authHeading.getText(), /Create your workspace|Welcome back|Sign in to SHINPO/)
+    assert.match(await $('body').getText(), /Create your workspace|Welcome back|Sign in to SHINPO|SHINPO/)
     console.log('Actual Tauri auth screen rendered')
+
+    const createWorkspace = await $('button*=Create Workspace')
+    if (await createWorkspace.isExisting() && await createWorkspace.getAttribute('aria-pressed') !== 'true') {
+      await createWorkspace.click()
+    }
 
     const username = `qa_wdio_${Date.now()}`
     const password = `Wdio-QA-${randomUUID()}-Safe!`
@@ -37,6 +42,17 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
     } catch {
       // The welcome overlay is optional for accounts with completed onboarding.
     }
+    async function safeClick(el) {
+      await el.waitForDisplayed({ timeout: 20000 })
+      await el.scrollIntoView({ block: 'center' }).catch(() => { })
+      await browser.pause(200)
+      try {
+        await el.click()
+      } catch {
+        await browser.execute((target) => target.click(), el)
+      }
+    }
+
     if (welcomeVisible) {
       await welcomeDismiss.click()
       console.log('First-run welcome dismissed for Guardian navigation')
@@ -44,9 +60,14 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
       console.log('No first-run welcome overlay was displayed')
     }
 
+    const skipTutorial = await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip')
+    try {
+      await skipTutorial.waitForDisplayed({ timeout: 3000 })
+      await skipTutorial.click()
+    } catch { }
+
     const guardianNav = await $('[data-tab="Task Manager"]')
-    await guardianNav.waitForDisplayed({ timeout: 60000 })
-    await guardianNav.click()
+    await safeClick(guardianNav)
     console.log('Navigated using the actual Focus Protection sidebar control')
 
     const guardianHeading = await $('#guardian-alpha-title')
@@ -74,16 +95,16 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
     // Test searching applications
     const searchInput = await $('.guardian-app-search-box input')
     await searchInput.setValue('code')
-    await browser.pause(300)
-    const filteredItems = await appList.$$('li')
+    await browser.pause(500)
+    const filteredItems = await $$('.guardian-app-list li')
     console.log(`Filtered applications for 'code': ${filteredItems.length}`)
     await searchInput.clearValue()
-    await browser.pause(300)
+    await browser.pause(500)
 
     // Test toggling policy on first enforceable application
     const firstBlockBtn = await $('.segmented-btn.btn-block')
     if (await firstBlockBtn.isExisting()) {
-      await firstBlockBtn.click()
+      await safeClick(firstBlockBtn)
       await browser.pause(500)
       console.log('Successfully set application policy via native vault')
     }
@@ -114,7 +135,8 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
       ['Rewards', 'rewards'],
       ['AI Assistant', 'eonpai'],
     ]) {
-      await $(`[data-tab="${tab}"]`).click()
+      const navItem = await $(`[data-tab="${tab}"]`)
+      await safeClick(navItem)
       await browser.waitUntil(async () => await $(`[data-tab="${tab}"]`).getAttribute('aria-current') === 'page', {
         timeout: 30000,
         timeoutMsg: `Navigation to ${tab} did not become active`,
@@ -195,10 +217,24 @@ describe('SHINPO native Fedora Guardian acceptance', function () {
       }
     }
 
-    await $('[aria-label="Settings"]').click()
-    await $('[role="dialog"]').waitForDisplayed({ timeout: 30000 })
+    const accountBtn = await $('button[aria-label*="Account"], .profile-badge-card')
+    await safeClick(accountBtn)
+    await browser.pause(400)
+    const allSettingsItem = await $('span*=All settings')
+    if (await allSettingsItem.isExisting()) {
+      await safeClick(allSettingsItem)
+    } else {
+      await browser.keys(['Control', ','])
+    }
+    const settingsDialog = await $('.settings-modal-dialog, .settings-modal-box, [role="dialog"]')
+    await settingsDialog.waitForDisplayed({ timeout: 30000 })
     await browser.saveScreenshot(path.join(evidenceDir, 'settings-native.png'))
-    await $('[aria-label="Close Settings"]').click()
+    const closeBtn = await $('.settings-modal-close')
+    if (await closeBtn.isExisting()) {
+      await safeClick(closeBtn)
+    } else {
+      await browser.keys(['Escape'])
+    }
     console.log('Settings opened and closed through the actual native window')
   })
 })

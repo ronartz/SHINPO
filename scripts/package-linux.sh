@@ -72,11 +72,14 @@ fi
 # Create tarball bundle
 echo ""
 echo "Creating portable Linux tarball..."
+PACKAGE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('${PROJECT_ROOT}/frontend/src-tauri/tauri.conf.json', 'utf8')).version")
 (
     cd "${RELEASE_DIR}"
-    tar -czf SHINPO_1.0.0_linux_x86_64.tar.gz shinpo-desktop shinpo-browser-host shinpo-browser-companion-chromium.zip shinpo-browser-companion-firefox.zip register-browser-companion.sh Browser-Companion-Install.md
+    tar -czf "SHINPO_${PACKAGE_VERSION}_linux_x86_64.tar.gz" shinpo-desktop shinpo-browser-host shinpo-browser-companion-chromium.zip shinpo-browser-companion-firefox.zip register-browser-companion.sh Browser-Companion-Install.md
+    cp -f "SHINPO_${PACKAGE_VERSION}_linux_x86_64.tar.gz" SHINPO_1.0.0_linux_x86_64.tar.gz
+    cp -f "SHINPO_${PACKAGE_VERSION}_linux_x86_64.tar.gz" SHINPO_linux_x86_64.tar.gz
 )
-echo "  [OK] Created SHINPO_1.0.0_linux_x86_64.tar.gz"
+echo "  [OK] Created SHINPO_${PACKAGE_VERSION}_linux_x86_64.tar.gz"
 
 # Generate Checksums
 echo ""

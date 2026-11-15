@@ -30,6 +30,11 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     await authHeading.waitForDisplayed({ timeout: 120000 })
     console.log('Step 1: Auth screen loaded')
 
+    const createWorkspace = await $('button*=Create Workspace')
+    if (await createWorkspace.isExisting() && await createWorkspace.getAttribute('aria-pressed') !== 'true') {
+      await createWorkspace.click()
+    }
+
     const username = `journey_${Date.now()}`
     const originalPassword = `Journey-Pass-${randomUUID()}-123!`
     await $('#auth-identifier').setValue(username)
@@ -79,6 +84,8 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     const goalInput = await $('#create-goal-name-input')
     await goalInput.setValue(goalTitle)
     await goalDialog.$('button[type="submit"]').click()
+    await browser.waitUntil(async () => !(await goalDialog.isDisplayed().catch(() => false)), { timeout: 10000 })
+    await browser.waitUntil(async () => (await $('body').getText()).includes(goalTitle), { timeout: 10000 })
 
     const taskTitle = `Release Task ${Date.now()}`
     const newTaskBtn = await $('button[data-tutorial="new-task"]')
@@ -89,7 +96,10 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     await taskDialog.waitForDisplayed({ timeout: 10000 })
     const taskInput = await $('#create-task-title-input')
     await taskInput.setValue(taskTitle)
-    await taskDialog.$('button[type="submit"]').click()
+    const taskSubmitBtn = await taskDialog.$('button[type="submit"]')
+    await browser.waitUntil(async () => await taskSubmitBtn.isEnabled(), { timeout: 10000 })
+    await taskSubmitBtn.click()
+    await browser.waitUntil(async () => !(await taskDialog.isDisplayed().catch(() => false)), { timeout: 10000 })
 
     const taskList = await $('.missions-list-container, .task-list, .goals-view-deck')
     await taskList.waitForDisplayed({ timeout: 20000 })
@@ -120,14 +130,9 @@ describe('SHINPO Native Complete User Journeys & Honest Guardian Release Gate', 
     await browser.pause(2000)
 
     // Complete session with reflection
-    const finishBtn = await $('.microkit-finish-glow')
-    if (await finishBtn.isExisting()) {
-      await finishBtn.click()
-    } else {
-      const finishTextBtn = await $('button*=Finish')
-      await finishTextBtn.waitForDisplayed({ timeout: 10000 })
-      await finishTextBtn.click()
-    }
+    const finishBtn = await $('button[data-tutorial="debrief-controls"]')
+    await finishBtn.waitForDisplayed({ timeout: 15000 })
+    await finishBtn.click()
 
     const summaryTitle = await $('#session-summary-title')
     await summaryTitle.waitForDisplayed({ timeout: 15000 })

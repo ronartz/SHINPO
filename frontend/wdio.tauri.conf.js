@@ -1,6 +1,14 @@
 import path from 'node:path'
 import os from 'node:os'
 import { existsSync } from 'node:fs'
+import TauriWorkerService from '@wdio/tauri-service'
+
+// In production release binaries without tauri-plugin-wdio, ensureActiveWindowFocus
+// in beforeCommand repeatedly attempts plugin:wdio IPC, failing after 5s per command.
+// Disable beforeCommand focus polling so WebDriver commands execute instantly.
+if (TauriWorkerService?.prototype) {
+  TauriWorkerService.prototype.beforeCommand = async function () {}
+}
 
 // Keep release acceptance on the production binary by default. Native QA
 // fixtures that require opt-in debug-only IPC (for example qa-clock) must
