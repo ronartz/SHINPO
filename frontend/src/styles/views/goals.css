@@ -1556,7 +1556,7 @@ html[data-theme='light'] .decomp-footer-actions,
 }
 
 .goals-page-copy h1 {
-  margin: 5px 0 3px;
+  margin: 0 0 4px;
   color: var(--text);
   font-size: clamp(27px, 3vw, 36px);
   font-weight: 800;

@@ -2,6 +2,8 @@
    SHINPO (進歩) — GLOBAL BASE RESET & SCROLLBAR
    ========================================================================== */
 
+@import './styles/tokens.css';
+
 * {
   box-sizing: border-box;
 }
@@ -102,46 +104,49 @@ html[data-theme='light'] ::selection {
   background: color-mix(in srgb, var(--brand-deep) 22.0%, transparent);
 }
 
-* {
+/* ==========================================================================
+   GLOBAL THEME-AWARE SCROLLBAR SYSTEM
+   Standards-compliant (scrollbar-width/scrollbar-color) + WebKit/Blink engine
+   ========================================================================== */
+
+/* Standards-based scrollbar properties (supported in modern Chromium, Firefox, WebKit) */
+html,
+body,
+*,
+*::before,
+*::after {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255, 0.18) transparent;
+  scrollbar-color: var(--scrollbar-thumb, rgba(148, 163, 184, 0.32)) var(--scrollbar-track, transparent);
 }
 
-.theme-light *,
-html[data-theme='light'] *,
-html[data-theme='aurora-light'] *,
-html[data-theme='classic-light'] * {
-  scrollbar-color: rgba(0,0,0, 0.25) transparent;
-}
-
+/* WebKit / Blink scrollbar engine (WebKitGTK on Linux, WKWebView on macOS, Chromium on WebView2) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--scrollbar-track, transparent);
 }
 
 ::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb, rgba(148, 163, 184, 0.32));
   border-radius: 999px;
-  background: rgba(255,255,255, 0.18);
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  min-height: 36px;
+  min-width: 36px;
+  transition: background-color 150ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255, 0.35);
+  background-color: var(--scrollbar-thumb-hover, rgba(203, 213, 225, 0.52));
 }
 
-.theme-light ::-webkit-scrollbar-thumb,
-html[data-theme='light'] ::-webkit-scrollbar-thumb,
-html[data-theme='aurora-light'] ::-webkit-scrollbar-thumb,
-html[data-theme='classic-light'] ::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0, 0.22);
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-active, var(--color-primary, #9EEB2A));
 }
 
-.theme-light ::-webkit-scrollbar-thumb:hover,
-html[data-theme='light'] ::-webkit-scrollbar-thumb:hover,
-html[data-theme='aurora-light'] ::-webkit-scrollbar-thumb:hover,
-html[data-theme='classic-light'] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0, 0.38);
+::-webkit-scrollbar-corner {
+  background: transparent;
 }

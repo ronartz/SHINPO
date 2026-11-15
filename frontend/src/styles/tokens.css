@@ -165,6 +165,12 @@ html[data-theme='dark'],
   --color-on-success: var(--color-background);
   --color-on-warning: var(--color-background);
   --color-on-danger: var(--color-background);
+
+  /* Dedicated semantic scrollbar tokens — Classic Dark */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.32);
+  --scrollbar-thumb-hover: rgba(203, 213, 225, 0.52);
+  --scrollbar-thumb-active: rgba(175, 243, 62, 0.82);
   --primary-blue: var(--color-primary);
   --focus-cyan: var(--color-focus);
   --ai-violet: var(--color-ai);
@@ -384,6 +390,12 @@ html[data-theme='light'],
   --color-on-success: #FFFFFF;
   --color-on-warning: #FFFFFF;
   --color-on-danger: #FFFFFF;
+
+  /* Dedicated semantic scrollbar tokens — Classic Light */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(41, 57, 81, 0.28);
+  --scrollbar-thumb-hover: rgba(41, 57, 81, 0.48);
+  --scrollbar-thumb-active: rgba(77, 124, 15, 0.82);
   --primary-blue: var(--color-primary);
   --focus-cyan: var(--color-focus);
   --ai-violet: var(--color-ai);
@@ -603,6 +615,12 @@ html[data-brand='aurora']:not([data-theme='light']),
   --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
   --particle-color: rgba(155, 140, 255, 0.7);
   --particle-color-secondary: rgba(27, 201, 222, 0.5);
+
+  /* Dedicated semantic scrollbar tokens — Aurora Dark */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(185, 161, 255, 0.32);
+  --scrollbar-thumb-hover: rgba(185, 161, 255, 0.52);
+  --scrollbar-thumb-active: rgba(151, 87, 250, 0.85);
 }
 
 /* Aurora Light */
@@ -643,6 +661,12 @@ html[data-brand='aurora'][data-theme='light'],
   --shadow-glass: 0 8px 32px 0 rgba(124, 58, 237, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
   --particle-color: rgba(15, 118, 110, 0.6);
   --particle-color-secondary: rgba(124, 58, 237, 0.45);
+
+  /* Dedicated semantic scrollbar tokens — Aurora Light */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(51, 65, 85, 0.28);
+  --scrollbar-thumb-hover: rgba(51, 65, 85, 0.48);
+  --scrollbar-thumb-active: rgba(124, 58, 237, 0.85);
 }
 
 /* Historical names remain aliases so existing screens inherit the same system. */

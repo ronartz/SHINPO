@@ -44,7 +44,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .icon-sidebar.expanded {
@@ -983,6 +983,7 @@ html[data-theme='light'] .protection-shield-box.shield-ready,
   max-width: calc(100% - var(--sidebar-w-collapsed) - 32px);
   box-sizing: border-box;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   margin-left: calc(var(--sidebar-w-collapsed) + 32px);
   display: flex;
   flex-direction: column;
@@ -1339,7 +1340,7 @@ html[data-theme='light'] .protection-shield-box.shield-ready,
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 20px;
   background: var(--brand-space-indigo);

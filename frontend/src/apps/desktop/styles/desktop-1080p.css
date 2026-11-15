@@ -21,6 +21,7 @@
   .app-main {
     height: calc(100vh - 0px);
     overflow-y: auto;
+    scrollbar-gutter: stable;
     padding: 14px 24px 24px !important;
     box-sizing: border-box;
   }

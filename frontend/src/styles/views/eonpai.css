@@ -1820,19 +1820,6 @@ html[data-theme='light'] .ai-scroll-bottom-btn:hover {
   padding-right: var(--space-1);
 }
 
-.coachmark-body::-webkit-scrollbar {
-  width: 5px;
-}
-
-.coachmark-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.coachmark-body::-webkit-scrollbar-thumb {
-  background: var(--border, rgba(255, 255, 255, 0.15));
-  border-radius: 4px;
-}
-
 .coachmark-title {
   margin: 0;
   font-size: 20px;

@@ -82,29 +82,6 @@ html[data-theme='light'] .flight-deck-card.has-open-menu {
 html[data-theme='light'] .status-column-cards,
 .theme-light .timesheet-list,
 html[data-theme='light'] .timesheet-list,
-.theme-light .activity-feed-list,
-html[data-theme='light'] .activity-feed-list {
-  scrollbar-color: rgba(0,0,0, 0.2) transparent;
-}
-
-.theme-light .status-column-cards::-webkit-scrollbar-thumb,
-html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb,
-.theme-light .timesheet-list::-webkit-scrollbar-thumb,
-html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb,
-.theme-light .activity-feed-list::-webkit-scrollbar-thumb,
-html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0, 0.2);
-}
-
-.theme-light .status-column-cards::-webkit-scrollbar-thumb:hover,
-html[data-theme='light'] .status-column-cards::-webkit-scrollbar-thumb:hover,
-.theme-light .timesheet-list::-webkit-scrollbar-thumb:hover,
-html[data-theme='light'] .timesheet-list::-webkit-scrollbar-thumb:hover,
-.theme-light .activity-feed-list::-webkit-scrollbar-thumb:hover,
-html[data-theme='light'] .activity-feed-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0, 0.35);
-}
-
 .theme-light .card-menu-item:hover,
 html[data-theme='light'] .card-menu-item:hover {
   background: var(--color-surface-2);

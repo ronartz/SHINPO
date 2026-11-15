@@ -240,26 +240,7 @@ html[data-theme='light'] .board-action-btn.primary {
   max-height: 460px;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
   padding-right: var(--space-2);
-}
-
-.status-column-cards::-webkit-scrollbar {
-  width: 6px;
-}
-
-.status-column-cards::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.status-column-cards::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 999px;
-}
-
-.status-column-cards::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
 }
 
 .status-column-empty {

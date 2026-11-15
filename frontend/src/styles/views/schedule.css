@@ -948,8 +948,6 @@ html[data-theme='light'] .schedule-filter-btn.active {
   overscroll-behavior: auto;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-primary) transparent;
 }
 
 .schedule-week-grid {
@@ -1890,7 +1888,6 @@ html[data-theme='light'] .schedule-filter-btn.active {
   border-color: var(--border);
   border-radius: 11px;
   background: color-mix(in srgb, var(--brand-yale-blue) 48%, var(--surface-card));
-  scrollbar-color: var(--brand-primary) transparent;
 }
 
 .schedule-week-grid {
