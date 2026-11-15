@@ -1,9 +1,9 @@
 # SHINPO Canonical Release Status
 
-**Document Version:** 1.2.0<br>
+**Document Version:** 1.2.1<br>
 **Updated:** 2026-11-15<br>
 **Active Branch:** `fix/systematic-layout-and-composition`<br>
-**Candidate Remote HEAD:** `65225459ae4ae86d5c3852441f4ad05bcefe6d52`<br>
+**Candidate Remote HEAD:** `c10b40c550ccd37542b35d074325c4226003eac0`<br>
 **Current Release Target:** `SHINPO v0.1.0-beta.1` (Private Beta)<br>
 **Overall Release Verdict:** **NO-GO FOR PRODUCTION / PRIVATE BETA RELEASE**
 
@@ -13,9 +13,9 @@
 
 The canonical status of the SHINPO repository candidate on branch `fix/systematic-layout-and-composition` is **NO-GO**.
 
-While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-theme styling, brand shield assets, Linux Browser Companion integration, and hosted CI builds for both Ubuntu Linux and Windows MSVC have succeeded (Run #103: `https://github.com/ronartz/SHINPO/actions/runs/43458912201`), mandatory release gates (Windows live interactive runtime verification, clean-VM package acceptance, and signed updater delivery) remain unresolved before public/private beta distribution.
+While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-theme styling, brand shield assets, Linux Browser Companion integration, and hosted CI builds for Ubuntu Linux, Windows MSVC, and Security checks have all succeeded (Run #104: `https://github.com/ronartz/SHINPO/actions/runs/43697092801`), mandatory release gates (Windows live interactive runtime verification, clean-VM package acceptance, and signed updater delivery) remain unresolved before public/private beta distribution.
 
-The CI security pipeline was unblocked by formalizing risk acceptances:
+The CI security pipeline was unblocked and is 100% GREEN in Run #104:
 1. Scoping an explicit `--ignore RUSTSEC-2024-0429` to the `frontend/src-tauri` Cargo lockfile audit (aligning with PR #26; glib 0.18.5 `VariantStrIter` is unreachable in SHINPO).
 2. Adding `osv-scanner.toml` to formally document exemptions for offline dev-only test harness tooling (`extract-zip`, `glob`, `minimatch`, `zod`) and unmaintained crate notices, ensuring any genuine production vulnerability still triggers strict failure.
 
@@ -28,8 +28,8 @@ The CI security pipeline was unblocked by formalizing risk acceptances:
 
 | Platform | Artifact | Execution Environment | Status | Blockers / Caveats |
 | :--- | :--- | :--- | :---: | :--- |
-| **Linux (Fedora / Ubuntu)** | RPM, DEB, AppImage | Fedora 44 (local), Ubuntu 24.04 (CI / container) | **NO-GO** | Transitive Linux GLib `RUSTSEC-2024-0429` advisory requires owner risk signoff; clean-VM graphical desktop first-run and uninstall not tested. |
-| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #102) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
+| **Linux (Fedora / Ubuntu)** | RPM, DEB, AppImage | Fedora 44 (local), Ubuntu 24.04 (CI Run #104) | **NO-GO** | Clean-VM graphical desktop first-run and uninstall not tested on bare workstation. |
+| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #104) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
 | **macOS** | Not targeted for beta | N/A | **UNSUPPORTED** | Target platform is Linux and Windows only for initial beta. |
 
 ---
@@ -38,36 +38,31 @@ The CI security pipeline was unblocked by formalizing risk acceptances:
 
 To transition from **NO-GO** to **GO (Private Beta)**, the following gates must be resolved:
 
-1. **Linux GLib Security Advisory (`RUSTSEC-2024-0429`):**
-   - Transitive dependency `glib 0.18.5` (via `gtk 0.18` / WebKitGTK bindings) triggers a denied advisory in `cargo audit --deny unsound`.
-   - Remediating to GLib 0.20 requires upgrading the GTK binding stack which is currently blocked by ecosystem compatibility.
-   - **Resolution Required:** Formal owner risk evaluation and explicit documented risk acceptance in `RISK_ACCEPTANCE.md`.
-
-2. **Windows Native Runtime Acceptance:**
+1. **Windows Native Runtime Acceptance:**
    - The Linux build host cannot execute Windows PE binaries or drive Windows WebView2 automation.
    - While the headless smoke test (`shinpo-desktop.exe --smoke-test`) passed in Windows CI, live graphical execution with WebView2 has not been tested.
    - **Resolution Required:** Execute the native test journey on physical Windows 10/11 hardware or an interactive Windows VM with WebView2 installed.
 
-3. **Signed Automatic Updater Delivery:**
+2. **Signed Automatic Updater Delivery:**
    - Tauri updater configuration is present, but an old-to-new version upgrade using cryptographic signatures (`minisign` / Tauri v2 pubkey) has not been tested in a live environment.
    - **Resolution Required:** Test an end-to-end upgrade from a test build to a signed target version.
 
-4. **Clean-VM GUI First-Run & Uninstallation:**
+3. **Clean-VM GUI First-Run & Uninstallation:**
    - Package manager installation (`dnf install`, `apt-get install`) succeeded in headless containers, but desktop-entry launch, tray icon presentation, and package uninstallation have not been tested on a fresh graphical desktop VM.
 
 ---
 
 ## 4. Hosted CI vs. Local Qualification
 
-### CI Job Results vs. Step Breakdown (Run #103 Reference: 43458912201)
+### CI Job Results vs. Step Breakdown (Run #104 Reference: 43697092801)
 
 GitHub Actions CI (`.github/workflows/ci.yml`) is structured into three discrete jobs:
 
 | CI Job | Environment | Target & Responsibility | Current Status & Conclusion |
 | :--- | :--- | :--- | :---: |
-| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43458912201: Completed successfully in 14m 29s)* |
-| **`desktop-windows`** | Windows 2025 | 21 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS**<br>*(Run 43458912201: Completed successfully in 22m 27s)* |
-| **`security`** | Ubuntu 24.04 | Discrete scanner suite with independent exit code capture, machine-readable JSON artifact collection, and aggregation: Gitleaks history scan, Semgrep SAST scan, verified OSV-Scanner CLI v2.7.1, Cargo Audit across 3 lockfiles, Cargo Deny (bans, licenses, sources) across 3 manifests. | **UNBLOCKED**<br>*(Scoped ignore for GLib `RUSTSEC-2024-0429` per PR #26 and `osv-scanner.toml` exemptions unblock security gate)* |
+| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43697092801: Completed successfully in 11m 26s)* |
+| **`desktop-windows`** | Windows 2025 | 21 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43697092801: Completed successfully in 30m 16s)* |
+| **`security`** | Ubuntu 24.04 | Discrete scanner suite with independent exit code capture, machine-readable JSON artifact collection, and aggregation: Gitleaks history scan, Semgrep SAST scan, verified OSV-Scanner CLI v2.7.1, Cargo Audit across 3 lockfiles, Cargo Deny (bans, licenses, sources) across 3 manifests. | **PASS** ✅<br>*(Run 43697092801: Completed successfully in 4m 23s)* |
 
 ### Discrete Security Scanners Breakdown
 
