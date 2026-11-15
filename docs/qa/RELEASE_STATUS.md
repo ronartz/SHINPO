@@ -1,12 +1,12 @@
 # SHINPO Canonical Release Status
 
-**Document Version:** 1.3.0<br>
+**Document Version:** 1.4.0<br>
 **Updated:** 2026-11-15<br>
 **Active Branch:** `fix/systematic-layout-and-composition`<br>
-**Tested Code Commit:** `c10b40c550ccd37542b35d074325c4226003eac0`<br>
-**Documentation Commit:** `61a7a8bd9cf5b98aa55c91ec6c73df6498beadcb`<br>
-**Latest Branch HEAD:** `61a7a8bd9cf5b98aa55c91ec6c73df6498beadcb`<br>
-**Verification Run Reference:** [GitHub Actions Run #104 (43697092801)](https://github.com/ronartz/SHINPO/actions/runs/43697092801)<br>
+**Tested Code Commit:** `b4df017f3bbe4752dc304b7c5cc35b7acdcc9c29`<br>
+**Documentation Commit:** `ca953a1a6fd0c4120c00e24383c7971823501f2a`<br>
+**Latest Branch HEAD:** `ca953a1a6fd0c4120c00e24383c7971823501f2a`<br>
+**Verification Run Reference:** [GitHub Actions Run #106 (43704004350)](https://github.com/ronartz/SHINPO/actions/runs/43704004350)<br>
 **Current Release Target:** `SHINPO v0.1.0-beta.1` (Private Beta)<br>
 **Overall Release Verdict:** **NO-GO FOR PRODUCTION / PRIVATE BETA RELEASE**
 
@@ -30,8 +30,8 @@ While core offline features, encrypted SQLCipher storage, Focus lifecycle, 4-the
 
 | Platform | Artifact | Execution Environment | Status | Blockers / Caveats |
 | :--- | :--- | :--- | :---: | :--- |
-| **Linux (Fedora / Ubuntu)** | RPM, DEB, AppImage | Fedora 44 (local), Ubuntu 24.04 (CI Run #104) | **NO-GO** | Transitive Linux GLib `RUSTSEC-2024-0429` advisory requires upstream Tauri/WebKitGTK binding resolution; clean-VM graphical desktop first-run and uninstall not tested. |
-| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #104) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
+| **Linux (Fedora / Ubuntu)** | RPM, DEB, AppImage | Fedora 44 (local), Ubuntu 24.04 (CI Run #106) | **NO-GO** | Transitive Linux GLib `RUSTSEC-2024-0429` advisory requires upstream Tauri/WebKitGTK binding resolution; clean-VM graphical desktop first-run and uninstall not tested. |
+| **Windows (x64 MSVC)** | NSIS Installer, `.exe` | Windows 2025 (GitHub Actions CI Run #106) | **NOT TESTED** | CI verifies MSVC build, OpenSSL linkage, unit tests, and smoke test. **Native Windows runtime, WebView2 integration, and NSIS installer have zero live interactive test verification.** |
 | **macOS** | Not targeted for beta | N/A | **UNSUPPORTED** | Target platform is Linux and Windows only for initial beta. |
 
 ---
@@ -61,15 +61,15 @@ To transition from **NO-GO** to **GO (Private Beta)**, the following gates must 
 
 ## 4. Hosted CI vs. Local Qualification
 
-### CI Job Results vs. Step Breakdown (Run #104 Reference: 43697092801)
+### CI Job Results vs. Step Breakdown (Run #106 Reference: 43704004350)
 
 GitHub Actions CI (`.github/workflows/ci.yml`) is structured into three discrete jobs:
 
 | CI Job | Environment | Target & Responsibility | Current Status & Conclusion |
 | :--- | :--- | :--- | :---: |
-| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43697092801: Completed successfully in 11m 26s)* |
-| **`desktop-windows`** | Windows 2025 | 21 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43697092801: Completed successfully in 30m 16s)* |
-| **`security`** | Ubuntu 24.04 | Discrete scanner suite with independent exit code capture, machine-readable JSON artifact collection, and aggregation: Gitleaks history scan, Semgrep SAST scan, verified OSV-Scanner CLI v2.7.1, Cargo Audit across 3 lockfiles, Cargo Deny (bans, licenses, sources) across 3 manifests. | **FAILS CLOSED (INTENTIONAL)** ❌<br>*(Strict security gate: unsuppressed scanner catches GLib `RUSTSEC-2024-0429` and raw OSV findings)* |
+| **`desktop-linux`** | Ubuntu 24.04 | 19 discrete steps: Linux system dependencies, Rust 1.99.0 toolchain, `npm ci`, legacy backend verification, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test, Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43704004350: Completed successfully in 16m 28s)* |
+| **`desktop-windows`** | Windows 2025 | 21 discrete steps: MSVC C++ toolchain check, OpenSSL x64 vcpkg installation and environment linkage, `npm ci`, production npm audit, full dev npm audit log, `npm test`, `npm run lint`, `npm run build`, browser companion tests, Tauri bundle prep, Tauri Rust tests, strict Clippy, rustfmt, release desktop binary build, isolated native SQLCipher smoke test (`shinpo-desktop.exe --smoke-test`), Shield tests/Clippy/fmt, Browser Host tests/Clippy/fmt. | **PASS** ✅<br>*(Run 43704004350: Completed successfully in 18m 27s)* |
+| **`security`** | Ubuntu 24.04 | Discrete scanner suite with independent exit code capture, machine-readable JSON artifact collection, and aggregation: Gitleaks history scan, Semgrep SAST scan, verified OSV-Scanner CLI v2.7.1, Cargo Audit across 3 lockfiles, Cargo Deny (bans, licenses, sources) across 3 manifests. | **FAILS CLOSED (INTENTIONAL)** ❌<br>*(Run 43704004350: Completed in 5m 02s. Strict security gate: unsuppressed scanner catches GLib `RUSTSEC-2024-0429` and raw OSV findings)* |
 
 ### Discrete Security Scanners Breakdown
 
