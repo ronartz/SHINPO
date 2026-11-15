@@ -225,24 +225,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Batch 1D: Animated Background Particle System)
+## 2026-11-15 — Operation Visual Perfection (Full Empirical Acceptance across 4 Themes)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Background Particles (Screenshot A & across all screens):**
-  - In `frontend/src/styles/tokens.css`: defined explicit semantic tokens `--particle-color` and `--particle-color-secondary` across all 4 theme scopes:
-    - Aurora Dark: `rgba(155, 140, 255, 0.7)` / secondary `rgba(27, 201, 222, 0.5)`
-    - Aurora Light: `rgba(15, 118, 110, 0.6)` / secondary `rgba(124, 58, 237, 0.45)`
-    - Classic Dark: `rgba(163, 230, 53, 0.65)` / secondary `rgba(56, 189, 248, 0.45)`
-    - Classic Light: `rgba(79, 70, 229, 0.55)` / secondary `rgba(77, 124, 15, 0.45)`
-  - In `frontend/src/components/background/ShinpoParticles.tsx`:
-    - Updated palette resolution to map directly to `--particle-color`, `--particle-color-secondary`, and `--color-primary`.
-    - Increased particle radius from 1.8–3.0px to 2.2–4.2px (`Math.max(1.8, particle.size * particle.scale)`).
-    - Increased opacity range from washed out 0.06–0.26 to vivid 0.55–0.75 (`Math.min(0.75, Math.max(0.40, ...))`).
-    - Added subtle luminous glow with `context.shadowBlur = 4 * particle.scale` and matching particle `context.shadowColor`.
-    - Maintained full 100vw × 100vh viewport coverage, zero pointer interaction obstruction (`pointer-events: none`), and full `@media (prefers-reduced-motion: reduce)` compliance.
-- **Verification:**
-  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
-  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+- **Visual Smoke & Acceptance Suite:**
+  - Automated visual verification script `frontend/scripts/capture_visual_perfection_qa.mjs` executed against a clean zero-data state mirroring the user's before-state screenshots across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
+  - Captured 20 high-fidelity visual acceptance screenshots into `docs/qa/screenshots/visual-perfection/` and the session artifacts directory:
+    - **Dashboard (Screen A):** Quick Actions dead space eliminated; bottom-left empty hole eliminated; background particles tuned with theme-aware luminous glow.
+    - **Goals & Tasks (Screen B):** Removed obsolete "PORTFOLIO & ROADMAP" eyebrow; aligned `[List | Board]` toggle to single 38px baseline with search and sort; compacted empty Kanban columns from 250px+ bloated cards down to clean ~120px height with subtle dashed drop targets.
+    - **Focus Engine (Screen C):** Harsh blue dividers in preset chips and session intention footer removed; column self-alignment normalized.
+    - **Analytics (Screen D):** Harsh horizontal divider between heatmap skyline and stats removed; ghost SVG chart lines, ticks, and empty bars in Focus Activity zero state completely replaced by clean 140px `.analytics-activity-zero-state`; blank void under Focus Activity eliminated.
+    - **Rewards & Progress (Screen E):** All hardcoded `#2788F5`/`#66B8FF` blue/indigo gradients, borders, and rings eliminated in favor of semantic CSS tokens (`var(--color-primary)`, `var(--surface-card)`, `var(--border)`); seamlessly blends with Classic Dark, Classic Light, Aurora Dark, and Aurora Light.
+- **Formal Report:** Written to `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
+- **Quality Gates:**
+  - `npm --prefix frontend test`: 203/203 unit tests passed (0 failures).
+  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
+  - `./scripts/qa-release.sh quick`: Passed.
+
 
 
 ## 2026-11-15 — Operation Visual Perfection (Batch 1C: Global Layout and Card Height Normalization)
@@ -261,24 +260,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Batch 1D: Animated Background Particle System)
+## 2026-11-15 — Operation Visual Perfection (Full Empirical Acceptance across 4 Themes)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Background Particles (Screenshot A & across all screens):**
-  - In `frontend/src/styles/tokens.css`: defined explicit semantic tokens `--particle-color` and `--particle-color-secondary` across all 4 theme scopes:
-    - Aurora Dark: `rgba(155, 140, 255, 0.7)` / secondary `rgba(27, 201, 222, 0.5)`
-    - Aurora Light: `rgba(15, 118, 110, 0.6)` / secondary `rgba(124, 58, 237, 0.45)`
-    - Classic Dark: `rgba(163, 230, 53, 0.65)` / secondary `rgba(56, 189, 248, 0.45)`
-    - Classic Light: `rgba(79, 70, 229, 0.55)` / secondary `rgba(77, 124, 15, 0.45)`
-  - In `frontend/src/components/background/ShinpoParticles.tsx`:
-    - Updated palette resolution to map directly to `--particle-color`, `--particle-color-secondary`, and `--color-primary`.
-    - Increased particle radius from 1.8–3.0px to 2.2–4.2px (`Math.max(1.8, particle.size * particle.scale)`).
-    - Increased opacity range from washed out 0.06–0.26 to vivid 0.55–0.75 (`Math.min(0.75, Math.max(0.40, ...))`).
-    - Added subtle luminous glow with `context.shadowBlur = 4 * particle.scale` and matching particle `context.shadowColor`.
-    - Maintained full 100vw × 100vh viewport coverage, zero pointer interaction obstruction (`pointer-events: none`), and full `@media (prefers-reduced-motion: reduce)` compliance.
-- **Verification:**
-  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
-  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+- **Visual Smoke & Acceptance Suite:**
+  - Automated visual verification script `frontend/scripts/capture_visual_perfection_qa.mjs` executed against a clean zero-data state mirroring the user's before-state screenshots across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
+  - Captured 20 high-fidelity visual acceptance screenshots into `docs/qa/screenshots/visual-perfection/` and the session artifacts directory:
+    - **Dashboard (Screen A):** Quick Actions dead space eliminated; bottom-left empty hole eliminated; background particles tuned with theme-aware luminous glow.
+    - **Goals & Tasks (Screen B):** Removed obsolete "PORTFOLIO & ROADMAP" eyebrow; aligned `[List | Board]` toggle to single 38px baseline with search and sort; compacted empty Kanban columns from 250px+ bloated cards down to clean ~120px height with subtle dashed drop targets.
+    - **Focus Engine (Screen C):** Harsh blue dividers in preset chips and session intention footer removed; column self-alignment normalized.
+    - **Analytics (Screen D):** Harsh horizontal divider between heatmap skyline and stats removed; ghost SVG chart lines, ticks, and empty bars in Focus Activity zero state completely replaced by clean 140px `.analytics-activity-zero-state`; blank void under Focus Activity eliminated.
+    - **Rewards & Progress (Screen E):** All hardcoded `#2788F5`/`#66B8FF` blue/indigo gradients, borders, and rings eliminated in favor of semantic CSS tokens (`var(--color-primary)`, `var(--surface-card)`, `var(--border)`); seamlessly blends with Classic Dark, Classic Light, Aurora Dark, and Aurora Light.
+- **Formal Report:** Written to `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
+- **Quality Gates:**
+  - `npm --prefix frontend test`: 203/203 unit tests passed (0 failures).
+  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
+  - `./scripts/qa-release.sh quick`: Passed.
+
 
 
 
@@ -296,24 +294,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Batch 1D: Animated Background Particle System)
+## 2026-11-15 — Operation Visual Perfection (Full Empirical Acceptance across 4 Themes)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Background Particles (Screenshot A & across all screens):**
-  - In `frontend/src/styles/tokens.css`: defined explicit semantic tokens `--particle-color` and `--particle-color-secondary` across all 4 theme scopes:
-    - Aurora Dark: `rgba(155, 140, 255, 0.7)` / secondary `rgba(27, 201, 222, 0.5)`
-    - Aurora Light: `rgba(15, 118, 110, 0.6)` / secondary `rgba(124, 58, 237, 0.45)`
-    - Classic Dark: `rgba(163, 230, 53, 0.65)` / secondary `rgba(56, 189, 248, 0.45)`
-    - Classic Light: `rgba(79, 70, 229, 0.55)` / secondary `rgba(77, 124, 15, 0.45)`
-  - In `frontend/src/components/background/ShinpoParticles.tsx`:
-    - Updated palette resolution to map directly to `--particle-color`, `--particle-color-secondary`, and `--color-primary`.
-    - Increased particle radius from 1.8–3.0px to 2.2–4.2px (`Math.max(1.8, particle.size * particle.scale)`).
-    - Increased opacity range from washed out 0.06–0.26 to vivid 0.55–0.75 (`Math.min(0.75, Math.max(0.40, ...))`).
-    - Added subtle luminous glow with `context.shadowBlur = 4 * particle.scale` and matching particle `context.shadowColor`.
-    - Maintained full 100vw × 100vh viewport coverage, zero pointer interaction obstruction (`pointer-events: none`), and full `@media (prefers-reduced-motion: reduce)` compliance.
-- **Verification:**
-  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
-  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+- **Visual Smoke & Acceptance Suite:**
+  - Automated visual verification script `frontend/scripts/capture_visual_perfection_qa.mjs` executed against a clean zero-data state mirroring the user's before-state screenshots across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
+  - Captured 20 high-fidelity visual acceptance screenshots into `docs/qa/screenshots/visual-perfection/` and the session artifacts directory:
+    - **Dashboard (Screen A):** Quick Actions dead space eliminated; bottom-left empty hole eliminated; background particles tuned with theme-aware luminous glow.
+    - **Goals & Tasks (Screen B):** Removed obsolete "PORTFOLIO & ROADMAP" eyebrow; aligned `[List | Board]` toggle to single 38px baseline with search and sort; compacted empty Kanban columns from 250px+ bloated cards down to clean ~120px height with subtle dashed drop targets.
+    - **Focus Engine (Screen C):** Harsh blue dividers in preset chips and session intention footer removed; column self-alignment normalized.
+    - **Analytics (Screen D):** Harsh horizontal divider between heatmap skyline and stats removed; ghost SVG chart lines, ticks, and empty bars in Focus Activity zero state completely replaced by clean 140px `.analytics-activity-zero-state`; blank void under Focus Activity eliminated.
+    - **Rewards & Progress (Screen E):** All hardcoded `#2788F5`/`#66B8FF` blue/indigo gradients, borders, and rings eliminated in favor of semantic CSS tokens (`var(--color-primary)`, `var(--surface-card)`, `var(--border)`); seamlessly blends with Classic Dark, Classic Light, Aurora Dark, and Aurora Light.
+- **Formal Report:** Written to `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
+- **Quality Gates:**
+  - `npm --prefix frontend test`: 203/203 unit tests passed (0 failures).
+  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
+  - `./scripts/qa-release.sh quick`: Passed.
+
 
 
 ## 2026-11-15 — Operation Visual Perfection (Batch 1C: Global Layout and Card Height Normalization)
@@ -332,24 +329,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Batch 1D: Animated Background Particle System)
+## 2026-11-15 — Operation Visual Perfection (Full Empirical Acceptance across 4 Themes)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Background Particles (Screenshot A & across all screens):**
-  - In `frontend/src/styles/tokens.css`: defined explicit semantic tokens `--particle-color` and `--particle-color-secondary` across all 4 theme scopes:
-    - Aurora Dark: `rgba(155, 140, 255, 0.7)` / secondary `rgba(27, 201, 222, 0.5)`
-    - Aurora Light: `rgba(15, 118, 110, 0.6)` / secondary `rgba(124, 58, 237, 0.45)`
-    - Classic Dark: `rgba(163, 230, 53, 0.65)` / secondary `rgba(56, 189, 248, 0.45)`
-    - Classic Light: `rgba(79, 70, 229, 0.55)` / secondary `rgba(77, 124, 15, 0.45)`
-  - In `frontend/src/components/background/ShinpoParticles.tsx`:
-    - Updated palette resolution to map directly to `--particle-color`, `--particle-color-secondary`, and `--color-primary`.
-    - Increased particle radius from 1.8–3.0px to 2.2–4.2px (`Math.max(1.8, particle.size * particle.scale)`).
-    - Increased opacity range from washed out 0.06–0.26 to vivid 0.55–0.75 (`Math.min(0.75, Math.max(0.40, ...))`).
-    - Added subtle luminous glow with `context.shadowBlur = 4 * particle.scale` and matching particle `context.shadowColor`.
-    - Maintained full 100vw × 100vh viewport coverage, zero pointer interaction obstruction (`pointer-events: none`), and full `@media (prefers-reduced-motion: reduce)` compliance.
-- **Verification:**
-  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
-  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+- **Visual Smoke & Acceptance Suite:**
+  - Automated visual verification script `frontend/scripts/capture_visual_perfection_qa.mjs` executed against a clean zero-data state mirroring the user's before-state screenshots across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
+  - Captured 20 high-fidelity visual acceptance screenshots into `docs/qa/screenshots/visual-perfection/` and the session artifacts directory:
+    - **Dashboard (Screen A):** Quick Actions dead space eliminated; bottom-left empty hole eliminated; background particles tuned with theme-aware luminous glow.
+    - **Goals & Tasks (Screen B):** Removed obsolete "PORTFOLIO & ROADMAP" eyebrow; aligned `[List | Board]` toggle to single 38px baseline with search and sort; compacted empty Kanban columns from 250px+ bloated cards down to clean ~120px height with subtle dashed drop targets.
+    - **Focus Engine (Screen C):** Harsh blue dividers in preset chips and session intention footer removed; column self-alignment normalized.
+    - **Analytics (Screen D):** Harsh horizontal divider between heatmap skyline and stats removed; ghost SVG chart lines, ticks, and empty bars in Focus Activity zero state completely replaced by clean 140px `.analytics-activity-zero-state`; blank void under Focus Activity eliminated.
+    - **Rewards & Progress (Screen E):** All hardcoded `#2788F5`/`#66B8FF` blue/indigo gradients, borders, and rings eliminated in favor of semantic CSS tokens (`var(--color-primary)`, `var(--surface-card)`, `var(--border)`); seamlessly blends with Classic Dark, Classic Light, Aurora Dark, and Aurora Light.
+- **Formal Report:** Written to `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
+- **Quality Gates:**
+  - `npm --prefix frontend test`: 203/203 unit tests passed (0 failures).
+  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
+  - `./scripts/qa-release.sh quick`: Passed.
+
 
 
 

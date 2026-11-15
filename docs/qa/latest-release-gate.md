@@ -1,8 +1,8 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-12T18:25:55Z
-**Evaluated Commit:** `63e0e17e75486218ae050cb5a7f119908ffd12c1` (`fix/systematic-layout-and-composition`)
-**Worktree Status:** DIRTY (215 modified/untracked files strictly preserved)
+**Execution Timestamp:** 2026-11-15T13:09:22Z
+**Evaluated Commit:** `7d1ab6a1b8d706a8898ea58b44e001844eac624c` (`fix/visual-perfection-beta`)
+**Worktree Status:** DIRTY (9 modified/untracked files strictly preserved)
 **Release Decision:** **PARTIAL_RUN (Executed mode 'quick')**
 
 ---
@@ -11,9 +11,9 @@
 
 | Artifact | Local Filepath | SHA-256 Digest |
 |---|---|---|
-| **Git Head** | `.git` | `63e0e17e75486218ae050cb5a7f119908ffd12c1` |
-| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `ab1fb95f1322626e457e6174cb4a3b827b4c2f1997d1e6add2d634683d545d97` |
-| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm` | `3ee4a9181cdd0d3ef3c116108e160cedfcf0c8ae2322d8d0505be022a7e46d41` |
+| **Git Head** | `.git` | `7d1ab6a1b8d706a8898ea58b44e001844eac624c` |
+| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `03f27ece9b8d87f0a4fd3d31a43974ff1011052cd5899d809c625d5aacdc03bf` |
+| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm` | `582d89bde30802f702f67099cc106333f47e98ffdcb6b9a33b8a350f8cf6bbbb` |
 
 ---
 
