@@ -34,17 +34,19 @@ html:not([data-brand='classic']) .theme-aurora .theme-light .analytics-view {
 
 html[data-brand='classic'] .analytics-view,
 html[data-brand='classic'] .theme-aurora .analytics-view,
+html[data-theme='classic-dark'] .analytics-view,
 html:not([data-brand='aurora']) .analytics-view {
-  --analytics-chart-bar: #AFF33E;
+  --analytics-chart-bar: var(--color-primary, #AFF33E);
   --analytics-chart-bar-hover: #38BDF8;
 }
 
 html[data-brand='classic'][data-theme='light'] .analytics-view,
 html[data-brand='classic'][data-theme='light'] .theme-aurora .analytics-view,
+html[data-theme='classic-light'] .analytics-view,
 html:not([data-brand='aurora'])[data-theme='light'] .analytics-view,
 html[data-brand='classic'] .theme-light .analytics-view,
 html:not([data-brand='aurora']) .theme-light .analytics-view {
-  --analytics-chart-bar: #4D7C0F;
+  --analytics-chart-bar: var(--color-primary, #4D7C0F);
   --analytics-chart-bar-hover: #14532D;
 }
 
@@ -193,7 +195,32 @@ html[data-theme='light'] .analytics-view,
 .analytics-chart-legend { display: flex; min-height: 25px; align-items: center; justify-content: flex-end; gap: 18px; color: var(--text-2); font-size: 12.5px; }
 .analytics-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
 .analytics-chart-legend i { width: 14px; height: 14px; border-radius: 4px; background: var(--analytics-chart-bar); }
+.analytics-chart-legend i.is-current { width: 14px; height: 14px; border-radius: 4px; background: var(--analytics-chart-bar, var(--color-accent)); }
 .analytics-chart-legend i.is-previous { width: 14px; height: 14px; border-radius: 4px; background: transparent; border: 1.5px dashed var(--text-3); }
+
+/* Classic theme: legend dot uses lime in dark mode, olive in light mode */
+html[data-brand='classic'] .analytics-chart-legend i.is-current,
+html[data-brand='classic'] .analytics-chart-legend i:not(.is-previous),
+html[data-theme='classic-dark'] .analytics-chart-legend i.is-current,
+html:not([data-brand='aurora']) .analytics-chart-legend i.is-current {
+  background: var(--color-primary, #AFF33E) !important;
+}
+
+html[data-brand='classic'][data-theme='light'] .analytics-chart-legend i.is-current,
+html[data-theme='classic-light'] .analytics-chart-legend i.is-current,
+html:not([data-brand='aurora'])[data-theme='light'] .analytics-chart-legend i.is-current,
+html[data-brand='classic'] .theme-light .analytics-chart-legend i.is-current,
+html:not([data-brand='aurora']) .theme-light .analytics-chart-legend i.is-current {
+  background: var(--color-primary, #4D7C0F) !important;
+}
+
+html[data-brand='classic'] .analytics-zero-btn,
+html[data-theme='classic-dark'] .analytics-zero-btn,
+html:not([data-brand='aurora']) .analytics-zero-btn {
+  background: var(--color-primary, #9EEB2A);
+  color: var(--color-on-primary, #020617);
+  border-color: var(--color-primary, #9EEB2A);
+}
 
 .analytics-chart-canvas-container {
   position: relative;

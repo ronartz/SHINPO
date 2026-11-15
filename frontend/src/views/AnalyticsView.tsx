@@ -96,7 +96,21 @@ function ActivityChart({
 
   const yCoord = (tickValue: number) => bottom - plotHeight * Math.min(1, Math.max(0, axisMax > 0 ? tickValue / axisMax : 0))
 
-  const allZero = maxSeconds === 0
+  const totalFocusTime = data?.currentActiveSeconds ?? 0
+  const hasData = count > 0 && maxSeconds > 0 && totalFocusTime > 0
+
+  if (!hasData || count === 0 || totalFocusTime === 0 || maxSeconds === 0) {
+    return (
+      <div className="analytics-chart-canvas-container focus-activity-empty">
+        <div className="analytics-activity-zero-state" role="status">
+          <p className="analytics-zero-copy" style={{ margin: 0 }}>No Focus time recorded in this period yet.</p>
+          <button type="button" className="analytics-zero-btn" onClick={onNavigateFocus}>
+            Start a Focus session
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const currentRangeLabel = formatDateRange(
     data.currentStart,
@@ -157,21 +171,12 @@ function ActivityChart({
       </div>
 
       <div className="analytics-chart-canvas-container">
-        {allZero ? (
-          <div className="analytics-activity-zero-state" role="status">
-            <span className="analytics-zero-copy">No Focus time recorded in this period yet.</span>
-            <button type="button" className="analytics-zero-btn" onClick={onNavigateFocus}>
-              Start a Focus session
-            </button>
-          </div>
-        ) : (
-          <>
-            <svg
-              className="analytics-activity-chart"
-              viewBox="0 0 920 280"
-              role="img"
-              aria-label={`${labels[range]} Focus activity compared with the immediately preceding period. Current total ${formatFocusDuration(data.currentActiveSeconds, { showSecondsIfSmall: true })}.`}
-            >
+        <svg
+          className="analytics-activity-chart"
+          viewBox="0 0 920 280"
+          role="img"
+          aria-label={`${labels[range]} Focus activity compared with the immediately preceding period. Current total ${formatFocusDuration(data.currentActiveSeconds, { showSecondsIfSmall: true })}.`}
+        >
               <defs>
                 <linearGradient id="analytics-bar-gradient" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor="var(--analytics-chart-bar)" stopOpacity="1" />
@@ -294,8 +299,6 @@ function ActivityChart({
                 )}
               </div>
             )}
-          </>
-        )}
       </div>
     </div>
   )
