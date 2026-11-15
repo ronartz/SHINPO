@@ -1,22 +1,72 @@
 version: 2
 updates:
+  # Frontend NPM dependencies
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
-  - package-ecosystem: cargo
-    directory: /crates/shinpo-shield
-    schedule:
-      interval: weekly
-  - package-ecosystem: cargo
-    directory: /crates/shinpo-browser-host
-    schedule:
-      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      react-ecosystem:
+        patterns:
+          - "react*"
+      tauri-tooling:
+        patterns:
+          - "@tauri-apps/*"
+      typescript-tooling:
+        patterns:
+          - "typescript*"
+          - "@types/*"
+      frontend-dependencies:
+        patterns:
+          - "*"
+
+  # Cargo: Tauri Desktop Application
   - package-ecosystem: cargo
     directory: /frontend/src-tauri
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      tauri-crates:
+        patterns:
+          - "tauri*"
+      serde-crates:
+        patterns:
+          - "serde*"
+      rust-dependencies:
+        patterns:
+          - "*"
+
+  # Cargo: Shinpo Shield Crate
+  - package-ecosystem: cargo
+    directory: /crates/shinpo-shield
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      shield-dependencies:
+        patterns:
+          - "*"
+
+  # Cargo: Shinpo Browser Host Crate
+  - package-ecosystem: cargo
+    directory: /crates/shinpo-browser-host
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      browser-host-dependencies:
+        patterns:
+          - "*"
+
+  # GitHub Actions Workflows
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      github-actions:
+        patterns:
+          - "*"
