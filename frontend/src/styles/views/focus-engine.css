@@ -61,6 +61,11 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   align-self: start;
 }
 
+.focus-right-column {
+  align-content: start;
+  height: auto;
+}
+
 .focus-hero-split .card-timer-hud,
 .focus-hero-split .card-session-creator {
   grid-column: auto;
@@ -69,6 +74,12 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+}
+
+.focus-hero-split .card-session-creator {
+  align-self: start;
+  height: auto;
+  min-height: 0;
 }
 
 .focus-workspace-container .card-session-history {
@@ -883,9 +894,10 @@ html[data-theme='light'] .btn-timer.warning:hover,
   flex-direction: column;
   justify-content: flex-start;
   gap: var(--space-3);
-  flex: 1;
-  min-height: 240px;
-  padding: clamp(var(--space-6), 5vh, 56px) 2px var(--space-2);
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+  padding: 16px 2px var(--space-2);
 }
 
 .focus-progress-accessible {

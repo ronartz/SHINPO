@@ -337,8 +337,15 @@
   .card-session-creator {
     min-height: 0 !important;
     height: auto !important;
+    align-self: start !important;
     padding: 18px 20px !important;
     border-radius: var(--radius-lg, 16px) !important;
+  }
+
+  .focus-right-column {
+    align-content: start !important;
+    align-self: start !important;
+    height: auto !important;
   }
 
   .preset-chip-row {
