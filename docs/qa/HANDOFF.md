@@ -225,6 +225,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
+## 2026-11-15 — Operation Visual Perfection (Batch 1C: Global Layout and Card Height Normalization)
+
+- **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
+- **Dashboard Quick Actions gap (Screenshot A):**
+  - In `frontend/src/styles/views/overview-bento.css`: changed `.shinpo-dashboard .dashboard-quick-actions` to `display: flex; flex-direction: column; justify-content: flex-start; gap: 12px;`. Overrode inherited `.dashboard-sidecar-card` `justify-content: space-between`, eliminating the large blank void between the heading and the 2x2 action buttons.
+- **Dashboard bottom-left orphaned hole (Screenshot A):**
+  - In `frontend/src/views/OverviewView.tsx`: added conditional `schedule-is-empty` class to `.dashboard-cockpit-grid` when `sortedSessions.length === 0`.
+  - In `frontend/src/styles/views/overview-bento.css`: configured `.schedule-is-empty .dashboard-activity-card` (Focus overview) to span `grid-column: 1 / span 2; grid-row: 2;` and `.dashboard-recent-activity` to `grid-column: 3; grid-row: 2;`. When schedule is empty, Row 1 contains Schedule (col 1), Priority (col 2), Quick Actions (col 3), and Row 2 contains Focus overview (cols 1-2) and Recent activity (col 3). The grid is completely filled with 0 orphaned voids.
+- **Goals & Tasks toolbar alignment (Defect 2 in Screenshot B):**
+  - In `frontend/src/styles/views/goals.css`: updated `.goals-task-area .tasks-controls-right` with explicit `align-items: center;` and added `.tasks-sort-wrap { display: inline-flex; align-items: center; height: 38px; }`. Search input, Sort select, View mode toggle (`[List | Board]`), and `+ New Task` button now share a single 38px baseline height and uniform alignment.
+- **Focus view configuration card normalization:**
+  - In `frontend/src/styles/views/focus-engine.css`: updated `.focus-left-column, .focus-right-column` to `align-self: start; height: auto; justify-content: flex-start;` ensuring panels size to their contents without bottom stretching.
+- **Verification:**
+  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
+  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+
+
 ## 2026-11-15 — Operation Visual Perfection (Batch 1B: Universal Empty-State Design System)
 
 - **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
@@ -238,6 +255,23 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
 - **Verification:**
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+
+## 2026-11-15 — Operation Visual Perfection (Batch 1C: Global Layout and Card Height Normalization)
+
+- **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
+- **Dashboard Quick Actions gap (Screenshot A):**
+  - In `frontend/src/styles/views/overview-bento.css`: changed `.shinpo-dashboard .dashboard-quick-actions` to `display: flex; flex-direction: column; justify-content: flex-start; gap: 12px;`. Overrode inherited `.dashboard-sidecar-card` `justify-content: space-between`, eliminating the large blank void between the heading and the 2x2 action buttons.
+- **Dashboard bottom-left orphaned hole (Screenshot A):**
+  - In `frontend/src/views/OverviewView.tsx`: added conditional `schedule-is-empty` class to `.dashboard-cockpit-grid` when `sortedSessions.length === 0`.
+  - In `frontend/src/styles/views/overview-bento.css`: configured `.schedule-is-empty .dashboard-activity-card` (Focus overview) to span `grid-column: 1 / span 2; grid-row: 2;` and `.dashboard-recent-activity` to `grid-column: 3; grid-row: 2;`. When schedule is empty, Row 1 contains Schedule (col 1), Priority (col 2), Quick Actions (col 3), and Row 2 contains Focus overview (cols 1-2) and Recent activity (col 3). The grid is completely filled with 0 orphaned voids.
+- **Goals & Tasks toolbar alignment (Defect 2 in Screenshot B):**
+  - In `frontend/src/styles/views/goals.css`: updated `.goals-task-area .tasks-controls-right` with explicit `align-items: center;` and added `.tasks-sort-wrap { display: inline-flex; align-items: center; height: 38px; }`. Search input, Sort select, View mode toggle (`[List | Board]`), and `+ New Task` button now share a single 38px baseline height and uniform alignment.
+- **Focus view configuration card normalization:**
+  - In `frontend/src/styles/views/focus-engine.css`: updated `.focus-left-column, .focus-right-column` to `align-self: start; height: auto; justify-content: flex-start;` ensuring panels size to their contents without bottom stretching.
+- **Verification:**
+  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
+  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+
 
 
 

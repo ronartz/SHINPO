@@ -1843,6 +1843,7 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 .goals-task-area .tasks-controls-right {
   min-width: 0;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   flex-wrap: nowrap;
 }
@@ -1873,6 +1874,12 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 
 .goals-task-area .tasks-search-input {
   min-width: 0;
+}
+
+.goals-task-area .tasks-sort-wrap {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
 }
 
 .goals-task-area .tasks-sort-select {

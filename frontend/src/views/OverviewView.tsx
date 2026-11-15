@@ -466,7 +466,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </section>
 
       {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
-      <section className="dashboard-cockpit-grid" aria-label="Dashboard">
+      <section className={`dashboard-cockpit-grid ${sortedSessions.length === 0 ? 'schedule-is-empty' : ''}`} aria-label="Dashboard">
         {/* Priority Hero Card (Primary Execution Anchor) */}
         <section
           className={`priority-hero-card ${!activeSession && !primaryActionTask ? 'is-complete-state' : ''}`}

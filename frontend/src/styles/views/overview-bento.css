@@ -2226,6 +2226,10 @@ html[data-theme='light'] .duration-pill.paused {
   background: var(--glass-surface);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .dashboard-reference-card-heading {
@@ -2646,14 +2650,36 @@ html[data-theme='light'] .duration-pill.paused {
   }
 }
 
-/* An empty schedule should occupy only its own dashboard row, not the full
-   height created by the neighboring focus/activity cards. */
-.shinpo-dashboard .schedule-card.is-empty {
+/* An empty schedule should occupy only its own dashboard row, while activity
+   card spans columns 1-2 on row 2, eliminating any orphaned empty space. */
+.shinpo-dashboard .schedule-card.is-empty,
+.shinpo-dashboard .schedule-is-empty .schedule-card {
   grid-row: 1;
 }
 
+.shinpo-dashboard .schedule-is-empty .dashboard-activity-card {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+}
+
+.shinpo-dashboard .schedule-is-empty .dashboard-recent-activity {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+@media (max-width: 900px) {
+  .shinpo-dashboard .schedule-is-empty .dashboard-activity-card {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
 @media (max-width: 720px) {
-  .shinpo-dashboard .schedule-card.is-empty {
+  .shinpo-dashboard .schedule-card.is-empty,
+  .shinpo-dashboard .schedule-is-empty .schedule-card,
+  .shinpo-dashboard .schedule-is-empty .dashboard-activity-card,
+  .shinpo-dashboard .schedule-is-empty .dashboard-recent-activity {
+    grid-column: 1;
     grid-row: auto;
   }
 }

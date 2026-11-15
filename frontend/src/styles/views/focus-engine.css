@@ -56,11 +56,9 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   gap: var(--space-4);
   min-width: 0;
   width: 100%;
-}
-
-.focus-left-column {
   height: auto;
   justify-content: flex-start;
+  align-self: start;
 }
 
 .focus-hero-split .card-timer-hud,
