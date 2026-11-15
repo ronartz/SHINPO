@@ -1901,16 +1901,16 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 
 .goals-task-area>.flight-deck-board-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: minmax(250px, auto);
+  grid-auto-rows: auto;
   align-items: stretch;
   gap: 14px;
 }
 
 .goals-view-deck .status-column {
   min-width: 0;
-  min-height: 250px;
+  min-height: 120px;
   padding: 14px;
-  border-color: color-mix(in srgb, #438fe0 24%, var(--border));
+  border-color: var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-card);
 }
@@ -1919,11 +1919,11 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
   min-height: 34px;
   margin: 0 0 10px;
   padding: 0 1px 9px;
-  border-color: #ffffff13;
+  border-color: var(--border);
 }
 
 .goals-view-deck .column-title-text {
-  color: #e5f0fd;
+  color: var(--text-primary, var(--text));
   font-size: 12px;
   font-weight: 750;
 }
@@ -1931,35 +1931,37 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 .goals-view-deck .column-count-badge {
   min-width: 26px;
   text-align: center;
-  background: #25466a;
-  border-color: transparent;
-  color: #d9ebff;
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text-secondary, var(--text-2));
 }
 
 .goals-view-deck .status-column-cards {
   flex: 1 1 auto;
-  min-height: 170px;
+  min-height: 68px;
   max-height: 520px;
   gap: 8px;
   padding: 0 2px 2px 0;
 }
 
 .goals-view-deck .status-column-empty {
-  min-height: 160px;
+  min-height: 64px;
+  display: flex;
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 20px;
-  border: 0;
-  color: #adc2d9;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary, var(--text-2));
   text-align: center;
-  background: radial-gradient(ellipse at 50% 100%, #1c497333, transparent 68%);
+  background: transparent;
 }
 
 .goals-view-deck .status-column-empty .empty-title {
-  color: #d9e8f8;
-  font-size: 13px;
-  font-weight: 650;
+  color: var(--text-secondary, var(--text-2));
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .goals-view-deck .flight-deck-card {

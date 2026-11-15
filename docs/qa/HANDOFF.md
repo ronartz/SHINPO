@@ -225,4 +225,19 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
+## 2026-11-15 — Operation Visual Perfection (Batch 1B: Universal Empty-State Design System)
+
+- **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
+- **Analytics empty-state ghost lines (Defects 2 & 3 in Screenshot D):**
+  - In `frontend/src/views/AnalyticsView.tsx`: when `allZero` is true in `FocusActivity`, the SVG chart and its background gridlines/axes/zero-rects are now completely bypassed. Instead, a clean, compact empty-state card (`.analytics-activity-zero-state`) is rendered directly with 140px min-height, eliminating ghost lines and excessive blank space.
+  - In `frontend/src/styles/views/analytics.css`: styled `.analytics-activity-zero-state` with subtle dashed border and theme-aware surface coloring.
+- **Goals & Tasks compact Kanban empty columns (Defect 1 in Screenshot B):**
+  - In `frontend/src/styles/views/goals.css` & `frontend/src/styles/views/goals-kanban.css`: adjusted `.flight-deck-board-grid` from hardcoded `grid-auto-rows: minmax(250px, auto)` to natural content-sized rows.
+  - Reduced empty column and drop target min-heights from 250px/160px down to ~120px column height / 64px drop target.
+  - Replaced hardcoded blue `#adc2d9` and radial gradient with subtle dashed `var(--border)` and theme token `var(--text-secondary)`, maintaining full drag-and-drop drop-target viability without dominating the viewport.
+- **Verification:**
+  - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
+  - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
+
+
 

@@ -172,7 +172,7 @@ html[data-theme='light'] .board-action-btn.primary {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 180px;
+  min-height: 120px;
   transition: border-color 0.2s ease;
 }
 
