@@ -89,10 +89,10 @@ function ActivityChart({
     range === '7d'
       ? Math.min(52, Math.max(28, slotWidth * 0.44))
       : range === '24h'
-      ? Math.min(36, Math.max(18, slotWidth * 0.52))
-      : range === '30d'
-      ? Math.min(16, Math.max(8, slotWidth * 0.6))
-      : Math.min(38, Math.max(16, slotWidth * 0.52))
+        ? Math.min(36, Math.max(18, slotWidth * 0.52))
+        : range === '30d'
+          ? Math.min(16, Math.max(8, slotWidth * 0.6))
+          : Math.min(38, Math.max(16, slotWidth * 0.52))
 
   const yCoord = (tickValue: number) => bottom - plotHeight * Math.min(1, Math.max(0, axisMax > 0 ? tickValue / axisMax : 0))
 
@@ -177,128 +177,128 @@ function ActivityChart({
           role="img"
           aria-label={`${labels[range]} Focus activity compared with the immediately preceding period. Current total ${formatFocusDuration(data.currentActiveSeconds, { showSecondsIfSmall: true })}.`}
         >
-              <defs>
-                <linearGradient id="analytics-bar-gradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="var(--analytics-chart-bar)" stopOpacity="1" />
-                  <stop offset="100%" stopColor="var(--analytics-chart-bar)" stopOpacity="0.82" />
-                </linearGradient>
-              </defs>
+          <defs>
+            <linearGradient id="analytics-bar-gradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--analytics-chart-bar)" stopOpacity="1" />
+              <stop offset="100%" stopColor="var(--analytics-chart-bar)" stopOpacity="0.82" />
+            </linearGradient>
+          </defs>
 
-              {/* Horizontal Gridlines & Y-Axis Labels */}
-              {ticks.map((tick) => {
-                const yy = yCoord(tick)
-                return (
-                  <g key={`tick-${tick}`}>
-                    <line x1={left} x2={right} y1={yy} y2={yy} className="analytics-chart-gridline" />
-                    <text x={left - 10} y={yy + 4} textAnchor="end" className="analytics-chart-axis">
-                      {formatActivityAxisTick(tick, axisUnit)}
-                    </text>
-                  </g>
-                )
-              })}
+          {/* Horizontal Gridlines & Y-Axis Labels */}
+          {ticks.map((tick) => {
+            const yy = yCoord(tick)
+            return (
+              <g key={`tick-${tick}`}>
+                <line x1={left} x2={right} y1={yy} y2={yy} className="analytics-chart-gridline" />
+                <text x={left - 10} y={yy + 4} textAnchor="end" className="analytics-chart-axis">
+                  {formatActivityAxisTick(tick, axisUnit)}
+                </text>
+              </g>
+            )
+          })}
 
-              {/* Baseline zero line */}
-              <line x1={left} x2={right} y1={bottom} y2={bottom} className="analytics-chart-baseline" />
+          {/* Baseline zero line */}
+          <line x1={left} x2={right} y1={bottom} y2={bottom} className="analytics-chart-baseline" />
 
-              {/* Data Buckets */}
-              {Array.from({ length: count }, (_, i) => {
-                const slotCenter = left + i * slotWidth + slotWidth / 2
-                const bx = slotCenter - barWidth / 2
-                const cSeconds = currentSeconds[i] ?? 0
-                const pSeconds = previousSeconds[i] ?? 0
-                const b = current[i]
+          {/* Data Buckets */}
+          {Array.from({ length: count }, (_, i) => {
+            const slotCenter = left + i * slotWidth + slotWidth / 2
+            const bx = slotCenter - barWidth / 2
+            const cSeconds = currentSeconds[i] ?? 0
+            const pSeconds = previousSeconds[i] ?? 0
+            const b = current[i]
 
-                const axisMaxSeconds = axisUnit === 'minutes' ? axisMax * 60 : axisMax
-                const cHeight = axisMaxSeconds > 0 ? (cSeconds / axisMaxSeconds) * plotHeight : 0
-                const pHeight = axisMaxSeconds > 0 ? (pSeconds / axisMaxSeconds) * plotHeight : 0
+            const axisMaxSeconds = axisUnit === 'minutes' ? axisMax * 60 : axisMax
+            const cHeight = axisMaxSeconds > 0 ? (cSeconds / axisMaxSeconds) * plotHeight : 0
+            const pHeight = axisMaxSeconds > 0 ? (pSeconds / axisMaxSeconds) * plotHeight : 0
 
-                const currentBarHeight = cSeconds > 0 ? Math.min(plotHeight, Math.max(4, cHeight)) : 2
-                const currentBarY = bottom - currentBarHeight
+            const currentBarHeight = cSeconds > 0 ? Math.min(plotHeight, Math.max(4, cHeight)) : 2
+            const currentBarY = bottom - currentBarHeight
 
-                const prevBarHeight = pSeconds > 0 ? Math.min(plotHeight, Math.max(4, pHeight)) : 0
-                const prevBarY = bottom - prevBarHeight
+            const prevBarHeight = pSeconds > 0 ? Math.min(plotHeight, Math.max(4, pHeight)) : 0
+            const prevBarY = bottom - prevBarHeight
 
-                const labelText = formatBucketLabel(b?.start ?? '', range, b?.end)
-                const showLabel = shouldShowLabel(i)
+            const labelText = formatBucketLabel(b?.start ?? '', range, b?.end)
+            const showLabel = shouldShowLabel(i)
 
-                const ariaLabel = `${labelText}: ${formatFocusDuration(b?.activeSeconds ?? 0, { showSecondsIfSmall: true })} focus, ${b?.completedSessions ?? 0} sessions.`
+            const ariaLabel = `${labelText}: ${formatFocusDuration(b?.activeSeconds ?? 0, { showSecondsIfSmall: true })} focus, ${b?.completedSessions ?? 0} sessions.`
 
-                return (
-                  <g key={`bucket-${i}`} className="analytics-bucket-group">
-                    {/* Previous period benchmark ghost bar */}
-                    {pSeconds > 0 && (
-                      <rect
-                        x={bx - 2}
-                        y={prevBarY}
-                        width={barWidth + 4}
-                        height={prevBarHeight}
-                        rx="5"
-                        className="analytics-bar-previous"
-                        aria-hidden="true"
-                      />
-                    )}
-
-                    {/* Current period bar or subtle zero slot indicator */}
-                    <rect
-                      x={bx}
-                      y={currentBarY}
-                      width={barWidth}
-                      height={currentBarHeight}
-                      rx={cSeconds > 0 ? 5 : 1}
-                      className={cSeconds > 0 ? 'analytics-bar-current' : 'analytics-bar-zero'}
-                      tabIndex={0}
-                      role="graphics-symbol"
-                      aria-label={ariaLabel}
-                      onMouseEnter={() => handlePointerEnter(i, bx, currentBarY)}
-                      onFocus={() => handlePointerEnter(i, bx, currentBarY)}
-                      onBlur={handlePointerLeave}
-                    >
-                      <title>{ariaLabel}</title>
-                    </rect>
-
-                    {/* X-Axis Tick Label */}
-                    {showLabel && (
-                      <text
-                        x={slotCenter}
-                        y={bottom + 22}
-                        textAnchor="middle"
-                        className="analytics-chart-axis-x"
-                      >
-                        {labelText}
-                      </text>
-                    )}
-                  </g>
-                )
-              })}
-            </svg>
-
-            {/* Interactive Floating Tooltip */}
-            {tooltip && (
-              <div
-                className="analytics-chart-tooltip"
-                style={{
-                  left: `${(tooltip.x / 920) * 100}%`,
-                  top: `${(tooltip.y / 280) * 100}%`,
-                }}
-                role="tooltip"
-                aria-live="polite"
-              >
-                <div className="analytics-tooltip-title">{tooltip.title}</div>
-                <div className="analytics-tooltip-row">
-                  <span className="analytics-tooltip-badge is-current" />
-                  <span className="analytics-tooltip-label">Current:</span>
-                  <strong>{tooltip.currentDuration}</strong>
-                  <small>({tooltip.currentSessions} {tooltip.currentSessions === 1 ? 'session' : 'sessions'})</small>
-                </div>
-                {tooltip.previousDuration !== '0m' && (
-                  <div className="analytics-tooltip-row is-prev">
-                    <span className="analytics-tooltip-badge is-prev" />
-                    <span className="analytics-tooltip-label">Previous:</span>
-                    <span>{tooltip.previousDuration}</span>
-                  </div>
+            return (
+              <g key={`bucket-${i}`} className="analytics-bucket-group">
+                {/* Previous period benchmark ghost bar */}
+                {pSeconds > 0 && (
+                  <rect
+                    x={bx - 2}
+                    y={prevBarY}
+                    width={barWidth + 4}
+                    height={prevBarHeight}
+                    rx="5"
+                    className="analytics-bar-previous"
+                    aria-hidden="true"
+                  />
                 )}
+
+                {/* Current period bar or subtle zero slot indicator */}
+                <rect
+                  x={bx}
+                  y={currentBarY}
+                  width={barWidth}
+                  height={currentBarHeight}
+                  rx={cSeconds > 0 ? 5 : 1}
+                  className={cSeconds > 0 ? 'analytics-bar-current' : 'analytics-bar-zero'}
+                  tabIndex={0}
+                  role="graphics-symbol"
+                  aria-label={ariaLabel}
+                  onMouseEnter={() => handlePointerEnter(i, bx, currentBarY)}
+                  onFocus={() => handlePointerEnter(i, bx, currentBarY)}
+                  onBlur={handlePointerLeave}
+                >
+                  <title>{ariaLabel}</title>
+                </rect>
+
+                {/* X-Axis Tick Label */}
+                {showLabel && (
+                  <text
+                    x={slotCenter}
+                    y={bottom + 22}
+                    textAnchor="middle"
+                    className="analytics-chart-axis-x"
+                  >
+                    {labelText}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+        </svg>
+
+        {/* Interactive Floating Tooltip */}
+        {tooltip && (
+          <div
+            className="analytics-chart-tooltip"
+            style={{
+              left: `${(tooltip.x / 920) * 100}%`,
+              top: `${(tooltip.y / 280) * 100}%`,
+            }}
+            role="tooltip"
+            aria-live="polite"
+          >
+            <div className="analytics-tooltip-title">{tooltip.title}</div>
+            <div className="analytics-tooltip-row">
+              <span className="analytics-tooltip-badge is-current" />
+              <span className="analytics-tooltip-label">Current:</span>
+              <strong>{tooltip.currentDuration}</strong>
+              <small>({tooltip.currentSessions} {tooltip.currentSessions === 1 ? 'session' : 'sessions'})</small>
+            </div>
+            {tooltip.previousDuration !== '0m' && (
+              <div className="analytics-tooltip-row is-prev">
+                <span className="analytics-tooltip-badge is-prev" />
+                <span className="analytics-tooltip-label">Previous:</span>
+                <span>{tooltip.previousDuration}</span>
               </div>
             )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -488,11 +488,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const currentHeaderRange = visiblePeriod
     ? formatDateRange(
-        visiblePeriod.currentStart,
-        visiblePeriod.currentEnd,
-        range,
-        visiblePeriod.currentBuckets[visiblePeriod.currentBuckets.length - 1]?.start
-      )
+      visiblePeriod.currentStart,
+      visiblePeriod.currentEnd,
+      range,
+      visiblePeriod.currentBuckets[visiblePeriod.currentBuckets.length - 1]?.start
+    )
     : ''
 
   return (
@@ -621,7 +621,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             <div className="analytics-metric-support">
               <small>Current completed tasks · all time</small>
             </div>
-          {completedRate != null && <div
+            {completedRate != null && <div
               className="analytics-task-progress"
               role="img"
               aria-label={`${completedRate}% of all tasks completed`}

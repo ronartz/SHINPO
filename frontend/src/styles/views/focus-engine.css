@@ -355,6 +355,13 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   background: color-mix(in srgb, var(--brand-primary) 10%, var(--surface-subtle));
 }
 
+.intention-guidance-footer {
+  border-top: none !important;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .guardian-preference-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1384,10 +1391,12 @@ html[data-theme='light'] .status-indicator-pill.failed {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.6);
     outline: 2px solid var(--color-primary);
   }
+
   40% {
     box-shadow: 0 0 0 8px rgba(124, 58, 237, 0.25);
     outline: 2px solid var(--color-primary);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
     outline: 2px solid transparent;

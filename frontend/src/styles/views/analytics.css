@@ -360,21 +360,25 @@ html[data-brand='classic'] .theme-light .analytics-bar-current {
 .analytics-zero-btn {
   pointer-events: auto;
   min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--analytics-action);
-  border-radius: 9px;
-  background: var(--analytics-action);
-  color: var(--analytics-action-text);
+  padding: 0 16px;
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--on-accent);
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 0.16s ease, filter 0.16s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .analytics-zero-btn:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
   transform: translateY(-1px);
-  filter: brightness(1.1);
 }
 
 .analytics-chart-placeholder button { min-height: 36px; padding: 0 13px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
