@@ -173,7 +173,7 @@ html[data-theme='light'] .analytics-view,
 .focus-skyline-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 14px 0 4px; border-top: none; }
 .focus-skyline-stats > div { display: grid; min-width: 0; gap: 3px; }
 .focus-skyline-stats span { color: var(--text-3); font-size: 12px; }
-.focus-skyline-stats strong { color: var(--text-1); font-size: 17px; font-variant-numeric: tabular-nums; }
+.focus-skyline-stats strong { color: var(--text-1); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .focus-skyline-stats small { overflow: hidden; color: var(--text-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .focus-skyline-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 10px; color: var(--text-3); font-size: 12px; }
 .focus-skyline-legend { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }

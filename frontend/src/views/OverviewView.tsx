@@ -465,6 +465,42 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </button>
       </section>
 
+      {/* Row 1: Active Goals & Today's Tasks */}
+      <section className="dashboard-bottom-grid dashboard-goals-tasks-row" aria-label="Goals and today's tasks">
+        <article className="dashboard-reference-panel">
+          <header className="dashboard-reference-card-heading"><h2>Active goals</h2><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
+          {activeGoals.length ? <ul className="dashboard-goals-list">{activeGoals.slice(0, 3).map((goal) => {
+            const goalTasks = missions.filter((mission) => mission.goalId === goal.id)
+            const complete = goalTasks.filter((mission) => mission.status === 'COMPLETED').length
+            const percent = goalTasks.length ? Math.round(complete / goalTasks.length * 100) : 0
+            return <li key={goal.id}><div className="dashboard-goal-name"><span aria-hidden="true"><Icon name="target" size={17} /></span><strong title={goal.title}>{goal.title}</strong><b>{percent}%</b></div><small>{goal.description || 'Keep making progress toward this goal.'}</small><div className="dashboard-goal-bar"><span style={{ width: `${percent}%` }} /></div></li>
+          })}</ul> : (
+            <div className="dashboard-reference-empty">
+              <div className="dashboard-empty-icon-wrap" aria-hidden="true">
+                <Icon name="target" size={20} />
+              </div>
+              <strong className="dashboard-empty-title">No active goals yet</strong>
+              <p className="dashboard-empty-desc">Define meaningful outcomes to orient your daily tasks and focus sessions.</p>
+              <button type="button" className="dashboard-empty-btn" onClick={() => setActiveTab('Goals & Missions')}>Create a goal</button>
+            </div>
+          )}
+        </article>
+
+        <article className="dashboard-reference-panel dashboard-today-tasks">
+          <header className="dashboard-reference-card-heading"><span><h2>Today's tasks</h2><small>{todayMissions.length} planned</small></span><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
+          {todayMissions.length ? <div className="dashboard-today-task-list">{todayMissions.slice(0, 5).map((task) => renderFlightDeckCard(task))}</div> : (
+            <div className="dashboard-reference-empty">
+              <div className="dashboard-empty-icon-wrap" aria-hidden="true">
+                <Icon name="journal" size={20} />
+              </div>
+              <strong className="dashboard-empty-title">No tasks planned for today</strong>
+              <p className="dashboard-empty-desc">Select an active goal and queue 25-minute focus sprints.</p>
+              <button type="button" className="dashboard-empty-btn" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>Add a task</button>
+            </div>
+          )}
+        </article>
+      </section>
+
       {/* 3. Upper Cockpit Grid: Priority Hero Card + Today's Schedule & EONPAI Recommendations */}
       <section className={`dashboard-cockpit-grid ${sortedSessions.length === 0 ? 'schedule-is-empty' : ''}`} aria-label="Dashboard">
         {/* Priority Hero Card (Primary Execution Anchor) */}
@@ -783,8 +819,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </section>
 
-          <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} />
-
           <section className="dashboard-sidecar-card dashboard-quick-actions" aria-label="Quick actions">
             <header className="dashboard-reference-card-heading">
               <h2>Quick actions</h2><span aria-hidden="true"><Icon name="sparkle" size={17} /></span>
@@ -806,39 +840,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </section>
       </section>
 
-      <section className="dashboard-bottom-grid" aria-label="Goals and today's tasks">
-        <article className="dashboard-reference-panel">
-          <header className="dashboard-reference-card-heading"><h2>Active goals</h2><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
-          {activeGoals.length ? <ul className="dashboard-goals-list">{activeGoals.slice(0, 3).map((goal) => {
-            const goalTasks = missions.filter((mission) => mission.goalId === goal.id)
-            const complete = goalTasks.filter((mission) => mission.status === 'COMPLETED').length
-            const percent = goalTasks.length ? Math.round(complete / goalTasks.length * 100) : 0
-            return <li key={goal.id}><div className="dashboard-goal-name"><span aria-hidden="true"><Icon name="target" size={17} /></span><strong title={goal.title}>{goal.title}</strong><b>{percent}%</b></div><small>{goal.description || 'Keep making progress toward this goal.'}</small><div className="dashboard-goal-bar"><span style={{ width: `${percent}%` }} /></div></li>
-          })}</ul> : (
-            <div className="dashboard-reference-empty">
-              <div className="dashboard-empty-icon-wrap" aria-hidden="true">
-                <Icon name="target" size={26} />
-              </div>
-              <strong className="dashboard-empty-title">No active goals yet</strong>
-              <p className="dashboard-empty-desc">Define meaningful outcomes to orient your daily tasks and focus sessions.</p>
-              <button type="button" className="dashboard-empty-btn" onClick={() => setActiveTab('Goals & Missions')}>Create a goal</button>
-            </div>
-          )}
-        </article>
-
-        <article className="dashboard-reference-panel dashboard-today-tasks">
-          <header className="dashboard-reference-card-heading"><span><h2>Today's tasks</h2><small>{todayMissions.length} planned</small></span><button type="button" onClick={() => setActiveTab('Goals & Missions')}>View all <Icon name="arrow-up-right" size={13} /></button></header>
-          {todayMissions.length ? <div className="dashboard-today-task-list">{todayMissions.slice(0, 5).map((task) => renderFlightDeckCard(task))}</div> : (
-            <div className="dashboard-reference-empty">
-              <div className="dashboard-empty-icon-wrap" aria-hidden="true">
-                <Icon name="journal" size={26} />
-              </div>
-              <strong className="dashboard-empty-title">No tasks planned for today</strong>
-              <p className="dashboard-empty-desc">Select an active goal and queue 25-minute focus sprints.</p>
-              <button type="button" className="dashboard-empty-btn" onClick={() => goals.length ? (setQuickMissionGoalId(goals[0].id), setIsCreatingQuickMission(true)) : setActiveTab('Goals & Missions')}>Add a task</button>
-            </div>
-          )}
-        </article>
+      {/* Row 3: Focus Overview | Recent Activity */}
+      <section className="dashboard-insights-row" aria-label="Focus overview and recent activity">
+        <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} />
       </section>
 
       {/* Task Details Modal */}

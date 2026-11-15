@@ -868,20 +868,11 @@ html[data-theme='light'] .schedule-filter-btn.active {
   background: var(--surface-subtle);
 }
 
-.schedule-week-summary>div:nth-child(1) {
-  border-top: 2px solid var(--color-primary);
-}
-
-.schedule-week-summary>div:nth-child(2) {
-  border-top: 2px solid var(--accent-blue);
-}
-
-.schedule-week-summary>div:nth-child(3) {
-  border-top: 2px solid var(--accent-emerald);
-}
-
+.schedule-week-summary>div:nth-child(1),
+.schedule-week-summary>div:nth-child(2),
+.schedule-week-summary>div:nth-child(3),
 .schedule-week-summary>div:nth-child(4) {
-  border-top: 2px solid var(--color-primary);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .schedule-week-summary span {
@@ -1836,20 +1827,11 @@ html[data-theme='light'] .schedule-filter-btn.active {
   border-top-width: 1px;
 }
 
-.schedule-week-summary>div.planned {
-  border-top: 2px solid var(--brand-primary);
-}
-
-.schedule-week-summary>div.recorded {
-  border-top: 2px solid var(--brand-cool-sky);
-}
-
-.schedule-week-summary>div.completed {
-  border-top: 2px solid var(--status-success);
-}
-
+.schedule-week-summary>div.planned,
+.schedule-week-summary>div.recorded,
+.schedule-week-summary>div.completed,
 .schedule-week-summary>div.upcoming {
-  border-top: 2px solid var(--brand-primary);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .schedule-summary-icon {

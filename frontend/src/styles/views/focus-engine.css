@@ -575,7 +575,7 @@ html[data-theme='light'] .focus-workspace-container .card-title,
 }
 
 .timer-digits-display {
-  font-size: clamp(52px, 6vw, 80px);
+  font-size: clamp(72px, 7vw, 96px);
   font-weight: 800;
   letter-spacing: -0.065em;
   font-variant-numeric: tabular-nums;
@@ -1068,13 +1068,13 @@ html[data-theme='light'] .btn-timer.warning:hover,
 }
 
 .card-session-creator .study-mode-option strong {
-  font-size: 13px !important;
-  font-weight: 700 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
   line-height: 1.2 !important;
 }
 
 .card-session-creator .study-mode-option .study-mode-option-detail {
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: var(--text-3) !important;
   font-weight: 500 !important;
   line-height: 1.2 !important;

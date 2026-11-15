@@ -2126,16 +2126,16 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-cockpit-grid {
-  grid-template-columns: minmax(250px, 1.12fr) minmax(260px, 1fr) minmax(230px, .9fr);
-  grid-template-rows: auto auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: var(--card-gap, 16px);
   align-items: stretch;
 }
 
 .shinpo-dashboard .schedule-card {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  padding: 14px;
+  grid-column: auto;
+  grid-row: auto;
+  padding: var(--card-padding, 20px 24px);
   gap: 12px;
   border: var(--glass-border);
   border-radius: 12px;
@@ -2147,10 +2147,10 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .priority-hero-card {
-  grid-column: 2;
-  grid-row: 1;
+  grid-column: auto;
+  grid-row: auto;
   min-height: 0;
-  padding: 16px;
+  padding: var(--card-padding, 20px 24px);
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2170,13 +2170,21 @@ html[data-theme='light'] .duration-pill.paused {
   font-size: clamp(36px, 4vw, 54px);
 }
 
+.shinpo-dashboard .dashboard-insights-row {
+  width: 100%;
+  margin-top: var(--card-gap, 16px);
+}
+
 .shinpo-dashboard .dashboard-insight-grid {
-  display: contents;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: var(--card-gap, 16px) !important;
+  width: 100% !important;
 }
 
 .shinpo-dashboard .dashboard-insight-card {
   min-height: 0;
-  padding: 14px;
+  padding: var(--card-padding, 20px 24px);
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2185,13 +2193,13 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-activity-card {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: auto !important;
+  grid-row: auto !important;
 }
 
 .shinpo-dashboard .dashboard-recent-activity {
-  grid-column: 3;
-  grid-row: 2;
+  grid-column: auto !important;
+  grid-row: auto !important;
 }
 
 .shinpo-dashboard .dashboard-insight-header h2 {
@@ -2210,17 +2218,17 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-chart-bar {
-  background: var(--color-primary);
+  background: var(--color-accent);
 }
 
 .shinpo-dashboard .dashboard-chart-day.is-today .dashboard-chart-bar {
-  background: var(--color-primary-hover);
+  background: var(--color-accent-hover);
 }
 
 .shinpo-dashboard .dashboard-quick-actions {
-  grid-column: 3;
-  grid-row: 1;
-  padding: 14px;
+  grid-column: auto;
+  grid-row: auto;
+  padding: var(--card-padding, 20px 24px);
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2228,8 +2236,13 @@ html[data-theme='light'] .duration-pill.paused {
   -webkit-backdrop-filter: var(--glass-blur);
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 12px;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+}
+
+.shinpo-dashboard .dashboard-quick-actions .dashboard-reference-card-heading {
+  margin-bottom: 16px !important;
+  flex-shrink: 0;
 }
 
 .dashboard-reference-card-heading {
