@@ -1,72 +1,49 @@
 version: 2
 updates:
-  # Frontend NPM dependencies
+  # Frontend NPM dependencies (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: npm
     directory: /frontend
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
-      react-ecosystem:
-        patterns:
-          - "react*"
-      tauri-tooling:
-        patterns:
-          - "@tauri-apps/*"
-      typescript-tooling:
-        patterns:
-          - "typescript*"
-          - "@types/*"
       frontend-dependencies:
         patterns:
           - "*"
 
-  # Cargo: Tauri Desktop Application
+  # Rust: Tauri Desktop Application (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: cargo
     directory: /frontend/src-tauri
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
-      tauri-crates:
-        patterns:
-          - "tauri*"
-      serde-crates:
-        patterns:
-          - "serde*"
-      rust-dependencies:
+      tauri-rust-dependencies:
         patterns:
           - "*"
 
-  # Cargo: Shinpo Shield Crate
+  # Rust: Shinpo Shield Crate (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: cargo
     directory: /crates/shinpo-shield
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 2
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
       shield-dependencies:
         patterns:
           - "*"
 
-  # Cargo: Shinpo Browser Host Crate
+  # Rust: Shinpo Browser Host Crate (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: cargo
     directory: /crates/shinpo-browser-host
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 2
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
       browser-host-dependencies:
         patterns:
           - "*"
 
-  # GitHub Actions Workflows
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+  # Note: Routine GitHub Actions version-update generation is disabled per policy.
+  # Security-critical updates remain enabled via GitHub Dependabot Alerts and Security Updates.
+  # Routine Actions updates are maintained through the consolidated quarterly release cycle.
