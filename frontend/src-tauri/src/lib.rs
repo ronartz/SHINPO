@@ -332,7 +332,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
             log::info!("[SHINPO Desktop] Tauri shell initialized.");
             Ok(())
         })

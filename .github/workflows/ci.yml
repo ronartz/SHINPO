@@ -282,8 +282,10 @@ jobs:
           echo "$STATUS_AUDIT_HOST" > security-reports/status-cargo-audit-browser-host.txt
 
           echo "=== Scanning frontend/src-tauri/Cargo.lock ==="
-          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock
-          cargo audit --deny unsound --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
+          # Policy Exception: RUSTSEC-2024-0429 (glib v0.18.5 VariantStrIter unsoundness)
+          # Transitive GTK 0.18 binding pinned by Tauri 2.12.3; unreachable in SHINPO; review: 2027-02-16
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
           STATUS_AUDIT_TAURI=$?
           echo "$STATUS_AUDIT_TAURI" > security-reports/status-cargo-audit-frontend-tauri.txt
           set -e
