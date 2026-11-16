@@ -145,18 +145,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       statusTitle = sentinelStatus?.warningOnly || isMonitoringOnly
         ? 'Monitoring only'
         : sentinelState === 'STANDBY' ? 'Protection on standby' : 'Protection ready'
-      statusSub = nativeStatusAvailable
-        ? 'Warnings and intervention depend on Focus phase, consent, and platform capability'
-        : sentinelStatus?.warningOnly ? 'Warnings begin with a Focus session' : isMonitoringOnly ? 'Apps are not blocked' : 'No active focus session'
+      statusSub = sentinelStatus?.warningOnly || isMonitoringOnly || nativeStatusAvailable
+        ? 'Warnings only. Apps are never closed.'
+        : 'Warnings begin with a Focus session'
       dotClass = 'status-dot-ready'
       shieldStateClass = 'shield-ready'
-      statusTooltip = nativeStatusAvailable
-        ? `${guardianInterventionDescription(sentinelStatus?.interventionCapability)} Browser policy is managed separately by Browser Companion.`
-        : sentinelStatus?.warningOnly
-        ? 'App observations run during Focus only; browser policy is managed by Browser Companion.'
-        : isMonitoringOnly
-        ? 'Focus protection is monitoring only; no applications are blocked.'
-        : 'Focus protection is connected and ready. Browser protection is reported separately.'
+      statusTooltip = 'Focus protection is warning-only. Apps are never closed. Browser policy is managed separately by Browser Companion.'
     } else {
       statusTitle = 'Protection Unavailable'
       statusSub = 'Protection service offline'
@@ -278,9 +272,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <div className="protection-panel-titles">
                 <span className="protection-title">{statusTitle}</span>
                 <span className="protection-sub-text">{statusSub}</span>
-                {isDaemonConnected && (sentinelStatus?.guardianMode || enforcementMode) && (
+                {isDaemonConnected && (sentinelStatus?.guardianMode || enforcementMode || statusTitle === 'Monitoring only') && (
                   <span className="protection-mode-badge">
-                    {sentinelStatus?.guardianMode
+                    {statusTitle === 'Monitoring only'
+                      ? 'MONITORING ONLY'
+                      : sentinelStatus?.guardianMode
                       ? guardianModeLabel(sentinelStatus.guardianMode)
                       : formatEnforcementMode(enforcementMode)}
                   </span>

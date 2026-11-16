@@ -295,7 +295,7 @@
   }
 
   .card-session-intention {
-    flex: 0 0 auto !important;
+    width: 100% !important;
     min-height: auto !important;
     height: auto !important;
     display: flex !important;
@@ -490,12 +490,13 @@
   }
 
   .analytics-card {
-    padding: 13px 16px !important;
+    padding: 14px 16px !important;
     border-radius: var(--radius-md, 12px) !important;
+    min-height: 136px !important;
   }
 
-  .analytics-card strong {
-    font-size: 22px !important;
+  .analytics-card .analytics-metric-value {
+    font-size: 24px !important;
   }
 
   .analytics-main-grid {

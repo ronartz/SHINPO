@@ -31,8 +31,8 @@
 
 .tm-metric-card:hover {
   border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
+  transform: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
 }
 
 .tm-metric-top {

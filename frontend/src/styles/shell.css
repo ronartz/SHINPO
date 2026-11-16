@@ -700,12 +700,12 @@
 .sidebar-protection-panel {
   display: flex;
   flex-direction: column;
-  gap: 11px;
-  padding: 13px 14px;
+  gap: 10px;
+  padding: 12px 13px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -762,18 +762,32 @@
 
 .protection-status-dot {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
+  bottom: 1px;
+  right: 1px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1.5px solid var(--sidebar-bg, var(--brand-yale-blue));
+  background: var(--status-success, #16A36A);
+  box-shadow: 0 0 0 2px var(--sidebar-bg, var(--color-surface-1));
+}
+
+.protection-status-dot.status-dot-ready,
+.protection-status-dot.status-dot-active {
+  background: var(--status-success, #16A36A);
+}
+
+.protection-status-dot.status-dot-warning {
+  background: var(--status-warning, #B7791F);
+}
+
+.protection-status-dot.status-dot-unavailable {
+  background: var(--status-danger, #F87171);
 }
 
 .protection-panel-titles {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
   overflow: hidden;
 }
@@ -781,29 +795,29 @@
 .protection-title {
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--text, #eeeeee);
+  color: var(--text-1);
   line-height: 1.25;
   letter-spacing: -0.2px;
 }
 
 .protection-sub-text {
-  font-size: 12px;
-  color: var(--text-3, #5c5c5c);
-  line-height: 1.3;
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.35;
 }
 
 .protection-mode-badge {
   display: inline-block;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 1px 6px;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--brand-highlight) 18.0%, transparent);
   color: var(--color-text-primary);
   border: 1px solid color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
-  margin-top: 2px;
+  margin-top: 3px;
   width: fit-content;
 }
 

@@ -398,53 +398,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 </>
               )}
             </div>
-
           </div>
-
-
-          {!activeSession && (
-            <div className="bento-card card-session-intention focus-panel-glass">
-              <div className="card-header-row">
-                <div className="card-title-group">
-                  <span className="card-title">Session Intention</span>
-                  <span className="badge-tag">Single Focus</span>
-                </div>
-                <Icon name="target" size={18} />
-              </div>
-              <p className="intention-helper-text">
-                Define the single outcome you will complete during this focus block.
-              </p>
-              <div className="session-intention-box" style={{ margin: 0 }}>
-                <input
-                  type="text"
-                  value={sessionIntention}
-                  onChange={(e) => setSessionIntention(e.target.value)}
-                  placeholder="e.g. Finish design review, debug auth flow, draft spec..."
-                  className="session-intention-input"
-                  disabled={!!activeSession}
-                  aria-label="Session Intention"
-                />
-              </div>
-              <div className="intention-quick-tags">
-                <span>Quick focus:</span>
-                {['Deep work', 'Investigation', 'Code review', 'Writing & planning'].map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className="intention-tag-chip"
-                    onClick={() => setSessionIntention(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-              <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 2 }}>
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
-                  Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right Column: Configuration or Live Context */}
@@ -514,9 +468,13 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 </div>
 
                 <section className="pomodoro-config" aria-label="Pomodoro cycle configuration">
-                  {guardianModeAvailable && !activeSession && <div className="study-mode-section" id="study-mode-section">
-                    <span className="study-section-label">Guardian mode</span>
-                    <div className="study-mode-options" role="group" aria-label="Guardian mode">
+                  {guardianModeAvailable && !activeSession && (
+                    <div className="study-mode-section" id="study-mode-section">
+                      <div className="study-mode-separator" aria-hidden="true" />
+                      <div className="study-section-label-row">
+                        <span className="study-section-label">Guardian mode</span>
+                      </div>
+                      <div className="study-mode-options" role="group" aria-label="Guardian mode">
                       {GUARDIAN_MODE_OPTIONS.map(({ mode, label }) => {
                         const isSelected = guardianMode === mode || (mode === 'PROTECTED' && (guardianMode as string) === 'STANDARD')
                         return (
@@ -556,7 +514,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </div>
                     {guardianPreferenceMessage && <p role="status" className="guardian-observation-note">{guardianPreferenceMessage}</p>}
                     {guardianPreferenceError && <p role="alert" className="guardian-observation-note">{guardianPreferenceError}</p>}
-                  </div>}
+                  </div>
+                  )}
                   <label className="pomodoro-toggle">
                     <input type="checkbox" checked={pomodoroEnabled} onChange={(event) => { setPomodoroEnabled(event.target.checked); setSelectedPomodoroPlan(null) }} />
                     <span>Include one midpoint break</span>
@@ -616,6 +575,53 @@ export const FocusView: React.FC<FocusViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Full-width Section Below: Session Intention */}
+      {!activeSession && (
+        <div className="focus-intention-fullwidth-row">
+          <div className="bento-card card-session-intention focus-panel-glass">
+            <div className="card-header-row">
+              <div className="card-title-group">
+                <span className="card-title">Session Intention</span>
+                <span className="badge-tag">Single Focus</span>
+              </div>
+              <Icon name="target" size={18} />
+            </div>
+            <p className="intention-helper-text">
+              Define the single outcome you will complete during this focus block.
+            </p>
+            <div className="session-intention-box" style={{ margin: 0, maxWidth: 720 }}>
+              <input
+                type="text"
+                value={sessionIntention}
+                onChange={(e) => setSessionIntention(e.target.value)}
+                placeholder="e.g. Finish design review, debug auth flow, draft spec..."
+                className="session-intention-input"
+                disabled={!!activeSession}
+                aria-label="Session Intention"
+              />
+            </div>
+            <div className="intention-quick-tags">
+              <span>Quick focus:</span>
+              {['Deep work', 'Investigation', 'Code review', 'Writing & planning'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className="intention-tag-chip"
+                  onClick={() => setSessionIntention(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 2 }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
+                Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <StudyResourcesPanel
         missionId={activeSession?.missionId ?? undefined}

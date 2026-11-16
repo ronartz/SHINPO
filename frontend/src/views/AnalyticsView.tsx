@@ -563,52 +563,52 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
       <section className="analytics-metrics-grid" aria-label="Analytics summary">
         <article className="analytics-card analytics-card-focus">
-          <span className="analytics-metric-icon is-blue">
-            <Icon name="clock" size={21} />
-          </span>
-          <div className="analytics-metric-content">
-            <div className="analytics-metric-heading">
-              <span>Focus time</span>
-            </div>
-            <strong>
+          <div className="analytics-card-header">
+            <span className="analytics-metric-icon is-blue">
+              <Icon name="clock" size={20} />
+            </span>
+            <span className="analytics-metric-label">Focus time</span>
+          </div>
+          <div className="analytics-card-body">
+            <strong className="analytics-metric-value">
               {visiblePeriod
                 ? formatFocusDuration(visiblePeriod.currentActiveSeconds, { showSecondsIfSmall: true })
                 : '—'}
             </strong>
-            <div className="analytics-metric-support">
-              <small>{labels[range]} · active time</small>
-              {visiblePeriod && <span className={`analytics-comparison is-${chartCurrent.tone}`}>{chartCurrent.label}</span>}
-            </div>
+          </div>
+          <div className="analytics-card-footer">
+            <small className="analytics-metric-subtext">{labels[range]} · active time</small>
+            {visiblePeriod && <span className={`analytics-comparison is-${chartCurrent.tone}`}>{chartCurrent.label}</span>}
           </div>
         </article>
 
         <article className="analytics-card">
-          <span className="analytics-metric-icon is-blue">
-            <Icon name="analytics" size={21} />
-          </span>
-          <div className="analytics-metric-content">
-            <div className="analytics-metric-heading">
-              <span>Completed sessions</span>
-            </div>
-            <strong>{visiblePeriod?.currentCompletedSessions ?? '—'}</strong>
-            <div className="analytics-metric-support">
-              <small>In {range}</small>
-              {visiblePeriod && (
-                <span className={`analytics-comparison is-${chartSessions.tone}`}>{chartSessions.label}</span>
-              )}
-            </div>
+          <div className="analytics-card-header">
+            <span className="analytics-metric-icon is-blue">
+              <Icon name="analytics" size={20} />
+            </span>
+            <span className="analytics-metric-label">Completed sessions</span>
+          </div>
+          <div className="analytics-card-body">
+            <strong className="analytics-metric-value">{visiblePeriod?.currentCompletedSessions ?? '—'}</strong>
+          </div>
+          <div className="analytics-card-footer">
+            <small className="analytics-metric-subtext">In {range}</small>
+            {visiblePeriod && (
+              <span className={`analytics-comparison is-${chartSessions.tone}`}>{chartSessions.label}</span>
+            )}
           </div>
         </article>
 
         <article className="analytics-card">
-          <span className="analytics-metric-icon is-green">
-            <Icon name="check" size={21} />
-          </span>
-          <div className="analytics-metric-content">
-            <div className="analytics-metric-heading">
-              <span>Tasks completed</span>
-            </div>
-            <strong>
+          <div className="analytics-card-header">
+            <span className="analytics-metric-icon is-green">
+              <Icon name="check" size={20} />
+            </span>
+            <span className="analytics-metric-label">Tasks completed</span>
+          </div>
+          <div className="analytics-card-body">
+            <strong className="analytics-metric-value">
               {analyticsData ? (
                 <>
                   {analyticsData.summary.missionsCompleted}
@@ -618,10 +618,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 '—'
               )}
             </strong>
-            <div className="analytics-metric-support">
-              <small>Current completed tasks · all time</small>
-            </div>
-          {completedRate != null && <div
+          </div>
+          <div className="analytics-card-footer">
+            <small className="analytics-metric-subtext">Current completed tasks · all time</small>
+            {completedRate != null && (
+              <span className="analytics-comparison is-neutral">{completedRate}%</span>
+            )}
+          </div>
+          {completedRate != null && (
+            <div
               className="analytics-task-progress"
               role="img"
               aria-label={`${completedRate}% of all tasks completed`}
@@ -631,24 +636,24 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   transform: `scaleX(${Math.min(100, Math.max(0, completedRate ?? 0)) / 100})`,
                 }}
               />
-            </div>}
-          </div>
+            </div>
+          )}
         </article>
 
         <article className="analytics-card">
-          <span className="analytics-metric-icon is-success">
-            <Icon name="sparkle" size={21} />
-          </span>
-          <div className="analytics-metric-content">
-            <div className="analytics-metric-heading">
-              <span>Focus consistency</span>
-            </div>
-            <strong>
+          <div className="analytics-card-header">
+            <span className="analytics-metric-icon is-success">
+              <Icon name="sparkle" size={20} />
+            </span>
+            <span className="analytics-metric-label">Focus consistency</span>
+          </div>
+          <div className="analytics-card-body">
+            <strong className="analytics-metric-value">
               {analyticsData ? formatCount(analyticsData.summary.currentStreak, 'day') : '—'}
             </strong>
-            <div className="analytics-metric-support">
-              <small>Consecutive days with completed Focus</small>
-            </div>
+          </div>
+          <div className="analytics-card-footer">
+            <small className="analytics-metric-subtext">Consecutive days with completed Focus</small>
           </div>
         </article>
       </section>
