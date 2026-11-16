@@ -3428,6 +3428,7 @@ export function DesktopApp() {
           graceSecondsLeft={graceSecondsLeft}
           sentinelStatus={sentinelStatus}
           userProgress={userProgress}
+          onOpenCompanionSettings={() => handleOpenSettings('companion')}
         />
 
         {/* Main Content Area */}

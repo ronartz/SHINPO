@@ -118,10 +118,19 @@ button:not([data-no-interactive]):not(.no-interactive)>*,
 .btn-hero-action>*,
 .preset-chip>*,
 .sidebar-btn>*,
-[data-interactive-btn]>* {
+[data-interactive-btn]:not([data-no-interactive])>* {
   position: relative;
   z-index: 2;
   pointer-events: none;
+}
+
+/* Explicit interactive children inside cards and panels retain full pointer-events */
+.sidebar-protection-panel,
+.sidebar-protection-panel *,
+.protection-view-btn,
+.protection-companion-row,
+.protection-companion-row * {
+  pointer-events: auto;
 }
 
 /* 4. Outer Luminous Energy Aura (Edge-Sensitive & Pointer-Tracking) */

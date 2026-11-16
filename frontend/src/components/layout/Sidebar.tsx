@@ -10,6 +10,8 @@ import type { ProgressResponse } from '../../api/progress'
 import type { SentinelWarningItem, SentinelStatus } from '../../api/device'
 import { guardianCanRequestClose, guardianInterventionDescription, guardianModeLabel } from '../../utils/guardianCapability'
 import { formatEnforcementMode } from '../../utils/focusProtectionStatus'
+import { invokeTauriCommand, isTauriEnvironment } from '../../api/tauri'
+import { isLocalVaultSession } from '../../api/auth'
 
 export interface SidebarProps {
   sidebarExpanded: boolean
@@ -25,6 +27,8 @@ export interface SidebarProps {
   graceSecondsLeft?: number
   sentinelStatus?: SentinelStatus | null
   userProgress: ProgressResponse | null
+  onOpenCompanionSettings?: () => void
+  companionStatus?: { paired: boolean; state: string } | null
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -42,6 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   activeSession,
   graceSecondsLeft = 0,
   sentinelStatus,
+  onOpenCompanionSettings,
+  companionStatus,
 }) => {
   trackRender('Sidebar')
   const navRef = useRef<HTMLElement>(null)
@@ -53,6 +59,33 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   const isHoverExpanded = isVisuallyExpanded && !sidebarExpanded
   const wasExpandedRef = useRef(sidebarExpanded)
   const rewardsItem = NAVIGATION_ITEMS.find((item) => item.id === 'Rewards')
+
+  const [localCompanionStatus, setLocalCompanionStatus] = useState<{ paired: boolean; state: string } | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const checkCompanion = async () => {
+      if (isTauriEnvironment() || isLocalVaultSession()) {
+        try {
+          const res = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
+          if (active && res && typeof res.paired === 'boolean') {
+            setLocalCompanionStatus({ paired: res.paired, state: res.state })
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    void checkCompanion()
+    const interval = setInterval(checkCompanion, 8000)
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  const effectiveCompanionStatus = companionStatus ?? localCompanionStatus
+  const isCompanionPaired = Boolean(effectiveCompanionStatus?.paired)
 
   useEffect(() => () => {
     if (hoverDelayRef.current) clearTimeout(hoverDelayRef.current)
@@ -160,6 +193,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     }
   }
 
+  const companionSummary = isCompanionPaired
+    ? 'Browser Companion is paired and protecting web tabs.'
+    : 'Browser Companion is not linked.'
+  statusTooltip = `${statusTooltip} · ${companionSummary}`
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && isVisuallyExpanded) {
       e.stopPropagation()
@@ -263,7 +301,21 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       <div className="sidebar-footer">
         {isVisuallyExpanded ? (
-          <div className={`sidebar-protection-panel ${shieldStateClass}`} role="region" aria-label="Focus Protection Status">
+          <div
+            className={`sidebar-protection-panel ${shieldStateClass}`}
+            data-no-interactive="true"
+            role="region"
+            tabIndex={0}
+            onClick={() => onSelectTab('Task Manager')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelectTab('Task Manager')
+              }
+            }}
+            title="Focus Protection & Guardian · Click to view protection details and process rules"
+            aria-label="Focus Protection Status · Click to view protection"
+          >
             <div className="protection-panel-top">
               <div className={`protection-shield-box ${shieldStateClass}`}>
                 <Icon name={shieldStateClass === 'shield-ready' || shieldStateClass === 'shield-active' ? 'shield-check' : 'shield'} size={20} />
@@ -284,10 +336,46 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               </div>
             </div>
 
+            {/* Browser Companion Live Status Indicator Row */}
+            <div
+              className={`protection-companion-row ${isCompanionPaired ? 'is-connected' : 'is-unpaired'}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (onOpenCompanionSettings) onOpenCompanionSettings()
+                else onSelectTab('Task Manager')
+              }}
+              role="button"
+              tabIndex={0}
+              title={isCompanionPaired ? 'Browser Companion is paired and protecting web tabs. Click to manage in Settings.' : 'Browser Companion is not linked. Click to pair in Settings.'}
+              aria-label={isCompanionPaired ? 'Browser Companion is paired. Click to manage.' : 'Browser Companion is not linked. Click to pair.'}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if (onOpenCompanionSettings) onOpenCompanionSettings()
+                  else onSelectTab('Task Manager')
+                }
+              }}
+            >
+              <div className="protection-companion-left">
+                <Icon name="globe" size={13} className="protection-companion-icon" />
+                <span className={`protection-companion-dot ${isCompanionPaired ? 'is-paired' : 'is-unpaired'}`} />
+                <span className="protection-companion-text">
+                  {isCompanionPaired ? 'Companion Paired' : 'Companion Unlinked'}
+                </span>
+              </div>
+              <span className="protection-companion-action">
+                {isCompanionPaired ? 'Manage' : 'Link →'}
+              </span>
+            </div>
+
             <button
               type="button"
               className="protection-view-btn"
-              onClick={() => onSelectTab('Task Manager')}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectTab('Task Manager')
+              }}
               title="Open Protection Details & Process Rules"
               aria-label="View Focus Protection details"
             >
@@ -314,6 +402,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             <div className={`protection-shield-box collapsed ${shieldStateClass}`}>
               <Icon name={shieldStateClass === 'shield-ready' || shieldStateClass === 'shield-active' ? 'shield-check' : 'shield'} size={18} />
               <span className={`protection-status-dot ${dotClass}`} />
+              <span
+                className={`protection-companion-mini-dot ${isCompanionPaired ? 'is-paired' : 'is-unpaired'}`}
+                title={isCompanionPaired ? 'Browser Companion: Paired' : 'Browser Companion: Unlinked'}
+              />
             </div>
           </div>
         )}

@@ -119,7 +119,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
       btn.classList.remove('is-pressed')
       if (!disabled && !isLoading) {
         btn.classList.remove('is-activating')
-        void btn.offsetWidth
+        try { void btn.offsetWidth } catch (_) {}
         btn.classList.add('is-activating')
         setTimeout(() => {
           btn.classList.remove('is-activating')
@@ -143,7 +143,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
         btn.style.setProperty('--btn-pressed', '0')
         btn.classList.remove('is-pressed')
         btn.classList.remove('is-activating')
-        void btn.offsetWidth
+        try { void btn.offsetWidth } catch (_) {}
         btn.classList.add('is-activating')
         setTimeout(() => {
           btn.classList.remove('is-activating')

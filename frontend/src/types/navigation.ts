@@ -17,6 +17,7 @@ export type IconName =
   | 'focus'
   | 'analytics'
   | 'apps'
+  | 'globe'
   | 'journal'
   | 'rewards'
   | 'settings'
