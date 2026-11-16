@@ -79,6 +79,7 @@ export function calculateButtonInteractionMetrics(
       mouseX: 0,
       mouseY: 0,
       normX: 0.5,
+      normY: 0.5,
       edgeProximity: 0,
       edgePercent: 50,
     }
@@ -87,13 +88,16 @@ export function calculateButtonInteractionMetrics(
   const mouseX = Math.max(0, Math.min(rect.width, clientX - rect.left))
   const mouseY = Math.max(0, Math.min(rect.height, clientY - rect.top))
   const normX = mouseX / rect.width
+  const normY = mouseY / rect.height
   const edgeProximity = calculateEdgeProximity(normX)
-  const edgePercent = normX >= 0.5 ? 88 : 12
+  // Continuous smooth interpolation from 12% to 88% without discontinuous center jump
+  const edgePercent = Math.round((12 + 76 * normX) * 10) / 10
 
   return {
     mouseX,
     mouseY,
     normX,
+    normY,
     edgeProximity,
     edgePercent,
   }

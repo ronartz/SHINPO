@@ -17,7 +17,6 @@
 @import '../../../styles/components/updater.css';
 @import '../../../styles/components/topbar-menus.css';
 @import '../../../styles/components/shinpo-ui.css';
-@import '../../../styles/components/interactive-button.css';
 @import '../../../styles/components/progression-rewards.css';
 @import '../../../styles/foundations/flightdeck-themes.css';
 @import '../../../styles/views/flightdeck-cards.css';
@@ -57,3 +56,6 @@
 
 /* 9. 1920x1080p Landscape High-Density Tier */
 @import './desktop-1080p.css';
+
+/* 10. Universal Interactive Button System (Energy Aura & Feedback) */
+@import '../../../styles/components/interactive-button.css';

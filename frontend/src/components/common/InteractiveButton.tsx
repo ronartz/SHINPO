@@ -42,6 +42,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
       onPointerDown,
       onPointerUp,
       onKeyDown,
+      onKeyUp,
       ...restProps
     },
     forwardedRef
@@ -63,12 +64,13 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
       const rect = btn.getBoundingClientRect()
       if (rect.width <= 0) return
 
-      const { mouseX, mouseY, normX, edgeProximity, edgePercent } =
+      const { mouseX, mouseY, normX, normY, edgeProximity, edgePercent } =
         calculateButtonInteractionMetrics(e.clientX, e.clientY, rect)
 
       btn.style.setProperty('--btn-x', `${mouseX}px`)
       btn.style.setProperty('--btn-y', `${mouseY}px`)
       btn.style.setProperty('--btn-norm-x', normX.toFixed(3))
+      btn.style.setProperty('--btn-norm-y', normY.toFixed(3))
       btn.style.setProperty('--btn-edge-proximity', edgeProximity.toFixed(3))
       btn.style.setProperty('--btn-edge-side', `${edgePercent}%`)
       btn.style.setProperty('--btn-hover', '1')
@@ -78,7 +80,19 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
 
     const handlePointerEnter = (e: React.PointerEvent<HTMLButtonElement>) => {
       if (disabled || isLoading) return
-      e.currentTarget.style.setProperty('--btn-hover', '1')
+      const btn = e.currentTarget
+      const rect = btn.getBoundingClientRect()
+      if (rect.width > 0) {
+        const { mouseX, mouseY, normX, normY, edgeProximity, edgePercent } =
+          calculateButtonInteractionMetrics(e.clientX, e.clientY, rect)
+        btn.style.setProperty('--btn-x', `${mouseX}px`)
+        btn.style.setProperty('--btn-y', `${mouseY}px`)
+        btn.style.setProperty('--btn-norm-x', normX.toFixed(3))
+        btn.style.setProperty('--btn-norm-y', normY.toFixed(3))
+        btn.style.setProperty('--btn-edge-proximity', edgeProximity.toFixed(3))
+        btn.style.setProperty('--btn-edge-side', `${edgePercent}%`)
+      }
+      btn.style.setProperty('--btn-hover', '1')
       onPointerEnter?.(e)
     }
 
@@ -86,6 +100,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
       const btn = e.currentTarget
       btn.style.setProperty('--btn-hover', '0')
       btn.style.setProperty('--btn-pressed', '0')
+      btn.classList.remove('is-pressed')
       onPointerLeave?.(e)
     }
 
@@ -93,6 +108,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
       if (disabled || isLoading) return
       if (e.button === 0) {
         e.currentTarget.style.setProperty('--btn-pressed', '1')
+        e.currentTarget.classList.add('is-pressed')
       }
       onPointerDown?.(e)
     }
@@ -100,7 +116,10 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
     const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
       const btn = e.currentTarget
       btn.style.setProperty('--btn-pressed', '0')
+      btn.classList.remove('is-pressed')
       if (!disabled && !isLoading) {
+        btn.classList.remove('is-activating')
+        void btn.offsetWidth
         btn.classList.add('is-activating')
         setTimeout(() => {
           btn.classList.remove('is-activating')
@@ -112,12 +131,25 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
     const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (!disabled && !isLoading && (e.key === 'Enter' || e.key === ' ')) {
         const btn = e.currentTarget
+        btn.style.setProperty('--btn-pressed', '1')
+        btn.classList.add('is-pressed')
+      }
+      onKeyDown?.(e)
+    }
+
+    const handleKeyUp = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (!disabled && !isLoading && (e.key === 'Enter' || e.key === ' ')) {
+        const btn = e.currentTarget
+        btn.style.setProperty('--btn-pressed', '0')
+        btn.classList.remove('is-pressed')
+        btn.classList.remove('is-activating')
+        void btn.offsetWidth
         btn.classList.add('is-activating')
         setTimeout(() => {
           btn.classList.remove('is-activating')
         }, 280)
       }
-      onKeyDown?.(e)
+      onKeyUp?.(e)
     }
 
     const classNames = [
@@ -145,6 +177,7 @@ export const InteractiveButton = forwardRef<HTMLButtonElement, InteractiveButton
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
         {...restProps}
       >
         {isLoading ? (
