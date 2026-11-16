@@ -84,7 +84,18 @@ jobs:
         run: npm ci
         working-directory: frontend
       - name: Build Linux installers and updater bundles
-        run: npm run tauri:build -- --bundles deb,appimage,rpm
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY secret is not configured; building without updater signatures..."
+            node -e '
+              import fs from "node:fs";
+              const p = "src-tauri/tauri.conf.json";
+              const conf = JSON.parse(fs.readFileSync(p, "utf8"));
+              conf.bundle.createUpdaterArtifacts = false;
+              fs.writeFileSync(p, JSON.stringify(conf, null, 2));
+            '
+          fi
+          npm run tauri:build -- --bundles deb,appimage,rpm
         working-directory: frontend
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -96,11 +107,31 @@ jobs:
           mkdir -p "$output"
           VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
           TAR_DIR="release-artifacts/tar-stage"
-          mkdir -p "$TAR_DIR"
+          mkdir -p "$TAR_DIR/browser-companion"
           cp frontend/src-tauri/target/release/shinpo-desktop "$TAR_DIR/"
           cp frontend/src-tauri/target/bundle-input/shinpo-browser-host "$TAR_DIR/"
           cp scripts/register-browser-companion.sh "$TAR_DIR/"
           cp docs/Browser-Companion-Install.md "$TAR_DIR/"
+          cp -r browser-extension/dist/chromium "$TAR_DIR/browser-companion/" 2>/dev/null || true
+          cp -r browser-extension/dist/firefox "$TAR_DIR/browser-companion/" 2>/dev/null || true
+          cat << 'EOF' > "$TAR_DIR/README.txt"
+SHINPO (進歩) 0.1.0-beta.1 — Portable Linux x86_64 Installation
+
+SYSTEM REQUIREMENTS:
+- Linux x86_64 (glibc 2.35+)
+- WebKit2GTK 4.1 (libwebkit2gtk-4.1)
+- OpenSSL (libssl3 / openssl-libs)
+
+RUNNING SHINPO:
+1. Ensure permissions: chmod +x shinpo-desktop shinpo-browser-host
+2. Run the application: ./shinpo-desktop
+
+BROWSER COMPANION SETUP:
+1. Register Native Messaging Host:
+   ./register-browser-companion.sh --chrome   (or --chromium, --brave, --edge, --firefox, --all)
+2. Load unpacked extension from browser-companion/chromium or browser-companion/firefox.
+3. For full details, see Browser-Companion-Install.md.
+EOF
           tar -czf "$output/SHINPO_${VERSION}_linux_x86_64.tar.gz" -C "$TAR_DIR" .
           rm -rf "$TAR_DIR"
       - name: Generate and display checksums
@@ -108,13 +139,33 @@ jobs:
           set -euo pipefail
           output=release-artifacts/linux-x64
           mkdir -p "$output"
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
           mapfile -d '' artifacts < <(find frontend/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.AppImage.tar.gz*' \) -print0)
           if [ "${#artifacts[@]}" -eq 0 ]; then
             echo "No Linux installer artifacts were produced" >&2
             exit 1
           fi
           for artifact in "${artifacts[@]}"; do cp "$artifact" "$output/"; done
+
+          # Standardize filenames
+          for f in "$output"/*-1.x86_64.rpm "$output"/*_x86_64.rpm; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.rpm" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.rpm"
+            fi
+          done
+          for f in "$output"/*_amd64.deb "$output"/*_x86_64.deb; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.deb" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.deb"
+            fi
+          done
+          for f in "$output"/*.AppImage; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.AppImage" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.AppImage"
+            fi
+          done
+
           (cd "$output" && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          echo "=== Linux SHA256SUMS ==="
           cat "$output/SHA256SUMS"
       - name: Upload Linux release artifacts
         uses: actions/upload-artifact@v4
@@ -205,11 +256,20 @@ jobs:
         run: npm ci
         working-directory: frontend
       - name: Build Windows NSIS installer and updater bundle
-        run: npm run tauri:build -- --bundles nsis
+        shell: pwsh
         working-directory: frontend
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Output "TAURI_SIGNING_PRIVATE_KEY secret is not configured; building without updater signatures..."
+            $p = "src-tauri/tauri.conf.json"
+            $conf = Get-Content $p -Raw | ConvertFrom-Json
+            $conf.bundle.createUpdaterArtifacts = $false
+            $conf | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding utf8
+          }
+          npm run tauri:build -- --bundles nsis
       - name: Verify bundled Browser Companion inputs and report installer checksum
         shell: pwsh
         run: |
@@ -239,6 +299,11 @@ jobs:
           $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Include *.exe,*.zip,*.sig -File -Recurse -ErrorAction SilentlyContinue)
           if ($installers.Count -eq 0) { throw 'No Windows NSIS installer or updater bundle was produced' }
           foreach ($installer in $installers) { Copy-Item $installer.FullName $output }
+          $version = (Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $setupExe = Get-ChildItem $output -Filter "*setup.exe" | Where-Object { $_.Name -ne "SHINPO_${version}_windows_x64_setup.exe" } | Select-Object -First 1
+          if ($setupExe) {
+            Copy-Item $setupExe.FullName "$output/SHINPO_${version}_windows_x64_setup.exe" -Force
+          }
           $lines = Get-ChildItem $output -File | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             "${hash}  $($_.Name)  $($_.Length) bytes"
@@ -318,7 +383,7 @@ jobs:
 
             const manifest = {
               version: version,
-              notes: `SHINPO ${version} Release - Cinematic Glass Logo Reveal, theme-aware interactive buttons, local SQLCipher vault, and signed auto-updater.`,
+              notes: `SHINPO ${version} Private Beta Release`,
               pub_date: new Date().toISOString(),
               platforms: {}
             };
@@ -337,13 +402,14 @@ jobs:
               };
             }
 
-            // Write both updates/beta/latest.json and releases/beta/latest.json
-            fs.mkdirSync("release-dist/updates/beta", { recursive: true });
-            fs.writeFileSync("release-dist/updates/beta/latest.json", JSON.stringify(manifest, null, 2));
-            fs.writeFileSync("release-dist/latest.json", JSON.stringify(manifest, null, 2));
-
-            console.log("Generated updater manifest:");
-            console.log(JSON.stringify(manifest, null, 2));
+            if (Object.keys(manifest.platforms).length > 0) {
+              fs.mkdirSync("release-dist/updates/beta", { recursive: true });
+              fs.writeFileSync("release-dist/updates/beta/latest.json", JSON.stringify(manifest, null, 2));
+              fs.writeFileSync("release-dist/latest.json", JSON.stringify(manifest, null, 2));
+              console.log("Generated updater manifest with signatures:", manifest);
+            } else {
+              console.log("No updater signatures present. Skipping updater manifest; beta uses manual downloads.");
+            }
           '
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -366,6 +432,5 @@ jobs:
           generate_release_notes: true
           files: |
             release-dist/*
-            release-dist/updates/beta/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
