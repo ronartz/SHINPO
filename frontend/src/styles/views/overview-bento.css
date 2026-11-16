@@ -1346,7 +1346,7 @@ html[data-brand='aurora'][data-theme='light'] .capsule-format-badge {
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-3);
   min-width: 0;
   box-sizing: border-box;
@@ -1354,6 +1354,10 @@ html[data-brand='aurora'][data-theme='light'] .capsule-format-badge {
 
 .schedule-card {
   gap: var(--space-4);
+}
+
+.schedule-card .sidecar-footer {
+  margin-top: auto;
 }
 
 .sidecar-body {
@@ -2283,7 +2287,7 @@ html[data-theme='light'] .duration-pill.paused {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .dashboard-quick-action-grid button {

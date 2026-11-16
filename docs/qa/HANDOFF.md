@@ -32,13 +32,25 @@
 ---
 
 ## Batch 1B: Universal Empty-State Design System
-- **Commit:** Pending (`fix(empty-states): standardize compact empty states`)
+- **Commit:** `7f5282d` (`fix(empty-states): standardize compact empty states`)
 - **Changes Completed:**
   - Standardized `.status-column-empty` across `goals-kanban.css`, `goals.css`, and `overview-bento.css` to compact ~80px minimum drop zone with dashed border `1px dashed var(--border)` and transparent background, preserving full drag-and-drop capability.
   - Standardized `.analytics-chart-canvas-container.focus-activity-empty` in `analytics.css` to `min-height: 160px; height: auto;` eliminating the 240px dead-space container.
   - Maintained compact empty-state guidelines for Goals (`.goals-empty-card`), Schedule (`.schedule-week-empty`), and Focus history.
 - **Verification:**
-  - `npm run build`: Success (`tsc -b && vite build` passed in 882ms).
+  - `npm run build`: Success.
+  - `npm test`: All 247 tests passing.
+
+---
+
+## Batch 1C: Global Layout and Card Height Normalization
+- **Commit:** Pending (`fix(layout): normalize shared grid and card sizing`)
+- **Changes Completed:**
+  - Fixed Quick Actions blank top band in `overview-bento.css` by changing `.dashboard-sidecar-card` to `justify-content: flex-start;` and resetting `.dashboard-quick-action-grid` margin to 0.
+  - Normalized Schedule Card: Added `margin-top: auto` to `.schedule-card .sidecar-footer` ensuring symmetrical footer anchoring without inflating empty state gap.
+  - Repaired Focus Engine right column in `focus-engine.css`: Set `.focus-right-column` and `.card-session-creator` to `align-self: start; height: auto; min-height: auto;`, preventing artificial stretching and eliminating the unexplained blank region.
+- **Verification:**
+  - `npm run build`: Success (`tsc -b && vite build` passed in 873ms).
   - `npm test`: All 247 tests passing.
 
 ---
