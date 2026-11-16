@@ -98,8 +98,8 @@ jobs:
           npm run tauri:build -- --bundles deb,appimage,rpm
         working-directory: frontend
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
       - name: Package portable Linux tarball
         run: |
           set -euo pipefail
@@ -259,8 +259,8 @@ jobs:
         shell: pwsh
         working-directory: frontend
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         run: |
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
             Write-Output "TAURI_SIGNING_PRIVATE_KEY secret is not configured; building without updater signatures..."
@@ -423,7 +423,7 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@c062e08bd53281573c51459229c17b0769e5d4cb # pinned v2.0.8
+        uses: softprops/action-gh-release@v2
         with:
           name: SHINPO ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}

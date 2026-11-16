@@ -33,6 +33,7 @@ __pycache__/
 
 # Agent skills & GSD runtime
 .agents/
+.wednesday/
 skills-lock.json
 gsd-core/
 gsd-file-manifest.json
@@ -77,9 +78,19 @@ release/rc/*
 
 # Local agent and workspace metadata
 .agent/
+__agent__/
+.agents/
+.archify/
+.claude/
+.clinerules/
+.codex/
 .gemini/
 .gsd/
-.planning/agentic-awesome-skills/
+.impeccable/
+.omnirush/
+.planning/
+.qodo/
+.wednesday/
 test-results/
 playwright-report/
 
