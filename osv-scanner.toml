@@ -1,0 +1,10 @@
+# OSV-Scanner Configuration for SHINPO
+# Documented and approved security exceptions
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+reason = "Unsoundness in glib::VariantStrIter unreachable in SHINPO; transitive dependency of Tauri 2.12.3 Linux GTK layer. Documented exception valid through 2027-02-16."
+
+[[IgnoredVulns]]
+id = "GHSA-42x8-67mv-47vv"
+reason = "Unsoundness in glib::VariantStrIter unreachable in SHINPO; transitive dependency of Tauri 2.12.3 Linux GTK layer. Documented exception valid through 2027-02-16."
