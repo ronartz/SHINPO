@@ -170,18 +170,16 @@ test.describe('SHINPO Startup & Automatic Onboarding Integration', () => {
     const startupOverlay = page.locator('.shinpo-cinematic-startup')
     await expect(startupOverlay).toBeVisible({ timeout: 10000 })
 
-    // Verify glass logo stage and brand assets in startup
+    // Verify glass logo stage in startup
     await expect(page.locator('.shinpo-glass-logo-stage')).toBeVisible()
-    await expect(page.locator('.startup-orbital-svg')).toBeVisible()
-    await expect(page.locator('.startup-status-text')).toBeVisible()
 
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, '01_startup_at_1s.png') })
 
-    // 2. Check at 2,200ms: glass reveal active, brand wordmark revealed
+    // 2. Check at 2,200ms: glass reveal active, text-free presentation
     await page.waitForTimeout(1400)
     await expect(startupOverlay).toBeVisible()
-    await expect(page.locator('.startup-brand-title')).toHaveText('SHINPO')
-    await expect(page.locator('.startup-brand-subtitle')).toHaveText('Personal Execution OS')
+    await expect(page.locator('.shinpo-glass-logo-stage')).toBeVisible()
+    await expect(page.locator('.startup-brand-title')).toHaveCount(0)
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, '02_startup_at_2.5s.png') })
 
     // 3. Wait for smooth transition to login card after minimumDurationMs (4,000ms)

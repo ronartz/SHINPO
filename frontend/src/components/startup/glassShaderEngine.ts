@@ -398,7 +398,8 @@ void main() {
   vec2 p = (gl_FragCoord.xy - uCenter) * px;
 
   vec4 lg = logoAt(p, uBlur, px);
-  vec3 plain = mix(uBg, lg.rgb, lg.a * uBare);
+  float plainAlpha = lg.a * uBare;
+  vec3 plain = lg.rgb;
 
   vec2 nOut, dg; float g;
   float sd = shape(p, uPlateScale, uShapeN, nOut, g, dg);
@@ -424,30 +425,14 @@ void main() {
   vec2 qc = refractSample(xf, bwF, 1.5, R, dirOut, p, dome, offMul);
   float foot = max(max(length(dFdx(qc)), length(dFdy(qc))), 0.25 * px);
 
-  vec3 bg = uBg;
-  vec3 lift = mix(uBg + vec3(0.06), mix(uBg, vec3(1.0), 0.55), uLightScene);
-  if (uGhost > 0.001) {
-    vec2 gn, gdg; float gg;
-    float gsd = shape(p, 1.0, uCornerN, gn, gg, gdg);
-    bg = mix(bg, lift, uGhost * 0.12 * (1.0 - smoothstep(-0.16, 0.14, gsd)));
-    bg *= 1.0 - uGhost * 0.03 * uLightScene * exp(-max(gsd, 0.0) / 0.12) * step(0.0, gsd);
-  }
   float outside = max(sd, 0.0);
-  if (uRipA > 0.001) {
-    float d0 = (uRipR - 1.0) * uPlateScale;
-    float rx = (sd - d0) / 0.022;
-    float ring = exp(-rx * rx);
-    bg += uRipA * ring * (0.04 * (0.55 + 0.45 * dot(nOut, normalize(vec2(-0.5, 0.8))))) * mix(0.5, 1.0, uLightScene);
-    bg -= uRipA * 0.016 * uLightScene * exp(-(rx - 1.6) * (rx - 1.6));
-  }
-  float shadowFall = max(sd, 0.0) / (0.9 * uPlateScale);
-  bg *= 1.0 - uShadow * 0.03 * exp(-shadowFall * shadowFall) * step(0.0, sd);
-
   vec3 haloCol = mix(vec3(0.62, 0.69, 0.80), vec3(1.0), uLightScene);
-  bg = mix(bg, haloCol, clamp(uHalo * (0.30 * exp(-outside / (0.025 * uPlateScale)) + 0.07 * exp(-outside / (0.12 * uPlateScale))), 0.0, 1.0) * step(0.0, sd));
+  float haloIntensity = clamp(uHalo * (0.30 * exp(-outside / (0.025 * uPlateScale)) + 0.07 * exp(-outside / (0.12 * uPlateScale))), 0.0, 1.0) * step(0.0, sd);
 
-  vec3 col = bg;
+  vec3 plateCol = haloCol;
   float soft = px + uBlur * 0.8 + 0.06 * uDissolve * (1.0 - uKeep) * uPlateScale;
+  float cov = clamp(0.5 - sd / soft, 0.0, 1.0);
+
   if (sd < soft) {
     float y1 = 1.0 - x;
     const float K = 2.6;
@@ -529,11 +514,19 @@ void main() {
     float sheen = uSheen * glassAmt * exp(-sweepD * sweepD / 0.03) * (0.55 + 0.45 * (1.0 - x));
     glass = mix(glass, vec3(1.0), sheen * mix(0.22, 0.42, uLightGlass));
 
-    float cov = clamp(0.5 - sd / soft, 0.0, 1.0);
-    col = mix(bg, glass, cov);
+    plateCol = mix(haloCol * haloIntensity, glass, cov);
   }
 
-  vec3 outc = mix(plain, col, uPlateAlpha);
-  outc += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
-  outColor = vec4(outc, 1.0);
+  float plateAlpha = clamp(cov + haloIntensity * (1.0 - cov), 0.0, 1.0);
+  float finalAlpha = clamp(mix(plainAlpha, plateAlpha, uPlateAlpha), 0.0, 1.0);
+  vec3 finalColor = mix(plain, plateCol, uPlateAlpha);
+
+  // Soft edge vignette to ensure complete smudge into background at canvas boundary
+  float edgeFeather = 1.0 - smoothstep(0.80, 1.05, length(p));
+  finalAlpha *= edgeFeather;
+
+  if (finalAlpha > 0.005) {
+    finalColor += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
+  }
+  outColor = vec4(finalColor * finalAlpha, finalAlpha);
 }`

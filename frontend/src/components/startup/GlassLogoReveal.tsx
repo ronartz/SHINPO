@@ -273,8 +273,9 @@ if (typeof window !== 'undefined' && typeof Image !== 'undefined') {
  * ------------------------------------------------------------------ */
 function createRenderer(canvas: HTMLCanvasElement) {
   const gl = canvas.getContext('webgl2', {
-    antialias: false,
-    premultipliedAlpha: false,
+    alpha: true,
+    antialias: true,
+    premultipliedAlpha: true,
     powerPreference: 'high-performance',
   })
   if (!gl) return null
@@ -359,6 +360,8 @@ function createRenderer(canvas: HTMLCanvasElement) {
   function render(fr: Frame, w: number, h: number, tilePx: number) {
     if (!hasLogo || !gl) return
     gl.viewport(0, 0, w, h)
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
     gl.uniform2f(U.uCenter, w / 2, h / 2)
     gl.uniform1f(U.uTile, tilePx)
     gl.uniform1f(U.uTexSize, TEX)
@@ -763,8 +766,9 @@ export const GlassLogoReveal: React.FC<GlassLogoRevealProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        WebkitMaskImage: 'radial-gradient(circle at center, black 65%, transparent 100%)',
-        maskImage: 'radial-gradient(circle at center, black 65%, transparent 100%)',
+        background: 'transparent',
+        WebkitMaskImage: 'radial-gradient(circle at center, black 70%, transparent 100%)',
+        maskImage: 'radial-gradient(circle at center, black 70%, transparent 100%)',
         ...style,
       }}
       onClick={(e) => {
