@@ -955,3 +955,89 @@ html[data-theme='light'] .shinpo-textarea:focus,
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-deep) 18.0%, transparent);
 }
 
+/* ==========================================================================
+   SHINPO NUMBER STEPPER (Theme-aware, accessible numeric micro-controls)
+   ========================================================================== */
+.shinpo-number-stepper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color var(--motion-hover, 150ms) ease, box-shadow var(--motion-hover, 150ms) ease;
+}
+
+.shinpo-number-stepper:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+.shinpo-number-stepper .stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 34px;
+  border: none;
+  background: color-mix(in srgb, var(--surface-subtle) 65%, transparent);
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color var(--motion-hover, 150ms) ease, color var(--motion-hover, 150ms) ease, transform 100ms ease;
+  user-select: none;
+}
+
+.shinpo-number-stepper .stepper-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.shinpo-number-stepper .stepper-btn:active:not(:disabled) {
+  background: var(--surface-active);
+  transform: scale(0.94);
+}
+
+.shinpo-number-stepper .stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.shinpo-number-stepper .stepper-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.shinpo-number-stepper .stepper-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: center;
+  padding: 6px 4px;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.shinpo-number-stepper .stepper-unit {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  padding-right: 6px;
+  pointer-events: none;
+}
+

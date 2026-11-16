@@ -34,6 +34,7 @@ export type IconName =
   | 'check'
   | 'check-circle'
   | 'plus'
+  | 'minus'
   | 'target'
   | 'clock'
   | 'xp'

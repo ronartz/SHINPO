@@ -14,6 +14,7 @@ import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
 import { trackMicrokitPointer } from '../components/microkit/pointerGlow'
 import { sortFocusSessionsNewestFirst } from '../utils/focusSessionHistory'
+import { ShinpoNumberStepper } from '../components/ui/NumberStepper'
 
 export interface FocusViewProps {
   isAurora?: boolean
@@ -521,14 +522,54 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     <span>Include one midpoint break</span>
                   </label>
                   {pomodoroEnabled && <div className="pomodoro-config-fields">
-                    <label>Long break<input type="number" min={1} max={120} value={pomodoroLongBreakMinutes} onChange={(event) => setPomodoroLongBreakMinutes(Math.max(1, Math.min(120, Number(event.target.value) || 1)))} /></label>
-                    <label>Grace<input type="number" min={1} max={10} value={pomodoroGraceMinutes} onChange={(event) => setPomodoroGraceMinutes(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} /></label>
+                    <label>
+                      <span style={{ marginBottom: 4, fontWeight: 600 }}>Long break</span>
+                      <ShinpoNumberStepper
+                        min={1}
+                        max={120}
+                        value={pomodoroLongBreakMinutes}
+                        onChange={setPomodoroLongBreakMinutes}
+                        unit="min"
+                        ariaLabel="Long break duration in minutes"
+                      />
+                    </label>
+                    <label>
+                      <span style={{ marginBottom: 4, fontWeight: 600 }}>Grace</span>
+                      <ShinpoNumberStepper
+                        min={1}
+                        max={10}
+                        value={pomodoroGraceMinutes}
+                        onChange={setPomodoroGraceMinutes}
+                        unit="min"
+                        ariaLabel="Grace period in minutes"
+                      />
+                    </label>
                   </div>}
                   {pomodoroEnabled && <div className="pomodoro-config-fields">
                     <label className="pomodoro-toggle"><input type="checkbox" checked={latePenaltyEnabled} onChange={(event) => setLatePenaltyEnabled(event.target.checked)} />Apply a progress adjustment only if I miss the return deadline</label>
                     {latePenaltyEnabled && <>
-                      <label>Adjustment per late return<input type="number" min={1} max={100} value={latePenaltyXp} onChange={(event) => setLatePenaltyXp(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} /></label>
-                      <label>Daily adjustment limit<input type="number" min={latePenaltyXp} max={100} value={latePenaltyDailyCapXp} onChange={(event) => setLatePenaltyDailyCapXp(Math.max(latePenaltyXp, Math.min(100, Number(event.target.value) || 1)))} /></label>
+                      <label>
+                        <span style={{ marginBottom: 4, fontWeight: 600 }}>Adjustment per late return</span>
+                        <ShinpoNumberStepper
+                          min={1}
+                          max={100}
+                          value={latePenaltyXp}
+                          onChange={setLatePenaltyXp}
+                          unit="XP"
+                          ariaLabel="Adjustment per late return"
+                        />
+                      </label>
+                      <label>
+                        <span style={{ marginBottom: 4, fontWeight: 600 }}>Daily adjustment limit</span>
+                        <ShinpoNumberStepper
+                          min={latePenaltyXp}
+                          max={100}
+                          value={latePenaltyDailyCapXp}
+                          onChange={setLatePenaltyDailyCapXp}
+                          unit="XP"
+                          ariaLabel="Daily adjustment limit"
+                        />
+                      </label>
                     </>}
                   </div>}
                 </section>
@@ -539,7 +580,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       <span>Custom Duration</span>
                       <span className="custom-mins-badge">{selectedDuration} min</span>
                     </div>
-                    <div className="custom-slider-row">
+                    <div className="custom-slider-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <input
                         type="range"
                         min={5}
@@ -548,25 +589,18 @@ export const FocusView: React.FC<FocusViewProps> = ({
                         value={selectedDuration}
                         onChange={(e) => setSelectedDuration(Number(e.target.value))}
                         className="custom-slider microkit-scrub-range"
-                        style={{ '--scrub-progress': `${((selectedDuration - 5) / 175) * 100}%` } as React.CSSProperties}
+                        style={{ flex: 1, '--scrub-progress': `${((selectedDuration - 5) / 175) * 100}%` } as React.CSSProperties}
                       />
-                      <input
-                        type="number"
-                        min={1}
-                        max={480}
-                        value={selectedDuration}
-                        onChange={(e) =>
-                          setSelectedDuration(Math.max(1, Math.min(480, Number(e.target.value))))
-                        }
-                        className="modal-field"
-                        style={{
-                          width: 75,
-                          marginBottom: 0,
-                          padding: '6px 8px',
-                          textAlign: 'center',
-                          fontWeight: 800,
-                        }}
-                      />
+                      <div style={{ width: 110 }}>
+                        <ShinpoNumberStepper
+                          min={1}
+                          max={480}
+                          value={selectedDuration}
+                          onChange={(val) => setSelectedDuration(Math.max(1, Math.min(480, val)))}
+                          unit="m"
+                          ariaLabel="Custom duration in minutes"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -580,44 +614,64 @@ export const FocusView: React.FC<FocusViewProps> = ({
       {!activeSession && (
         <div className="focus-intention-fullwidth-row">
           <div className="bento-card card-session-intention focus-panel-glass">
-            <div className="card-header-row">
-              <div className="card-title-group">
-                <span className="card-title">Session Intention</span>
-                <span className="badge-tag">Single Focus</span>
+            <div className="intention-card-grid">
+              <div className="intention-primary-col">
+                <div className="card-header-row">
+                  <div className="card-title-group">
+                    <span className="card-title">Session Intention</span>
+                    <span className="badge-tag">Single Focus</span>
+                  </div>
+                  <Icon name="target" size={18} />
+                </div>
+                <p className="intention-helper-text">
+                  Define the single outcome you will complete during this focus block.
+                </p>
+                <div className="session-intention-box">
+                  <input
+                    type="text"
+                    value={sessionIntention}
+                    onChange={(e) => setSessionIntention(e.target.value)}
+                    placeholder="e.g. Finish design review, debug auth flow, draft spec..."
+                    className="session-intention-input"
+                    disabled={!!activeSession}
+                    aria-label="Session Intention"
+                  />
+                </div>
+                <div className="intention-quick-tags">
+                  <span>Quick focus:</span>
+                  {['Deep work', 'Investigation', 'Code review', 'Writing & planning'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className="intention-tag-chip"
+                      onClick={() => setSessionIntention(tag)}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <Icon name="target" size={18} />
-            </div>
-            <p className="intention-helper-text">
-              Define the single outcome you will complete during this focus block.
-            </p>
-            <div className="session-intention-box" style={{ margin: 0, maxWidth: 720 }}>
-              <input
-                type="text"
-                value={sessionIntention}
-                onChange={(e) => setSessionIntention(e.target.value)}
-                placeholder="e.g. Finish design review, debug auth flow, draft spec..."
-                className="session-intention-input"
-                disabled={!!activeSession}
-                aria-label="Session Intention"
-              />
-            </div>
-            <div className="intention-quick-tags">
-              <span>Quick focus:</span>
-              {['Deep work', 'Investigation', 'Code review', 'Writing & planning'].map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className="intention-tag-chip"
-                  onClick={() => setSessionIntention(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-            <div className="intention-guidance-footer" style={{ marginTop: 12, paddingTop: 2 }}>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
-                Focus protection, process shielding, and contextual study resources activate automatically when this session begins.
-              </p>
+
+              <div className="intention-companion-col">
+                <div className="intention-readiness-header">
+                  <Icon name="shield" size={15} />
+                  <span>Execution Shield & Readiness</span>
+                </div>
+                <ul className="intention-readiness-checklist">
+                  <li>
+                    <Icon name="check" size={13} />
+                    <span>Focus protection & process shielding ready</span>
+                  </li>
+                  <li>
+                    <Icon name="check" size={13} />
+                    <span>Encrypted local session telemetry armed</span>
+                  </li>
+                  <li>
+                    <Icon name="check" size={13} />
+                    <span>Contextual study links activate on launch</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

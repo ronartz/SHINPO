@@ -39,14 +39,15 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   gap: var(--space-5);
   width: 100%;
   box-sizing: border-box;
-  align-items: start;
+  align-items: stretch;
 }
 
 .focus-workspace-container[data-focus-mode='active'] .focus-hero-split,
 .focus-workspace-container[data-focus-mode='paused'] .focus-hero-split,
 .focus-workspace-container[data-focus-mode='break'] .focus-hero-split {
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
-  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
 }
 
 .focus-left-column,
@@ -56,30 +57,29 @@ html[data-theme='light'] .focus-workspace-container .card-title,
   gap: var(--space-4);
   min-width: 0;
   width: 100%;
-  height: auto;
+  height: 100%;
   justify-content: flex-start;
-  align-self: start;
 }
 
 .focus-right-column {
-  align-content: start;
-  height: auto;
+  height: 100%;
 }
 
 .focus-hero-split .card-timer-hud,
 .focus-hero-split .card-session-creator {
   grid-column: auto;
-  height: auto;
+  height: 100%;
+  min-height: 100%;
   min-width: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .focus-hero-split .card-session-creator {
-  align-self: start;
-  height: auto;
-  min-height: 0;
+  height: 100%;
+  min-height: 100%;
 }
 
 .focus-workspace-container .card-session-history {
@@ -318,13 +318,87 @@ html[data-theme='light'] .focus-workspace-container .card-title,
 .card-session-intention {
   padding: 22px 24px;
   border-radius: var(--radius-lg, 16px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   width: 100%;
   box-sizing: border-box;
   height: auto;
   min-height: auto;
+}
+
+.intention-card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: stretch;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .intention-card-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+.intention-primary-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.intention-companion-col {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.intention-readiness-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.intention-readiness-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.intention-readiness-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.intention-readiness-checklist li svg {
+  color: var(--status-success, #16A36A);
+  flex-shrink: 0;
+}
+
+.session-intention-box {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.session-intention-input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .intention-helper-text {

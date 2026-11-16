@@ -1581,21 +1581,21 @@ html[data-theme='light'] .duration-pill.paused {
   align-items: center;
   justify-content: center;
   flex: 1;
-  gap: 8px;
-  padding: 24px 16px;
+  gap: 6px;
+  padding: 16px 12px;
   text-align: center;
 }
 
 .sidecar-empty-icon,
 .dashboard-empty-icon-wrap {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary);
   display: grid;
   place-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .sidecar-empty-title,
@@ -2418,12 +2418,34 @@ html[data-theme='light'] .duration-pill.paused {
   -webkit-backdrop-filter: var(--glass-blur);
 }
 
+.theme-light:not(.theme-aurora) .shinpo-dashboard {
+  --text: #14213D;
+  --text-1: #14213D;
+  --text-2: #293951;
+  --text-3: #45536A;
+  --color-text-primary: #14213D;
+  --color-text-secondary: #293951;
+  --color-text-muted: #45536A;
+}
+
 .theme-light:not(.theme-aurora) .shinpo-dashboard :is(.schedule-card, .priority-hero-card, .dashboard-insight-card, .dashboard-quick-actions, .dashboard-reference-panel, .daily-objectives-card, .dashboard-metric-capsule, .bento-card) {
-  background: rgba(245, 236, 216, 0.60) !important;
+  background: rgba(255, 252, 245, 0.94) !important;
   backdrop-filter: blur(16px) saturate(135%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(135%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid rgba(77, 124, 15, 0.22) !important;
+  box-shadow: 0 2px 12px rgba(20, 33, 61, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.theme-light:not(.theme-aurora) .shinpo-dashboard :is(h1, h2, h3, h4, .card-title, .sidecar-card-title, .hero-title) {
+  color: #14213D !important;
+}
+
+.theme-light:not(.theme-aurora) .shinpo-dashboard :is(.dashboard-reference-card-heading h2, .sidecar-empty-title, .dashboard-empty-title) {
+  color: #14213D !important;
+}
+
+.theme-light:not(.theme-aurora) .shinpo-dashboard :is(.sidecar-empty-desc, .dashboard-empty-desc, .sidecar-footer-meta, .dashboard-insight-desc) {
+  color: #334155 !important;
 }
 
 .dashboard-goals-list {
@@ -2573,8 +2595,9 @@ html[data-theme='light'] .duration-pill.paused {
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 5px;
-  min-height: 140px;
+  gap: 4px;
+  min-height: 100px;
+  padding: 12px 8px;
   color: var(--color-text-secondary);
   text-align: center;
 }
@@ -2675,6 +2698,7 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 @media (max-width: 720px) {
+
   .shinpo-dashboard .schedule-card.is-empty,
   .shinpo-dashboard .schedule-is-empty .schedule-card,
   .shinpo-dashboard .schedule-is-empty .dashboard-activity-card,

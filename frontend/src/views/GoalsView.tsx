@@ -617,7 +617,9 @@ export const GoalsView: React.FC<GoalsViewProps> = ({
                   </div>
                 </div>
 
-                {g.description && <p className="goal-summary-desc">{g.description}</p>}
+                <p className="goal-summary-desc">
+                  {g.description || 'Focus on completing prioritized tasks to drive measurable progress toward this objective.'}
+                </p>
 
                 <div className="goal-summary-progress-wrap">
                   <div className="goal-progress-meta">

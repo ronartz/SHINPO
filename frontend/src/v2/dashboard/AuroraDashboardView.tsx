@@ -1344,18 +1344,18 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
               )}
             </Box>
 
-            <Box data-testid="dashboard-rewards-statistics" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
-              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
-                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Active Goals</Typography>
-                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
+            <Box data-testid="dashboard-rewards-statistics" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0, p: 1.25, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--brand-primary) 6%, transparent)', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
+              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0, gap: 0.5, px: 1, borderRight: '1px solid var(--border)' }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.2, color: 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' }}>Active Goals</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 15, lineHeight: 1.2, fontWeight: 800 }}>{goals.filter((goal) => goal.status.toUpperCase() !== 'COMPLETED').length}</Typography>
               </Box>
-              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
-                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Focus Sessions</Typography>
-                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750 }}>{completedSessionsCount}</Typography>
+              <Box data-testid="dashboard-rewards-stat" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0, gap: 0.5, px: 1, borderRight: '1px solid var(--border)' }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.2, color: 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' }}>Focus Sessions</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 15, lineHeight: 1.2, fontWeight: 800 }}>{completedSessionsCount}</Typography>
               </Box>
-              <Box data-testid="dashboard-rewards-stat" data-stat-kind="streak" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, gap: 0.5 }}>
-                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.25, minHeight: '2.5em', color: 'text.secondary', fontWeight: 600 }}>Streak</Typography>
-                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 14, lineHeight: 1.3, fontWeight: 750, color: _progress?.streak?.currentStreak ? 'var(--accent-orange, #f97316)' : 'inherit' }}>
+              <Box data-testid="dashboard-rewards-stat" data-stat-kind="streak" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0, gap: 0.5, px: 1 }}>
+                <Typography data-testid="dashboard-rewards-stat-label" sx={{ fontSize: 11, lineHeight: 1.2, color: 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' }}>Streak</Typography>
+                <Typography data-testid="dashboard-rewards-stat-value" sx={{ fontSize: 15, lineHeight: 1.2, fontWeight: 800, color: _progress?.streak?.currentStreak ? 'var(--accent-orange, #f97316)' : 'inherit' }}>
                   {_progress?.streak?.currentStreak ?? 0}d
                 </Typography>
               </Box>

@@ -261,7 +261,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
         <div className="schedule-week-grid" style={{
           '--schedule-hours': hours.length,
           '--schedule-grid-height': `${hours.length * 62}px`,
-          gridTemplateColumns: `72px ${weekDays.map((day) => `minmax(${Math.max(84, (dayLayouts.get(day.dateStr)?.laneCount ?? 1) * 84)}px, 1fr)`).join(' ')}`,
+          gridTemplateColumns: `72px repeat(7, minmax(${Math.max(90, Math.max(1, ...weekDays.map(d => dayLayouts.get(d.dateStr)?.laneCount ?? 1)) * 80)}px, 1fr))`,
         } as React.CSSProperties}>
           <div className="schedule-grid-corner">LOCAL TIME</div>
           {weekDays.map(day => <button type="button" key={day.dateStr} className={`schedule-grid-day-heading${day.dateStr === selectedScheduleDate ? ' selected' : ''}${day.isToday ? ' today' : ''}`} onClick={() => selectDate(day.dateStr)}>

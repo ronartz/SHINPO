@@ -63,7 +63,7 @@
 .schedule-week-summary > div { background: color-mix(in srgb, var(--brand-primary) 9%, var(--surface-card)); border-color: color-mix(in srgb, var(--brand-primary) 21%, var(--border)); border-radius: var(--radius-md); }
 .schedule-week-summary > div strong { font-variant-numeric: tabular-nums; }
 .schedule-calendar-scroll { border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-card) 92%, var(--brand-yale-blue)); }
-.schedule-grid-day-heading.selected { box-shadow: inset 0 2px var(--brand-primary); }
+.schedule-grid-day-heading.selected { box-shadow: none; }
 .schedule-grid-day-heading.selected strong { background: var(--brand-primary); }
 .schedule-grid-day-heading.today strong { background: var(--brand-primary); color: #fff; }
 .schedule-grid-day-heading.today span { color: var(--brand-highlight); }

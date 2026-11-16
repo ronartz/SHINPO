@@ -45,7 +45,7 @@
   flex-shrink: 0;
   user-select: none;
   min-height: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -119,7 +119,7 @@ html[data-theme='light'] .sidebar-upper-quote-text,
 
 .sidebar-quote-refresh-btn:hover {
   color: var(--text-primary, #ffffff);
-  background: rgba(255,255,255, 0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .sidebar-quote-refresh-btn:focus-visible {
@@ -147,7 +147,7 @@ html[data-theme='light'] .sidebar-upper-quote-text,
   justify-content: center;
   font-size: 18px;
   margin-right: -8px;
-  box-shadow: 0 4px 10px rgba(0,0,0, 0.35);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
   user-select: none;
   transition: transform 0.2s;
 }
@@ -161,7 +161,7 @@ html[data-theme='light'] .sidebar-upper-quote-text,
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px dashed rgba(255,255,255, 0.25);
+  border: 2px dashed rgba(255, 255, 255, 0.25);
   background: var(--brand-baltic-blue);
   color: #e8e8e8;
   font-size: 12px;
@@ -170,20 +170,20 @@ html[data-theme='light'] .sidebar-upper-quote-text,
   align-items: center;
   justify-content: center;
   margin-left: 2px;
-  box-shadow: 0 4px 10px rgba(0,0,0, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* 4. Eonpai Tactical Companion Card (Reference "Michie" Style) */
 .sidebar-eonpai-companion {
   background: color-mix(in srgb, var(--brand-baltic-blue) 96.0%, transparent);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  box-shadow: 0 10px 30px rgba(0,0,0, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   margin-top: var(--space-2);
   flex-shrink: 0;
 }
@@ -237,19 +237,19 @@ html[data-theme='light'] .sidebar-upper-quote-text,
   align-items: center;
   align-self: flex-start;
   gap: var(--space-2);
-  box-shadow: 0 4px 12px rgba(0,0,0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .eonpai-speech-bubble.bubble-wide {
   background: var(--brand-baltic-blue);
   color: #e8e8e8;
-  border: 1px solid rgba(255,255,255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   padding: var(--space-2) var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   line-height: 1.35;
-  box-shadow: 0 4px 12px rgba(0,0,0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .bubble-time {
@@ -296,7 +296,7 @@ html[data-theme='light'] .sidebar-upper-quote-text,
 }
 
 .top-search-filter-btn {
-  background: rgba(255,255,255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
   border: none;
   color: #5c5c5c;
   border-radius: 8px;
@@ -318,16 +318,16 @@ html[data-theme='light'] .sidebar-upper-quote-text,
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
-  background: rgba(255,255,255, 0.05);
-  border: 1px solid rgba(255,255,255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 100px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .profile-badge-card:hover {
-  border-color: rgba(255,255,255, 0.16);
-  background: rgba(255,255,255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.09);
   transform: translateY(-1px);
 }
 
