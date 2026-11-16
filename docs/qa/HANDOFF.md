@@ -44,13 +44,30 @@
 ---
 
 ## Batch 1C: Global Layout and Card Height Normalization
-- **Commit:** Pending (`fix(layout): normalize shared grid and card sizing`)
+- **Commit:** `7a686b2` (`fix(layout): normalize shared grid and card sizing`)
 - **Changes Completed:**
   - Fixed Quick Actions blank top band in `overview-bento.css` by changing `.dashboard-sidecar-card` to `justify-content: flex-start;` and resetting `.dashboard-quick-action-grid` margin to 0.
   - Normalized Schedule Card: Added `margin-top: auto` to `.schedule-card .sidecar-footer` ensuring symmetrical footer anchoring without inflating empty state gap.
   - Repaired Focus Engine right column in `focus-engine.css`: Set `.focus-right-column` and `.card-session-creator` to `align-self: start; height: auto; min-height: auto;`, preventing artificial stretching and eliminating the unexplained blank region.
 - **Verification:**
-  - `npm run build`: Success (`tsc -b && vite build` passed in 873ms).
+  - `npm run build`: Success.
+  - `npm test`: All 247 tests passing.
+
+---
+
+## Batch 1D: Animated Background Particle System
+- **Commit:** Pending (`feat(particles): improve visibility, theme adaptation and performance`)
+- **Changes Completed:**
+  - `frontend/src/components/background/ShinpoParticles.tsx`:
+    - Tuned desktop particle count to 72 (within optimal 55–80 range).
+    - Particle diameter calibrated to 2.2px–5.0px with subtle scale depth.
+    - Integrated sinusoidal opacity breathing (`opacityPhase`) with base opacity 0.55–0.70 (+0.08 breathing pulse).
+    - Added theme-aware restrained glow (`shadowBlur = Math.min(6, 3.5 * scale)` using palette token colors).
+    - Ensured smooth organic drift (drift speed 0.15–0.23px, angular speed ±0.0006 rad).
+    - Preserved full viewport coverage (`100vw × 100vh`, `pointer-events: none`, `z-index: 0`).
+    - Enforced strict freeze support for `prefers-reduced-motion: reduce`.
+- **Verification:**
+  - `npm run build`: Success (`tsc -b && vite build` passed in 851ms).
   - `npm test`: All 247 tests passing.
 
 ---

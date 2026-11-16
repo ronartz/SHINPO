@@ -7,14 +7,15 @@ interface Particle {
   size: number
   angularSpeed: number
   driftSpeed: number
-  opacity: number
+  baseOpacity: number
+  opacityPhase: number
   colorIndex: number
   screenX: number
   screenY: number
   scale: number
 }
 
-const DESKTOP_QUANTITY = 96
+const DESKTOP_QUANTITY = 72
 const MOBILE_QUANTITY = 28
 const MAX_DPR = 1.5
 const TAU = Math.PI * 2
@@ -88,10 +89,11 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 2.2 + Math.random() * 2.0,
-        angularSpeed: (Math.random() - 0.5) * 0.0016,
-        driftSpeed: 0.18 + Math.random() * 0.08,
-        opacity: 0.55 + Math.random() * 0.20,
+        size: 1.1 + Math.random() * 1.4,
+        angularSpeed: (Math.random() - 0.5) * 0.0012,
+        driftSpeed: 0.15 + Math.random() * 0.08,
+        baseOpacity: 0.55 + Math.random() * 0.15,
+        opacityPhase: Math.random() * TAU,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
         screenY: 0,
@@ -103,6 +105,7 @@ export function ShinpoParticles() {
       if (advance) {
         particle.angle += particle.angularSpeed
         particle.y -= particle.driftSpeed
+        particle.opacityPhase += 0.015
         if (particle.screenY < -30 || particle.y < -height * 0.9) {
           particle.y = height * 0.9
           particle.radius = Math.random() * Math.hypot(width, height) * 0.75
@@ -120,10 +123,11 @@ export function ShinpoParticles() {
       for (const particle of particles) project(particle, advance)
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
-        const renderRadius = Math.max(1.8, particle.size * particle.scale)
-        const renderAlpha = Math.min(0.75, Math.max(0.40, particle.opacity * particle.scale))
+        const renderRadius = Math.max(1.1, particle.size * particle.scale)
+        const pulse = Math.sin(particle.opacityPhase) * 0.08
+        const renderAlpha = Math.min(0.80, Math.max(0.48, (particle.baseOpacity + pulse) * particle.scale))
         context.globalAlpha = renderAlpha
-        context.shadowBlur = 4 * particle.scale
+        context.shadowBlur = Math.min(6, 3.5 * particle.scale)
         context.shadowColor = palette[particle.colorIndex]
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()
