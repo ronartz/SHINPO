@@ -1,201 +1,232 @@
-# SHINPO
+<div align="center">
+  <img src="frontend/src-tauri/icons/icon.png" width="92" alt="SHINPO app icon" />
+  <h1>SHINPO</h1>
+  <p><strong>進歩 · Progress, made intentional.</strong></p>
+  <p>A local-first personal execution workspace for turning long-term goals into meaningful daily action.</p>
+  <p>
+    <a href="https://github.com/ronartz/SHINPO/releases"><img src="https://img.shields.io/badge/Downloads-GitHub%20Releases-8b5cf6?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Releases" /></a>
+    <img src="https://img.shields.io/badge/Desktop-Tauri%202-ffc131?style=for-the-badge&logo=tauri&logoColor=171717" alt="Tauri 2" />
+    <img src="https://img.shields.io/badge/UI-React%2019-61dafb?style=for-the-badge&logo=react&logoColor=171717" alt="React 19" />
+    <img src="https://img.shields.io/badge/License-Proprietary-64748b?style=for-the-badge" alt="Proprietary license" />
+  </p>
+  <p>
+    <a href="#inside-shinpo">Explore SHINPO</a> &nbsp;·&nbsp;
+    <a href="#screenshots">Screenshots</a> &nbsp;·&nbsp;
+    <a href="#privacy--safety">Privacy &amp; Safety</a> &nbsp;·&nbsp;
+    <a href="https://github.com/ronartz/SHINPO/releases">Releases</a>
+  </p>
+</div>
 
-> **Personal execution operating system connecting high-level ambition to daily focused execution.**
+<p align="center">
+  <img src="docs/SHINPO_README_HERO.svg" width="100%" alt="SHINPO — Turn intention into action. Plan with purpose, focus on what matters, and see your progress." />
+</p>
 
-SHINPO is an integrated productivity and focus runtime that pairs desktop-level distraction containment with strategic goal decomposition and an autonomous planning copilot. It brings together a low-overhead native process shield, real-time telemetry, server-synchronized focus timers, and a fluid desktop workspace.
+<p align="center">
+  <sub>Plan deliberately. Protect your focus. Follow through.</sub>
+</p>
 
 ---
 
-## Core Systems
+## The idea
 
-- **Sentinel Shield (Native Process Enforcer)**: High-speed, low-overhead process monitor implemented in Rust that enforces focus boundaries during active work sessions and safely quarantines distracting applications.
-- **Precision Focus Engine**: Server-anchored countdown timers, distraction tracking, pause/resume state machines, and post-session reflection debriefs designed to survive background tab throttling and system sleep.
-- **Strategic Goal & Task Hierarchy**: Multi-tier execution architecture connecting multi-month goals down to atomic daily tasks with kanban boards, priority queues, and schedule timelines.
-- **EONPAI Executive Copilot**: Conversational AI assistant supporting daily planning, automated goal breakdown, and validated action execution via a structured tool registry.
-- **Aurora Desktop Interface**: Desktop workspace powered by React 19 and Tauri v2, supporting both high-contrast Dark and WCAG-compliant Light modes with a fixed application-shell scroll layout.
+**SHINPO (進歩)** means *progress*. It is built around a simple loop:
 
----
+**Set a direction → choose the next action → make time for focused work → review what moved forward.**
 
-## Architecture Overview
+SHINPO brings goals, tasks, sessions, scheduling, focus protection and progress into one desktop workspace. The aim is not to give you another dashboard full of numbers. It is to help turn intentions into work you can actually finish.
 
+> **Built local-first. Designed for deliberate work.**
+
+## Inside SHINPO
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🎯 Goals &amp; Tasks</h3>
+      <p>Break larger objectives into actionable tasks. Organize work in list or board views, set target dates, track execution and keep the next step visible.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>⏱️ Focus Engine</h3>
+      <p>Run focused work sessions with configurable durations, breaks, pause and resume controls, session history and post-session reflection.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🗓️ Calendar &amp; Scheduling</h3>
+      <p>Give focused work a place in your day. Review scheduled sessions, navigate calendar views and see planned work alongside your execution history.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🛡️ Focus Guardian</h3>
+      <p>Consent-based app observation and clear warnings during focus sessions. The desktop Guardian is warning-only: <strong>SHINPO does not close your applications.</strong></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🌐 Browser Companion</h3>
+      <p>A Chromium and Firefox companion that connects to the desktop through a local native-messaging host. Pair it with SHINPO to bring focus policies into supported browser sessions.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>✦ EONPAI Assistant</h3>
+      <p>Planning and task-decomposition assistance with deterministic offline behavior. Optional local or OpenAI-compatible model endpoints can be configured by the user.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>📈 Analytics &amp; Progress</h3>
+      <p>Review focus activity, completion trends, milestones, XP and streaks. Make progress easier to understand over time.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🎨 Four visual themes</h3>
+      <p>Choose between Classic Dark, Classic Light, Aurora Dark and Aurora Light. Each theme uses the same product structure with its own visual character.</p>
+    </td>
+  </tr>
+</table>
+
+## Screenshots
+
+A look inside the SHINPO desktop experience.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>Dashboard</strong><br />
+      <sub>Your day, priorities and execution overview.</sub><br /><br />
+      <img src="docs/qa/screenshots/01_dashboard_overview.png" width="100%" alt="SHINPO dashboard overview" />
+    </td>
+    <td width="50%" valign="top">
+      <strong>Goals &amp; Tasks</strong><br />
+      <sub>Turn larger goals into manageable work.</sub><br /><br />
+      <img src="docs/qa/screenshots/02_goals_kanban.png" width="100%" alt="SHINPO goals and tasks board" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>Focus Engine</strong><br />
+      <sub>Give one meaningful task your full attention.</sub><br /><br />
+      <img src="docs/qa/screenshots/03_focus_engine.png" width="100%" alt="SHINPO Focus Engine" />
+    </td>
+    <td width="50%" valign="top">
+      <strong>Calendar &amp; Scheduler</strong><br />
+      <sub>Plan sessions and see your week at a glance.</sub><br /><br />
+      <img src="docs/qa/screenshots/04_calendar_scheduler.png" width="100%" alt="SHINPO calendar scheduler" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>Analytics</strong><br />
+      <sub>Review activity and how your work adds up.</sub><br /><br />
+      <img src="docs/qa/screenshots/05_analytics_dashboard.png" width="100%" alt="SHINPO analytics dashboard" />
+    </td>
+    <td width="50%" valign="top">
+      <strong>EONPAI Assistant</strong><br />
+      <sub>Get help turning an intention into a plan.</sub><br /><br />
+      <img src="docs/qa/screenshots/07_eonpai_assistant.png" width="100%" alt="SHINPO EONPAI assistant" />
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <sub>Interface previews from the repository's QA screenshot set. The product is actively evolving during beta preparation.</sub>
+</p>
+
+## Privacy &amp; safety
+
+SHINPO is designed around local-first desktop use.
+
+- **Local encrypted vault:** Personal application data is stored in a local SQLCipher-backed vault, with Argon2id used in the vault's key-derivation flow.
+- **No forced app closure:** Focus Guardian's desktop app observation is warning-only. SHINPO does not terminate or close running applications.
+- **Browser pairing is explicit:** The companion uses a local native-messaging host and a short-lived, single-use pairing code. Browser registration remains under the user's control.
+- **AI connections are optional:** EONPAI can use deterministic offline behavior. Connecting an external model endpoint is an explicit configuration choice; data sent to that provider is subject to that provider's policies.
+- **No fake protection claims:** Pairing a browser extension is not, by itself, proof that a website policy is active. Confirm the companion reports a current policy before relying on it.
+
+## How the pieces fit together
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    SHINPO Desktop                            │
+│              React 19 · TypeScript · Vite                    │
+└────────────────────────────┬────────────────────────────────┘
+                             │ Tauri IPC
+┌────────────────────────────▼────────────────────────────────┐
+│                   Native application core                    │
+│                       Tauri 2 · Rust                          │
+│          Focus · Vault · Guardian · Local services            │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                  ┌──────────▼──────────┐
+                  │  Encrypted local    │
+                  │  SQLCipher vault    │
+                  └─────────────────────┘
+
+ Chromium / Firefox extension
+              │
+       Native Messaging
+              │
+       SHINPO Browser Host
+              │
+       Local desktop pairing
 ```
-                          ┌───────────────────────────┐
-                          │    Desktop / Browser      │
-                          │   React 19 + TypeScript   │
-                          │        (Tauri v2)         │
-                          └─────────────┬─────────────┘
-                                        │
-                         HTTP REST / WS │ STOMP
-                                        │
-             ┌──────────────────────────▼──────────────────────────┐
-             │               SHINPO Backend Engine                 │
-             │           Spring Boot 4.1 / Java 25                 │
-             ├──────────────────────────┬──────────────────────────┤
-             │  • Focus Session Manager │  • EONPAI AI Gateway     │
-             │  • Goal & Task Services  │  • WebSocket Telemetry   │
-             │  • Sentinel Controller   │  • Action Tool Registry  │
-             └─────────────┬────────────────────────────┬──────────┘
-                           │                            │
-                     JDBC  │                      IPC / │ Realtime
-                           ▼                      Event │ Telemetry
-                 ┌───────────────────┐                  ▼
-                 │   PostgreSQL 17   │        ┌───────────────────┐
-                 │  Flyway Migrations│        │   Native Shield   │
-                 └───────────────────┘        │   (Rust Crate)    │
-                                              └───────────────────┘
-```
 
----
+## Technology
 
-## Tech Stack
+| Layer | Technology |
+|---|---|
+| Desktop shell & native services | Tauri 2, Rust |
+| User interface | React 19, TypeScript, Vite |
+| Local data protection | SQLCipher, Argon2id |
+| Browser integration | WebExtensions, native messaging |
+| AI integrations | Deterministic offline assistance; optional Ollama or OpenAI-compatible endpoints |
 
-| Domain | Technology | Details |
+## Platform & beta status
+
+SHINPO is being prepared for Windows x64 and Linux x86_64 desktop use.
+
+| Platform | Packaging direction | Current qualification note |
 |---|---|---|
-| **Backend** | Java 25, Spring Boot 4.1.1 | Spring Security, Spring Data JPA, Flyway, STOMP WebSockets |
-| **Database** | PostgreSQL 16+ / 17 | Relational persistence, automated versioned migrations |
-| **Frontend** | React 19, TypeScript, Vite | Custom Aurora UI design tokens, Material UI primitives |
-| **Desktop Shell** | Tauri v2, Rust | Cross-platform native windowing, system tray, IPC bridge |
-| **Enforcement** | Rust (`crates/shinpo-shield`) | Cross-platform process enumeration and termination daemon |
-| **AI Gateway** | Spring AI / Provider Abstraction | Pluggable local (Ollama) and cloud model endpoints |
+| Windows x64 | NSIS installer | CI builds are separate from a verified native Windows installation. Runtime acceptance remains in progress. |
+| Linux x86_64 | AppImage, DEB and RPM | Compatibility depends on the distribution and system libraries. Do not assume every Linux distribution is supported. |
+| Browser companion | Chromium-family browsers and Firefox | Unpacked developer builds; not yet signed or published through browser extension stores. Firefox permanent installation requires a signed extension. |
 
----
+**Downloads:** installer files will be attached to [GitHub Releases](https://github.com/ronartz/SHINPO/releases) when a beta release is published. There are no public installer downloads linked from this README yet.
 
-## Repository Structure
-
-```
-.
-├── backend/                  # Spring Boot application, REST controllers, AI gateway & migrations
-├── frontend/                 # React 19 desktop SPA and Tauri client
-│   ├── src/                  # Views, components, hooks, styles, and API clients
-│   └── src-tauri/            # Tauri desktop configuration and native bindings
-├── crates/
-│   └── shinpo-shield/        # Rust process enforcement daemon and IPC client
-├── docs/
-│   └── architecture/         # System architecture, API contracts, and engineering standards
-├── scripts/                  # Automated verification, test runners, and runtime scripts
-└── docker-compose.yml        # Local infrastructure services (PostgreSQL, mock services)
-```
-
----
-
-## Getting Started
+## Run from source
 
 ### Prerequisites
 
-Ensure you have the following installed on your host machine:
+- Node.js 22+ and npm
+- Rust toolchain and Cargo
+- Platform-specific Tauri development dependencies
 
-- **Java JDK 25** (or compatible vendor distribution, e.g. Eclipse Temurin)
-- **Node.js 20+** and **npm**
-- **Rust toolchain 1.80+** (`rustc`, `cargo`)
-- **PostgreSQL 16+** (or Docker for running containerized DB)
-
----
-
-### 1. Database Setup
-
-Using Docker Compose:
+### Start the desktop development app
 
 ```bash
-docker compose up -d postgres
+npm --prefix frontend ci
+npm --prefix frontend run tauri:dev
 ```
 
-Or connect to an existing PostgreSQL instance and configure credentials in `.env` (refer to `.env.example`).
-
----
-
-### 2. Run the Backend
+### Build the frontend
 
 ```bash
-cd backend
-./mvnw spring-boot:run
+npm --prefix frontend run build
 ```
 
-The Spring Boot backend will run Flyway migrations and start listening on `http://localhost:8080`.
+For platform-specific setup and native dependencies, consult the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
----
+## Project documentation
 
-### 3. Run the Frontend (Web Dev Mode)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The Vite dev server will start at `http://localhost:5173`.
-
----
-
-### 4. Run Desktop Shell (Tauri Dev Mode)
-
-To launch the native desktop application with full IPC and native window capabilities:
-
-```bash
-cd frontend
-npm run tauri:dev
-```
-
----
-
-### 5. Native Shield Daemon
-
-To run the standalone process monitor:
-
-```bash
-cd crates/shinpo-shield
-cargo run
-```
-
----
-
-## Testing & Quality Gates
-
-The codebase enforces strict test-driven quality boundaries across all tiers:
-
-```bash
-# Backend unit & integration test suite (295 tests)
-cd backend && ./mvnw test
-
-# Frontend typecheck & production build
-cd frontend && npm run build
-
-# Frontend linter
-cd frontend && npm run lint
-
-# Frontend unit & contract tests
-cd frontend && npm test
-
-# Rust enforcement engine checks & tests
-cd crates/shinpo-shield && cargo test
-```
-
----
-
-## Configuration
-
-Default environment variables are defined in `.env.example` (root) and `frontend/.env.example`.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/shinpo` | Database connection string |
-| `SPRING_DATASOURCE_USERNAME` | `postgres` | Database username |
-| `SPRING_DATASOURCE_PASSWORD` | `postgres` | Database password |
-| `VITE_API_URL` | `http://localhost:8080` | Backend API base URL |
-| `VITE_WS_URL` | `ws://localhost:8080/ws` | WebSocket telemetry endpoint |
-
----
-
-## Documentation
-
-Detailed architectural and design specifications can be found under `docs/`:
-
-- [API Reference](docs/architecture/API_REFERENCE.md)
-- [Code & Engineering Standards](docs/architecture/CODE_STANDARDS.md)
-- [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)
-- [Standalone Runtime Guide](docs/architecture/STANDALONE_RUNTIME.md)
-
----
+- [Standalone runtime](docs/architecture/STANDALONE_RUNTIME.md)
+- [Frontend architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)
+- [API reference](docs/architecture/API_REFERENCE.md)
+- [Engineering standards](docs/architecture/CODE_STANDARDS.md)
+- [Architecture overview](SHINPO_ARCHITECTURE.md)
 
 ## License
 
-All rights reserved. Proprietary software.
+**Proprietary · All rights reserved.** This repository does not grant permission to redistribute, modify or commercially use SHINPO. Access to the source code does not constitute an open-source license.
+
+---
+
+<div align="center">
+  <strong>進歩 — Small steps. Meaningful progress.</strong><br />
+  <sub>SHINPO is being built for people who want to spend less time planning to work and more time doing it.</sub>
+</div>
