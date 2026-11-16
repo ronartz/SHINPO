@@ -4,7 +4,7 @@
 **Target Git Tag:** `v0.1.0-beta.1`  
 **Release Date:** Tuesday, November 17, 2026  
 **Repository:** `ronartz/SHINPO`  
-**Candidate Commit SHA:** `02ebfb7`  
+**Candidate Commit SHA:** `c3f7538`  
 **Base Upstream Commit:** `cdb80f653f3176504484fbb5528edf026c065bba` (`main`)  
 **GitHub Release URL:** https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.1  
 
