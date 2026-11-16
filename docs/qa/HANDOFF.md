@@ -354,4 +354,41 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked`: 85 native tests passed (0 failures).
   - Playwright visual keyframes: 13 captures generated in `docs/qa/screenshots/startup/` covering droplet formation, refraction, release, settlement, theme adaptability (Aurora Dark, Classic Dark, Aurora Light, Classic Light), reduced motion, and warm session bypass.
 
+## 2026-11-16 — Universal Theme-Aware Button & Energy Feedback System
+
+- **Source identity:** branch `fix/systematic-layout-and-composition`, local atomic commit.
+- **FlameButton Interaction Architecture (`interactiveButtonPhysics.ts`, `InteractiveButton.tsx`, `interactive-button.css`):**
+  - Integrated 21st.dev / FlameButton cursor-tracking, edge-sensitive luminous radial energy aura, and animated light sheen without React re-renders.
+  - Zero performance overhead: Coordinates (`--btn-x`, `--btn-y`, `--btn-norm-x`, `--btn-edge-proximity`, `--btn-edge-side`, `--btn-hover`, `--btn-pressed`) are applied directly to DOM element custom properties at 120 FPS compositor level.
+  - Edge-proximity calculation follows 1.6 power curve (`Math.pow(Math.min(1, Math.abs(normX - 0.5) * 2), 1.6)`), keeping button centers restrained while ramping up luminous outer bloom as the cursor nears the left or right perimeter.
+  - Tactile press compression: `:active` / `[data-pressed='true']` applies `transform: scale(0.972)` with 80ms ease-out timing.
+  - Activation pulse ripple: Expanding `@keyframes shinpo-btn-activation-pulse` fires on button release or Enter/Space keyboard activation.
+- **Theme-Specific Color System (Zero Sample Flame Colors):**
+  - **Classic Dark:** Electric lime energy (`--btn-energy-primary: #AFF33E`, `--btn-energy-secondary: #a3e635`) with dark text on lime (`#020617`).
+  - **Classic Light:** Olive green energy (`--btn-energy-primary: #4D7C0F`, `--btn-energy-secondary: #3F6212`) with restrained aura opacity (`0.32`).
+  - **Aurora Dark:** Violet and cyan energy (`--btn-energy-primary: #9757FA`, `--btn-energy-secondary: #1BC9DE`).
+  - **Aurora Light:** Soft violet and sky blue energy (`--btn-energy-primary: #7C3AED`, `--btn-energy-secondary: #0284C7`).
+  - **Destructive Actions:** Semantic danger isolation (`#F87171` / `#DC2626`) strictly preserved across all themes.
+- **Global Application Coverage (`interactiveButtonListener.ts`):**
+  - Lightweight delegated event engine attaches single passive listener on `document` targeting native and legacy buttons across the entire desktop application (`.shinpo-btn`, `.btn-timer`, `.preset-chip`, `.btn-hero-action`, `.modal-btn-*`, etc.).
+  - Centralized `<InteractiveButton />` component provides forwardRef React primitive supporting variants (`primary`, `secondary`, `outline`, `ghost`, `destructive`, `icon`, `compact`, `navigation`, `floating`), loading spinners, and icon slots.
+  - Existing `<ShinpoButton />` and `<AuroraButton />` upgraded to share the same universal interaction engine.
+- **Strict Accessibility & Reduced Motion:**
+  - Preserves `:focus-visible` outlines (2px solid with 2px offset).
+  - Disabled and loading buttons completely suppress hover glows, pointer events, and ripple animations.
+  - `@media (prefers-reduced-motion: reduce)` removes aura blur, animations, and scaling transforms for clean instantaneous state changes.
+- **Verification Evidence:**
+  - `npm --prefix frontend test`: 223/223 unit tests pass across 16 suites (0 failures).
+  - `npm --prefix frontend run lint`: 0 errors.
+  - `npm --prefix frontend run build`: `tsc -b && vite build` built in 1.17s (0 errors).
+  - Visual acceptance screenshots captured in `docs/qa/screenshots/buttons/`:
+    - `01_classic-dark_button_hover_edge.png` & `01_classic-dark_button_press_active.png`
+    - `02_classic-light_button_hover_edge.png` & `02_classic-light_button_press_active.png`
+    - `03_aurora-dark_button_hover_edge.png`
+    - `04_aurora-light_button_hover_edge.png`
+    - `05_button_variants_matrix.png`
+    - `06_destructive_button_behavior.png`
+    - `07_reduced_motion_behavior.png`
+
+
 

@@ -3,6 +3,7 @@
    ========================================================================== */
 
 @import './styles/tokens.css';
+@import './styles/components/interactive-button.css';
 
 * {
   box-sizing: border-box;

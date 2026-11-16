@@ -1,53 +1,31 @@
-import React from 'react'
+import { forwardRef } from 'react'
+import {
+  InteractiveButton,
+  type InteractiveButtonProps,
+  type InteractiveButtonVariant,
+} from '../../common/InteractiveButton'
 
-export interface ShinpoButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
-  isLoading?: boolean
-  leftIcon?: React.ReactNode
-  rightIcon?: React.ReactNode
+export interface ShinpoButtonProps extends Omit<InteractiveButtonProps, 'variant'> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'destructive'
 }
 
-export const ShinpoButton: React.FC<ShinpoButtonProps> = ({
-  variant = 'primary',
-  size = 'md',
-  isLoading = false,
-  leftIcon,
-  rightIcon,
-  disabled,
-  children,
-  className = '',
-  ...props
-}) => {
-  return (
-    <button
-      disabled={disabled || isLoading}
-      className={`shinpo-btn variant-${variant} size-${size} ${className}`}
-      {...props}
-    >
-      {isLoading ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            style={{ animation: 'spin 1s linear infinite' }}
-          >
-            <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-          </svg>
-          {children}
-        </span>
-      ) : (
-        <>
-          {leftIcon && <span style={{ display: 'inline-flex', alignItems: 'center' }}>{leftIcon}</span>}
-          {children}
-          {rightIcon && <span style={{ display: 'inline-flex', alignItems: 'center' }}>{rightIcon}</span>}
-        </>
-      )}
-    </button>
-  )
-}
+export const ShinpoButton = forwardRef<HTMLButtonElement, ShinpoButtonProps>(
+  ({ variant = 'primary', className = '', ...props }, ref) => {
+    // Map legacy 'danger' to 'destructive' for theme-aware tokens
+    const mappedVariant: InteractiveButtonVariant =
+      variant === 'danger' ? 'destructive' : (variant as InteractiveButtonVariant)
 
+    const extraClass = variant === 'danger' ? 'variant-danger' : ''
+
+    return (
+      <InteractiveButton
+        ref={ref}
+        variant={mappedVariant}
+        className={`shinpo-btn ${extraClass} ${className}`.trim()}
+        {...props}
+      />
+    )
+  }
+)
+
+ShinpoButton.displayName = 'ShinpoButton'

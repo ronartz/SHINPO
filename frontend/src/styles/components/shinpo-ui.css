@@ -890,14 +890,14 @@ html[data-theme='light'] .shinpo-btn.variant-ghost:hover:not(:disabled),
 }
 
 .shinpo-btn.variant-danger {
-  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary) 100%);
+  background: linear-gradient(135deg, var(--color-danger, #ef4444) 0%, #b91c1c 100%);
   color: #ffffff;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--brand-primary) 35.0%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-danger, #ef4444) 35.0%, transparent);
 }
 
 .shinpo-btn.variant-danger:hover:not(:disabled) {
   opacity: 0.92;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--brand-primary) 45.0%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-danger, #ef4444) 45.0%, transparent);
 }
 
 .shinpo-btn:disabled {

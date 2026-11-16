@@ -8,6 +8,9 @@ import '@fontsource/nunito/800.css'
 import './index.css'
 import { PlatformRoot } from './platform'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { initInteractiveButtonEngine } from './utils/interactiveButtonListener'
+
+initInteractiveButtonEngine()
 
 const params = new URLSearchParams(window.location.search)
 let savedBrand: string | null = null
