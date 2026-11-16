@@ -241,9 +241,9 @@
 }
 
 .study-mode-section {
-  margin-top: 16px !important;
-  padding-top: 0 !important;
-  border-top: none !important;
+  margin-top: 24px !important;
+  padding-top: 18px !important;
+  border-top: 1px solid var(--border) !important;
 }
 
 .study-mode-options {

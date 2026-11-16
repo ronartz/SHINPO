@@ -1928,37 +1928,29 @@ html[data-theme='light'] .duration-pill.paused {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Editorial execution order: clean 3-row dashboard hierarchy */
-.shinpo-dashboard > .dashboard-header-bar {
+/* Editorial execution order: next action first, supporting metrics afterward. */
+.shinpo-dashboard>.dashboard-header-bar {
   order: 0;
 }
 
-.shinpo-dashboard > .dashboard-reference-grid {
+.shinpo-dashboard>.dashboard-cockpit-grid {
   order: 1;
 }
 
-.shinpo-dashboard > .dashboard-cockpit-grid {
+.shinpo-dashboard>.daily-objectives-card {
   order: 2;
 }
 
-.shinpo-dashboard > .dashboard-insights-row {
+.shinpo-dashboard>.dashboard-metrics-grid {
   order: 3;
 }
 
-.shinpo-dashboard > .daily-objectives-card {
+.shinpo-dashboard>.dashboard-insight-grid {
   order: 4;
 }
 
-.shinpo-dashboard > .dashboard-metrics-grid {
+.shinpo-dashboard>.flight-deck-board-panel {
   order: 5;
-}
-
-.shinpo-dashboard > .dashboard-insight-grid {
-  order: 6;
-}
-
-.shinpo-dashboard > .flight-deck-board-panel {
-  order: 7;
 }
 
 .shinpo-dashboard .dashboard-metrics-grid {
@@ -2134,16 +2126,16 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-cockpit-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
-  grid-template-rows: auto;
-  gap: var(--card-gap, 16px);
+  grid-template-columns: minmax(250px, 1.12fr) minmax(260px, 1fr) minmax(230px, .9fr);
+  grid-template-rows: auto auto;
+  gap: 12px;
   align-items: stretch;
 }
 
 .shinpo-dashboard .schedule-card {
-  grid-column: auto;
-  grid-row: auto;
-  padding: var(--card-padding, 20px 24px);
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  padding: 14px;
   gap: 12px;
   border: var(--glass-border);
   border-radius: 12px;
@@ -2155,10 +2147,10 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .priority-hero-card {
-  grid-column: auto;
-  grid-row: auto;
+  grid-column: 2;
+  grid-row: 1;
   min-height: 0;
-  padding: var(--card-padding, 20px 24px);
+  padding: 16px;
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2178,21 +2170,13 @@ html[data-theme='light'] .duration-pill.paused {
   font-size: clamp(36px, 4vw, 54px);
 }
 
-.shinpo-dashboard .dashboard-insights-row {
-  width: 100%;
-  margin-top: var(--card-gap, 16px);
-}
-
 .shinpo-dashboard .dashboard-insight-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: var(--card-gap, 16px) !important;
-  width: 100% !important;
+  display: contents;
 }
 
 .shinpo-dashboard .dashboard-insight-card {
   min-height: 0;
-  padding: var(--card-padding, 20px 24px);
+  padding: 14px;
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2201,13 +2185,13 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-activity-card {
-  grid-column: auto !important;
-  grid-row: auto !important;
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .shinpo-dashboard .dashboard-recent-activity {
-  grid-column: auto !important;
-  grid-row: auto !important;
+  grid-column: 3;
+  grid-row: 2;
 }
 
 .shinpo-dashboard .dashboard-insight-header h2 {
@@ -2226,17 +2210,17 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 .shinpo-dashboard .dashboard-chart-bar {
-  background: var(--color-accent);
+  background: var(--color-primary);
 }
 
 .shinpo-dashboard .dashboard-chart-day.is-today .dashboard-chart-bar {
-  background: var(--color-accent-hover);
+  background: var(--color-primary-hover);
 }
 
 .shinpo-dashboard .dashboard-quick-actions {
-  grid-column: auto;
-  grid-row: auto;
-  padding: var(--card-padding, 20px 24px);
+  grid-column: 3;
+  grid-row: 1;
+  padding: 14px;
   border: var(--glass-border);
   border-radius: 12px;
   background: var(--glass-surface);
@@ -2244,13 +2228,8 @@ html[data-theme='light'] .duration-pill.paused {
   -webkit-backdrop-filter: var(--glass-blur);
   display: flex;
   flex-direction: column;
-  justify-content: flex-start !important;
-  gap: 0 !important;
-}
-
-.shinpo-dashboard .dashboard-quick-actions .dashboard-reference-card-heading {
-  margin-bottom: 16px !important;
-  flex-shrink: 0;
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .dashboard-reference-card-heading {
@@ -2696,7 +2675,6 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 @media (max-width: 720px) {
-
   .shinpo-dashboard .schedule-card.is-empty,
   .shinpo-dashboard .schedule-is-empty .schedule-card,
   .shinpo-dashboard .schedule-is-empty .dashboard-activity-card,

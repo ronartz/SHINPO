@@ -57,8 +57,6 @@ bin/shinpo-browser-host
 backups/
 *.dump
 *.tar.gz
-docs/qa/*.bundle*
-docs/qa/*.patch
 
 # Release packages and binaries
 release/*

@@ -737,7 +737,7 @@
   border-radius: 8px;
   padding: 0 var(--space-3);
   width: 210px;
-  height: 36px;
+  height: 38px;
   box-sizing: border-box;
   color: var(--text-3);
   transition: border-color 0.15s ease;
@@ -771,12 +771,12 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  height: 36px;
+  height: 38px;
   box-sizing: border-box;
 }
 
 .tasks-sort-wrap .shinpo-select-trigger {
-  height: 36px;
+  height: 38px;
   border-radius: 8px;
   box-sizing: border-box;
 }
@@ -793,12 +793,12 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 2px;
-  height: 36px;
+  height: 38px;
   box-sizing: border-box;
 }
 
 .view-mode-btn {
-  height: 30px;
+  height: 32px;
   padding: 0 var(--space-3);
   font-size: 12.5px;
   font-weight: 600;
@@ -815,8 +815,8 @@
 }
 
 .view-mode-btn.active {
-  background: var(--color-accent);
-  color: var(--on-accent);
+  background: var(--surface-card);
+  color: var(--text);
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
@@ -1895,24 +1895,15 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 }
 
 .goals-task-area .goals-new-task-button {
-  height: 36px;
-  min-height: 36px;
+  height: 38px;
+  min-height: 38px;
   padding-inline: 14px !important;
   border-radius: 8px !important;
-  background: var(--color-accent) !important;
-  color: var(--on-accent) !important;
-  border: 1px solid var(--color-accent) !important;
-  font-weight: 700 !important;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-}
-
-.goals-task-area .goals-new-task-button:hover {
-  background: var(--color-accent-hover) !important;
-  border-color: var(--color-accent-hover) !important;
 }
 
 .goals-task-area>.flight-deck-board-grid {
@@ -1961,18 +1952,17 @@ html[data-theme='light'] .goals-view-deck .btn-ai-deconstruct,
 }
 
 .goals-view-deck .status-column-empty {
-  min-height: 80px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 16px 14px;
-  border: 1.5px dashed color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 12px;
-  color: var(--text-3);
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary, var(--text-2));
   text-align: center;
   background: transparent;
-  box-sizing: border-box;
 }
 
 .goals-view-deck .status-column-empty .empty-title {
