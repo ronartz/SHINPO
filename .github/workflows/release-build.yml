@@ -115,23 +115,23 @@ jobs:
           cp -r browser-extension/dist/chromium "$TAR_DIR/browser-companion/" 2>/dev/null || true
           cp -r browser-extension/dist/firefox "$TAR_DIR/browser-companion/" 2>/dev/null || true
           cat << 'EOF' > "$TAR_DIR/README.txt"
-SHINPO (進歩) 0.1.0-beta.1 — Portable Linux x86_64 Installation
+          SHINPO (進歩) 0.1.0-beta.1 — Portable Linux x86_64 Installation
 
-SYSTEM REQUIREMENTS:
-- Linux x86_64 (glibc 2.35+)
-- WebKit2GTK 4.1 (libwebkit2gtk-4.1)
-- OpenSSL (libssl3 / openssl-libs)
+          SYSTEM REQUIREMENTS:
+          - Linux x86_64 (glibc 2.35+)
+          - WebKit2GTK 4.1 (libwebkit2gtk-4.1)
+          - OpenSSL (libssl3 / openssl-libs)
 
-RUNNING SHINPO:
-1. Ensure permissions: chmod +x shinpo-desktop shinpo-browser-host
-2. Run the application: ./shinpo-desktop
+          RUNNING SHINPO:
+          1. Ensure permissions: chmod +x shinpo-desktop shinpo-browser-host
+          2. Run the application: ./shinpo-desktop
 
-BROWSER COMPANION SETUP:
-1. Register Native Messaging Host:
-   ./register-browser-companion.sh --chrome   (or --chromium, --brave, --edge, --firefox, --all)
-2. Load unpacked extension from browser-companion/chromium or browser-companion/firefox.
-3. For full details, see Browser-Companion-Install.md.
-EOF
+          BROWSER COMPANION SETUP:
+          1. Register Native Messaging Host:
+             ./register-browser-companion.sh --chrome   (or --chromium, --brave, --edge, --firefox, --all)
+          2. Load unpacked extension from browser-companion/chromium or browser-companion/firefox.
+          3. For full details, see Browser-Companion-Install.md.
+          EOF
           tar -czf "$output/SHINPO_${VERSION}_linux_x86_64.tar.gz" -C "$TAR_DIR" .
           rm -rf "$TAR_DIR"
       - name: Generate and display checksums
