@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-11-16T10:39:20Z",
-  "commit": "c189e52e7678070f566008bc4a10250e94325e4e",
+  "timestamp": "2026-11-16T13:53:13Z",
+  "commit": "e3fb7d578094cee73065dde56ff3886cd412973e",
   "branch": "fix/systematic-layout-and-composition",
-  "worktree": "DIRTY (15 modified/untracked files strictly preserved)",
-  "mode": "release",
+  "worktree": "DIRTY (26 modified/untracked files strictly preserved)",
+  "mode": "quick",
   "binary": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
     "sha256": "8f1794feab5bbf5355165dc2f2e4cb06d7d215933b27bc944f9aa41dfa50f528"
@@ -13,17 +13,17 @@
     "sha256": "84a452db17bba2e32d104cc112868fc3d00adbc813b4f3602eba37352e59c7ec"
   },
   "verdicts": {
-    "overall": "GO (LINUX ONLY) / NO-GO (WINDOWS UNTESTED)",
-    "linux": "GO FOR RELEASE (LINUX ONLY)",
+    "overall": "PARTIAL_RUN (Executed mode 'quick')",
+    "linux": "PARTIAL_RUN (Executed mode 'quick')",
     "windows": "NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
   },
   "failedGatesCount": 0,
   "gates": {
     "quick": "PASS",
-    "security": "PASS",
-    "visualAndThemes": "PASS",
-    "linuxPackageRpm": "PASS",
-    "nativeDesktop": "PASS",
+    "security": "NOT_RUN",
+    "visualAndThemes": "NOT_RUN",
+    "linuxPackageRpm": "NOT_RUN",
+    "nativeDesktop": "NOT_RUN",
     "windowsDesktop": "NOT_TESTED"
   }
 }

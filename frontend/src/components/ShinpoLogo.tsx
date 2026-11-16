@@ -47,7 +47,7 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
       <div className="shinpo-logo-text-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1 }}>
         <div className="shinpo-logo-wordmark" style={{
           color: 'var(--text)',
-          fontFamily: "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          fontFamily: "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           fontSize: Math.round(size * 0.62),
           fontWeight: 800,
           letterSpacing: '0.06em',

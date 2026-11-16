@@ -30,9 +30,10 @@
   --font-size-caption: 13px;
   --font-size-metadata: 12.5px;
 
-  --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: var(--font-family);
-  --font-body: var(--font-family);
+  --font-family-sans: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  --font-family: var(--font-family-sans);
+  --font-heading: var(--font-family-sans);
+  --font-body: var(--font-family-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Classic palette. Aurora overrides these primitives by brand below. */

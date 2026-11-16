@@ -67,7 +67,7 @@ html[data-theme='light'] .sidebar-upper-quote,
 }
 
 .sidebar-upper-quote-eyebrow {
-  font-family: 'Nunito', -apple-system, sans-serif;
+  font-family: 'Ubuntu', -apple-system, sans-serif;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -85,7 +85,7 @@ html[data-theme='light'] .sidebar-upper-quote-eyebrow,
 }
 
 .sidebar-upper-quote-text {
-  font-family: 'Nunito', -apple-system, sans-serif;
+  font-family: 'Ubuntu', -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0;

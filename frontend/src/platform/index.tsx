@@ -26,7 +26,7 @@ export const PlatformRoot: React.FC = () => {
             justifyContent: 'center',
             background: 'var(--bg, #0b0f19)',
             color: 'var(--text-secondary, #94a3b8)',
-            fontFamily: 'Nunito, sans-serif',
+            fontFamily: "'Ubuntu', sans-serif",
           }}
         >
           <span>Loading SHINPO...</span>

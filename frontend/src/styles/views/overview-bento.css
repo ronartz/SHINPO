@@ -273,7 +273,7 @@ html[data-theme='light'] .badge-tag.coral,
 }
 
 .capsule-weekday {
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.8px;
@@ -283,7 +283,7 @@ html[data-theme='light'] .badge-tag.coral,
 }
 
 .capsule-day-month {
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.2px;
@@ -297,7 +297,7 @@ html[data-theme='light'] .badge-tag.coral,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -330,7 +330,7 @@ html[data-theme='light'] .badge-tag.coral,
 }
 
 .capsule-format-badge {
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.6px;

@@ -129,7 +129,7 @@ export const AuroraSidebar: React.FC<AuroraSidebarProps> = ({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography
                 sx={{
-                  fontFamily: "'Nunito', sans-serif",
+                  fontFamily: "'Ubuntu', sans-serif",
                   fontSize: 12,
                   fontWeight: 800,
                   letterSpacing: '0.12em',
