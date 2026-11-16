@@ -72,8 +72,8 @@ test.describe('SHINPO Login Brand Identity Refinement', () => {
         const headingRect = heading ? heading.getBoundingClientRect() : null
 
         const wordmarkStyle = wordmark ? window.getComputedStyle(wordmark) : null
-        const kanjiStyle = kanji ? window.getComputedStyle(kanji) : null
-        const descriptorStyle = descriptor ? window.getComputedStyle(descriptor) : null
+        const _kanjiStyle = kanji ? window.getComputedStyle(kanji) : null
+        const _descriptorStyle = descriptor ? window.getComputedStyle(descriptor) : null
 
         return {
           symbolWidth: symbol ? symbol.getBoundingClientRect().width : 0,

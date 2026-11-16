@@ -118,7 +118,7 @@ export function initInteractiveButtonEngine(): () => void {
       btn.style.setProperty('--btn-pressed', '0')
       btn.classList.remove('is-pressed')
       btn.classList.remove('is-activating')
-      try { void btn.offsetWidth } catch (_) {}
+      try { void btn.offsetWidth } catch (_) { /* ignore reflow error */ }
       btn.classList.add('is-activating')
       setTimeout(() => {
         btn.classList.remove('is-activating')
@@ -161,7 +161,7 @@ export function initInteractiveButtonEngine(): () => void {
         btn.style.setProperty('--btn-pressed', '0')
         btn.classList.remove('is-pressed')
         btn.classList.remove('is-activating')
-        try { void btn.offsetWidth } catch (_) {}
+        try { void btn.offsetWidth } catch (_) { /* ignore reflow error */ }
         btn.classList.add('is-activating')
         setTimeout(() => {
           btn.classList.remove('is-activating')
