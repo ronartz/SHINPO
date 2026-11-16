@@ -390,5 +390,51 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
     - `06_destructive_button_behavior.png`
     - `07_reduced_motion_behavior.png`
 
+## 2026-11-16 — Signed GitHub Auto-Updater Implementation
+
+- **Source identity:** branch `fix/systematic-layout-and-composition`, local atomic commit.
+- **Tauri 2 Auto-Updater Architecture:**
+  - Integrated official Tauri 2 `tauri-plugin-updater` v2.14.1 and `@tauri-apps/plugin-updater` v2.14.1.
+  - Minisign Ed25519 cryptographic public key embedded in `frontend/src-tauri/tauri.conf.json`.
+  - Private key stored strictly outside git repository in `~/.tauri/shinpo.key`.
+  - Added `.key`, `.key.pub`, `.pem`, `.pfx` to `.gitignore`.
+  - Registered plugin and `local_get_package_info` IPC command in `frontend/src-tauri/src/lib.rs`.
+- **Frontend Updater Engine (`frontend/src/services/updater/`):**
+  - Centralized reactive state machine (`UpdaterService`) tracking `idle`, `checking`, `up-to-date`, `update-available`, `downloading`, `downloaded`, `installing`, `restart-required`, `error`, `unsupported-package`.
+  - Channel management with persistent local preference for `beta` (pre-releases) and `stable` (production milestones).
+  - Background startup check and periodic 12-hour intervals.
+  - Active Focus Session guardrail: blocks non-forced restarts while `status === 'ACTIVE' || status === 'PAUSED'` to protect encrypted SQLite vault transactions and user focus flow.
+- **Theme-Aware UI Components (`frontend/src/components/updater/`):**
+  - Non-intrusive floating toast/banner notification (`UpdateNotification.tsx`) with channel pill (`Beta`/`Stable`), release snippet, "Update Now", "Release Notes", and "Later".
+  - Dedicated download & installation modal (`UpdateModal.tsx`) with progress bar, downloaded MB / total MB, indeterminate installation animation, and restart prompt with Focus warning card.
+  - Dedicated "Software Updates" tab in `SettingsModal.tsx` showing current version, package format, platform architecture, Ed25519 signature status, channel switcher, and check button.
+  - Honest package detection: Linux AppImage and Windows NSIS perform in-app updates; Linux DEB and RPM packages honestly display instructions to use package manager or download from GitHub Releases.
+- **Verification Evidence:**
+  - `npm --prefix frontend test`: 230/230 unit tests passed (0 failures).
+  - `npm --prefix frontend run build`: `tsc -b && vite build` passed (0 errors).
+  - `cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml`: 85 native tests passed (0 failures).
+  - `cargo clippy --manifest-path frontend/src-tauri/Cargo.toml -- -D warnings`: 0 warnings.
+  - `./scripts/qa-release.sh quick`: Passed (Decision: PASS).
+  - 12 Playwright visual acceptance screenshots captured across all 4 themes in `docs/qa/screenshots/updater/`.
+  - Detailed engineering report: `docs/qa/UPDATER_IMPLEMENTATION_REPORT.md`.
+  - Centralized `<InteractiveButton />` component provides forwardRef React primitive supporting variants (`primary`, `secondary`, `outline`, `ghost`, `destructive`, `icon`, `compact`, `navigation`, `floating`), loading spinners, and icon slots.
+  - Existing `<ShinpoButton />` and `<AuroraButton />` upgraded to share the same universal interaction engine.
+- **Strict Accessibility & Reduced Motion:**
+  - Preserves `:focus-visible` outlines (2px solid with 2px offset).
+  - Disabled and loading buttons completely suppress hover glows, pointer events, and ripple animations.
+  - `@media (prefers-reduced-motion: reduce)` removes aura blur, animations, and scaling transforms for clean instantaneous state changes.
+- **Verification Evidence:**
+  - `npm --prefix frontend test`: 223/223 unit tests pass across 16 suites (0 failures).
+  - `npm --prefix frontend run lint`: 0 errors.
+  - `npm --prefix frontend run build`: `tsc -b && vite build` built in 1.17s (0 errors).
+  - Visual acceptance screenshots captured in `docs/qa/screenshots/buttons/`:
+    - `01_classic-dark_button_hover_edge.png` & `01_classic-dark_button_press_active.png`
+    - `02_classic-light_button_hover_edge.png` & `02_classic-light_button_press_active.png`
+    - `03_aurora-dark_button_hover_edge.png`
+    - `04_aurora-light_button_hover_edge.png`
+    - `05_button_variants_matrix.png`
+    - `06_destructive_button_behavior.png`
+    - `07_reduced_motion_behavior.png`
+
 
 

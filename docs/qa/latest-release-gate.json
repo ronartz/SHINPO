@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-11-15T17:18:19Z",
-  "commit": "bacd968dea46681a409b26ba5cd5e32f3d8db92d",
+  "timestamp": "2026-11-16T08:32:57Z",
+  "commit": "f6a9beffd7d912e03641c16ee5f7634547b317e3",
   "branch": "fix/systematic-layout-and-composition",
-  "worktree": "DIRTY (11 modified/untracked files strictly preserved)",
+  "worktree": "DIRTY (31 modified/untracked files strictly preserved)",
   "mode": "quick",
   "binary": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
-    "sha256": "c1487e5abafaa73c814bf0f62da551fbdebe514e2e95f84413f83ad13faea0be"
+    "sha256": "ae234f75f65de2eb63f945d76afc3c55cef7f6fc011142ec88d5ec9b7837e716"
   },
   "packageRpm": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm",

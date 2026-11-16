@@ -111,6 +111,58 @@ struct BrowserCompanionLocalStatus {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LocalPackageInfo {
+    pub os: String,
+    pub arch: String,
+    pub package_type: String,
+    pub supports_in_app_update: bool,
+    pub version: String,
+    pub channel: String,
+}
+
+#[tauri::command]
+fn local_get_package_info(app: tauri::AppHandle) -> LocalPackageInfo {
+    let version = app.package_info().version.to_string();
+    let channel = if version.contains("-beta") {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    };
+    let os = std::env::consts::OS.to_string();
+    let arch = std::env::consts::ARCH.to_string();
+
+    let (package_type, supports_in_app_update) = if cfg!(target_os = "linux") {
+        if std::env::var_os("APPIMAGE").is_some() {
+            ("appimage".to_string(), true)
+        } else if std::path::Path::new("/etc/debian_version").exists() {
+            ("deb".to_string(), false)
+        } else if std::path::Path::new("/etc/redhat-release").exists()
+            || std::path::Path::new("/etc/fedora-release").exists()
+        {
+            ("rpm".to_string(), false)
+        } else {
+            ("dev".to_string(), false)
+        }
+    } else if cfg!(target_os = "windows") {
+        ("nsis".to_string(), true)
+    } else if cfg!(target_os = "macos") {
+        ("app".to_string(), false)
+    } else {
+        ("unknown".to_string(), false)
+    };
+
+    LocalPackageInfo {
+        os,
+        arch,
+        package_type,
+        supports_in_app_update,
+        version,
+        channel,
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct LocalPlatformCapabilities {
     guardian: &'static str,
     browser_companion_supported: bool,
@@ -280,6 +332,7 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             log::info!("[SHINPO Desktop] Tauri shell initialized.");
             Ok(())
         })
@@ -357,6 +410,7 @@ pub fn run() {
             browser_companion_local_status,
             browser_companion_revoke,
             local_platform_capabilities,
+            local_get_package_info,
             native_system_monitor::local_get_system_telemetry,
             native_system_monitor::local_get_process_snapshot,
             get_secure_refresh_token,

@@ -25,6 +25,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.1", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-updater = "2"
 keyring = "=4.2.0"
 shinpo-shield = { path = "../../crates/shinpo-shield" }
 shinpo-browser-host = { path = "../../crates/shinpo-browser-host" }

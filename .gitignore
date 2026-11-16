@@ -16,6 +16,10 @@ dist/
 .env
 .env.*
 !.env.example
+*.key
+*.key.pub
+*.pem
+*.pfx
 
 # Logs
 *.log

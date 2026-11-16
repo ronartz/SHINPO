@@ -13,6 +13,7 @@ import type { FocusSession } from '../../api/focusSessions'
 import { getAiProviderStatus, getNativeAiProviderConfig, configureNativeAiProvider } from '../../api/ai'
 import type { NativeAiProviderConfig } from '../../api/ai'
 import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianObserverLabel } from '../../utils/guardianCapability'
+import { useUpdater, updaterService } from '../../services/updater/index.ts'
 
 export type SettingsSection =
   | 'appearance'
@@ -22,6 +23,7 @@ export type SettingsSection =
   | 'eonpai'
   | 'privacy'
   | 'about'
+  | 'updates'
 
 export interface SettingsModalProps {
   isOpen: boolean
@@ -43,6 +45,7 @@ export interface SettingsModalProps {
   missions?: Mission[]
   sessions?: FocusSession[]
   onReplayTutorial?: () => void
+  onOpenUpdaterModal?: () => void
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -65,10 +68,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   missions = [],
   sessions = [],
   onReplayTutorial,
+  onOpenUpdaterModal,
 }) => {
   const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
     initialSection || 'appearance',
   )
+
+  const updaterState = useUpdater()
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
 
   // Appearance - Time Format state
   const [is24Hour, setIs24Hour] = useState<boolean>(() => {
@@ -641,6 +648,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               { id: 'eonpai', label: 'EONPAI (AI)', icon: 'zap' as const },
               { id: 'privacy', label: 'Privacy & Data', icon: 'lock' as const },
               { id: 'about', label: 'About & Health', icon: 'dashboard' as const },
+              { id: 'updates', label: 'Software Updates', icon: 'refresh' as const },
             ].map((tab) => {
               const isActive = activeSection === tab.id
               return (
@@ -1782,6 +1790,190 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     )}
                   </div>}
+                </div>
+              )}
+
+              {/* 8. SOFTWARE UPDATES SECTION */}
+              {activeSection === 'updates' && (
+                <div className="settings-updates-container">
+                  <div>
+                    <h3 className="settings-section-title">
+                      Software Updates & Channels
+                    </h3>
+                    <p className="settings-section-desc">
+                      Configure your update release channel, verify build integrity, and install cryptographic signed updates.
+                    </p>
+                  </div>
+
+                  {/* Status Banner */}
+                  <div className="settings-updates-status-banner">
+                    <div className="settings-updates-status-text">
+                      <div className="settings-updates-status-title">
+                        {updaterState.status === 'checking'
+                          ? 'Checking for updates...'
+                          : updaterState.status === 'update-available'
+                            ? `Update Available: v${updaterState.availableUpdate?.version}`
+                            : updaterState.status === 'unsupported-package'
+                              ? `New Release Available: v${updaterState.availableUpdate?.version}`
+                              : updaterState.status === 'downloading'
+                                ? `Downloading update (${updaterState.progress?.percentage ?? 0}%)...`
+                                : updaterState.status === 'installing'
+                                  ? 'Installing and staging update...'
+                                  : updaterState.status === 'restart-required'
+                                    ? 'Update ready — restart required'
+                                    : updaterState.status === 'error'
+                                      ? 'Check failed'
+                                      : 'You are on the latest version'}
+                      </div>
+                      <div className="settings-updates-status-meta">
+                        {updaterState.status === 'error'
+                          ? (updaterState.error || 'Unable to contact update server.')
+                          : updaterState.lastCheckedAt
+                            ? `Last checked: ${updaterState.lastCheckedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, ${updaterState.lastCheckedAt.toLocaleDateString()}`
+                            : 'Last checked: Not yet checked this session'}
+                      </div>
+                    </div>
+
+                    <div>
+                      {updaterState.status === 'update-available' && updaterState.packageInfo?.supportsInAppUpdate !== false ? (
+                        <button
+                          type="button"
+                          className="btn-timer primary"
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                          onClick={() => {
+                            if (onOpenUpdaterModal) {
+                              onOpenUpdaterModal()
+                            } else {
+                              void updaterService.downloadAndInstall()
+                            }
+                          }}
+                        >
+                          <Icon name="arrow-down" size={14} />
+                          <span>Update Now</span>
+                        </button>
+                      ) : updaterState.status === 'restart-required' ? (
+                        <button
+                          type="button"
+                          className="btn-timer primary"
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                          onClick={() => {
+                            if (onOpenUpdaterModal) {
+                              onOpenUpdaterModal()
+                            } else {
+                              void updaterService.restartApp()
+                            }
+                          }}
+                        >
+                          <Icon name="refresh" size={14} />
+                          <span>Restart App</span>
+                        </button>
+                      ) : updaterState.status === 'unsupported-package' ? (
+                        <a
+                          href="https://github.com/ronartz/SHINPO/releases"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-timer primary"
+                          style={{ padding: '8px 16px', fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <span>Get Package</span>
+                          <Icon name="arrow-up-right" size={14} />
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={checkingUpdates || updaterState.status === 'checking'}
+                          className="btn-timer primary"
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                          onClick={async () => {
+                            setCheckingUpdates(true)
+                            try {
+                              await updaterService.checkForUpdates(true)
+                            } finally {
+                              setCheckingUpdates(false)
+                            }
+                          }}
+                        >
+                          <Icon name="refresh" size={14} />
+                          <span>{checkingUpdates || updaterState.status === 'checking' ? 'Checking...' : 'Check for Updates'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Channel Selection */}
+                  <div className="settings-group-card">
+                    <label>Release Channel</label>
+                    <p>Select which release channel SHINPO tracks for automated update manifests.</p>
+
+                    <div className="settings-channel-cards">
+                      <button
+                        type="button"
+                        className={`settings-channel-card ${updaterState.channel === 'beta' ? 'is-active' : ''}`}
+                        onClick={() => void updaterService.setChannel('beta')}
+                      >
+                        <div className="settings-channel-card-header">
+                          <span className="settings-channel-card-title">Beta Channel</span>
+                          <span className="shinpo-update-channel-pill pill-beta">BETA</span>
+                        </div>
+                        <p className="settings-channel-card-desc">
+                          Get rapid updates, preview capabilities, and the latest performance improvements. Recommended for private beta testers.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`settings-channel-card ${updaterState.channel === 'stable' ? 'is-active' : ''}`}
+                        onClick={() => void updaterService.setChannel('stable')}
+                      >
+                        <div className="settings-channel-card-header">
+                          <span className="settings-channel-card-title">Stable Channel</span>
+                          <span className="shinpo-update-channel-pill pill-stable">STABLE</span>
+                        </div>
+                        <p className="settings-channel-card-desc">
+                          Only receive mature, thoroughly tested releases. Recommended for production environments requiring maximum predictability.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Build & Package Details */}
+                  <div className="settings-group-card">
+                    <label>Installation & System Architecture</label>
+                    <p>Verified build parameters and package environment.</p>
+
+                    <div className="settings-updates-info-grid">
+                      <div className="settings-updates-info-item">
+                        <span className="settings-updates-info-label">Current Version</span>
+                        <span className="settings-updates-info-val">v{updaterState.currentVersion}</span>
+                      </div>
+                      <div className="settings-updates-info-item">
+                        <span className="settings-updates-info-label">Package Format</span>
+                        <span className="settings-updates-info-val">
+                          {updaterState.packageInfo?.packageType.toUpperCase() || 'DEVELOPMENT'}
+                        </span>
+                      </div>
+                      <div className="settings-updates-info-item">
+                        <span className="settings-updates-info-label">Target Architecture</span>
+                        <span className="settings-updates-info-val">
+                          {updaterState.packageInfo ? `${updaterState.packageInfo.os}-${updaterState.packageInfo.arch}` : 'linux-x86_64'}
+                        </span>
+                      </div>
+                      <div className="settings-updates-info-item">
+                        <span className="settings-updates-info-label">Signing Verification</span>
+                        <span className="settings-updates-info-val" style={{ color: 'var(--color-primary)' }}>
+                          Ed25519 (Minisign)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security & Local-First Assurance */}
+                  <div className="settings-group-card">
+                    <label>Cryptographic Integrity & Local-First Privacy</label>
+                    <p>
+                      SHINPO is completely local-first and stores all user data inside your encrypted SQLCipher vault. Update checks fetch public release manifests over HTTPS directly from GitHub Releases. Every executable payload is cryptographically verified against the official SHINPO Ed25519 public key before execution.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

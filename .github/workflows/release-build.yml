@@ -83,15 +83,18 @@ jobs:
       - name: Install locked frontend dependencies
         run: npm ci
         working-directory: frontend
-      - name: Build Linux installers
+      - name: Build Linux installers and updater bundles
         run: npm run tauri:build -- --bundles deb,appimage,rpm
         working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Generate and display checksums
         run: |
           set -euo pipefail
           output=release-artifacts/linux-x64
           mkdir -p "$output"
-          mapfile -d '' artifacts < <(find frontend/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -print0)
+          mapfile -d '' artifacts < <(find frontend/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.AppImage.tar.gz*' \) -print0)
           if [ "${#artifacts[@]}" -eq 0 ]; then
             echo "No Linux installer artifacts were produced" >&2
             exit 1
@@ -181,9 +184,12 @@ jobs:
       - name: Install locked frontend dependencies
         run: npm ci
         working-directory: frontend
-      - name: Build Windows NSIS installer
+      - name: Build Windows NSIS installer and updater bundle
         run: npm run tauri:build -- --bundles nsis
         working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Verify bundled Browser Companion inputs and report installer checksum
         shell: pwsh
         run: |
@@ -210,8 +216,8 @@ jobs:
 
           $output = 'release-artifacts/windows-x64'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Filter *.exe -File -ErrorAction SilentlyContinue)
-          if ($installers.Count -eq 0) { throw 'No Windows NSIS installer was produced' }
+          $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Include *.exe,*.zip,*.sig -File -Recurse -ErrorAction SilentlyContinue)
+          if ($installers.Count -eq 0) { throw 'No Windows NSIS installer or updater bundle was produced' }
           foreach ($installer in $installers) { Copy-Item $installer.FullName $output }
           $lines = Get-ChildItem $output -File | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()

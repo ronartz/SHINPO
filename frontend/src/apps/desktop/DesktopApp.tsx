@@ -116,6 +116,8 @@ import { TelemetryDrawer } from '../../components/dialogs/TelemetryDrawer'
 import { FloatingToasts } from '../../components/dialogs/FloatingToasts'
 import { SettingsModal } from '../../components/dialogs/SettingsModal'
 import type { SettingsSection } from '../../components/dialogs/SettingsModal'
+import { UpdateNotification, UpdateModal } from '../../components/updater/index.ts'
+import { updaterService } from '../../services/updater/index.ts'
 import { CelebrationModal } from '../../components/dialogs/CelebrationModal'
 import {
   type CelebrationPayload,
@@ -318,6 +320,7 @@ export function DesktopApp() {
   const [toastAlerts, setToastAlerts] = useState<LiveAlertItem[]>([])
   const [isAlertsDrawerOpen, setIsAlertsDrawerOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isUpdaterModalOpen, setIsUpdaterModalOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('appearance')
   const [isDataRefreshing, setIsDataRefreshing] = useState(false)
   const [isWsConnected, setIsWsConnected] = useState(false)
@@ -625,6 +628,14 @@ export function DesktopApp() {
   useEffect(() => {
     hasActiveModalRef.current = hasActiveModal
   }, [hasActiveModal])
+
+  // Initialize signed in-app auto-updater service
+  useEffect(() => {
+    void updaterService.initialize()
+    return () => {
+      updaterService.destroy()
+    }
+  }, [])
   const handleStartTutorialRef = useRef<(initialStepIndex?: number) => void>(() => { })
 
   const handleQuickCreateMission = async (e: FormEvent) => {
@@ -3460,6 +3471,13 @@ export function DesktopApp() {
         onDismiss={(id) => setToastAlerts((prev) => prev.filter((item) => item.id !== id))}
       />
 
+      {/* Signed In-App Update Notification & Modal */}
+      <UpdateNotification onOpenModal={() => setIsUpdaterModalOpen(true)} />
+      <UpdateModal
+        isOpen={isUpdaterModalOpen}
+        onClose={() => setIsUpdaterModalOpen(false)}
+      />
+
       {/* Real Functional Settings Modal (8 Working Areas) */}
       <SettingsModal
         key={settingsSection}
@@ -3482,6 +3500,7 @@ export function DesktopApp() {
         missions={missions}
         sessions={sessions}
         onReplayTutorial={handleStartInteractiveTutorial}
+        onOpenUpdaterModal={() => setIsUpdaterModalOpen(true)}
       />
 
       {/* Focus Protection Warning & Grace Period Modal */}
