@@ -227,6 +227,20 @@ html:not([data-brand='aurora']) .analytics-zero-btn {
   width: 100%;
 }
 
+.analytics-chart-canvas-container.focus-activity-empty {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.analytics-chart-canvas-container.focus-activity-empty .analytics-activity-zero-state {
+  width: 100%;
+  max-width: 460px;
+}
+
 .analytics-activity-chart { display: block; width: 100%; height: auto; overflow: hidden; }
 .analytics-chart-gridline { stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4; }
 .analytics-chart-baseline { stroke: var(--border-strong, var(--border)); stroke-width: 1.5; }
