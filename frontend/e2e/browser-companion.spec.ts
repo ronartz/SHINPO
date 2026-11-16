@@ -148,8 +148,11 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
     server = http.createServer(async (req, res) => {
       try {
         const parsedUrl = new URL(req.url || '/', 'http://127.0.0.1')
-        let filePath = path.join(EXT_SRC_PAGES, parsedUrl.pathname)
-        if (!filePath.startsWith(EXT_SRC_PAGES)) {
+        const EXT_SRC = path.join(ROOT_DIR, 'browser-extension/src')
+        let filePath = parsedUrl.pathname.startsWith('/icons/')
+          ? path.join(EXT_SRC, parsedUrl.pathname)
+          : path.join(EXT_SRC_PAGES, parsedUrl.pathname)
+        if (!filePath.startsWith(EXT_SRC)) {
           res.writeHead(403)
           res.end('Forbidden')
           return
@@ -207,6 +210,8 @@ test.describe('SHINPO Browser Companion Interactive UI Suite', () => {
     await expect(page.locator('#connection-label')).toHaveText('Unpaired')
     await expect(page.locator('#pair-card')).toBeVisible()
     await expect(page.locator('#focus-card')).toBeHidden()
+
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'popup', 'popup-unpaired-aurora-dark.png') })
 
     // Verify Sync and Disconnect are strictly disabled
     const syncBtn = page.locator('#sync')
