@@ -93,3 +93,4 @@ docs/qa/screenshots/*.png
 docs/qa/visual-final/**/*.png
 docs/qa/visual-final/*.png
 docs/qa/visual-final/*-results.json
+release-artifacts/
