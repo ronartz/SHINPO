@@ -143,6 +143,16 @@ describe('eventNormalizer - defensive data sanitation', () => {
       assert.strictEqual(norm.enforcementAction, 'TERMINATED')
       assert.strictEqual(norm.reason, 'Gaming process blocked')
     })
+
+    it('does not infer process termination when an event omits its outcome', () => {
+      const norm = normalizeSentinelQuarantineEvent({ id: 78, processName: 'sample-app' })
+      assert.strictEqual(norm.enforcementAction, 'WARNING_ONLY')
+    })
+
+    it('normalizes malformed quarantine payloads as warning-only', () => {
+      const norm = normalizeSentinelQuarantineEvent(null)
+      assert.strictEqual(norm.enforcementAction, 'WARNING_ONLY')
+    })
   })
 })
 

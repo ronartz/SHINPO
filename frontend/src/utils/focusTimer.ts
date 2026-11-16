@@ -43,6 +43,13 @@ export function calculateRemainingSeconds(
 
   // 3. ACTIVE state:
   if (session.status === 'ACTIVE') {
+    if (session.phaseDeadlineAt !== undefined && session.phaseDeadlineAt !== null) {
+      const serverAnchorMs = session.serverTime ? new Date(session.serverTime).getTime() : timerNowMs
+      if (!Number.isNaN(serverAnchorMs)) {
+        const elapsedSinceServerMs = Math.max(0, timerNowMs - serverAnchorMs)
+        return Math.max(0, Math.floor((session.phaseDeadlineAt - serverAnchorMs - elapsedSinceServerMs) / 1000))
+      }
+    }
     // Preferred server-authoritative path: anchor from serverTime + remainingSeconds
     if (
       session.serverTime &&
@@ -88,6 +95,29 @@ export interface PomodoroPlan {
   name: string
   totalMinutes: number
   schedule: string
+}
+
+export function describeFocusPlan(
+  totalFocusMinutes: number,
+  midpointBreakEnabled: boolean,
+  breakMinutes: number,
+  graceMinutes: number,
+): string {
+  if (!midpointBreakEnabled) {
+    return `${totalFocusMinutes} min continuous focus · ${totalFocusMinutes} min total focus · no break`
+  }
+
+  const totalSeconds = totalFocusMinutes * 60
+  const firstBlockSeconds = Math.floor(totalSeconds / 2)
+  const secondBlockSeconds = totalSeconds - firstBlockSeconds
+  const formatBlock = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    if (minutes === 0) return `${remainingSeconds} sec`
+    return remainingSeconds ? `${minutes} min ${remainingSeconds} sec` : `${minutes} min`
+  }
+
+  return `${formatBlock(firstBlockSeconds)} focus → ${breakMinutes} min midpoint break → ${formatBlock(secondBlockSeconds)} focus · ${totalFocusMinutes} min total focus · up to ${graceMinutes} min grace`
 }
 
 export const durationPresets = [15, 30, 60, 90]

@@ -1,10 +1,28 @@
 import { apiClient } from './client.ts'
+import { isLocalVaultSession } from './auth.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
 
 export type ProgressEventDto = {
   id: number
   eventType: string
   amount: number
   createdAt: string | null
+}
+
+export type DailyStreakDay = {
+  date: string
+  dayLabel: string
+  qualified: boolean
+  taskCompleted: boolean
+  focusMinutes: number
+}
+
+export type ConsistencyStreak = {
+  currentStreak: number
+  longestStreak: number
+  todayCompleted: boolean
+  productiveDaysThisMonth: number
+  lastSevenDays: DailyStreakDay[]
 }
 
 export type ProgressResponse = {
@@ -16,12 +34,14 @@ export type ProgressResponse = {
   nextLevelThreshold: number
   progressPercent: number
   recentEvents: ProgressEventDto[]
+  streak?: ConsistencyStreak
 }
 
 /**
  * Fetch the authenticated user's real-time progress and level status.
  */
 export async function getCurrentUserProgress(): Promise<ProgressResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<ProgressResponse>('local_get_progress')
   return apiClient.get<ProgressResponse>('/progress')
 }
 
@@ -29,6 +49,7 @@ export async function getCurrentUserProgress(): Promise<ProgressResponse> {
  * Claim the first-time onboarding certification reward (+50 XP). Idempotent on backend.
  */
 export async function claimOnboardingReward(): Promise<ProgressResponse> {
+  if (isTauriEnvironment() && isLocalVaultSession()) return invokeTauriCommand<ProgressResponse>('local_claim_onboarding_reward')
   return apiClient.post<ProgressResponse>('/progress/onboarding', {})
 }
 

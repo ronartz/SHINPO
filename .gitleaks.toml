@@ -1,0 +1,26 @@
+# Gitleaks Configuration for SHINPO
+# Extends default rules while allowing non-secret public keys, fixtures, and generated artifacts
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known public keys, reference documentation, build directories, and recovery bundles"
+paths = [
+  '''browser-extension/manifests/chromium\.json''',
+  '''browser-extension/dist/manifest\.json''',
+  '''browser-extension/dist/chromium\.pem''',
+  '''browser-extension/dist/chromium/.*''',
+  '''\.planning/agentic-awesome-skills/.*''',
+  '''\.agents/gsd-file-manifest\.json''',
+  '''gsd-file-manifest\.json''',
+  '''\.wednesday/scripts/pr-sonar\.sh''',
+  '''(?:^|/)target/''',
+  '''(?:^|/)node_modules/''',
+  '''(?:^|/)\.git/''',
+  '''\.bundle$''',
+  '''docs/qa/.*'''
+]
+regexes = [
+  '''RWRkSu6Fz4a4p8L5W\+5iXGj4\+5POTolE80oS3/OxmOFcZ/m2055mWFbk'''
+]

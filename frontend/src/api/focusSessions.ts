@@ -7,6 +7,33 @@ export type FocusSessionStatus =
   | 'EXPIRED'
   | 'FAILED'
 
+export type GuardianMode = 'GUIDED' | 'PROTECTED' | 'STRICT'
+
+export type GuardianPreferences = {
+  preferredMode: GuardianMode
+  appMonitoringConsent: boolean
+  applyToNewSessions: boolean
+  closureConsent: boolean
+  backgroundRuntimeConsent: boolean
+}
+
+export type GuardianStatus = {
+  status: string
+  activeFocusSessionId: number | null
+  activeFocusSessionName: string | null
+  guardianMode: GuardianMode | null
+  focusPhase: string | null
+  observationsToday: number
+  lastObservationAt: string | null
+  appCatalogVersion: string
+  domainCatalogVersion: string
+  warningOnly: boolean
+  interventionCapability: string
+  standardAllowanceSeconds: number | null
+  observerStatus: string
+  applicationPolicyStatus: string
+}
+
 export type SessionResult = {
   quality?: number
   reflectionNote?: string
@@ -28,7 +55,15 @@ export type FocusSession = {
   pomodoroLongBreakMinutes?: number
   completedFocusCycles?: number
   pomodoroGraceMinutes?: number
-  currentPhase?: 'FOCUS' | 'SHORT_BREAK' | 'LONG_BREAK' | 'GRACE' | 'RETURN_REQUIRED' | 'COMPLETE'
+  latePenaltyEnabled?: boolean
+  latePenaltyXp?: number
+  latePenaltyDailyCapXp?: number
+  guardianMode?: GuardianMode
+  guardianAppMonitoring?: boolean
+  currentPhase?: 'FOCUS' | 'BREAK' | 'SHORT_BREAK' | 'LONG_BREAK' | 'GRACE' | 'RETURN_REQUIRED' | 'COMPLETE'
+  phaseDeadlineAt?: number | null
+  phaseRevision?: number
+  interruptionCount?: number
   focusActiveSeconds?: number
   breakActiveSeconds?: number
   status: FocusSessionStatus
@@ -79,10 +114,55 @@ export type CreateFocusSessionRequest = {
   pomodoroShortBreakMinutes?: number
   pomodoroLongBreakMinutes?: number
   pomodoroGraceMinutes?: number
+  latePenaltyEnabled?: boolean
+  latePenaltyXp?: number
+  latePenaltyDailyCapXp?: number
+  guardianMode?: GuardianMode
+  guardianAppMonitoring?: boolean
 }
 
-import { getAuthenticatedUserId } from './auth'
-import { apiClient } from './client'
+export async function getGuardianPreferences(): Promise<GuardianPreferences> {
+  if (!isLocalFocusMode()) throw new Error('Guardian preferences are available only in the local desktop app')
+  return invokeTauriCommand('local_get_guardian_preferences')
+}
+
+export async function getGuardianStatus(): Promise<GuardianStatus> {
+  if (!isLocalFocusMode()) throw new Error('Guardian status is available only in the local desktop app')
+  return invokeTauriCommand('local_get_guardian_status')
+}
+
+export async function updateGuardianPreferences(
+  preferences: GuardianPreferences,
+): Promise<GuardianPreferences> {
+  if (!isLocalFocusMode()) throw new Error('Guardian preferences are available only in the local desktop app')
+  return invokeTauriCommand('local_update_guardian_preferences', { request: preferences })
+}
+
+export async function emergencyStopGuardianInterventions(): Promise<void> {
+  if (!isLocalFocusMode()) throw new Error('Guardian controls are available only in the local desktop app')
+  await invokeTauriCommand('local_emergency_stop_guardian')
+}
+
+export type { GuardianObservation } from './device.ts'
+import type { GuardianObservation } from './device.ts'
+
+import { getAuthenticatedUserId, isLocalVaultSession } from './auth.ts'
+import { apiClient } from './client.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
+
+const isLocalFocusMode = () => isTauriEnvironment() && isLocalVaultSession()
+
+async function refreshLocalBrowserPolicy(): Promise<void> {
+  if (isLocalFocusMode()) await invokeTauriCommand('local_sync_browser_policy').catch(() => undefined)
+}
+
+function localSessionDate(session: FocusSession): string {
+  const value = session.scheduledAt ?? session.startedAt ?? session.createdAt
+  const normalized = value.includes('T') ? value : `${value.replace(' ', 'T')}Z`
+  const date = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(normalized) ? normalized : `${normalized}Z`)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 const timezoneHeader = () => ({
   'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -91,6 +171,16 @@ const timezoneHeader = () => ({
 export async function createFocusSession(
   request: CreateFocusSessionRequest,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) return invokeTauriCommand('local_create_focus_session', { request: {
+    goalId: request.goalId ?? null, missionId: request.missionId ?? null, name: request.name,
+    intention: request.intention ?? null, durationMinutes: request.durationMinutes,
+    scheduledAt: request.scheduledAt ?? null, pomodoroEnabled: request.pomodoroEnabled ?? false,
+    pomodoroFocusCycles: request.pomodoroFocusCycles, pomodoroShortBreakMinutes: request.pomodoroShortBreakMinutes,
+    pomodoroLongBreakMinutes: request.pomodoroLongBreakMinutes, pomodoroGraceMinutes: request.pomodoroGraceMinutes,
+    latePenaltyEnabled: request.latePenaltyEnabled ?? false, latePenaltyXp: request.latePenaltyXp ?? 5,
+    latePenaltyDailyCapXp: request.latePenaltyDailyCapXp ?? 20,
+    guardianMode: request.guardianMode, guardianAppMonitoring: request.guardianAppMonitoring,
+  } })
   const effectiveUserId = request.userId ?? getAuthenticatedUserId() ?? undefined
   const payload = effectiveUserId !== undefined ? { ...request, userId: effectiveUserId } : request
   return apiClient.post<FocusSession>('/focus-sessions', payload)
@@ -99,10 +189,17 @@ export async function createFocusSession(
 export async function getFocusSessions(
   _userId?: number,
 ): Promise<FocusSession[]> {
+  if (isLocalFocusMode()) return invokeTauriCommand('local_get_focus_sessions')
   return apiClient.get<FocusSession[]>('/focus-sessions')
 }
 
+export async function getGuardianObservations(sessionId: number): Promise<GuardianObservation[]> {
+  if (!isLocalFocusMode()) return []
+  return invokeTauriCommand('local_get_guardian_observations', { sessionId })
+}
+
 export async function getFocusSessionsByDate(date: string): Promise<FocusSession[]> {
+  if (isLocalFocusMode()) return (await getFocusSessions()).filter((session) => localSessionDate(session) === date)
   return apiClient.get<FocusSession[]>('/focus-sessions/by-date', {
     params: { date },
     headers: timezoneHeader(),
@@ -113,6 +210,13 @@ export async function getFocusSessionsAgenda(
   startDate: string,
   endDate: string,
 ): Promise<FocusSession[]> {
+  if (isLocalFocusMode()) {
+    const sessions = await getFocusSessions()
+    return sessions.filter((session) => {
+      const day = localSessionDate(session)
+      return day >= startDate && day <= endDate
+    })
+  }
   return apiClient.get<FocusSession[]>('/focus-sessions/agenda', {
     params: { startDate, endDate },
     headers: timezoneHeader(),
@@ -123,6 +227,11 @@ export async function getFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = (await getFocusSessions()).find((item) => item.id === id)
+    if (!session) throw new Error('Focus session not found in this local vault')
+    return session
+  }
   return apiClient.get<FocusSession>(`/focus-sessions/${id}`)
 }
 
@@ -130,6 +239,11 @@ export async function startFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_start_focus_session', { sessionId: id })
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/start`)
 }
 
@@ -137,6 +251,11 @@ export async function pauseFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_pause_focus_session', { sessionId: id })
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/pause`)
 }
 
@@ -144,6 +263,11 @@ export async function resumeFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_resume_focus_session', { sessionId: id })
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/resume`)
 }
 
@@ -151,6 +275,19 @@ export async function updateFocusSession(
   id: number,
   payload: UpdateFocusSessionPayload,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const current = await getFocusSession(id)
+    const unlink = payload.unlinkTask === true
+    return invokeTauriCommand('local_update_focus_session', {
+      request: {
+      sessionId: id, goalId: unlink ? null : payload.goalId ?? current.goalId,
+      missionId: unlink ? null : payload.missionId ?? current.missionId,
+      name: payload.name ?? current.name, intention: payload.intention ?? current.intention,
+      durationMinutes: payload.durationMinutes ?? current.durationMinutes,
+      scheduledAt: payload.scheduledAt ?? current.scheduledAt,
+      },
+    })
+  }
   return apiClient.put<FocusSession>(`/focus-sessions/${id}`, payload)
 }
 
@@ -159,6 +296,19 @@ export async function completeFocusSession(
   _userId?: number,
   payload?: CompleteFocusSessionPayload,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_complete_focus_session', {
+      sessionId: id, quality: payload?.quality ?? null, reflectionNote: payload?.reflectionNote ?? null,
+      accomplishment: payload?.accomplishment ?? null, markMissionCompleted: payload?.markMissionCompleted ?? false,
+    })
+    if (session.status !== 'COMPLETED'
+      || (session.reflectionNote ?? null) !== (payload?.reflectionNote ?? null)
+      || (session.accomplishment ?? null) !== (payload?.accomplishment ?? null)) {
+      throw new Error('Focus completion was not fully saved. Refresh the session before continuing.')
+    }
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/complete`, payload)
 }
 
@@ -166,14 +316,25 @@ export async function cancelFocusSession(
   id: number,
   _userId?: number,
 ): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_cancel_focus_session', { sessionId: id })
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/cancel`)
 }
 
 export async function skipFocusBreak(id: number): Promise<FocusSession> {
+  if (isLocalFocusMode()) return returnToFocus(id)
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/skip-break`)
 }
 
 export async function returnToFocus(id: number): Promise<FocusSession> {
+  if (isLocalFocusMode()) {
+    const session = await invokeTauriCommand<FocusSession>('local_return_to_focus', { sessionId: id })
+    await refreshLocalBrowserPolicy()
+    return session
+  }
   return apiClient.post<FocusSession>(`/focus-sessions/${id}/return-to-focus`)
 }
 
@@ -181,5 +342,6 @@ export async function deleteFocusSession(
   id: number,
   _userId?: number,
 ): Promise<void> {
+  if (isLocalFocusMode()) return invokeTauriCommand('local_delete_focus_session', { sessionId: id })
   return apiClient.delete<void>(`/focus-sessions/${id}`)
 }

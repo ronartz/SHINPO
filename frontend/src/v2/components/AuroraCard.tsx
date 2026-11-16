@@ -33,7 +33,9 @@ export const AuroraCard: React.FC<AuroraCardProps> = ({
       className={`${tiltClass} ${glassClass} ${className}`.trim()}
       tabIndex={tiltVariant !== 'none' ? 0 : undefined}
       sx={{
-        overflow: 'visible',
+        overflow: 'hidden',
+        position: 'relative',
+        isolation: 'isolate',
         ...sx,
       }}
       {...props}

@@ -1,6 +1,6 @@
+use crate::{HostError, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::{HostError, PROTOCOL_VERSION};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,8 +25,14 @@ impl NativeRequest {
         if self.request_id.is_empty() || self.request_id.len() > 128 {
             return Err(HostError::InvalidRequest("Invalid requestId length".into()));
         }
-        if !self.message_type.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
-            return Err(HostError::InvalidRequest("Invalid message type format".into()));
+        if !self
+            .message_type
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c == '_')
+        {
+            return Err(HostError::InvalidRequest(
+                "Invalid message type format".into(),
+            ));
         }
         Ok(())
     }
@@ -74,4 +80,3 @@ pub fn error_response(request_id: Option<String>, code: &str, message: &str) -> 
         }),
     }
 }
-

@@ -133,13 +133,13 @@ export const ShinpoTimePicker: React.FC<ShinpoTimePickerProps> = ({
         }`}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: 'var(--primary-violet, #3156D8)', display: 'flex', alignItems: 'center' }}>
+          <span style={{ color: 'var(--primary-violet, var(--brand-primary))', display: 'flex', alignItems: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </span>
-          <span style={{ fontWeight: value ? 600 : 400, color: value ? 'inherit' : 'var(--text-3, #9096A4)' }}>
+          <span style={{ fontWeight: value ? 600 : 400, color: value ? 'inherit' : 'var(--text-3, #4e4e4e)' }}>
             {value || placeholder}
           </span>
         </div>
@@ -168,7 +168,7 @@ export const ShinpoTimePicker: React.FC<ShinpoTimePickerProps> = ({
         className="shinpo-timepicker-popover"
       >
         <div className="shinpo-timepicker-panel" role="dialog" aria-modal="false" aria-label="Time Picker">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, fontWeight: 600, color: 'var(--text-2, #B0B5C2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, fontWeight: 600, color: 'var(--text-2, #767676)' }}>
             <span>Hours</span>
             <span>Minutes</span>
           </div>
@@ -210,7 +210,7 @@ export const ShinpoTimePicker: React.FC<ShinpoTimePickerProps> = ({
           </div>
 
           {/* Quick presets */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border, rgba(255,255,255, 0.08))' }}>
             <button
               type="button"
               className="shinpo-btn variant-ghost size-sm"

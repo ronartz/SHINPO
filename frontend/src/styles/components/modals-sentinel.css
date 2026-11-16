@@ -2,42 +2,42 @@
 .flight-deck-quick-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0,0,0, 0.75);
   backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
-  padding: 20px;
+  padding: var(--space-6);
 }
 
 /* Sentinel Task Manager Modals (Block App + Emergency Override) */
 .quick-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0,0,0, 0.78);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9000;
-  padding: 20px;
+  padding: var(--space-6);
 }
 
 .quick-modal-card {
   background: var(--surface-card);
   border: 1px solid var(--border-strong);
   border-radius: 18px;
-  padding: 26px 30px;
+  padding: var(--space-6) 30px;
   width: 100%;
   max-width: min(540px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow-y: auto;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0,0,0,0.2);
+  box-shadow: 0 24px 60px rgba(0,0,0, 0.65), 0 0 20px rgba(0,0,0,0.2);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   animation: tmModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -49,13 +49,13 @@
 .quick-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .quick-form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .quick-form-label {
@@ -70,7 +70,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: var(--space-2) var(--space-3);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
@@ -81,7 +81,7 @@
 }
 
 .quick-form-input:focus {
-  border-color: var(--primary-coral, #FF4D5E);
+  border-color: var(--primary-coral, var(--brand-primary));
 }
 
 select.quick-form-input,
@@ -103,9 +103,9 @@ select.quick-form-input:focus,
 
 select.quick-form-input option,
 .quick-field-select option {
-  background-color: #18191E;
-  color: #F3F4F6;
-  padding: 8px 12px;
+  background-color: #030303;
+  color: #e7e7e7;
+  padding: var(--space-2) var(--space-3);
 }
 
 .quick-form-input:disabled {
@@ -117,7 +117,7 @@ select.quick-form-input option,
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 9px 18px;
+  padding: var(--space-2) var(--space-4);
   color: var(--text-2);
   font-size: 13px;
   font-weight: 700;
@@ -134,7 +134,7 @@ select.quick-form-input option,
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 9px 18px;
+  padding: var(--space-2) var(--space-4);
   color: var(--text);
   font-size: 13px;
   font-weight: 700;
@@ -143,16 +143,16 @@ select.quick-form-input option,
 }
 
 .quick-btn-submit:not(:disabled) {
-  background: linear-gradient(135deg, #FF4D5E 0%, #D92B3E 100%);
-  border-color: #FF4D5E;
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(255, 77, 94, 0.35);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary) 100%);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-highlight) 35.0%, transparent);
 }
 
 .quick-btn-submit:not(:disabled):hover {
   filter: brightness(1.07);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(255, 77, 94, 0.45);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-highlight) 45.0%, transparent);
 }
 
 .quick-btn-submit:disabled {
@@ -162,31 +162,31 @@ select.quick-form-input option,
 
 .theme-light .quick-modal-card,
 html[data-theme='light'] .quick-modal-card {
-  background: #FFFFFF;
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  border-color: rgba(0,0,0, 0.12);
+  box-shadow: 0 24px 60px rgba(0,0,0, 0.15);
 }
 
 .theme-light .quick-form-input,
 html[data-theme='light'] .quick-form-input {
-  background: #F8FAFC;
-  border-color: rgba(0, 0, 0, 0.14);
-  color: #0F172A;
+  background: #f3f3f3;
+  border-color: rgba(0,0,0, 0.14);
+  color: var(--brand-yale-blue);
 }
 
 .theme-light .quick-form-input:focus,
 html[data-theme='light'] .quick-form-input:focus {
-  border-color: #FF4D5E;
+  border-color: var(--brand-primary);
 }
 
 .theme-light select.quick-form-input,
 html[data-theme='light'] select.quick-form-input,
 .theme-light .quick-field-select,
 html[data-theme='light'] .quick-field-select {
-  background-color: #F8FAFC;
+  background-color: #f3f3f3;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  border-color: #CBD5E1;
-  color: #0F172A;
+  border-color: #a8a8a8;
+  color: var(--brand-yale-blue);
 }
 
 .theme-light select.quick-form-input:focus,
@@ -194,29 +194,29 @@ html[data-theme='light'] select.quick-form-input:focus,
 .theme-light .quick-field-select:focus,
 html[data-theme='light'] .quick-field-select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237932E6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  border-color: var(--primary-coral, #2847B8);
+  border-color: var(--primary-coral, var(--brand-deep));
 }
 
 .theme-light select.quick-form-input option,
 html[data-theme='light'] select.quick-form-input option,
 .theme-light .quick-field-select option,
 html[data-theme='light'] .quick-field-select option {
-  background-color: #FFFFFF;
-  color: #0F172A;
+  background-color: #ffffff;
+  color: var(--brand-yale-blue);
 }
 
 .theme-light .quick-btn-cancel,
 html[data-theme='light'] .quick-btn-cancel {
-  background: #F1F5F9;
-  border-color: rgba(0, 0, 0, 0.12);
-  color: #334155;
+  background: #e8e8e8;
+  border-color: rgba(0,0,0, 0.12);
+  color: var(--brand-deep);
 }
 
 .flight-deck-quick-modal-card {
   background: var(--surface-card);
   border: 1px solid var(--border-strong);
   border-radius: 20px;
-  padding: 24px;
+  padding: var(--space-6);
   width: 100%;
   max-width: min(460px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
@@ -224,7 +224,7 @@ html[data-theme='light'] .quick-btn-cancel {
   box-shadow: var(--shadow-elevated);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .quick-modal-header {
@@ -245,7 +245,7 @@ html[data-theme='light'] .quick-btn-cancel {
   border: none;
   color: var(--text-3);
   cursor: pointer;
-  padding: 4px;
+  padding: var(--space-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -258,15 +258,15 @@ html[data-theme='light'] .quick-btn-cancel {
 .quick-modal-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .quick-modal-error {
-  padding: 10px 12px;
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent-red-border);
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.10);
-  color: var(--text);
+  background: var(--accent-red-subtle);
+  color: var(--accent-red);
   font-size: 12px;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -275,7 +275,7 @@ html[data-theme='light'] .quick-btn-cancel {
 .quick-field-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .quick-field-label {
@@ -291,7 +291,7 @@ html[data-theme='light'] .quick-btn-cancel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: var(--space-2) var(--space-3);
   color: var(--text);
   font-size: 13.5px;
   outline: none;
@@ -305,12 +305,12 @@ html[data-theme='light'] .quick-btn-cancel {
 
 .quick-duration-presets {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .quick-preset-btn {
   flex: 1;
-  padding: 8px;
+  padding: var(--space-2);
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -331,6 +331,6 @@ html[data-theme='light'] .quick-btn-cancel {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }

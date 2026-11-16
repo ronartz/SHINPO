@@ -39,8 +39,6 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
   isRefreshing = false,
   onOpenSettings,
   currentUser,
-  userProgress,
-  onOpenAchievements,
   onLogout,
   onToggleV2Preview: _onToggleV2Preview,
   isV2Preview: _isV2Preview = true,
@@ -84,17 +82,17 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
           display: { xs: 'none', sm: 'flex' },
           alignItems: 'center',
           gap: 1.2,
-          background: isDarkMode ? 'rgba(25, 37, 65, 0.55)' : '#FFFFFF',
-          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
+          background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 55.0%, transparent)' : '#ffffff',
+          border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
           borderRadius: '12px',
           px: 1.8,
           py: 0.6,
           width: { sm: 260, md: 380, lg: 440 },
-          boxShadow: isDarkMode ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.05)',
+          boxShadow: isDarkMode ? 'none' : '0 2px 6px color-mix(in srgb, var(--brand-highlight) 5.0%, transparent)',
           transition: 'border-color 0.2s, box-shadow 0.2s',
           '&:focus-within': {
-            borderColor: '#3B82F6',
-            boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.18)',
+            borderColor: 'var(--brand-primary)',
+            boxShadow: '0 0 0 3px color-mix(in srgb, var(--brand-highlight) 18.0%, transparent)',
           },
         }}
         role="search"
@@ -110,7 +108,7 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             background: 'transparent',
             outline: 'none',
             fontSize: '13.5px',
-            color: isDarkMode ? '#F5F7FF' : '#17213A',
+            color: isDarkMode ? '#eeeeee' : 'var(--brand-baltic-blue)',
             width: '100%',
             fontFamily: 'inherit',
           }}
@@ -149,14 +147,14 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
-              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
+              background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)' : '#ffffff',
               color: 'text.primary',
               width: 36,
               height: 36,
               position: 'relative',
               '&:hover': {
-                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+                background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 80.0%, transparent)' : '#ededed',
               },
             }}
             title="Notifications & Activity"
@@ -171,8 +169,8 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                   width: 7,
                   height: 7,
                   borderRadius: '50%',
-                  bgcolor: '#FF4D5E',
-                  boxShadow: '0 0 6px #FF4D5E',
+                  bgcolor: 'var(--brand-primary)',
+                  boxShadow: '0 0 6px var(--brand-primary)',
                 }}
               />
             )}
@@ -187,20 +185,20 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
-              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
+              background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)' : '#ffffff',
               color: 'text.primary',
               width: 36,
               height: 36,
               opacity: isRefreshing ? 0.7 : 1,
               '&:hover': {
-                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+                background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 80.0%, transparent)' : '#ededed',
               },
               '& svg': {
                 animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
               },
             }}
-            title={isRefreshing ? 'Synchronizing with cloud...' : 'Refresh Data'}
+            title={isRefreshing ? 'Refreshing data…' : 'Refresh data'}
             aria-label="Refresh Data"
           >
             <Icon name="refresh" size={15} />
@@ -214,13 +212,13 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
-              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
+              background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)' : '#ffffff',
               color: 'text.primary',
               width: 36,
               height: 36,
               '&:hover': {
-                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+                background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 80.0%, transparent)' : '#ededed',
               },
             }}
             title="Settings"
@@ -249,14 +247,14 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
               px: 1.4,
               py: 0.4,
               borderRadius: '10px',
-              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
+              background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)' : '#ffffff',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
               height: 36,
               cursor: onOpenSettings ? 'pointer' : 'default',
               transition: 'all 0.15s ease',
               '&:hover': onOpenSettings ? {
-                borderColor: '#3B82F6',
-                background: isDarkMode ? 'rgba(30, 44, 77, 0.8)' : '#F5F7FD',
+                borderColor: 'var(--brand-primary)',
+                background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 80.0%, transparent)' : '#ededed',
               } : undefined,
             }}
             title={`Signed in as ${currentUser.username} (${currentUser.email})${onOpenSettings ? ' • Click for Account Settings' : ''}`}
@@ -266,8 +264,8 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 width: 24,
                 height: 24,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #3156D8 0%, #3B82F6 100%)',
-                color: '#FFFFFF',
+                background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary) 100%)',
+                color: '#ffffff',
                 fontWeight: 800,
                 fontSize: 12,
                 display: 'flex',
@@ -282,33 +280,9 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
                 <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: 'text.primary' }}>
                   {currentUser.username}
                 </Typography>
-                <Box
-                  component="span"
-                  className="user-level-badge"
-                  onClick={(e) => {
-                    if (onOpenAchievements) {
-                      e.stopPropagation()
-                      onOpenAchievements()
-                    }
-                  }}
-                  sx={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: isDarkMode ? '#A78BFA' : '#7C3AED',
-                    background: isDarkMode ? 'rgba(167, 139, 250, 0.15)' : 'rgba(124, 58, 237, 0.1)',
-                    px: 0.7,
-                    py: 0.1,
-                    borderRadius: '4px',
-                    lineHeight: 1.2,
-                    cursor: onOpenAchievements ? 'pointer' : 'default',
-                  }}
-                  title={onOpenAchievements ? 'View Progression & Achievements' : undefined}
-                >
-                  Lvl {userProgress?.level || 1}
-                </Box>
               </Box>
               <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 600 }}>
-                {userProgress ? `${userProgress.totalProgress} XP • ${userProgress.levelTitle}` : 'Personal Workspace'}
+                Personal workspace
               </Typography>
             </Box>
           </Box>
@@ -321,14 +295,14 @@ export const AuroraTopbar: React.FC<AuroraTopbarProps> = ({
             size="small"
             sx={{
               borderRadius: '10px',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.16)'}`,
-              background: isDarkMode ? 'rgba(25, 37, 65, 0.5)' : '#FFFFFF',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255, 0.1)' : 'color-mix(in srgb, var(--brand-highlight) 16.0%, transparent)'}`,
+              background: isDarkMode ? 'color-mix(in srgb, var(--brand-baltic-blue) 50.0%, transparent)' : '#ffffff',
               color: 'text.secondary',
               width: 36,
               height: 36,
               '&:hover': {
-                color: '#FF4D5E',
-                background: isDarkMode ? 'rgba(255, 77, 94, 0.12)' : '#FEF2F2',
+                color: 'var(--brand-primary)',
+                background: isDarkMode ? 'color-mix(in srgb, var(--brand-highlight) 12.0%, transparent)' : '#e8e8e8',
               },
             }}
             title="Sign Out"

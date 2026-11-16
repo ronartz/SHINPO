@@ -11,11 +11,11 @@ describe('Config & Settings Validation Contracts', () => {
   })
 
   it('allows cleartext only for explicit loopback development servers', () => {
-    assert.strictEqual(isValidServerUrl('http://localhost:8080').valid, true)
-    assert.strictEqual(isValidServerUrl('http://127.0.0.1:8080').valid, true)
-    assert.strictEqual(isValidServerUrl('http://[::1]:8080').valid, true)
-    assert.strictEqual(isValidServerUrl('http://192.168.1.100:8080').valid, false)
-    assert.match(isValidServerUrl('http://192.168.1.100:8080').reason || '', /HTTPS/)
+    assert.strictEqual(isValidServerUrl('http://localhost:3000').valid, true)
+    assert.strictEqual(isValidServerUrl('http://127.0.0.1:3000').valid, true)
+    assert.strictEqual(isValidServerUrl('http://[::1]:3000').valid, true)
+    assert.strictEqual(isValidServerUrl('http://192.168.1.100:3000').valid, false)
+    assert.match(isValidServerUrl('http://192.168.1.100:3000').reason || '', /HTTPS/)
   })
 
   it('accepts remote HTTPS URLs with ports and API base paths', () => {
@@ -39,7 +39,7 @@ describe('Config & Settings Validation Contracts', () => {
     const fileUrl = isValidServerUrl('file:///etc/passwd')
     assert.strictEqual(fileUrl.valid, false)
 
-    const wsUrl = isValidServerUrl('ws://localhost:8080')
+    const wsUrl = isValidServerUrl('ws://localhost:3000')
     assert.strictEqual(wsUrl.valid, false)
 
     const ftpUrl = isValidServerUrl('ftp://example.com')
@@ -67,9 +67,35 @@ describe('Config & Settings Validation Contracts', () => {
     }
   })
 
+  it('rejects direct network access from any Tauri window, even before vault unlock', async () => {
+    const originalFetch = globalThis.fetch
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    let fetchCalled = false
+    globalThis.fetch = async () => {
+      fetchCalled = true
+      return new Response(null, { status: 200 })
+    }
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { __TAURI_INTERNALS__: {} } })
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: { getItem: () => null },
+    })
+    try {
+      await assert.rejects(fetchWithoutRedirects('http://localhost:3000/api/tasks'), /standalone desktop app/)
+      assert.strictEqual(fetchCalled, false)
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+      if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+      else Reflect.deleteProperty(globalThis, 'localStorage')
+    }
+  })
+
   it('requires WSS for remote WebSocket endpoints', () => {
-    assert.strictEqual(isValidWebSocketUrl('ws://localhost:8080/ws').valid, true)
-    assert.strictEqual(isValidWebSocketUrl('ws://[::1]:8080/ws').valid, true)
+    assert.strictEqual(isValidWebSocketUrl('ws://localhost:3000/ws').valid, true)
+    assert.strictEqual(isValidWebSocketUrl('ws://[::1]:3000/ws').valid, true)
     assert.strictEqual(isValidWebSocketUrl('wss://api.example.com/ws').valid, true)
     assert.strictEqual(isValidWebSocketUrl('ws://api.example.com/ws').valid, false)
     assert.strictEqual(isValidWebSocketUrl('wss://user:pass@example.com/ws').valid, false)

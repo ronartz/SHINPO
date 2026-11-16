@@ -1,4 +1,5 @@
 import React from 'react'
+import shinpoLogoUrl from '../assets/shinpo-logo.png'
 
 interface ShinpoLogoProps {
   size?: number
@@ -13,101 +14,48 @@ export const ShinpoLogo: React.FC<ShinpoLogoProps> = ({
   className = '',
   monochrome = false,
 }) => {
-  const iconHeight = size
-  const iconWidth = size
-
   const mark = (
     <svg
-      width={iconWidth}
-      height={iconHeight}
-      viewBox="0 0 100 100"
+      width={size}
+      height={size}
+      viewBox="0 0 1024 1024"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className="shinpo-matrix-mark"
-      style={{ display: 'inline-block', flexShrink: 0 }}
-      aria-label="SHINPO Dual Catalyst Matrix"
+      style={{
+        display: 'inline-block',
+        flexShrink: 0,
+        filter: monochrome ? 'grayscale(100%) brightness(1.2)' : undefined,
+      }}
+      aria-hidden="true"
+      focusable="false"
     >
-      <defs>
-        <linearGradient id="shinpoTopShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#19D3C5" />
-          <stop offset="48%" stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#3156D8" />
-        </linearGradient>
-        <linearGradient id="shinpoBotShear" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#19D3C5" />
-          <stop offset="52%" stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#3156D8" />
-        </linearGradient>
-      </defs>
-
-      {/* Top Arm: 45° Shear Kinematic */}
-      <polygon
-        points="44,5 95,5 95,21 60,21 37,44 5,44"
-        fill={monochrome ? 'currentColor' : 'url(#shinpoTopShear)'}
-      />
-
-      {/* Bottom Arm: Balanced 180° Inverted Kinematic */}
-      <polygon
-        points="56,95 5,95 5,79 40,79 63,56 95,56"
-        fill={monochrome ? 'currentColor' : 'url(#shinpoBotShear)'}
-      />
+      <image width="1024" height="1024" href={shinpoLogoUrl} />
     </svg>
   )
 
   if (variant === 'icon') {
-    return <div className={`shinpo-logo-container ${className}`}>{mark}</div>
+    return <span className={`shinpo-logo-container ${className}`} role="img" aria-label="SHINPO">{mark}</span>
   }
 
   return (
     <div
       className={`shinpo-logo-lockup ${className}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: Math.max(8, Math.round(size * 0.35)),
-        userSelect: 'none',
-      }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(8, Math.round(size * 0.35)), userSelect: 'none' }}
     >
       {mark}
-      <div
-        className="shinpo-logo-text-group"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          lineHeight: 1,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <div
-            className="shinpo-logo-wordmark"
-            style={{
-              fontFamily:
-                "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              fontSize: Math.round(size * 0.62),
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              color: 'var(--text)',
-              textTransform: 'uppercase',
-            }}
-          >
-            SHINPO
-          </div>
-          {variant === 'full' && (
-            <span
-              className="shinpo-logo-kanji"
-              style={{
-                fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
-                fontSize: Math.max(12, Math.round(size * 0.36)),
-                fontWeight: 700,
-                color: 'var(--primary-violet, #3156D8)',
-                letterSpacing: '0.04em',
-              }}
-            >
-              進歩
-            </span>
-          )}
+      <div className="shinpo-logo-text-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1 }}>
+        <div className="shinpo-logo-wordmark" style={{
+          color: 'var(--text)',
+          fontFamily: "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          fontSize: Math.round(size * 0.62),
+          fontWeight: 800,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}>
+          SHINPO
         </div>
+        {variant === 'full' && <span className="shinpo-logo-tagline">PLAN · FOCUS · PROTECT · PROGRESS</span>}
       </div>
     </div>
   )

@@ -28,6 +28,7 @@
       "headers": {
         "Authorization": "Bearer ${REACTBITS_LICENSE_KEY}"
       }
-    }
+    },
+    "@microkit": "https://microkit.co/r/{name}.json"
   }
 }

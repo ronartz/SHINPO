@@ -1,26 +1,49 @@
 version: 2
 updates:
+  # Frontend NPM dependencies (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: npm
     directory: /frontend
     schedule:
-      interval: weekly
-  - package-ecosystem: maven
-    directory: /backend
-    schedule:
-      interval: weekly
-  - package-ecosystem: cargo
-    directory: /crates/shinpo-shield
-    schedule:
-      interval: weekly
-  - package-ecosystem: cargo
-    directory: /crates/shinpo-browser-host
-    schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"
+
+  # Rust: Tauri Desktop Application (Monthly grouped updates, max 1 open PR)
   - package-ecosystem: cargo
     directory: /frontend/src-tauri
     schedule:
-      interval: weekly
-  - package-ecosystem: github-actions
-    directory: /
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      tauri-rust-dependencies:
+        patterns:
+          - "*"
+
+  # Rust: Shinpo Shield Crate (Monthly grouped updates, max 1 open PR)
+  - package-ecosystem: cargo
+    directory: /crates/shinpo-shield
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      shield-dependencies:
+        patterns:
+          - "*"
+
+  # Rust: Shinpo Browser Host Crate (Monthly grouped updates, max 1 open PR)
+  - package-ecosystem: cargo
+    directory: /crates/shinpo-browser-host
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      browser-host-dependencies:
+        patterns:
+          - "*"
+
+  # Note: Routine GitHub Actions version-update generation is disabled per policy.
+  # Security-critical updates remain enabled via GitHub Dependabot Alerts and Security Updates.
+  # Routine Actions updates are maintained through the consolidated quarterly release cycle.

@@ -147,8 +147,8 @@ export function normalizeSentinelQuarantineEvent(raw: unknown): SentinelQuaranti
       focusSessionId: null,
       processName: 'Unknown Process',
       pid: 0,
-      reason: 'Distraction blocked by Sentinel Shield',
-      enforcementAction: 'TERMINATED',
+      reason: 'Distraction observed; no app closure was confirmed',
+      enforcementAction: 'WARNING_ONLY',
       platform: 'linux',
       timestamp: new Date().toISOString(),
     }
@@ -165,7 +165,7 @@ export function normalizeSentinelQuarantineEvent(raw: unknown): SentinelQuaranti
     processName: String(r.processName || 'Unknown Process'),
     pid: Number(r.pid) || 0,
     reason: String(r.reason || 'Distraction intercepted by Focus Protection'),
-    enforcementAction: String(r.enforcementAction || r.policyAction || 'TERMINATED').toUpperCase(),
+    enforcementAction: String(r.enforcementAction || r.policyAction || 'WARNING_ONLY').toUpperCase(),
     platform: String(r.platform || 'linux'),
     timestamp: toSafeIsoString(r.timestamp),
   }

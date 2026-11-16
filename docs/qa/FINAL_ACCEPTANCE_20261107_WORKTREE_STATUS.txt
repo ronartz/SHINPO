@@ -1,0 +1,113 @@
+ M .github/workflows/release-build.yml
+ M AGENTS.md
+ M backend/src/main/java/com/shinpo/service/ContextualEnforcementDecisionService.java
+ M backend/src/main/java/com/shinpo/service/ContextualFocusPolicyService.java
+ M backend/src/test/java/com/shinpo/service/GoalRewardConcurrencyTests.java
+ M backend/src/test/java/com/shinpo/service/GoalServiceRewardTests.java
+ M backend/src/test/java/com/shinpo/service/OnboardingServiceTests.java
+ M browser-extension/tests/native-registration.test.js
+ M crates/shinpo-shield/Cargo.lock
+ M crates/shinpo-shield/Cargo.toml
+ M crates/shinpo-shield/src/lib.rs
+ M crates/shinpo-shield/src/observer.rs
+ M frontend/package-lock.json
+ M frontend/package.json
+ M frontend/src-tauri/Cargo.lock
+ M frontend/src-tauri/src/lib.rs
+ M frontend/src-tauri/src/native_eonpai.rs
+ M frontend/src-tauri/src/native_vault.rs
+ M frontend/src-tauri/tauri.conf.json
+ M frontend/src/App.tsx
+ M frontend/src/api/device.test.ts
+ M frontend/src/api/device.ts
+ M frontend/src/api/focusSessions.ts
+ M frontend/src/api/nativeIpcContracts.test.ts
+ M frontend/src/components/common/Icon.tsx
+ M frontend/src/components/dashboard/DashboardInsights.tsx
+ M frontend/src/components/dialogs/SettingsModal.tsx
+ M frontend/src/components/layout/Sidebar.tsx
+ M frontend/src/hooks/useAuth.ts
+ M frontend/src/index.css
+ M frontend/src/main.tsx
+ M frontend/src/styles/components/glass-surfaces.css
+ M frontend/src/styles/components/salutation.css
+ M frontend/src/styles/components/session-reflection.css
+ M frontend/src/styles/components/settings-modal.css
+ M frontend/src/styles/components/telemetry-toasts.css
+ M frontend/src/styles/foundations/animations.css
+ M frontend/src/styles/responsive.css
+ M frontend/src/styles/shell.css
+ M frontend/src/styles/tokens.css
+ M frontend/src/styles/views/analytics.css
+ M frontend/src/styles/views/auth.css
+ M frontend/src/styles/views/cockpit-panels.css
+ M frontend/src/styles/views/eonpai.css
+ M frontend/src/styles/views/focus-engine.css
+ M frontend/src/styles/views/goals.css
+ M frontend/src/styles/views/overview-bento.css
+ M frontend/src/styles/views/schedule.css
+ M frontend/src/styles/views/task-manager.css
+ M frontend/src/types/navigation.ts
+ M frontend/src/utils/focusProtectionStatus.test.ts
+ M frontend/src/utils/focusProtectionStatus.ts
+ M frontend/src/v2/dashboard/AuroraDashboardView.tsx
+ M frontend/src/v2/theme/aurora.css
+ M frontend/src/v2/theme/auroraTheme.test.ts
+ M frontend/src/v2/theme/auroraTheme.ts
+ M frontend/src/v2/theme/auroraTokens.ts
+ M frontend/src/views/AnalyticsView.tsx
+ M frontend/src/views/EonpaiView.tsx
+ M frontend/src/views/FocusView.tsx
+ M frontend/src/views/OverviewView.tsx
+ M frontend/src/views/TaskManagerView.tsx
+?? .commitlintrc.json
+?? .cursorrules
+?? .github/copilot-instructions.md
+?? .github/workflows/commit-lint.yml
+?? .github/workflows/pr-coverage.yml
+?? .github/workflows/pr-sonar.yml
+?? .github/workflows/stale-deps.yml
+?? .github/workflows/triage.yml
+?? .planning/agentic-awesome-skills/
+?? CLAUDE.md
+?? DESIGN.md
+?? GEMINI.md
+?? SHA256SUMS
+?? SHINPO_FRONTEND_QUALITY_AUDIT.md
+?? crates/shinpo-shield/src/process_identity.rs
+?? docs/audits/
+?? docs/qa/AUDIT_20261103.md
+?? docs/qa/AUDIT_20261103_SUMMARY.md
+?? docs/qa/EONPAI_INTERFACE_ACCEPTANCE_20261106.md
+?? docs/qa/OWNER_ACTIONS.md
+?? docs/qa/RELEASE-GATE_20261103.md
+?? docs/qa/SHINPO_FINAL_RELEASE_READINESS_20261028.md
+?? docs/qa/SHINPO_UNATTENDED_PROGRESS_20261028.md
+?? docs/qa/screenshots/aurora-refoundation-20261026/
+?? docs/qa/screenshots/aurora-token-consolidation-20261026/
+?? docs/qa/screenshots/auth-redesign-20261106/
+?? docs/qa/screenshots/design_system_final_20261025/
+?? docs/qa/screenshots/eonpai-acceptance-20261106/
+?? docs/qa/screenshots/eonpai-visual-acceptance-20261025/
+?? docs/qa/screenshots/final_ui_recovery/
+?? docs/qa/screenshots/rc_qualification/browser_companion_focus_block_20261024.png
+?? docs/qa/screenshots/remaining-checks-20261025-rerun/
+?? docs/qa/screenshots/remaining-checks-20261025/
+?? docs/qa/screenshots/rewards-navbar-20261025/
+?? docs/qa/screenshots/ui-density-20261025/
+?? docs/security/
+?? frontend/@/
+?? frontend/analytics-preview.html
+?? frontend/backstop.json
+?? frontend/e2e/
+?? frontend/eonpai-preview.html
+?? frontend/playwright.config.ts
+?? frontend/src/components/microkit/focus-input.tsx
+?? frontend/src/e2e/
+?? frontend/src/styles/classicPalette.test.ts
+?? frontend/src/utils/guardianAlerts.test.ts
+?? frontend/src/utils/guardianAlerts.ts
+?? frontend/src/utils/guardianCapability.test.ts
+?? frontend/src/utils/guardianCapability.ts
+?? frontend/test-results/
+?? package.json

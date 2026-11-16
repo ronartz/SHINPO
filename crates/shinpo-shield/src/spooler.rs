@@ -80,7 +80,8 @@ impl OfflineSpooler {
         let mut records = Vec::new();
 
         for (idx, line_res) in reader.lines().enumerate() {
-            let line = line_res.map_err(|e| format!("Error reading line {} from spool: {}", idx + 1, e))?;
+            let line = line_res
+                .map_err(|e| format!("Error reading line {} from spool: {}", idx + 1, e))?;
             let trimmed = line.trim();
             if trimmed.is_empty() {
                 continue;
@@ -100,8 +101,12 @@ impl OfflineSpooler {
     /// Clears/truncates the spool file once telemetry is successfully synced.
     pub fn clear(&self) -> Result<(), String> {
         if self.spool_path.exists() {
-            fs::remove_file(&self.spool_path)
-                .map_err(|e| format!("Failed to remove synced spool file {:?}: {}", self.spool_path, e))?;
+            fs::remove_file(&self.spool_path).map_err(|e| {
+                format!(
+                    "Failed to remove synced spool file {:?}: {}",
+                    self.spool_path, e
+                )
+            })?;
         }
         Ok(())
     }
@@ -135,7 +140,10 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_spool_path() -> PathBuf {
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         std::env::temp_dir().join(format!("shinpo_test_spool_{}.jsonl", ts))
     }
 

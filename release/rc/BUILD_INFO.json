@@ -1,15 +1,14 @@
 {
-  "buildId": "shinpo-v1.0.0-rc3-0145fb3",
-  "gitRevision": "0145fb3aae7acdc52719dff8397e76484f7c5024",
-  "gitBranch": "fix/integrity-and-security",
-  "builtAt": "2026-10-21T16:42:27Z",
+  "buildId": "shinpo-v1.0.0-rc3-7d8a496",
+  "gitRevision": "7d8a496866616018e4553da3d63e84dbd45a82a7",
+  "gitBranch": "fix/systematic-layout-and-composition",
+  "builtAt": "2026-11-09T18:13:55Z",
   "targets": [
     "SHINPO-1.0.0-1.x86_64.rpm",
     "SHINPO_1.0.0_amd64.AppImage",
     "SHINPO_1.0.0_amd64.deb",
     "SHINPO_1.0.0_linux_x86_64.tar.gz",
     "shinpo-desktop",
-    "shinpo-shield",
     "shinpo-browser-host"
   ]
 }

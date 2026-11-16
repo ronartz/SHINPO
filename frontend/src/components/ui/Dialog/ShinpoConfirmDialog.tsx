@@ -44,7 +44,7 @@ export const ShinpoConfirmDialog: React.FC<ShinpoConfirmDialogProps> = ({
       title={title}
     >
       <ShinpoDialog.Body>
-        <div style={{ fontSize: 13.5, color: 'var(--text-2, #B0B5C2)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13.5, color: 'var(--text-2, #767676)', lineHeight: 1.5 }}>
           {message}
         </div>
 
@@ -52,10 +52,10 @@ export const ShinpoConfirmDialog: React.FC<ShinpoConfirmDialogProps> = ({
           <div
             style={{
               padding: '10px 12px',
-              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              backgroundColor: 'color-mix(in srgb, var(--brand-primary) 12.0%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--brand-primary) 30.0%, transparent)',
               borderRadius: 8,
-              color: 'var(--brand-red, #F87171)',
+              color: 'var(--brand-red, var(--brand-primary))',
               fontSize: 12.5,
               fontWeight: 500,
             }}

@@ -1,0 +1,55 @@
+{
+  "id": "shinpo_visual_regression",
+  "viewports": [
+    {
+      "label": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "label": "tablet",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "label": "phone",
+      "width": 375,
+      "height": 667
+    }
+  ],
+  "onBeforeScript": "",
+  "onReadyScript": "",
+  "scenarios": [
+    {
+      "label": "Auth Screen",
+      "url": "http://localhost:5173",
+      "readySelector": ".auth-card",
+      "delay": 500,
+      "misMatchThreshold": 0.1
+    },
+    {
+      "label": "UI Component Gallery",
+      "url": "http://localhost:5173/?dev=gallery",
+      "readySelector": ".ui-gallery-view, .app-shell, body",
+      "delay": 1000,
+      "misMatchThreshold": 0.1
+    }
+  ],
+  "paths": {
+    "bitmaps_reference": "backstop_data/bitmaps_reference",
+    "bitmaps_test": "backstop_data/bitmaps_test",
+    "engine_scripts": "backstop_data/engine_scripts",
+    "html_report": "backstop_data/html_report",
+    "ci_report": "backstop_data/ci_report"
+  },
+  "report": ["browser"],
+  "engine": "puppeteer",
+  "engineOptions": {
+    "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+  },
+  "asyncCaptureLimit": 5,
+  "asyncCompareLimit": 50,
+  "debug": false,
+  "debugWindow": false
+}
+

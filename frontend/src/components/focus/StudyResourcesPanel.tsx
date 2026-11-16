@@ -55,16 +55,16 @@ const DURATION_OPTIONS: SelectOption<DurationOption>[] = [
 
 const MODE_DETAILS: Record<StudyFocusMode, { label: string; detail: string }> = {
   GUIDED: {
-    label: 'Guided',
-    detail: 'Normal browsing stays available, with gentle return-to-task prompts.',
+    label: 'Light',
+    detail: 'Recognized distracting sites show a warning. Browsing stays available.',
   },
   PROTECTED: {
-    label: 'Protected',
-    detail: 'Applies your explicit site and route rules; uncertain destinations receive a warning.',
+    label: 'Standard',
+    detail: 'Recognized distracting sites are restricted during Focus. Unknown sites stay available.',
   },
   STRICT: {
     label: 'Strict',
-    detail: 'Enforces configured restrictions while keeping approved study resources available.',
+    detail: 'Enforces recognized site restrictions while keeping study exceptions available.',
   },
 }
 
@@ -101,7 +101,7 @@ function destinationPlaceholder(type: StudyResourceType, matchType: StudyResourc
   if (type === 'DISCORD_CHANNEL') return 'https://discord.com/channels/123/456'
   if (type === 'YOUTUBE_VIDEO') return 'https://www.youtube.com/watch?v=...'
   if (type === 'YOUTUBE_PLAYLIST') return 'https://www.youtube.com/playlist?list=...'
-  if (matchType === 'DOMAIN') return 'docs.spring.io'
+  if (matchType === 'DOMAIN') return 'docs.rs'
   if (matchType === 'URL_PATTERN') return 'https://example.com/course/*'
   return 'https://example.com/study/resource'
 }
@@ -329,12 +329,12 @@ export function StudyResourcesPanel({
       <div className="study-resources-header">
         <div className="study-resources-heading">
           <span className="study-resources-icon"><Icon name="journal" size={17} /></span>
-          <div>
+          <div className="study-resources-heading-copy">
             <div className="study-resources-title-line">
-              <h3>Study Resources</h3>
+              <h3 id="study-resources-heading">Study Resources</h3>
               <span className="badge-tag blue">{resources.length}</span>
             </div>
-            <p>{taskTitle ? `For ${taskTitle}` : 'Task-aware links and contextual protection'}</p>
+            <p className="study-resources-sub">{taskTitle ? `For ${taskTitle}` : 'Task-aware links and contextual protection'}</p>
           </div>
         </div>
         {hasTarget && (
@@ -372,7 +372,7 @@ export function StudyResourcesPanel({
                   detail={status.browserCompanion.detail}
                 />
                 <ConnectionBadge
-                  label="Native Shield"
+                  label="Automatic Guardian"
                   state={status.nativeShield.state}
                   detail={status.nativeShield.detail}
                 />
@@ -411,7 +411,7 @@ export function StudyResourcesPanel({
                     onClick={() => void handleModeChange(option)}
                   >
                     <strong>{MODE_DETAILS[option].label}</strong>
-                    <span>{MODE_DETAILS[option].detail}</span>
+                    <span className="study-mode-option-detail">{MODE_DETAILS[option].detail}</span>
                   </button>
                 ))}
               </div>
@@ -476,7 +476,7 @@ export function StudyResourcesPanel({
                   label="Label (optional)"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Spring Security guide"
+                  placeholder="Rust Documentation guide"
                   maxLength={120}
                 />
                 <ShinpoTextField

@@ -1,6 +1,6 @@
-# Java / Maven
+# Build targets
 target/
-.mvn/timing.properties
+**/target/
 
 # IntelliJ IDEA
 .idea/
@@ -16,6 +16,10 @@ dist/
 .env
 .env.*
 !.env.example
+*.key
+*.key.pub
+*.pem
+*.pfx
 
 # Logs
 *.log
@@ -57,6 +61,9 @@ bin/shinpo-browser-host
 backups/
 *.dump
 *.tar.gz
+*.bundle
+*.bundle.lock
+*.patch
 
 # Release packages and binaries
 release/*
@@ -72,3 +79,18 @@ release/rc/*
 .agent/
 .gemini/
 .gsd/
+.planning/agentic-awesome-skills/
+test-results/
+playwright-report/
+
+# Test coverage reports
+coverage/
+
+# Temporary script artifacts
+*_tmp/
+docs/qa/screenshots/**/*.png
+docs/qa/screenshots/*.png
+docs/qa/visual-final/**/*.png
+docs/qa/visual-final/*.png
+docs/qa/visual-final/*-results.json
+release-artifacts/

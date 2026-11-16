@@ -73,7 +73,9 @@ fn run() -> Result<(), HostError> {
         unknown => {
             eprintln!("Unknown subcommand: {unknown}");
             eprintln!("Usage: shinpo-browser-host [init|rotate-pairing|configure-backend|publish-policy|clear|clear-credentials|disconnect|status]");
-            Err(HostError::InvalidRequest(format!("Unknown subcommand: {unknown}")))
+            Err(HostError::InvalidRequest(format!(
+                "Unknown subcommand: {unknown}"
+            )))
         }
     }
 }
@@ -87,4 +89,3 @@ fn main() -> ExitCode {
         }
     }
 }
-

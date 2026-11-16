@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateRemainingSeconds, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
+import { calculateRemainingSeconds, describeFocusPlan, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
 import type { FocusSession } from '../api/focusSessions.ts'
 
 function createMockSession(overrides: Partial<FocusSession> = {}): FocusSession {
@@ -38,6 +38,22 @@ test('formatTimerDigits formats minutes and seconds correctly', () => {
 test('focus presets describe the actual single-session behavior without promising breaks', () => {
   assert.deepEqual(pomodoroPlans.map(({ totalMinutes }) => totalMinutes), [55, 60, 90])
   assert.ok(pomodoroPlans.every(({ schedule }) => schedule === 'One continuous focus session'))
+})
+
+test('focus plan preview distinguishes total focus from midpoint break and grace', () => {
+  assert.equal(
+    describeFocusPlan(30, true, 5, 10),
+    '15 min focus → 5 min midpoint break → 15 min focus · 30 min total focus · up to 10 min grace',
+  )
+  assert.equal(
+    describeFocusPlan(31, true, 15, 10),
+    '15 min 30 sec focus → 15 min midpoint break → 15 min 30 sec focus · 31 min total focus · up to 10 min grace',
+  )
+  assert.equal(
+    describeFocusPlan(1, true, 1, 1),
+    '30 sec focus → 1 min midpoint break → 30 sec focus · 1 min total focus · up to 1 min grace',
+  )
+  assert.equal(describeFocusPlan(30, false, 15, 10), '30 min continuous focus · 30 min total focus · no break')
 })
 
 test('calculateRemainingSeconds returns fallback duration when no active session exists', () => {
@@ -106,6 +122,22 @@ test('calculateRemainingSeconds uses the full budget for PAUSED sessions without
   })
 
   assert.equal(calculateRemainingSeconds(session, Date.now()), 1200)
+})
+
+test('calculateRemainingSeconds follows persisted native phase deadlines', () => {
+  const serverTime = '2026-10-28T10:00:00.000Z'
+  const deadline = new Date(serverTime).getTime() + 15 * 60 * 1000
+  const remaining = calculateRemainingSeconds(
+    createMockSession({
+      status: 'ACTIVE',
+      currentPhase: 'BREAK',
+      serverTime,
+      phaseDeadlineAt: deadline,
+      remainingSeconds: 60 * 60,
+    }),
+    new Date(serverTime).getTime() + 90_000,
+  )
+  assert.equal(remaining, 810)
 })
 
 test('calculateRemainingSeconds falls back to startedAt when serverTime is invalid', () => {

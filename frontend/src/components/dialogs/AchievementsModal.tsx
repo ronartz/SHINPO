@@ -60,15 +60,10 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
     isOnboardingVerified,
   )
 
-  const dailySummary = computeDailyObjectives(missions, sessions)
-  const currentStreak = analyticsData?.summary?.currentStreak || 0
-  const totalXp = userProgress?.totalProgress || 0
-  const level = userProgress?.level || 1
-  const levelTitle = userProgress?.levelTitle || 'Focus Initiate'
-  const currentLevelXp = userProgress?.currentLevelXp || 0
-  const nextLevelThreshold = userProgress?.nextLevelThreshold || 100
-  const progressPercent = userProgress?.progressPercent || 0
-  const unlockedCount = achievements.filter((a) => a.unlocked).length
+  const dailySummary = computeDailyObjectives(sessions)
+  const visibleAchievements = achievements.filter((achievement) => achievement.id !== 'level_2_practitioner' && achievement.id !== 'level_4_architect')
+  const completedSessions = sessions.filter((session) => session.status === 'COMPLETED').length
+  const unlockedCount = visibleAchievements.filter((achievement) => achievement.unlocked).length
 
   return (
     <div
@@ -84,15 +79,10 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         {/* Modal Header */}
         <div className="achievements-header">
           <div className="achievements-header-left">
-            <div className="achievements-level-badge">
-              <span>LVL {level}</span>
-            </div>
             <div>
-              <h2 id="achievements-modal-title" className="achievements-title">
-                {levelTitle}
-              </h2>
+              <h2 id="achievements-modal-title" className="achievements-title">Achievements &amp; milestones</h2>
               <span className="achievements-subtitle">
-                {totalXp} XP Total • {unlockedCount} of {achievements.length} Achievements Unlocked
+                {unlockedCount} of {visibleAchievements.length} milestones met
               </span>
             </div>
           </div>
@@ -107,28 +97,15 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
           </button>
         </div>
 
-        {/* Level Progression Progress Bar */}
-        <div className="achievements-progress-section">
-          <div className="progress-labels">
-            <span>Level {level} Progress</span>
-            <span>
-              {currentLevelXp} / {nextLevelThreshold} XP ({progressPercent}%)
-            </span>
-          </div>
-          <div className="progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
-            <div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }} />
-          </div>
-        </div>
-
         {/* Consistency & Daily Objectives Strip */}
         <div className="achievements-summary-strip">
           <div className="summary-strip-card">
-            <span className="strip-label">Consistency Streak</span>
+            <span className="strip-label">Focus history</span>
             <div className="strip-value">
-              <span className="flame-icon">🔥</span>
-              <span>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</span>
+              <Icon name="focus" size={16} />
+              <span>{completedSessions} completed {completedSessions === 1 ? 'session' : 'sessions'}</span>
             </div>
-            <span className="strip-hint">Productive days logged without stress</span>
+            <span className="strip-hint">Sessions saved in your Focus history</span>
           </div>
 
           <div className="summary-strip-card">
@@ -137,7 +114,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
               <span>{dailySummary.completedCount} / {dailySummary.totalCount} Met</span>
             </div>
             <span className="strip-hint">
-              {dailySummary.isAllCompleted ? 'Daily execution fulfilled ✨' : 'Work in progress today'}
+              {dailySummary.isAllCompleted ? 'Daily objectives complete' : 'Work in progress today'}
             </span>
           </div>
         </div>
@@ -146,7 +123,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         <div className="achievements-grid-section">
           <h3 className="section-heading">Milestone Accomplishments</h3>
           <div className="achievements-grid">
-            {achievements.map((ach) => (
+            {visibleAchievements.map((ach) => (
               <div
                 key={ach.id}
                 className={`achievement-card ${ach.unlocked ? 'is-unlocked' : 'is-locked'}`}
@@ -168,10 +145,10 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
           </div>
         </div>
 
-        {/* Recent XP History */}
+        {/* Recent progress history */}
         {userProgress?.recentEvents && userProgress.recentEvents.length > 0 && (
           <div className="achievements-ledger-section">
-            <h3 className="section-heading">Recent XP Ledger</h3>
+            <h3 className="section-heading">Recent activity</h3>
             <div className="ledger-list">
               {userProgress.recentEvents.slice(0, 5).map((evt) => (
                 <div key={evt.id} className="ledger-row">
@@ -179,7 +156,6 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                     <span className="ledger-dot" />
                     <span className="ledger-event">{evt.eventType.replace(/_/g, ' ')}</span>
                   </div>
-                  <span className="ledger-amount">+{evt.amount} XP</span>
                 </div>
               ))}
             </div>

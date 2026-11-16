@@ -27,13 +27,13 @@ export const DistractionWarningModal: React.FC<DistractionWarningModalProps> = (
     <div className="quick-modal-overlay sentinel-warning-overlay">
       <div
         className="quick-modal-card sentinel-warning-card"
-        style={{ maxWidth: 'min(480px, calc(100vw - 32px))', borderTop: '3px solid var(--accent-coral, #FF4D5E)' }}
+        style={{ maxWidth: 'min(480px, calc(100vw - 32px))', borderTop: '3px solid var(--accent-coral, var(--brand-primary))' }}
       >
         <div className="quick-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Icon name="shield" size={24} />
             <div>
-              <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)', margin: 0 }}>
+              <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, var(--brand-primary))', margin: 0 }}>
                 Distraction Alert
               </h3>
               <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>
@@ -95,7 +95,7 @@ export const DistractionWarningModal: React.FC<DistractionWarningModalProps> = (
             <button
               type="button"
               className="quick-btn-cancel"
-              style={{ borderColor: 'var(--accent-coral, #FF4D5E)', color: 'var(--accent-coral, #FF4D5E)' }}
+              style={{ borderColor: 'var(--accent-coral, var(--brand-primary))', color: 'var(--accent-coral, var(--brand-primary))' }}
               disabled={warningSubmitting}
               onClick={() => onRespond('TERMINATE_NOW')}
             >

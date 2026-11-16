@@ -28,20 +28,20 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-goal-title">
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-goal-dialog-title">
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 id="create-goal-title" className="modal-title">Create Goal</h3>
+        <h3 id="create-goal-dialog-title" className="modal-title">Create Goal</h3>
         <p className="modal-sub">
           Set an outcome you want to achieve. You can turn it into smaller tasks later.
         </p>
 
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label htmlFor="create-goal-title" className="shinpo-field-label" style={{ marginBottom: 6 }}>
+            <label htmlFor="create-goal-name-input" className="shinpo-field-label" style={{ marginBottom: 6 }}>
               Goal name
             </label>
             <input
-              id="create-goal-title"
+              id="create-goal-name-input"
               type="text"
               placeholder="e.g. Master Distributed Systems, Finish Q3 Milestone..."
               value={title}

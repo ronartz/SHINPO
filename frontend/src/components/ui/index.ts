@@ -11,4 +11,5 @@ export * from './Switch'
 export * from './Tooltip'
 export * from './Toast'
 export * from './StarRating'
+export * from './NumberStepper'
 

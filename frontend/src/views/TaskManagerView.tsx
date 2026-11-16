@@ -1,40 +1,24 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import type {
   ProcessSnapshot,
   SentinelStatus,
   PolicyRule,
   SentinelTamperEventItem,
-  ProcessInfo,
+  DiscoveredApp,
+  SystemTelemetry,
 } from '../api/device'
 import {
-  addSentinelRule,
-  deleteSentinelRule,
-  fetchSentinelStatus,
-  triggerSentinelSweep,
-  updateSentinelMode,
-  emergencyOverride,
+  fetchDiscoveredApps,
+  saveGuardianAppPolicy,
+  removeGuardianAppPolicy,
+  fetchLocalSystemTelemetry,
 } from '../api/device'
 import { Icon } from '../components/common/Icon'
-import { ShinpoSelect } from '../components/ui'
-import type { SelectOption } from '../components/ui/Select/types'
-import {
-  mapEnforcementOutcome,
-  deriveOverallProtectionStatus,
-  formatEnforcementMode,
-  groupQuarantineEvents,
-} from '../utils/focusProtectionStatus'
-
-const RULE_POLICY_OPTIONS: SelectOption<'BLOCKED' | 'ALLOWED'>[] = [
-  { value: 'BLOCKED', label: 'BLOCKED (Close during focus sessions)' },
-  { value: 'ALLOWED', label: 'ALLOWED (Allow during focus sessions)' },
-]
-
-const OVERRIDE_MODE_OPTIONS: SelectOption<'CONTAINMENT' | 'AUDIT_ONLY'>[] = [
-  { value: 'CONTAINMENT', label: 'Containment (Allow launch with warning logs)' },
-  { value: 'AUDIT_ONLY', label: 'Monitoring Only (Passive telemetry monitoring only)' },
-]
+import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianOutcomeLabel } from '../utils/guardianCapability'
 
 export interface TaskManagerViewProps {
+  isAurora?: boolean
+  localVaultMode?: boolean
   deviceSnapshot: ProcessSnapshot | null
   tmLoading: boolean
   tmSearch: string
@@ -46,7 +30,6 @@ export interface TaskManagerViewProps {
   setSentinelStatus: React.Dispatch<React.SetStateAction<SentinelStatus | null>>
   sentinelRules: PolicyRule[]
   setSentinelRules: React.Dispatch<React.SetStateAction<PolicyRule[]>>
-  handleTerminateProcess: (proc: ProcessInfo) => void
   tamperEvents: SentinelTamperEventItem[]
   setTamperEvents?: React.Dispatch<React.SetStateAction<SentinelTamperEventItem[]>>
   tamperEventsExpanded: boolean
@@ -56,361 +39,564 @@ export interface TaskManagerViewProps {
   loadSentinelTamperEvents?: () => Promise<void>
   tmToast: string | null
   setTmToast: React.Dispatch<React.SetStateAction<string | null>>
+  onOpenCompanionSettings?: () => void
+  onConfigureGuardianMode?: () => void
 }
 
 import { trackRender } from '../utils/renderTracker'
 
 export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
+  isAurora: _isAurora = false,
+  localVaultMode = false,
   deviceSnapshot,
-  tmLoading,
+  tmLoading: _tmLoading,
   tmSearch,
   setTmSearch,
   tmPolicy,
   setTmPolicy,
-  setTmRefreshKey,
+  setTmRefreshKey: _setTmRefreshKey,
   sentinelStatus,
-  setSentinelStatus,
-  sentinelRules,
-  setSentinelRules,
-  handleTerminateProcess,
-  tamperEvents,
+  setSentinelStatus: _setSentinelStatus,
+  sentinelRules: _sentinelRules,
+  setSentinelRules: _setSentinelRules,
+  tamperEvents: _tamperEvents,
   setTamperEvents: _setTamperEvents,
-  tamperEventsExpanded,
-  setTamperEventsExpanded,
-  tamperEventsLoading,
+  tamperEventsExpanded: _tamperEventsExpanded,
+  setTamperEventsExpanded: _setTamperEventsExpanded,
+  tamperEventsLoading: _tamperEventsLoading,
   loadDeviceProcesses,
-  loadSentinelTamperEvents,
+  loadSentinelTamperEvents: _loadSentinelTamperEvents,
   tmToast,
   setTmToast,
+  onOpenCompanionSettings,
+  onConfigureGuardianMode,
 }) => {
   trackRender('TaskManagerView')
-  const [sentinelSweeping, setSentinelSweeping] = useState(false)
-  const [showAddRuleModal, setShowAddRuleModal] = useState(false)
-  const [newRulePattern, setNewRulePattern] = useState('')
-  const [newRuleType, setNewRuleType] = useState<'BLOCKED' | 'ALLOWED'>('BLOCKED')
-  const [showOverrideModal, setShowOverrideModal] = useState(false)
-  const [overridePassword, setOverridePassword] = useState('')
-  const [showOverridePassword, setShowOverridePassword] = useState(false)
-  const [overrideReason, setOverrideReason] = useState('')
-  const [overrideTargetMode, setOverrideTargetMode] = useState<'CONTAINMENT' | 'AUDIT_ONLY'>('CONTAINMENT')
-  const [overrideLoading, setOverrideLoading] = useState(false)
-  const [overrideError, setOverrideError] = useState<string | null>(null)
-  const [expandedActivityKeys, setExpandedActivityKeys] = useState<Set<string>>(new Set())
+  const [discoveredApps, setDiscoveredApps] = useState<DiscoveredApp[]>([])
+  const [appsLoading, setAppsLoading] = useState(localVaultMode)
+  const [appSearch, setAppSearch] = useState('')
+  const [appFilter, setAppFilter] = useState<'ALL' | 'BLOCKED' | 'ALLOWED' | 'RUNNING' | 'UNCONFIGURED'>('ALL')
+  const [showBuiltinCatalog, setShowBuiltinCatalog] = useState(false)
+  const [activeSubTab, setActiveSubTab] = useState<'guardian' | 'pc_monitor'>('guardian')
+  const [localTelemetry, setLocalTelemetry] = useState<SystemTelemetry | null>(null)
+  const [showCoresGrid, setShowCoresGrid] = useState(false)
+  const [autoRefreshMonitor, setAutoRefreshMonitor] = useState(true)
+  const [processSortBy, setProcessSortBy] = useState<'cpu' | 'memory' | 'name' | 'pid'>('cpu')
 
-  const toggleActivityDetail = (key: string) => {
-    setExpandedActivityKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+  const formatBytes = (bytes?: number | null): string => {
+    if (bytes == null || isNaN(bytes)) return '—'
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
   }
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        const anyOpen = showAddRuleModal || showOverrideModal
-        if (anyOpen && !overrideLoading) {
-          setShowAddRuleModal(false)
-          setShowOverrideModal(false)
-        }
+    if (activeSubTab !== 'pc_monitor') return
+    let active = true
+
+    const fetchTelemetry = async () => {
+      try {
+        const data = await fetchLocalSystemTelemetry()
+        if (active) setLocalTelemetry(data)
+      } catch (err) {
+        console.error('Failed to fetch system telemetry:', err)
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showAddRuleModal, showOverrideModal, overrideLoading])
 
-  const handleSentinelSweep = async () => {
-    setSentinelSweeping(true)
+    void fetchTelemetry()
+    if (loadDeviceProcesses) {
+      void loadDeviceProcesses()
+    }
+
+    if (!autoRefreshMonitor) return () => { active = false }
+
+    const interval = setInterval(() => {
+      void fetchTelemetry()
+      if (loadDeviceProcesses) {
+        void loadDeviceProcesses()
+      }
+    }, 2000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [activeSubTab, autoRefreshMonitor, loadDeviceProcesses, tmSearch, tmPolicy])
+
+  const loadDiscoveredApps = useCallback(async () => {
+    if (!localVaultMode) return
+    setAppsLoading(true)
     try {
-      const res = await triggerSentinelSweep()
-      setTmToast(res.message)
-      setTimeout(() => setTmToast(null), 4500)
-      const st = await fetchSentinelStatus().catch(() => null)
-      if (st) setSentinelStatus(st)
-      void loadDeviceProcesses?.()
-    } catch (err: unknown) {
-      setTmToast(err instanceof Error ? err.message : 'Focus protection check failed')
-      setTimeout(() => setTmToast(null), 4000)
+      const apps = await fetchDiscoveredApps()
+      setDiscoveredApps(Array.isArray(apps) ? apps : [])
+    } catch (err) {
+      console.error('Failed to load discovered apps:', err)
     } finally {
-      setSentinelSweeping(false)
+      setAppsLoading(false)
     }
-  }
+  }, [localVaultMode])
 
-  const handleToggleSentinelMode = async () => {
-    if (!sentinelStatus) return
-    if (sentinelStatus.isPolicyLocked) {
-      setTmToast('Focus protection is locked during an active session. Use Emergency Override to change it.')
-      setShowOverrideModal(true)
-      setTimeout(() => setTmToast(null), 4500)
-      return
-    }
-    const nextMode =
-      sentinelStatus.enforcementMode === 'STRICT'
-        ? 'AUDIT_ONLY'
-        : sentinelStatus.enforcementMode === 'AUDIT_ONLY'
-          ? 'CONTAINMENT'
-          : 'STRICT'
+  useEffect(() => {
+    if (!localVaultMode) return
+    let active = true
+    void fetchDiscoveredApps()
+      .then((apps) => { if (active) setDiscoveredApps(Array.isArray(apps) ? apps : []) })
+      .catch((err) => { if (active) console.error('Failed to load discovered apps:', err) })
+      .finally(() => { if (active) setAppsLoading(false) })
+    return () => { active = false }
+  }, [localVaultMode])
+
+  const handleSetAppPolicy = async (app: DiscoveredApp, nextPolicy: 'BLOCKED' | 'ALLOWED' | 'NONE') => {
     try {
-      const updated = await updateSentinelMode(nextMode)
-      setSentinelStatus(updated)
-      setTmToast(`Focus protection mode set to: ${nextMode}`)
+      if (nextPolicy === 'NONE') {
+        await removeGuardianAppPolicy(app.id)
+        setDiscoveredApps((prev) =>
+          prev.map((a) => (a.id === app.id ? { ...a, policy: 'NONE' } : a))
+        )
+        setTmToast(`Removed focus policy for "${app.name}"`)
+      } else {
+        await saveGuardianAppPolicy({
+          appId: app.id,
+          appName: app.name,
+          execName: app.execName || app.name.toLowerCase().replace(/\s+/g, ''),
+          policyType: nextPolicy,
+          source: app.source,
+        })
+        setDiscoveredApps((prev) =>
+          prev.map((a) => (a.id === app.id ? { ...a, policy: nextPolicy } : a))
+        )
+        setTmToast(`Saved ${nextPolicy === 'BLOCKED' ? 'block' : 'allow'} policy for "${app.name}". It applies only during Focus when observation is enabled.`)
+      }
       setTimeout(() => setTmToast(null), 3000)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update focus protection mode'
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update application policy'
       setTmToast(msg)
-      setTimeout(() => setTmToast(null), 4500)
-      void loadSentinelTamperEvents?.()
+      setTimeout(() => setTmToast(null), 4000)
     }
   }
 
-  const handleAddSentinelRule = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newRulePattern.trim()) return
-    try {
-      const created = await addSentinelRule(newRulePattern.trim(), newRuleType)
-      setSentinelRules((prev) => [created, ...prev.filter((r) => r.id !== created.id)])
-      setNewRulePattern('')
-      setShowAddRuleModal(false)
-      setTmToast(`Added "${created.processNamePattern}" to Sentinel distraction blocklist`)
-      setTimeout(() => setTmToast(null), 3500)
-      void loadDeviceProcesses?.()
-    } catch (err: unknown) {
-      setTmToast(err instanceof Error ? err.message : 'Failed to add rule')
-      setTimeout(() => setTmToast(null), 3500)
-    }
-  }
+  const catalog = sentinelStatus?.guardianApplicationCatalog ?? []
+  const observations = sentinelStatus?.guardianObservations ?? []
+  const guardianMode = guardianModeLabel(sentinelStatus?.guardianMode)
+  const capability = sentinelStatus?.interventionCapability
+  const statusLabel = sentinelStatus ? guardianCapabilityLabel(capability) : 'Status unavailable'
+  const closeCapabilityReady = guardianCanRequestClose(capability, sentinelStatus?.warningOnly)
+  const appHandlingLabel = !sentinelStatus ? 'Unavailable'
+    : closeCapabilityReady ? 'Graceful close may be requested for eligible processes' : sentinelStatus.warningOnly ? 'Monitoring / warning only' : 'Not currently protected'
+  const appHandlingDetails = sentinelStatus
+    ? guardianInterventionDescription(capability)
+    : 'App policy status is unavailable.'
 
-  const handleDeleteSentinelRule = async (ruleId: number, pattern: string) => {
-    try {
-      await deleteSentinelRule(ruleId)
-      setSentinelRules((prev) => prev.filter((r) => r.id !== ruleId))
-      setTmToast(`Removed "${pattern}" from Sentinel blocklist`)
-      setTimeout(() => setTmToast(null), 3500)
-      void loadDeviceProcesses?.()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete rule'
-      setTmToast(msg)
-      setTimeout(() => setTmToast(null), 4500)
-      void loadSentinelTamperEvents?.()
-    }
-  }
+  const query = appSearch.trim().toLowerCase()
+  const appList = Array.isArray(discoveredApps) ? discoveredApps : []
+  const visibleApps = appList.filter((app) => {
+    const matchesSearch = !query ||
+      app.name.toLowerCase().includes(query) ||
+      (app.execName && app.execName.toLowerCase().includes(query)) ||
+      app.id.toLowerCase().includes(query)
 
-  const handleEmergencyOverrideSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!overridePassword) {
-      setOverrideError('Administrator password is required')
-      return
+    if (!matchesSearch) return false
+
+    switch (appFilter) {
+      case 'BLOCKED':
+        return app.policy === 'BLOCKED'
+      case 'ALLOWED':
+        return app.policy === 'ALLOWED'
+      case 'RUNNING':
+        return app.isRunning
+      case 'UNCONFIGURED':
+        return app.policy === 'NONE'
+      case 'ALL':
+      default:
+        return true
     }
-    if (overrideReason.trim().length < 15) {
-      setOverrideError('Explain why you need this change in at least 15 characters.')
-      return
-    }
-    setOverrideLoading(true)
-    setOverrideError(null)
-    try {
-      const res = await emergencyOverride({
-        password: overridePassword,
-        reason: overrideReason.trim(),
-        targetMode: overrideTargetMode,
-      })
-      setTmToast(`Emergency Override Approved: Mode set to ${res.newMode}`)
-      setTimeout(() => setTmToast(null), 5000)
-      setShowOverrideModal(false)
-      setOverridePassword('')
-      setOverrideReason('')
-      const st = await fetchSentinelStatus().catch(() => null)
-      if (st) setSentinelStatus(st)
-      void loadDeviceProcesses?.()
-      void loadSentinelTamperEvents?.()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Emergency override failed'
-      setOverrideError(msg)
-      void loadSentinelTamperEvents?.()
-    } finally {
-      setOverrideLoading(false)
-    }
+  })
+
+  const blockedCount = appList.filter((a) => a.policy === 'BLOCKED').length
+  const allowedCount = appList.filter((a) => a.policy === 'ALLOWED').length
+  const runningCount = appList.filter((a) => a.isRunning).length
+  const unconfiguredCount = appList.filter((a) => a.policy === 'NONE').length
+
+  const renderPcSystemMonitor = () => {
+    const tel = localTelemetry || (deviceSnapshot?.telemetry ?? null)
+    const rawProcs = deviceSnapshot?.processes ?? []
+    const q = tmSearch.trim().toLowerCase()
+    const filteredProcs = rawProcs.filter((p) => {
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || String(p.pid).includes(q) || p.executablePath.toLowerCase().includes(q)
+      if (!matchSearch) return false
+      if (tmPolicy === 'ALLOWED') return p.shinpoPolicyState === 'ALLOWED'
+      if (tmPolicy === 'PROTECTED') return p.shinpoPolicyState === 'PROTECTED'
+      if (tmPolicy === 'BLOCKED') return p.shinpoPolicyState === 'BLOCKED'
+      return true
+    })
+
+    const sortedProcs = [...filteredProcs].sort((a, b) => {
+      if (processSortBy === 'cpu') return (b.cpuPercent ?? 0) - (a.cpuPercent ?? 0)
+      if (processSortBy === 'memory') return (b.memoryBytes ?? 0) - (a.memoryBytes ?? 0)
+      if (processSortBy === 'pid') return a.pid - b.pid
+      return a.name.localeCompare(b.name)
+    })
+
+    const cpuVal = tel?.cpuUsagePercent ?? deviceSnapshot?.systemInfo?.systemCpuLoad ?? 0
+    const totalRam = tel?.totalMemoryBytes ?? deviceSnapshot?.systemInfo?.totalMemoryBytes ?? 0
+    const usedRam = tel?.usedMemoryBytes ?? (deviceSnapshot?.systemInfo ? deviceSnapshot.systemInfo.totalMemoryBytes - deviceSnapshot.systemInfo.freeMemoryBytes : 0)
+    const ramPct = totalRam ? Math.min(100, Math.round((usedRam / totalRam) * 100)) : 0
+
+    return (
+      <div className="pc-system-monitor-deck" data-testid="pc-system-monitor-deck" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Metric Cards Grid */}
+        <div className="tm-telemetry-grid">
+          <article className="tm-metric-card" data-testid="metric-cpu">
+            <div className="tm-metric-top">
+              <span className="tm-metric-label">CPU UTILIZATION</span>
+              <span className="tm-metric-icon"><Icon name="focus" size={17} /></span>
+            </div>
+            <div>
+              <strong className="tm-metric-val">{cpuVal.toFixed(1)}%</strong>
+              <div className="tm-bar-track">
+                <div className="tm-bar-fill terracotta" style={{ transform: `scaleX(${Math.min(1, Math.max(0.02, cpuVal / 100))})` }} />
+              </div>
+              <small className="tm-metric-sub">
+                {tel?.availableProcessors ?? deviceSnapshot?.systemInfo?.availableProcessors ?? '—'} threads · {tel?.osArch ?? 'x86_64'}
+                {tel?.cores && tel.cores.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCoresGrid((prev) => !prev)}
+                    style={{ marginLeft: '8px', background: 'none', border: 'none', color: 'var(--brand-primary)', cursor: 'pointer', fontSize: '11.5px', textDecoration: 'underline' }}
+                  >
+                    {showCoresGrid ? 'Hide cores' : 'View per-core'}
+                  </button>
+                )}
+              </small>
+            </div>
+          </article>
+
+          <article className="tm-metric-card" data-testid="metric-memory">
+            <div className="tm-metric-top">
+              <span className="tm-metric-label">PHYSICAL RAM</span>
+              <span className="tm-metric-icon"><Icon name="apps" size={17} /></span>
+            </div>
+            <div>
+              <strong className="tm-metric-val">{formatBytes(usedRam)}</strong>
+              <div className="tm-bar-track">
+                <div className="tm-bar-fill emerald" style={{ transform: `scaleX(${Math.min(1, Math.max(0.02, ramPct / 100))})` }} />
+              </div>
+              <small className="tm-metric-sub">
+                {ramPct}% of {formatBytes(totalRam)} total RAM
+              </small>
+            </div>
+          </article>
+
+          <article className="tm-metric-card" data-testid="metric-swap">
+            <div className="tm-metric-top">
+              <span className="tm-metric-label">SWAP &amp; DISK</span>
+              <span className="tm-metric-icon"><Icon name="journal" size={17} /></span>
+            </div>
+            <div>
+              <strong className="tm-metric-val">{formatBytes(tel?.usedSwapBytes ?? 0)}</strong>
+              <small className="tm-metric-sub">
+                Swap of {formatBytes(tel?.totalSwapBytes ?? 0)} · {tel?.disks?.length ?? 0} filesystem(s)
+              </small>
+            </div>
+          </article>
+
+          <article className="tm-metric-card" data-testid="metric-processes">
+            <div className="tm-metric-top">
+              <span className="tm-metric-label">HOST PROCESSES</span>
+              <span className="tm-metric-icon"><Icon name="apps" size={17} /></span>
+            </div>
+            <div>
+              <strong className="tm-metric-val">{tel?.processCount ?? rawProcs.length}</strong>
+              <small className="tm-metric-sub">
+                {tel?.osName ?? 'Linux'} {tel?.osVersion ?? ''} · Live sysinfo scan
+              </small>
+            </div>
+          </article>
+        </div>
+
+        {/* Per-Core Load Breakdown */}
+        {showCoresGrid && tel?.cores && tel.cores.length > 0 && (
+          <div style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: '10px' }}>
+              Per-Core Load ({tel.cores.length} Hardware Cores)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
+              {tel.cores.map((c, i) => (
+                <div key={i} style={{ padding: '8px 10px', borderRadius: '8px', background: 'var(--surface-card)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', fontWeight: 700 }}>
+                    <span>{c.name || `Core ${i}`}</span>
+                    <span style={{ color: c.usagePercent > 50 ? 'var(--accent-terracotta)' : 'var(--text-1)' }}>{c.usagePercent.toFixed(0)}%</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'var(--bar-empty-bg)', borderRadius: '2px', overflow: 'hidden', marginTop: '6px' }}>
+                    <div style={{ width: `${Math.min(100, Math.max(0, c.usagePercent))}%`, height: '100%', background: 'var(--brand-primary)' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mounted Disks Breakdown */}
+        {tel?.disks && tel.disks.length > 0 && (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {tel.disks.map((d, i) => {
+              const used = d.totalBytes - d.availableBytes
+              const pct = d.totalBytes ? Math.min(100, Math.round((used / d.totalBytes) * 100)) : 0
+              return (
+                <div key={i} style={{ flex: '1 1 220px', padding: '10px 14px', borderRadius: '10px', background: 'var(--surface-card)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700 }}>
+                    <span>{d.mountPoint} ({d.fileSystem})</span>
+                    <span style={{ color: 'var(--text-2)' }}>{formatBytes(used)} / {formatBytes(d.totalBytes)}</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'var(--bar-empty-bg)', borderRadius: '2px', overflow: 'hidden', marginTop: '6px' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: 'var(--brand-primary)' }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Process Table Controls Card */}
+        <div className="tm-controls-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div className="tm-search-box" style={{ minWidth: '260px' }}>
+            <Icon name="search" size={15} />
+            <input
+              type="text"
+              className="tm-search-input"
+              placeholder="Search process name, PID, or executable path..."
+              value={tmSearch}
+              onChange={(e) => setTmSearch(e.target.value)}
+              data-testid="input-process-search"
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="tm-policy-filters">
+              {(['ALL', 'ALLOWED', 'PROTECTED'] as const).map((pol) => (
+                <button
+                  key={pol}
+                  type="button"
+                  className={`tm-filter-chip ${tmPolicy === pol ? 'active' : ''}`}
+                  onClick={() => setTmPolicy(pol)}
+                  data-testid={`filter-process-${pol.toLowerCase()}`}
+                >
+                  {pol === 'ALL' ? 'All' : pol === 'ALLOWED' ? 'User Apps' : 'System Daemons'}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-2)' }}>
+              <span>Sort:</span>
+              <button
+                type="button"
+                className={`tm-filter-chip ${processSortBy === 'cpu' ? 'active' : ''}`}
+                onClick={() => setProcessSortBy('cpu')}
+              >
+                CPU%
+              </button>
+              <button
+                type="button"
+                className={`tm-filter-chip ${processSortBy === 'memory' ? 'active' : ''}`}
+                onClick={() => setProcessSortBy('memory')}
+              >
+                Memory
+              </button>
+              <button
+                type="button"
+                className={`tm-filter-chip ${processSortBy === 'pid' ? 'active' : ''}`}
+                onClick={() => setProcessSortBy('pid')}
+              >
+                PID
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="tm-refresh-btn"
+              onClick={() => setAutoRefreshMonitor((prev) => !prev)}
+              style={{ fontSize: '12px' }}
+            >
+              <span>Auto-refresh: {autoRefreshMonitor ? '2s' : 'Paused'}</span>
+            </button>
+
+            <button
+              type="button"
+              className="tm-refresh-btn"
+              onClick={() => {
+                if (loadDeviceProcesses) void loadDeviceProcesses()
+                void fetchLocalSystemTelemetry().then(setLocalTelemetry)
+              }}
+              data-testid="btn-refresh-processes"
+            >
+              <Icon name="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Process Table */}
+        <div className="tm-table-card">
+          <div className="tm-table-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="tm-table-title">Host Processes</span>
+              <span className="tm-table-count">{sortedProcs.length} processes listed</span>
+            </div>
+            <span style={{ fontSize: '12px', color: 'var(--text-3)', fontStyle: 'italic' }}>
+              Read-only system diagnostic view · OS protection active
+            </span>
+          </div>
+
+          <div style={{ overflowX: 'auto', maxHeight: '520px' }}>
+            <table className="tm-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '80px' }}>PID</th>
+                  <th>Process Name</th>
+                  <th style={{ width: '100px' }}>CPU</th>
+                  <th style={{ width: '120px' }}>Memory</th>
+                  <th style={{ width: '110px' }}>User</th>
+                  <th style={{ width: '110px' }}>Status</th>
+                  <th style={{ width: '130px' }}>Classification</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedProcs.slice(0, 150).map((p) => {
+                  const cpu = p.cpuPercent ?? 0
+                  return (
+                    <tr key={p.pid}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-3)' }}>{p.pid}</td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--text-1)' }}>{p.name}</div>
+                        {p.executablePath && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-3)', maxWidth: '380px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.executablePath}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 750, color: cpu > 20 ? 'var(--accent-terracotta)' : 'var(--text-1)' }}>
+                        {cpu.toFixed(1)}%
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12.5px' }}>
+                        {formatBytes(p.memoryBytes)}
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-2)' }}>{p.user}</td>
+                      <td style={{ fontSize: '12px' }}>
+                        <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-subtle)', color: 'var(--text-2)' }}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            background: p.shinpoPolicyState === 'PROTECTED' ? 'color-mix(in srgb, var(--accent-terracotta) 15%, transparent)' : 'color-mix(in srgb, var(--brand-primary) 15%, transparent)',
+                            color: p.shinpoPolicyState === 'PROTECTED' ? 'var(--accent-terracotta)' : 'var(--brand-primary)',
+                          }}
+                        >
+                          {p.shinpoPolicyState === 'PROTECTED' ? 'Protected OS' : 'User App'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {sortedProcs.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-3)' }}>
+                      No processes match the current search or filter criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="task-manager-view">
-      {/* Top Telemetry Grid */}
-      <div className="tm-telemetry-grid">
-        {/* CPU Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">SYSTEM CPU</span>
-            <div className="tm-metric-icon">
-              <Icon name="focus" size={16} />
-            </div>
-          </div>
+    <div className="task-manager-view guardian-alpha" aria-labelledby="guardian-alpha-title">
+      <header className="guardian-alpha-header">
+        <div className="guardian-alpha-title">
+          <span className="guardian-alpha-icon"><Icon name="shield" size={22} /></span>
           <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot?.systemInfo.systemCpuLoad == null ? 'Unavailable' : `${deviceSnapshot.systemInfo.systemCpuLoad.toFixed(1)}%`}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot?.systemInfo.availableProcessors ?? 4} Hardware Threads Active
-            </div>
-            <div className="tm-bar-track">
-              <div
-                className="tm-bar-fill terracotta"
-                style={{
-                  transform: `scaleX(${Math.min(1, Math.max(0, (deviceSnapshot?.systemInfo.systemCpuLoad ?? 0) / 100))})`,
-                }}
-              />
-            </div>
+            <p className="guardian-alpha-eyebrow">FOCUS PROTECTION</p>
+            <h1 id="guardian-alpha-title">Guardian beta</h1>
+            <p>Review app observations and configure persistent protection policies during Focus.</p>
           </div>
         </div>
-
-        {/* Memory Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">SYSTEM MEMORY</span>
-            <div className="tm-metric-icon">
-              <Icon name="apps" size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot
-                ? `${(
-                  (deviceSnapshot.systemInfo.totalMemoryBytes -
-                    deviceSnapshot.systemInfo.freeMemoryBytes) /
-                  (1024 * 1024 * 1024)
-                ).toFixed(1)} GB`
-                : '0 GB'}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot
-                ? `of ${(deviceSnapshot.systemInfo.totalMemoryBytes / (1024 * 1024 * 1024)).toFixed(1)} GB Physical RAM`
-                : 'Allocating'}
-            </div>
-            <div className="tm-bar-track">
-              <div
-                className="tm-bar-fill emerald"
-                style={{
-                  transform: `scaleX(${deviceSnapshot && deviceSnapshot.systemInfo.totalMemoryBytes > 0
-                    ? Math.min(
-                      1,
-                      Math.max(
-                        0.05,
-                        (deviceSnapshot.systemInfo.totalMemoryBytes -
-                          deviceSnapshot.systemInfo.freeMemoryBytes) /
-                        deviceSnapshot.systemInfo.totalMemoryBytes,
-                      ),
-                    )
-                    : 0
-                    })`,
-                }}
-              />
-            </div>
-          </div>
+        <div className={`guardian-alpha-status ${sentinelStatus?.status === 'ACTIVE' && !sentinelStatus.warningOnly ? 'is-active' : sentinelStatus?.status === 'LOCKED' || sentinelStatus?.observerStatus === 'DEGRADED' || !sentinelStatus ? 'is-unavailable' : 'is-monitoring'}`} role="status">
+          <span aria-hidden="true" />{statusLabel}
         </div>
+      </header>
 
-        {/* Process Count Metric Card */}
-        <div className="tm-metric-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">RUNNING APPS</span>
-            <div className="tm-metric-icon">
-              <Icon name="schedule" size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="tm-metric-val">
-              {deviceSnapshot?.systemInfo.processCount ?? 'Unavailable'}
-            </div>
-            <div className="tm-metric-sub">
-              {deviceSnapshot?.systemInfo.processCount == null
-                ? 'Server process scanning is disabled'
-                : `${deviceSnapshot.processes.length} inspected in viewport`}
-            </div>
-            <div className="tm-bar-track">
-              <div className="tm-bar-fill emerald" style={{ transform: 'scaleX(1)' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Sentinel Active Status Card */}
-        <div className="tm-metric-card" data-tutorial="sentinel-status-card">
-          <div className="tm-metric-top">
-            <span className="tm-metric-label">FOCUS PROTECTION</span>
-            <div className={`sentinel-radar-container ${sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE' ? 'active-pulse' : ''}`}>
-              <div className="sentinel-radar-core" />
-              <div className="sentinel-radar-ring" />
-            </div>
-          </div>
-          {(() => {
-            const isDefending = sentinelStatus?.status === 'ACTIVE_DEFENSE' || sentinelStatus?.status === 'ACTIVE'
-            const isStandby = sentinelStatus?.status === 'STANDBY' || sentinelStatus?.status === 'READY'
-            const isUnavailable = !sentinelStatus || sentinelStatus.status === 'UNAVAILABLE' || !sentinelStatus.daemonConnected
-
-            const statusColor = isDefending
-              ? 'var(--primary-coral)'
-              : isStandby
-                ? 'var(--primary-green)'
-                : 'var(--text-3)'
-
-            const barFillClass = isDefending ? 'terracotta' : isStandby ? 'emerald' : ''
-
-            return (
-              <div>
-                <div
-                  className="tm-metric-val"
-                  style={{
-                    fontSize: 18,
-                    color: statusColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <span>{sentinelStatus ? sentinelStatus.status.replace('_', ' ') : 'UNAVAILABLE'}</span>
-                  <button
-                    type="button"
-                    className="sentinel-mode-badge"
-                    title={sentinelStatus?.isPolicyLocked ? "Protection Locked: Click to request Emergency Override" : "Click to cycle mode: Strict → Monitoring Only → Containment"}
-                    onClick={handleToggleSentinelMode}
-                  >
-                    {formatEnforcementMode(sentinelStatus?.enforcementMode)}
-                  </button>
-                  {sentinelStatus?.isPolicyLocked && (
-                    <span className="sentinel-policy-locked-badge" title="Focus protection is locked during an active session">
-                      <Icon name="lock" size={11} />
-                      <span>PROTECTION LOCKED</span>
-                    </span>
-                  )}
-                </div>
-                <div className="tm-metric-sub">
-                  {sentinelStatus?.activeFocusSessionName
-                    ? `Protecting: "${sentinelStatus.activeFocusSessionName}"`
-                    : `${sentinelStatus?.totalInterceptedToday ?? 0} Distractions Blocked Today`}
-                </div>
-                <div className="tm-bar-track">
-                  <div
-                    className={`tm-bar-fill ${barFillClass}`}
-                    style={{ transform: `scaleX(${isUnavailable ? 0 : 1})` }}
-                  />
-                </div>
-              </div>
-            )
-          })()}
-        </div>
+      {/* Sub-tab navigation bar */}
+      <div className="guardian-subtab-bar" style={{ display: 'flex', gap: '8px', marginBottom: 0 }}>
+        <button
+          type="button"
+          className={`guardian-subtab-btn ${activeSubTab === 'guardian' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('guardian')}
+          data-testid="subtab-focus-protection"
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+            background: activeSubTab === 'guardian' ? 'var(--color-primary-active, #7c3aed)' : 'var(--surface-subtle)',
+            color: activeSubTab === 'guardian' ? '#fff' : 'var(--text-1)',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <Icon name="shield" size={16} />
+          <span>Focus Protection &amp; Guardian</span>
+        </button>
+        <button
+          type="button"
+          className={`guardian-subtab-btn ${activeSubTab === 'pc_monitor' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('pc_monitor')}
+          data-testid="subtab-pc-monitor"
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+            background: activeSubTab === 'pc_monitor' ? 'var(--color-primary-active, #7c3aed)' : 'var(--surface-subtle)',
+            color: activeSubTab === 'pc_monitor' ? '#fff' : 'var(--text-1)',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <Icon name="apps" size={16} />
+          <span>PC System Monitor</span>
+        </button>
       </div>
 
-      {/* Notification Toast if present */}
       {tmToast && (
         <div
           style={{
             background: 'var(--surface-elevated)',
             border: '1px solid var(--accent-terracotta)',
             borderRadius: 'var(--radius-sm)',
-            padding: '12px 18px',
+            padding: '10px 16px',
             color: 'var(--text-1)',
             fontWeight: 600,
             fontSize: 13,
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 8,
             boxShadow: 'var(--shadow-card)',
           }}
         >
@@ -419,813 +605,361 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
         </div>
       )}
 
-      {/* Controls Bar */}
-      <div className="tm-controls-card">
-        <div className="tm-search-box">
-          <Icon name="search" size={15} />
-          <input
-            type="text"
-            className="tm-search-input"
-            placeholder="Search process name, PID, or path..."
-            value={tmSearch}
-            onChange={(e) => {
-              setTmSearch(e.target.value)
-            }}
-          />
-        </div>
-
-        <div className="tm-policy-filters">
-          {(['ALL', 'ALLOWED', 'BLOCKED', 'PROTECTED'] as const).map((pol) => (
-            <button
-              key={pol}
-              type="button"
-              className={`tm-filter-chip ${tmPolicy === pol ? 'active' : ''}`}
-              onClick={() => {
-                setTmPolicy(pol)
-              }}
-            >
-              {pol}
-            </button>
-          ))}
-        </div>
-
-        <div className="tm-actions-group">
-          <button
-            type="button"
-            className="emergency-override-btn"
-            onClick={() => {
-              setOverrideError(null)
-              setShowOverrideModal(true)
-              setShowAddRuleModal(false)
-            }}
-            title="Authorize temporary protection override"
-          >
-            <Icon name="shield" size={14} />
-            <span>Emergency Override</span>
-          </button>
-
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={handleSentinelSweep}
-            disabled={sentinelSweeping}
-            style={{
-              background: 'var(--accent-red-subtle)',
-              borderColor: 'var(--accent-red-border)',
-              color: 'var(--accent-red)',
-            }}
-            title="Close open distraction applications"
-          >
-            <Icon name="sparkle" size={14} />
-            <span>{sentinelSweeping ? 'Closing...' : 'Close Distractions'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={() => {
-              setShowAddRuleModal(true)
-              setShowOverrideModal(false)
-            }}
-            title="Add application to blocked list"
-          >
-            <Icon name="plus" size={14} />
-            <span>Block App</span>
-          </button>
-
-          <button
-            type="button"
-            className="tm-refresh-btn btn-spring"
-            onClick={() => setTmRefreshKey((key) => key + 1)}
-            disabled={tmLoading}
-          >
-            <Icon name="refresh" size={14} />
-            <span>{tmLoading ? 'Scanning...' : 'Refresh Processes'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Focus Protection Policy Rules & Activity Feed */}
-      {(() => {
-        const protectionInfo = deriveOverallProtectionStatus(sentinelStatus)
-        const groupedActivities = groupQuarantineEvents(sentinelStatus?.recentQuarantines ?? [])
-        const customRules = sentinelRules.filter((r) => r.isCustom)
-
-        return (
-          <div className="sentinel-panel">
-            {/* Header: Title, Description, Operational Badges */}
-            <div className="sentinel-panel-header">
-              <div className="sentinel-title-block">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Icon name="shield" size={18} />
-                  <h3 className="sentinel-panel-title">Focus Protection</h3>
-                </div>
-                <p className="sentinel-panel-subtitle">
-                  Real-time workstation distraction defense and process containment.
-                </p>
-              </div>
-
-              <div className="sentinel-header-badges">
-                {/* Overall Operational Status Pill */}
-                <div
-                  className={`sentinel-status-pill ${protectionInfo.badgeVariant}`}
-                  title={protectionInfo.description}
-                >
-                  <span
-                    className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
-                  />
-                  <span>{protectionInfo.badgeText}</span>
-                </div>
-
-                {/* Mode Selector Pill */}
-                <button
-                  type="button"
-                  className="sentinel-mode-badge"
-                  title={
-                    sentinelStatus?.isPolicyLocked
-                      ? 'Protection Locked: Click to request Emergency Override'
-                      : 'Click to cycle mode: Strict → Monitoring Only → Containment'
-                  }
-                  onClick={handleToggleSentinelMode}
-                >
-                  <span>{protectionInfo.mode}</span>
-                  {sentinelStatus?.isPolicyLocked && <Icon name="lock" size={11} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Overview Summary Strip */}
-            <div className="sentinel-overview-strip">
-              <div className="sentinel-overview-item">
-                <span
-                  className={`sentinel-overview-dot ${protectionInfo.shieldConnected ? 'connected' : 'disconnected'}`}
-                />
-                <span>
-                  Native Shield:{' '}
-                  <strong style={{ color: protectionInfo.shieldConnected ? 'var(--text-1)' : 'var(--text-3)' }}>
-                    {protectionInfo.shieldConnected ? 'Connected (Verified)' : 'Disconnected (Offline)'}
-                  </strong>
-                </span>
-              </div>
-
-              <div className="sentinel-overview-item">
-                <Icon name="target" size={14} />
-                <span>
-                  <strong style={{ color: 'var(--text-1)' }}>{customRules.length}</strong> Custom Rule
-                  {customRules.length === 1 ? '' : 's'} Active
-                </span>
-              </div>
-
-              <div className="sentinel-overview-item">
-                <Icon name="sparkle" size={14} />
-                <span>
-                  <strong style={{ color: 'var(--text-1)' }}>{sentinelStatus?.totalInterceptedToday ?? 0}</strong> Intercepted Today
-                </span>
-              </div>
-
-              {sentinelStatus?.isPolicyLocked && (
-                <button
-                  type="button"
-                  className="emergency-override-btn"
-                  style={{ padding: '5px 12px', fontSize: 12 }}
-                  onClick={() => {
-                    setOverrideError(null)
-                    setShowOverrideModal(true)
-                    setShowAddRuleModal(false)
-                  }}
-                  title="Protection is locked during sprint. Click to request override."
-                >
-                  <Icon name="lock" size={12} />
-                  <span>Override Locked</span>
-                </button>
-              )}
-            </div>
-
-            {/* Protection Rules Section */}
-            <div className="sentinel-section-box">
-              <div className="sentinel-section-top">
-                <div className="sentinel-section-heading">Configured Distraction Rules</div>
-                <button
-                  type="button"
-                  className="tm-refresh-btn btn-spring"
-                  style={{ padding: '4px 12px', fontSize: 12, height: 'auto' }}
-                  onClick={() => {
-                    setShowAddRuleModal(true)
-                    setShowOverrideModal(false)
-                  }}
-                  title="Add custom application rule"
-                >
-                  <Icon name="plus" size={12} />
-                  <span>Block App</span>
-                </button>
-              </div>
-
-              <div className="sentinel-rules-explainer">
-                Built-in protection automatically suppresses known gaming platforms (Steam, Lutris, Epic). Custom rules target specific distracting workstation apps during active Focus sprints. Essential development, accessibility, and recording tools (OBS, IDEs, Terminal, Git) are never blocked by default.
-              </div>
-
-              <div className="sentinel-rules-list">
-                {customRules.length > 0 ? (
-                  customRules.map((rule) => (
-                    <span
-                      key={rule.id}
-                      className={`sentinel-rule-chip ${rule.policyType.toLowerCase()}`}
+      {activeSubTab === 'pc_monitor' ? (
+        renderPcSystemMonitor()
+      ) : (
+        <div className="guardian-alpha-workspace">
+          <div className="guardian-alpha-info-column">
+            <section className="guardian-alpha-summary" aria-label="Guardian status details">
+              <div><span>App handling</span><strong>{appHandlingLabel}</strong><small>{appHandlingDetails}</small>{guardianMode === 'Standard' && sentinelStatus?.standardAllowanceSeconds != null && <small>Sampled app-running allowance: {Math.floor(sentinelStatus.standardAllowanceSeconds / 60)}:{String(sentinelStatus.standardAllowanceSeconds % 60).padStart(2, '0')} of 10:00.</small>}</div>
+              <div className="guardian-mode-summary-cell">
+                <div className="guardian-cell-header">
+                  <span>Guardian mode</span>
+                  {onConfigureGuardianMode && (
+                    <button
+                      type="button"
+                      className="guardian-mode-quick-link"
+                      onClick={onConfigureGuardianMode}
+                      title="Configure Guardian mode (Light, Standard, Strict) in Focus Engine"
+                      data-testid="link-configure-guardian"
                     >
-                      <span className="sentinel-rule-action-tag">
-                        {rule.policyType}
-                      </span>
-                      <span>{rule.processNamePattern}</span>
-                      {sentinelStatus?.isPolicyLocked && rule.policyType === 'BLOCKED' ? (
-                        <span
-                          className="sentinel-rule-locked-indicator"
-                          title="Focus protection rules are locked during an active session."
-                          onClick={() => {
-                            setTmToast('Focus protection rules are locked during active sessions. Use Emergency Override if needed.')
-                            setTimeout(() => setTmToast(null), 4000)
-                          }}
-                        >
-                          <Icon name="lock" size={11} />
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="sentinel-rule-del-btn"
-                          onClick={() => handleDeleteSentinelRule(rule.id, rule.processNamePattern)}
-                          title={`Remove rule "${rule.processNamePattern}"`}
-                          aria-label={`Remove rule "${rule.processNamePattern}"`}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))
-                ) : (
-                  <span style={{ fontSize: 12.5, color: 'var(--text-3)', padding: '4px 0' }}>
-                    No custom application rules configured yet. Click "+ Block App" to target specific workstation apps.
-                  </span>
+                      Configure
+                    </button>
+                  )}
+                </div>
+                <strong>{guardianMode}</strong>
+                <small>{guardianCapabilityLabel(capability)}. Website rules require a connected Browser Companion.</small>
+              </div>
+              <div><span>Current Focus</span><strong>{sentinelStatus?.activeFocusSessionId ? sentinelStatus.activeFocusSessionName || 'In progress' : 'No active session'}</strong><small>{sentinelStatus?.focusPhase?.replaceAll('_', ' ') || 'Observations begin when Focus starts.'}</small></div>
+              <div><span>App observations today</span><strong>{sentinelStatus?.guardianWarningCount ?? '—'}</strong><small>Names saved in the encrypted vault.</small></div>
+            </section>
+
+            <p className="guardian-alpha-note" role="status">
+              {!sentinelStatus || sentinelStatus.status === 'LOCKED'
+                ? 'Guardian is unavailable while the vault is locked.'
+                : sentinelStatus.observerStatus !== 'MONITORING'
+                  ? 'Saved Block policies are not actively applied while app observation is off or unavailable.'
+                  : sentinelStatus.warningOnly
+                    ? 'SHINPO will warn you but will not close apps in the current Focus state.'
+                    : 'Guardian is warning-only in this release. SHINPO does not close applications.'}
+            </p>
+
+            <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
+              <header><div><h2 id="guardian-observations-title">Recent observations</h2><p>Observed during this Focus session</p></div><span className="guardian-alpha-count">{sentinelStatus?.guardianObservations ? observations.length : '—'}</span></header>
+              {observations.length ? <ul className="guardian-alpha-observations">{observations.map((item) => <li key={item.id}>
+                <span className="guardian-alpha-observation-icon"><Icon name="eye" size={16} /></span>
+                <span><strong>{item.processName}</strong><small>{item.category} · {guardianOutcomeLabel(item.outcome)}</small></span>
+                <time dateTime={item.observedAt}>{new Date(item.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
+              </li>)}</ul> : <p className="guardian-alpha-empty">{sentinelStatus?.observerStatus === 'DEGRADED'
+                ? 'The app observer is unavailable; observations may be incomplete.'
+                : sentinelStatus?.status === 'ACTIVE' && sentinelStatus.observerStatus === 'IDLE' ? 'App observation is off for this Focus session. Enable it in the Focus setup to record recognized apps.'
+                  : sentinelStatus?.activeFocusSessionId ? 'No recognized distracting apps have been observed in this session.'
+                    : 'Observations appear here when a Focus session is active.'}</p>}
+            </section>
+
+            <section className="guardian-alpha-panel guardian-companion-rail-card" aria-label="Web Protection & Companion">
+              <header>
+                <div>
+                  <h2>Browser Protection</h2>
+                  <p>Companion connection and web rules</p>
+                </div>
+                <span className="guardian-alpha-count">Web Guard</span>
+              </header>
+              <div style={{ padding: '12px 14px', fontSize: '12.5px', color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <p style={{ margin: 0, lineHeight: 1.45 }}>
+                  Website restrictions require a connected Browser Companion. Web distraction policies are evaluated independently from desktop binaries.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-3)' }}>Safety guarantee:</span>
+                  <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>Warning-only · no apps are closed</span>
+                  <span style={{ color: 'var(--text-3)' }}>System processes:</span>
+                  <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>Protected OS daemons never touched</span>
+                </div>
+                {onOpenCompanionSettings && (
+                  <button
+                    type="button"
+                    className="btn-guardian-action"
+                    onClick={onOpenCompanionSettings}
+                    style={{ marginTop: 8, alignSelf: 'flex-start' }}
+                    data-testid="btn-companion-settings"
+                  >
+                    <Icon name="settings" size={14} /> Browser Companion Setup
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <div className="guardian-mode-action-card">
+              <div className="guardian-mode-action-header">
+                <div className="guardian-mode-action-info">
+                  <span className="guardian-mode-action-tag">Operational Mode</span>
+                  <h3 className="guardian-mode-action-title">
+                    {guardianMode === 'Not set' ? 'Configure Guardian Mode' : `Guardian Mode: ${guardianMode}`}
+                  </h3>
+                  <p className="guardian-mode-action-desc">
+                    Choose how Guardian reports recognized apps: Light (warnings), Standard (consented sampled runtime), or Strict (immediate warnings). Apps are not closed.
+                  </p>
+                </div>
+                {onConfigureGuardianMode && (
+                  <button
+                    type="button"
+                    className="btn-configure-guardian-action"
+                    onClick={onConfigureGuardianMode}
+                    data-testid="btn-configure-guardian"
+                  >
+                    <Icon name="settings" size={14} />
+                    <span>Configure Guardian Mode</span>
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* Recent Activity Section */}
-            <div className="sentinel-section-box" style={{ marginTop: 4 }}>
-              <div className="sentinel-section-top">
-                <div className="sentinel-section-heading">Recent Enforcement Activity</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                  {groupedActivities.length} Unique Event{groupedActivities.length === 1 ? '' : 's'}
+            <section className="guardian-alpha-panel guardian-policy-explainer" aria-label="Understanding Focus Protection">
+              <header>
+                <div>
+                  <h2>Protection Architecture</h2>
+                  <p>How policies, modes, consent, and status interact</p>
+                </div>
+                <span className="guardian-alpha-count">Guide</span>
+              </header>
+              <div className="guardian-explainer-grid">
+                <div className="guardian-explainer-item">
+                  <strong>Application Policy</strong>
+                  <p>Persistent per-app rules (Block, Allow, Off) saved in your encrypted vault. Determines which apps are subject to monitoring.</p>
+                </div>
+                <div className="guardian-explainer-item">
+                  <strong>Guardian Mode</strong>
+                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict shows immediate warnings. All modes are warning-only.</p>
+                </div>
+                <div className="guardian-explainer-item">
+                  <strong>Session Consent</strong>
+                  <p>Explicit user opt-in required before each session. SHINPO never closes applications without your explicit session consent.</p>
+                </div>
+                <div className="guardian-explainer-item">
+                  <strong>Runtime Status</strong>
+                  <p>Current behavior: warning-only. App closure is disabled; protected OS processes are not touched.</p>
                 </div>
               </div>
+            </section>
+          </div>
 
-              {groupedActivities.length === 0 ? (
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: 'var(--text-3)',
-                    padding: '14px 16px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Icon name="check-circle" size={15} />
-                  <span>No distracting apps were blocked recently. Your focus workspace is clear.</span>
-                </div>
-              ) : (
-                <div className="sentinel-activity-timeline">
-                  {groupedActivities.map((group) => {
-                    const outcome = mapEnforcementOutcome(
-                      group.primaryItem.policyAction,
-                      group.primaryItem.reason
-                    )
-                    const isExpanded = expandedActivityKeys.has(group.groupKey)
-                    const timeFormatted = new Date(group.primaryItem.detectedAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })
-
-                    return (
-                      <div key={group.groupKey} className="sentinel-activity-card">
-                        <div
-                          className="sentinel-activity-main"
-                          onClick={() => toggleActivityDetail(group.groupKey)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              toggleActivityDetail(group.groupKey)
-                            }
-                          }}
-                          aria-expanded={isExpanded}
-                        >
-                          <div className="sentinel-activity-left">
-                            <strong className="sentinel-activity-app-name">{group.processName}</strong>
-                            {group.count > 1 && (
-                              <span className="sentinel-activity-count-badge" title={`${group.count} attempts intercepted`}>
-                                ×{group.count}
-                              </span>
-                            )}
-                            <span className={`sentinel-activity-badge ${outcome.statusType}`}>
-                              {outcome.badgeLabel}
-                            </span>
-                          </div>
-
-                          <div className="sentinel-activity-summary" title={group.primaryItem.reason}>
-                            {outcome.summaryExplanation}
-                          </div>
-
-                          <div className="sentinel-activity-right">
-                            <span>{timeFormatted}</span>
-                            <Icon name={isExpanded ? 'chevron' : 'chevron-right'} size={13} />
-                          </div>
-                        </div>
-
-                        {/* Expandable Diagnostic Details Panel */}
-                        {isExpanded && (
-                          <div className="sentinel-activity-details-panel">
-                            <div className="activity-detail-field">
-                              <span className="activity-detail-label">PROCESS ID (PID)</span>
-                              <span className="activity-detail-val">
-                                {group.allPids.join(', ')}
-                              </span>
-                            </div>
-
-                            <div className="activity-detail-field">
-                              <span className="activity-detail-label">RAW BACKEND ACTION</span>
-                              <span className="activity-detail-val">
-                                {outcome.fullTechnicalAction}
-                              </span>
-                            </div>
-
-                            <div className="activity-detail-field">
-                              <span className="activity-detail-label">ENFORCEMENT MODE</span>
-                              <span className="activity-detail-val">
-                                {group.primaryItem.enforcementMode || 'STRICT'}
-                              </span>
-                            </div>
-
-                            <div className="activity-detail-field">
-                              <span className="activity-detail-label">ASSOCIATED FOCUS SESSION</span>
-                              <span className="activity-detail-val">
-                                {group.primaryItem.focusSessionId ? `#${group.primaryItem.focusSessionId}` : 'None'}
-                              </span>
-                            </div>
-
-                            <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
-                              <span className="activity-detail-label">FULL TECHNICAL REASON</span>
-                              <span className="activity-detail-val" style={{ fontFamily: 'inherit', fontSize: '11.5px' }}>
-                                {group.primaryItem.reason || 'No extended reason reported by backend'}
-                              </span>
-                            </div>
-
-                            {group.primaryItem.commandLine && (
-                              <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
-                                <span className="activity-detail-label">EXECUTABLE COMMAND LINE</span>
-                                <span className="activity-detail-val">
-                                  {group.primaryItem.commandLine}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="activity-detail-field" style={{ gridColumn: '1 / -1' }}>
-                              <span className="activity-detail-label">LAST DETECTED AT</span>
-                              <span className="activity-detail-val">
-                                {new Date(group.primaryItem.detectedAt).toLocaleString()} ({group.primaryItem.detectedAt})
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Technical Security & Tamper Audit Log Section */}
-            <div className="sentinel-tamper-section">
-              <div
-                className="sentinel-tamper-header"
-                onClick={() => setTamperEventsExpanded((prev) => !prev)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setTamperEventsExpanded((prev) => !prev)
-                  }
-                }}
-                aria-expanded={tamperEventsExpanded}
-              >
-                <div className="sentinel-tamper-title">
-                  <Icon name="shield" size={15} />
-                  <span>Technical Security & Tamper Audit Log</span>
-                  <span
-                    className={`sentinel-tamper-badge-count ${tamperEvents.length === 0 ? 'clean' : 'alert'
-                      }`}
-                  >
-                    {tamperEvents.length === 0
-                      ? '0 Events Logged'
-                      : `${tamperEvents.length} Event${tamperEvents.length > 1 ? 's' : ''}`}
+          <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title">
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h2 id="guardian-apps-title" style={{ margin: 0 }}>
+                    Installed Applications
+                  </h2>
+                  <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
+                    {discoveredApps.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  aria-expanded={tamperEventsExpanded}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-3)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                  tabIndex={-1}
-                >
-                  <span>{tamperEventsExpanded ? 'Collapse' : 'Expand Audit Log'}</span>
-                  <Icon name={tamperEventsExpanded ? 'chevron' : 'chevron-right'} size={12} />
-                </button>
-              </div>
-
-              {tamperEventsExpanded && (
-                <div className="sentinel-tamper-timeline">
-                  {tamperEventsLoading ? (
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>
-                      Loading audit logs...
-                    </div>
-                  ) : tamperEvents.length === 0 ? (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--text-2)',
-                        padding: '10px 14px',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        borderRadius: 'var(--radius-sm, 8px)',
-                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
-                      }}
-                    >
-                      No administrative override or policy tamper events recorded in current audit window.
-                    </div>
-                  ) : (
-                    tamperEvents.map((evt) => (
-                      <div key={evt.id} className="sentinel-tamper-item">
-                        <div className="sentinel-tamper-item-top">
-                          <div className="sentinel-tamper-item-left">
-                            <span
-                              className={`sentinel-severity-badge ${evt.severity.toLowerCase()}`}
-                            >
-                              {evt.severity}
-                            </span>
-                            <strong style={{ color: 'var(--text-1)' }}>
-                              {evt.eventType.replace(/_/g, ' ')}
-                            </strong>
-                            <span style={{ color: 'var(--text-3)', fontSize: 12 }}>
-                              [{evt.enforcementMode}]
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                            {new Date(evt.createdAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                            })}
-                          </div>
-                        </div>
-                        {evt.justification && (
-                          <div className="sentinel-tamper-justification">
-                            <strong>Justification:</strong> {evt.justification}
-                          </div>
-                        )}
-                        {evt.details && (
-                          <div style={{ fontSize: 12.5, color: 'var(--text-2)' }}>
-                            {evt.details}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Add Rule Modal */}
-      {showAddRuleModal && (
-        <div className="quick-modal-overlay" onClick={() => setShowAddRuleModal(false)}>
-          <div className="quick-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 'min(520px, calc(100vw - 32px))' }}>
-            <div className="quick-modal-header">
-              <h3 className="quick-modal-title">Block an app</h3>
-              <button type="button" className="quick-modal-close" onClick={() => setShowAddRuleModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleAddSentinelRule} className="quick-modal-body">
-              <div className="quick-form-group">
-                <label className="quick-form-label">APP NAME OR FILE PATTERN</label>
-                <input
-                  type="text"
-                  className="quick-form-input"
-                  placeholder="e.g. slack, minecraft, obs, brave"
-                  value={newRulePattern}
-                  onChange={(e) => setNewRulePattern(e.target.value)}
-                  autoFocus
-                  required
-                />
-                <span style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>
-                  System core processes (systemd, shinpo, bash) are protected and cannot be blocked.
-                </span>
-              </div>
-
-              <div className="quick-form-group">
-                <ShinpoSelect<'BLOCKED' | 'ALLOWED'>
-                  label="POLICY ACTION"
-                  value={newRuleType}
-                  onChange={setNewRuleType}
-                  options={RULE_POLICY_OPTIONS}
-                />
-              </div>
-
-              <div className="quick-modal-actions">
-                <button
-                  type="button"
-                  className="quick-btn-cancel"
-                  onClick={() => setShowAddRuleModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="quick-btn-submit"
-                  disabled={!newRulePattern.trim()}
-                >
-                  Add Rule
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Protection Change - Emergency Override Modal */}
-      {showOverrideModal && (
-        <div
-          className="quick-modal-overlay"
-          onClick={() => {
-            if (!overrideLoading) setShowOverrideModal(false)
-          }}
-        >
-          <div
-            className="quick-modal-card"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: 'min(500px, calc(100vw - 32px))',
-              borderTop: '3px solid var(--accent-coral, #FF4D5E)',
-            }}
-          >
-            <div className="quick-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="shield" size={18} />
-                <h3 className="quick-modal-title" style={{ color: 'var(--accent-coral, #FF4D5E)' }}>
-                  Confirm Protection Change
-                </h3>
+                <p style={{ margin: '4px 0 0' }}>
+                  {discoveredApps.length ? `${discoveredApps.length} installed apps discovered on this system` : 'Native app discovery'}
+                  {blockedCount > 0 && ` · ${blockedCount} blocked`}
+                  {allowedCount > 0 && ` · ${allowedCount} allowed`}
+                </p>
               </div>
               <button
                 type="button"
-                className="quick-modal-close"
-                onClick={() => {
-                  if (!overrideLoading) setShowOverrideModal(false)
-                }}
-                disabled={overrideLoading}
+                className="guardian-refresh-apps-btn"
+                onClick={() => void loadDiscoveredApps()}
+                disabled={appsLoading}
+                title="Rescan installed applications and running status"
               >
-                ×
+                <Icon name="refresh" size={13} />
+                <span>{appsLoading ? 'Scanning...' : 'Rescan'}</span>
               </button>
-            </div>
+            </header>
 
-            <form onSubmit={handleEmergencyOverrideSubmit} className="quick-modal-body">
-              <div className="override-modal-warning">
-                <strong>
-                  <Icon name="lock" size={14} />
-                  ACTIVE FOCUS PROTECTION
-                </strong>
-                <span>
-                  An active focus session is currently in progress.
-                  Changing focus protection requires your account password and a stated reason.
-                </span>
-              </div>
-
-              {overrideError && (
-                <div className="override-error-banner">
-                  {overrideError}
-                </div>
-              )}
-
-              <div className="quick-form-group">
-                <ShinpoSelect<'CONTAINMENT' | 'AUDIT_ONLY'>
-                  label="DESIRED ENFORCEMENT MODE"
-                  value={overrideTargetMode}
-                  onChange={setOverrideTargetMode}
-                  options={OVERRIDE_MODE_OPTIONS}
-                  disabled={overrideLoading}
-                />
-              </div>
-
-              <div className="quick-form-group">
-                <label className="quick-form-label">ACCOUNT password</label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div className="guardian-app-toolbar">
+              <div className="guardian-app-search-row">
+                <div className="guardian-app-search-box" style={{ flex: 1, maxWidth: 'none' }}>
+                  <Icon name="search" size={14} />
                   <input
-                    type={showOverridePassword ? 'text' : 'password'}
-                    className="quick-form-input"
-                    placeholder="Enter your account password..."
-                    value={overridePassword}
-                    onChange={(e) => setOverridePassword(e.target.value)}
-                    required
-                    disabled={overrideLoading}
-                    autoFocus
-                    style={{ width: '100%', paddingRight: '38px' }}
+                    type="text"
+                    value={appSearch}
+                    onChange={(e) => setAppSearch(e.target.value)}
+                    placeholder="Search installed applications..."
+                    aria-label="Search installed applications"
                   />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowOverridePassword((prev) => !prev)}
-                    aria-label={showOverridePassword ? 'Hide password' : 'Show password'}
-                    title={showOverridePassword ? 'Hide password' : 'Show password'}
-                    tabIndex={0}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-secondary, #94a3b8)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                    }}
-                  >
-                    <Icon name={showOverridePassword ? 'eye-off' : 'eye'} size={15} />
-                  </button>
+                  {appSearch && (
+                    <button
+                      type="button"
+                      style={{ background: 'transparent', border: 0, color: 'var(--text-3)', cursor: 'pointer', padding: 0 }}
+                      onClick={() => setAppSearch('')}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="quick-form-group">
-                <label className="quick-form-label">
-                  REASON (MIN. 15 CHARACTERS)
-                </label>
-                <textarea
-                  className="quick-form-input"
-                  rows={3}
-                  style={{ resize: 'vertical', minHeight: 70 }}
-                  placeholder="Enter reason for changing protection during a session (e.g. Urgent email response required)..."
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                  required
-                  disabled={overrideLoading}
-                />
-                <div
-                  className={`override-char-counter ${overrideReason.trim().length >= 15 ? 'valid' : 'invalid'
-                    }`}
-                >
-                  {overrideReason.trim().length} / 15 chars min
-                </div>
-              </div>
-
-              <div className="quick-modal-actions">
+              <div className="guardian-app-filter-tabs" role="tablist" aria-label="Filter applications">
                 <button
                   type="button"
-                  className="quick-btn-cancel"
-                  onClick={() => setShowOverrideModal(false)}
-                  disabled={overrideLoading}
+                  role="tab"
+                  aria-selected={appFilter === 'ALL'}
+                  className={`guardian-filter-tab ${appFilter === 'ALL' ? 'is-active' : ''}`}
+                  onClick={() => setAppFilter('ALL')}
                 >
-                  Cancel
+                  All ({discoveredApps.length})
                 </button>
                 <button
-                  type="submit"
-                  className="quick-btn-submit"
-                  disabled={
-                    overrideLoading ||
-                    !overridePassword ||
-                    overrideReason.trim().length < 15
-                  }
-                  style={{
-                    background:
-                      overrideReason.trim().length >= 15 && overridePassword
-                        ? 'linear-gradient(135deg, #FF4D5E 0%, #D92B3E 100%)'
-                        : undefined,
-                    borderColor: '#FF4D5E',
-                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={appFilter === 'BLOCKED'}
+                  className={`guardian-filter-tab ${appFilter === 'BLOCKED' ? 'is-active' : ''}`}
+                  onClick={() => setAppFilter('BLOCKED')}
                 >
-                  {overrideLoading ? 'Confirming...' : 'Confirm Protection Change'}
+                  Blocked ({blockedCount})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={appFilter === 'ALLOWED'}
+                  className={`guardian-filter-tab ${appFilter === 'ALLOWED' ? 'is-active' : ''}`}
+                  onClick={() => setAppFilter('ALLOWED')}
+                >
+                  Allowed ({allowedCount})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={appFilter === 'RUNNING'}
+                  className={`guardian-filter-tab ${appFilter === 'RUNNING' ? 'is-active' : ''}`}
+                  onClick={() => setAppFilter('RUNNING')}
+                >
+                  Running ({runningCount})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={appFilter === 'UNCONFIGURED'}
+                  className={`guardian-filter-tab ${appFilter === 'UNCONFIGURED' ? 'is-active' : ''}`}
+                  onClick={() => setAppFilter('UNCONFIGURED')}
+                >
+                  Unconfigured ({unconfiguredCount})
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+
+            {appsLoading && discoveredApps.length === 0 ? (
+              <p className="guardian-alpha-empty">Scanning installed applications...</p>
+            ) : visibleApps.length > 0 ? (
+              <ul className="guardian-app-list">
+                {visibleApps.map((app) => (
+                  <li key={app.id} className="guardian-app-item">
+                    <div className="guardian-app-item-main">
+                      <span className="guardian-alpha-app-icon">
+                        <Icon name={app.isRunning ? 'play' : 'apps'} size={16} />
+                      </span>
+                      <div className="guardian-app-item-info">
+                        <div className="guardian-app-item-title">
+                          <strong>{app.name}</strong>
+                          <div className="guardian-app-badges">
+                            <span className={`guardian-app-badge ${app.isRunning ? 'badge-running' : 'badge-idle'}`}>
+                              {app.isRunning ? '● Running' : 'Idle'}
+                            </span>
+                            <span className={`guardian-app-badge ${app.enforcementCapability === 'TERMINATE' || app.enforcementCapability === 'MONITOR_ONLY' ? 'badge-idle' : 'badge-unsupported'}`} title={app.unsupportedReason || undefined}>
+                              {app.enforcementCapability === 'TERMINATE' ? 'Eligible — warning only' : app.enforcementCapability === 'MONITOR_ONLY' ? 'Observation only' : app.unsupportedReason?.includes('Protected') ? 'Protected system app' : 'Unsupported'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="guardian-app-meta">
+                          <code>{app.execName || 'unresolved'}</code>
+                          <span>·</span>
+                          <span>{app.source}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {app.enforcementCapability === 'UNSUPPORTED' ? (
+                      <span className="guardian-app-protected-label">Protected system</span>
+                    ) : (
+                      <div className="guardian-policy-segmented" role="group" aria-label={`Focus policy for ${app.name}`}>
+                        <button
+                          type="button"
+                          className={`segmented-btn btn-block ${app.policy === 'BLOCKED' ? 'is-active' : ''}`}
+                          onClick={() => handleSetAppPolicy(app, app.policy === 'BLOCKED' ? 'NONE' : 'BLOCKED')}
+                          title={app.policy === 'BLOCKED' ? 'Remove saved block policy' : 'Save a block policy for Focus; it applies only while observation is enabled'}
+                        >
+                          Block
+                        </button>
+                        <button
+                          type="button"
+                          className={`segmented-btn btn-allow ${app.policy === 'ALLOWED' ? 'is-active' : ''}`}
+                          onClick={() => handleSetAppPolicy(app, app.policy === 'ALLOWED' ? 'NONE' : 'ALLOWED')}
+                          title={app.policy === 'ALLOWED' ? 'Click to remove allow' : 'Explicitly allow this application during Focus'}
+                        >
+                          Allow
+                        </button>
+                        <button
+                          type="button"
+                          className={`segmented-btn btn-none ${app.policy === 'NONE' ? 'is-active' : ''}`}
+                          onClick={() => handleSetAppPolicy(app, 'NONE')}
+                          title="No policy (default)"
+                        >
+                          Off
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="guardian-alpha-empty-banner">
+                <p className="guardian-alpha-empty">
+                  {appSearch
+                    ? 'No installed applications match the search query.'
+                    : discoveredApps.length === 0
+                      ? 'No local desktop shortcuts discovered. Distraction policies can be referenced from the catalog below.'
+                      : 'No applications found in this filter category.'}
+                </p>
+              </div>
+            )}
+
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: 0,
+                  color: 'var(--text-2)',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: 0,
+                }}
+                onClick={() => setShowBuiltinCatalog((prev) => !prev)}
+              >
+                <span style={{ transform: showBuiltinCatalog ? 'rotate(180deg)' : 'none', display: 'inline-flex', transition: 'transform 0.15s ease' }}>
+                  <Icon name="chevron" size={12} />
+                </span>
+                <span>{showBuiltinCatalog ? 'Hide default distraction catalog' : `View default distraction catalog (${catalog.length} apps)`}</span>
+              </button>
+              {showBuiltinCatalog && (
+                <ul className="guardian-alpha-catalog" style={{ marginTop: 10 }}>
+                  {catalog.map((entry) => (
+                    <li key={entry.processName}>
+                      <span className="guardian-alpha-app-icon"><Icon name="apps" size={16} /></span>
+                      <span><strong>{entry.processName}</strong><small>{entry.rationale}</small></span>
+                      <span className="guardian-alpha-category">{entry.category}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
         </div>
       )}
 
-      {/* Process Table Card */}
-      <div className="tm-table-card">
-        <div className="tm-table-header">
-          <div>
-            <h3 className="tm-table-title">Live Process Table</h3>
-            <span className="tm-table-count">
-              Showing {deviceSnapshot?.processes.length ?? 0} processes on {deviceSnapshot?.systemInfo.deviceName || 'Local Device'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table className="tm-table">
-            <thead>
-              <tr>
-                <th style={{ width: 80 }}>PID</th>
-                <th>Process / Application</th>
-                <th style={{ width: 110 }}>CPU (%)</th>
-                <th style={{ width: 130 }}>Memory</th>
-                <th style={{ width: 140 }}>Policy Status</th>
-                <th style={{ width: 130, textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deviceSnapshot && deviceSnapshot.processes.length > 0 ? (
-                deviceSnapshot.processes.map((proc: ProcessInfo, idx: number) => (
-                  <tr key={proc.pid} className="proc-row-stagger" style={{ animationDelay: `${Math.min(idx * 0.02, 0.4)}s` }}>
-                    <td>
-                      <span className="tm-pid-badge">{proc.pid}</span>
-                    </td>
-                    <td>
-                      <div className="tm-proc-name">
-                        <span>{proc.name}</span>
-                      </div>
-                      {proc.executablePath && (
-                        <div className="tm-proc-path" title={proc.executablePath}>
-                          {proc.executablePath}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {proc.cpuPercent == null ? 'Unavailable' : `${proc.cpuPercent.toFixed(1)}%`}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {proc.memoryBytes == null ? 'Unavailable' : proc.memoryBytes > 0
-                          ? proc.memoryBytes > 1024 * 1024 * 1024
-                            ? `${(proc.memoryBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-                            : `${Math.round(proc.memoryBytes / (1024 * 1024))} MB`
-                          : '--'}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`tm-policy-badge ${proc.shinpoPolicyState === 'ALLOWED'
-                          ? 'allowed'
-                          : proc.shinpoPolicyState === 'BLOCKED'
-                            ? 'blocked'
-                            : 'protected'
-                          }`}
-                      >
-                        {proc.shinpoPolicyState === 'ALLOWED' && 'Allowed'}
-                        {proc.shinpoPolicyState === 'BLOCKED' && 'Blocked'}
-                        {proc.shinpoPolicyState === 'PROTECTED' && 'Protected'}
-                        {proc.shinpoPolicyState === 'UNKNOWN' && 'Monitored'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {proc.canControl && proc.shinpoPolicyState !== 'PROTECTED' ? (
-                        <button
-                          type="button"
-                          className="tm-btn-terminate btn-spring"
-                          onClick={() => handleTerminateProcess(proc)}
-                        >
-                          Terminate
-                        </button>
-                      ) : (
-                        <span className="tm-protected-label">
-                          Protected
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: 'var(--text-3)' }}>
-                    {tmLoading ? 'Enumerating device processes...' : 'No matching processes found.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {activeSubTab === 'guardian' && (
+        <p className="guardian-alpha-note">Website restrictions require a connected Browser Companion. Its connection and policy status are managed separately.</p>
+      )}
     </div>
   )
 }

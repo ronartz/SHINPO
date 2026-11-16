@@ -82,7 +82,7 @@ export const AuroraAppShell: React.FC<AuroraAppShellProps> = ({
           display: 'flex',
           position: 'relative',
           overflow: 'hidden',
-          fontFamily: "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          fontFamily: "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         }}
       >
         {/* Background Atmospheric Aurora Glow */}

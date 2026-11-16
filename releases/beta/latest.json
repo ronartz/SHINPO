@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0-beta.1",
+  "notes": "SHINPO 0.1.0-beta.1 Initial Beta Release: Cinematic Glass Logo Reveal, interactive theme-aware button system, Focus Guardian warning engine, and signed Ed25519 auto-updater.",
+  "pub_date": "2026-11-16T12:00:00Z",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-desktop_0.1.0-beta.1_amd64.AppImage.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-desktop_0.1.0-beta.1_x64-setup.nsis.zip"
+    }
+  }
+}

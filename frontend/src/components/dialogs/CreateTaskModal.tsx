@@ -109,8 +109,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               Goal
             </label>
             {goals.length === 0 ? (
-              <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(255, 77, 94, 0.1)', border: '1px solid rgba(255, 77, 94, 0.3)' }}>
-                <p style={{ fontSize: 13.5, color: 'var(--brand-coral, #FF4D5E)', margin: 0, fontWeight: 600 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 8, background: 'color-mix(in srgb, var(--brand-highlight) 10.0%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-highlight) 30.0%, transparent)' }}>
+                <p style={{ fontSize: 13.5, color: 'var(--brand-coral, var(--brand-primary))', margin: 0, fontWeight: 600 }}>
                   Create a goal before adding a task.
                 </p>
               </div>
@@ -194,7 +194,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     style={{
                       marginBottom: 0,
                       paddingRight: 60,
-                      borderColor: !isCustomValid ? 'var(--brand-coral, #FF4D5E)' : undefined,
+                      borderColor: !isCustomValid ? 'var(--brand-coral, var(--brand-primary))' : undefined,
                     }}
                     aria-label="Custom duration in minutes"
                     aria-invalid={!isCustomValid}
@@ -216,7 +216,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   </span>
                 </div>
                 {!isCustomValid ? (
-                  <span style={{ fontSize: 12, color: 'var(--brand-coral, #FF4D5E)', fontWeight: 600 }}>
+                  <span style={{ fontSize: 12, color: 'var(--brand-coral, var(--brand-primary))', fontWeight: 600 }}>
                     <span id="create-task-duration-help">
                       Please enter a duration between {MIN_DURATION} and {MAX_DURATION} minutes.
                     </span>

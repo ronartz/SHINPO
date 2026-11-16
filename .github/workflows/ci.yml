@@ -1,133 +1,367 @@
-name: CI / Build & Test
+name: SHINPO CI
 
 on:
   push:
-    branches: [ main ]
+    branches: ["**"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend:
-    name: Backend Build & Test
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: shinpo_test
-          POSTGRES_USER: shinpo
-          POSTGRES_PASSWORD: shinpo_dev
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+  desktop-linux:
+    name: Desktop tests and build (Ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential curl file libayatana-appindicator3-dev libfuse2t64 \
+            libssl-dev libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev patchelf pkg-config rpm wget
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Verify zero legacy backend residue
+        run: ./scripts/check-no-legacy-backend.sh
+      - name: Audit frontend production dependencies
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+      - name: Report frontend development dependency audit
+        run: |
+          echo "=== Full frontend dependency audit (including development tooling) ==="
+          npm audit || true
+        working-directory: frontend
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+      - name: Browser Companion tests
+        run: npm test
+        working-directory: browser-extension
+      - name: Prepare Tauri embedded resources
+        run: node ../scripts/prepare-desktop-bundle.mjs
+        working-directory: frontend
+      - name: Tauri Rust tests
+        run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Tauri strict Clippy
+        run: cargo clippy --locked --manifest-path frontend/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Tauri formatting
+        run: cargo fmt --manifest-path frontend/src-tauri/Cargo.toml --check
+      - name: Build Tauri desktop binary
+        run: cargo build --locked --release --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Run isolated native SQLCipher smoke test
+        run: ./frontend/src-tauri/target/release/shinpo-desktop --smoke-test
+      - name: Shield tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-shield/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-shield/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-shield/Cargo.toml --check
+      - name: Browser Host tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-browser-host/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-browser-host/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-browser-host/Cargo.toml --check
 
-    - name: Set up JDK 25
-      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
-      with:
-        java-version: '25'
-        distribution: 'temurin'
-        cache: 'maven'
-        cache-dependency-path: backend/pom.xml
-
-    - name: Make Maven wrapper executable
-      run: chmod +x mvnw
-      working-directory: backend
-
-    - name: Run Backend Tests
-      run: ./mvnw -B test
-      working-directory: backend
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_DB: shinpo_test
-        POSTGRES_USER: shinpo
-        POSTGRES_PASSWORD: shinpo_dev
-        SHINPO_JWT_SECRET: shinpo_test_secret_key_minimum_32_characters_for_hmac256_testing_only
-
-  frontend:
-    name: Frontend Lint & Build
-    runs-on: ubuntu-latest
+  desktop-windows:
+    name: Desktop tests and build (Windows MSVC)
+    runs-on: windows-2025
+    timeout-minutes: 60
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-
-    - name: Set up Node.js 22
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-
-    - name: Install Dependencies
-      run: npm ci
-      working-directory: frontend
-
-    - name: Audit locked frontend dependencies
-      run: npm audit --audit-level=high
-      working-directory: frontend
-
-    - name: Lint
-      run: npm run lint
-      working-directory: frontend
-
-    - name: Unit Tests
-      run: npm test
-      working-directory: frontend
-
-    - name: Build
-      run: npm run build
-      working-directory: frontend
-
-    - name: Browser Extension Tests
-      run: npm test
-      working-directory: browser-extension
-
-  rust-shield:
-    name: Rust Shield Tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable at 2026-10-21
-
-    - name: Run Rust Shield Tests
-      run: cargo test
-      working-directory: crates/shinpo-shield
-
-    - name: Run Rust Browser Host Tests
-      run: cargo test
-      working-directory: crates/shinpo-browser-host
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Confirm MSVC toolchain
+        shell: pwsh
+        run: |
+          rustc -vV
+          cargo -V
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "Visual Studio locator vswhere.exe is unavailable" }
+          $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsPath) { throw "Visual Studio C++ x64 build tools are unavailable" }
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+          if (-not (Test-Path $vcvars)) { throw "MSVC environment script is unavailable: $vcvars" }
+          $vcEnvironment = & $env:ComSpec /d /s /c "call `"$vcvars`" >nul && set"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to initialize the MSVC x64 environment" }
+          $msvcPath = $null
+          $requiredVariables = @('INCLUDE', 'LIB', 'LIBPATH', 'VSINSTALLDIR', 'VCINSTALLDIR', 'VCToolsInstallDir', 'VCToolsVersion', 'WindowsSdkDir', 'WindowsSDKVersion', 'UniversalCRTSdkDir', 'UCRTVersion', 'VisualStudioVersion', 'VSCMD_ARG_TGT_ARCH', 'VSCMD_ARG_HOST_ARCH')
+          $existingPath = $env:PATH -split ';'
+          foreach ($line in $vcEnvironment) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              $name = $Matches[1]
+              $value = $Matches[2]
+              if ($name -ieq 'PATH') {
+                $msvcPath = $value
+                $value -split ';' | Where-Object { $_ -and $_ -notin $existingPath } | Add-Content -Path $env:GITHUB_PATH -Encoding utf8
+              } elseif ($name -in $requiredVariables) {
+                Add-Content -Path $env:GITHUB_ENV -Value "$name=$value" -Encoding utf8
+              }
+            }
+          }
+          $clPath = $msvcPath -split ';' | ForEach-Object { Join-Path $_ 'cl.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $clPath) { throw "MSVC compiler cl.exe is unavailable after initializing vcvars64.bat" }
+      - name: Install static SQLCipher OpenSSL dependency
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:VCPKG_INSTALLATION_ROOT 'vcpkg.exe'
+          & $vcpkg install openssl:x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg failed to install SQLCipher's OpenSSL dependency" }
+          $openssl = Join-Path $env:VCPKG_INSTALLATION_ROOT 'installed\x64-windows-static-md'
+          $include = Join-Path $openssl 'include'
+          $lib = Join-Path $openssl 'lib'
+          if (-not (Test-Path (Join-Path $include 'openssl\opensslv.h')) -or -not (Test-Path (Join-Path $lib 'libcrypto.lib'))) {
+            throw "The installed OpenSSL headers or x64 static library are missing"
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$openssl" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$include" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$lib" -Encoding utf8
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Audit frontend production dependencies
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+      - name: Report frontend development dependency audit
+        shell: bash
+        run: |
+          echo "=== Full frontend dependency audit (including development tooling) ==="
+          npm audit || true
+        working-directory: frontend
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+      - name: Browser Companion tests
+        run: npm test
+        working-directory: browser-extension
+      - name: Prepare Tauri embedded resources
+        run: node ../scripts/prepare-desktop-bundle.mjs
+        working-directory: frontend
+      - name: Tauri Rust tests
+        run: cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Tauri strict Clippy
+        run: cargo clippy --locked --manifest-path frontend/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Tauri formatting
+        run: cargo fmt --manifest-path frontend/src-tauri/Cargo.toml --check
+      - name: Build Tauri desktop binary
+        run: cargo build --locked --release --manifest-path frontend/src-tauri/Cargo.toml
+      - name: Run isolated native SQLCipher smoke test
+        shell: pwsh
+        run: ./frontend/src-tauri/target/release/shinpo-desktop.exe --smoke-test
+      - name: Shield tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-shield/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-shield/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-shield/Cargo.toml --check
+      - name: Browser Host tests and Clippy
+        run: |
+          cargo test --locked --manifest-path crates/shinpo-browser-host/Cargo.toml
+          cargo clippy --locked --manifest-path crates/shinpo-browser-host/Cargo.toml --all-targets -- -D warnings
+          cargo fmt --manifest-path crates/shinpo-browser-host/Cargo.toml --check
 
   security:
-    name: Dependency and secret checks
-    runs-on: ubuntu-latest
+    name: Existing secret and Rust dependency checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: read
     steps:
-    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-      with:
-        fetch-depth: 0
-    - name: Scan repository history for secrets
-      uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITLEAKS_ENABLE_COMMENTS: 'false'
-    - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
-    - name: Audit Rust dependency lockfiles
-      run: |
-        cargo audit --file crates/shinpo-shield/Cargo.lock
-        cargo audit --file crates/shinpo-browser-host/Cargo.lock
-        cargo audit --file frontend/src-tauri/Cargo.lock
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Initialize security reports directory
+        run: mkdir -p security-reports
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+      - name: Install cargo-audit and cargo-deny
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo install cargo-deny --version 0.16.4 --locked
+      - name: Install OSV-Scanner CLI v2.7.1
+        run: |
+          OSV_VERSION="v2.7.1"
+          OSV_BINARY="osv-scanner_linux_amd64"
+          EXPECTED_SHA256="fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/${OSV_BINARY}" -o /tmp/${OSV_BINARY}
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_SHA256SUMS" -o /tmp/osv-scanner_SHA256SUMS
+          grep -E "^${EXPECTED_SHA256}\s+${OSV_BINARY}$" /tmp/osv-scanner_SHA256SUMS || {
+            echo "Checksum verification failed: hash not found in upstream osv-scanner_SHA256SUMS asset"
+            exit 1
+          }
+          echo "${EXPECTED_SHA256}  /tmp/${OSV_BINARY}" | sha256sum -c -
+          chmod +x /tmp/${OSV_BINARY}
+          sudo mv /tmp/${OSV_BINARY} /usr/local/bin/osv-scanner
+          osv-scanner --version
+      - name: Scan repository history for secrets
+        id: gitleaks
+        if: always()
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Record Gitleaks outcome
+        if: always()
+        run: |
+          if [ "${{ steps.gitleaks.outcome }}" = "success" ]; then
+            echo 0 > security-reports/status-gitleaks.txt
+          else
+            echo 1 > security-reports/status-gitleaks.txt
+          fi
+      - name: Semgrep SAST scan
+        if: always()
+        run: |
+          set +e
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src semgrep/semgrep semgrep scan --config p/default --config p/secrets --config p/security-audit --sarif --output /src/security-reports/semgrep.sarif
+          STATUS_SEMGREP=$?
+          set -e
+          if [ -s security-reports/semgrep.sarif ] && [ "$STATUS_SEMGREP" -eq 0 ]; then
+            echo 0 > security-reports/status-semgrep.txt
+          else
+            echo "${STATUS_SEMGREP:-1}" > security-reports/status-semgrep.txt
+          fi
+      - name: OSV-Scanner dependency scan
+        if: always()
+        run: |
+          set +e
+          osv-scanner scan source -r . --format table
+          osv-scanner scan source -r . --format json --output-file security-reports/osv-scanner.json
+          STATUS_OSV=$?
+          set -e
+          echo "$STATUS_OSV" > security-reports/status-osv-scanner.txt
+      - name: Audit Rust dependency lockfiles
+        if: always()
+        run: |
+          set +e
+          echo "=== Scanning crates/shinpo-shield/Cargo.lock ==="
+          cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock
+          cargo audit --deny unsound --file crates/shinpo-shield/Cargo.lock --json > security-reports/cargo-audit-shield.json
+          STATUS_AUDIT_SHIELD=$?
+          echo "$STATUS_AUDIT_SHIELD" > security-reports/status-cargo-audit-shield.txt
+
+          echo "=== Scanning crates/shinpo-browser-host/Cargo.lock ==="
+          cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock
+          cargo audit --deny unsound --file crates/shinpo-browser-host/Cargo.lock --json > security-reports/cargo-audit-browser-host.json
+          STATUS_AUDIT_HOST=$?
+          echo "$STATUS_AUDIT_HOST" > security-reports/status-cargo-audit-browser-host.txt
+
+          echo "=== Scanning frontend/src-tauri/Cargo.lock ==="
+          # Policy Exception: RUSTSEC-2024-0429 (glib v0.18.5 VariantStrIter unsoundness)
+          # Transitive GTK 0.18 binding pinned by Tauri 2.12.3; unreachable in SHINPO; review: 2027-02-16
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock
+          cargo audit --deny unsound --ignore RUSTSEC-2024-0429 --file frontend/src-tauri/Cargo.lock --json > security-reports/cargo-audit-frontend-tauri.json
+          STATUS_AUDIT_TAURI=$?
+          echo "$STATUS_AUDIT_TAURI" > security-reports/status-cargo-audit-frontend-tauri.txt
+          set -e
+      - name: Cargo Deny checks
+        if: always()
+        run: |
+          set +e
+          echo "=== Cargo Deny: crates/shinpo-shield ==="
+          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-shield.json
+          STATUS_DENY_SHIELD=$?
+          echo "$STATUS_DENY_SHIELD" > security-reports/status-cargo-deny-shield.txt
+
+          echo "=== Cargo Deny: crates/shinpo-browser-host ==="
+          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-browser-host.json
+          STATUS_DENY_HOST=$?
+          echo "$STATUS_DENY_HOST" > security-reports/status-cargo-deny-browser-host.txt
+
+          echo "=== Cargo Deny: frontend/src-tauri ==="
+          cargo deny --manifest-path frontend/src-tauri/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
+          cargo deny --manifest-path frontend/src-tauri/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-frontend-tauri.json
+          STATUS_DENY_TAURI=$?
+          echo "$STATUS_DENY_TAURI" > security-reports/status-cargo-deny-frontend-tauri.txt
+          set -e
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: security-reports
+          path: security-reports/
+      - name: Aggregate security scan results
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "           SECURITY SCAN RESULTS SUMMARY          "
+          echo "=================================================="
+          REQUIRED_CHECKS=(
+            "gitleaks"
+            "semgrep"
+            "osv-scanner"
+            "cargo-audit-shield"
+            "cargo-audit-browser-host"
+            "cargo-audit-frontend-tauri"
+            "cargo-deny-shield"
+            "cargo-deny-browser-host"
+            "cargo-deny-frontend-tauri"
+          )
+
+          FAILED_CHECKS=()
+          PASSED_CHECKS=()
+
+          for check in "${REQUIRED_CHECKS[@]}"; do
+            status_file="security-reports/status-${check}.txt"
+            if [ ! -f "$status_file" ]; then
+              echo "❌ $check: MISSING (step did not execute or record status)"
+              FAILED_CHECKS+=("$check")
+            else
+              status_code=$(cat "$status_file" | tr -d '[:space:]')
+              if [ "$status_code" -eq 0 ]; then
+                echo "✅ $check: PASSED (exit code 0)"
+                PASSED_CHECKS+=("$check")
+              else
+                echo "❌ $check: FAILED (exit code $status_code)"
+                FAILED_CHECKS+=("$check")
+              fi
+            fi
+          done
+
+          echo "=================================================="
+          echo "Passed checks: ${#PASSED_CHECKS[@]}/${#REQUIRED_CHECKS[@]}"
+          echo "Failed checks: ${#FAILED_CHECKS[@]}/${#REQUIRED_CHECKS[@]}"
+          echo "=================================================="
+
+          if [ ${#FAILED_CHECKS[@]} -ne 0 ]; then
+            echo "Security verification failed for: ${FAILED_CHECKS[*]}"
+            exit 1
+          fi
+          echo "All mandatory security policies satisfied."

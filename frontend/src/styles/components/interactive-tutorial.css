@@ -1,0 +1,1096 @@
+/* ==========================================================================
+   SHINPO — CINEMATIC INTERACTIVE FIRST-RUN TUTORIAL STYLES
+   Curved Journey Path, Interactive Stages & Theme-Aware Modal Surface
+   ========================================================================== */
+
+/* 1. Full-Screen Dimmed Backdrop */
+.shinpo-tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(5, 10, 20, 0.76);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: tutorial-fade-in 220ms ease-out;
+}
+
+@keyframes tutorial-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 2. Main Centered Tutorial Surface */
+.shinpo-tutorial-surface {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  color: var(--color-text-primary, #f3f4f6);
+  animation: tutorial-slide-up 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tutorial-slide-up {
+  from { transform: translateY(16px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Theme-Specific Surfaces */
+.theme-light .shinpo-tutorial-surface {
+  background: #ffffff;
+  border-color: rgba(124, 58, 237, 0.22);
+  box-shadow: 0 24px 64px -12px rgba(124, 58, 237, 0.16), 0 2px 12px rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+
+/* Classic Light Theme Overrides */
+html[data-brand='classic'][data-theme='light'] .shinpo-tutorial-surface,
+.theme-light:not(.theme-aurora) .shinpo-tutorial-surface {
+  background: #FFFDF9;
+  border-color: #DACBB0;
+  box-shadow: 0 24px 64px -12px rgba(45, 35, 20, 0.15), 0 2px 10px rgba(0, 0, 0, 0.04);
+  color: #1c1917;
+}
+
+/* 3. Header & Curved Journey Path */
+.tutorial-header {
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.theme-light .tutorial-header {
+  border-bottom-color: rgba(124, 58, 237, 0.12);
+}
+
+html[data-brand='classic'][data-theme='light'] .tutorial-header,
+.theme-light:not(.theme-aurora) .tutorial-header {
+  border-bottom-color: #E7DECF;
+}
+
+.tutorial-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tutorial-eyebrow-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-eyebrow-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: rgba(124, 58, 237, 0.22);
+  color: #c4b5fd;
+  border: 1px solid rgba(196, 181, 253, 0.4);
+}
+
+.theme-light .tutorial-eyebrow-badge {
+  background: #f3e8ff;
+  color: #5b21b6;
+  border-color: #c4b5fd;
+}
+
+.tutorial-counter {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.theme-light .tutorial-counter {
+  color: #64748b;
+}
+
+.tutorial-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.tutorial-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.theme-light .tutorial-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+
+/* 4. Journey SVG Path Rail */
+.tutorial-journey-rail {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.tutorial-journey-svg {
+  width: 100%;
+  max-width: 720px;
+  height: 64px;
+  overflow: visible;
+}
+
+.journey-path-background {
+  fill: none;
+  stroke: var(--border, rgba(255, 255, 255, 0.12));
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.theme-light .journey-path-background {
+  stroke: rgba(124, 58, 237, 0.16);
+}
+
+html[data-brand='classic'][data-theme='light'] .journey-path-background,
+.theme-light:not(.theme-aurora) .journey-path-background {
+  stroke: #DACBB0;
+}
+
+.journey-path-progress {
+  fill: none;
+  stroke: var(--brand-primary, #7c3aed);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-light:not(.theme-aurora) .journey-path-progress,
+html[data-brand='classic'] .journey-path-progress {
+  stroke: #4D7C0F;
+}
+
+/* Journey Milestone Nodes */
+.journey-node {
+  cursor: pointer;
+  transition: transform 200ms ease;
+}
+
+.journey-node:hover {
+  transform: scale(1.12);
+}
+
+.journey-node-circle {
+  fill: var(--surface-card, #111827);
+  stroke: var(--border, rgba(255, 255, 255, 0.2));
+  stroke-width: 2;
+  transition: all 220ms ease;
+}
+
+.theme-light .journey-node-circle {
+  fill: #ffffff;
+  stroke: rgba(124, 58, 237, 0.25);
+}
+
+.journey-node.is-completed .journey-node-circle {
+  fill: var(--brand-primary, #7c3aed);
+  stroke: var(--brand-primary, #7c3aed);
+}
+
+.theme-light:not(.theme-aurora) .journey-node.is-completed .journey-node-circle,
+html[data-brand='classic'] .journey-node.is-completed .journey-node-circle {
+  fill: #4D7C0F;
+  stroke: #4D7C0F;
+}
+
+.journey-node.is-active .journey-node-circle {
+  fill: var(--surface-card, #111827);
+  stroke: var(--brand-primary, #7c3aed);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--brand-primary, #7c3aed) 60%, transparent));
+}
+
+.theme-light .journey-node.is-active .journey-node-circle {
+  fill: #ffffff;
+  stroke: #6D28D9;
+  filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.4));
+}
+
+.journey-node-text {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--color-text-secondary, #94a3b8);
+  pointer-events: none;
+}
+
+.theme-light .journey-node-text {
+  fill: #64748b;
+}
+
+.journey-node.is-completed .journey-node-text {
+  fill: #ffffff;
+}
+
+.journey-node.is-active .journey-node-text {
+  fill: var(--brand-primary, #7c3aed);
+  font-weight: 900;
+}
+
+.theme-light .journey-node.is-active .journey-node-text {
+  fill: #6D28D9;
+}
+
+/* 5. Scrollable Stage Content Area */
+.tutorial-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stage-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stage-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary, #ffffff);
+  margin: 0;
+}
+
+.theme-light .stage-title {
+  color: #0f172a;
+}
+
+.stage-subtitle {
+  font-size: 14.5px;
+  color: var(--color-text-secondary, #94a3b8);
+  margin: 0;
+}
+
+.theme-light .stage-subtitle {
+  color: #475569;
+}
+
+/* Workflow Chain Preview Badge */
+.workflow-chain-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(196, 181, 253, 0.35);
+  width: fit-content;
+  color: #e0e7ff;
+}
+
+.theme-light .workflow-chain-indicator {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #4c1d95;
+}
+
+.workflow-chain-arrow {
+  color: #cbd5e1;
+}
+
+.theme-light .workflow-chain-arrow {
+  color: #6b21a8;
+}
+
+/* 6. Interactive Exercise Containers */
+.interactive-exercise-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface-2, #1f2937) 60%, transparent);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.theme-light .interactive-exercise-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+html[data-brand='classic'][data-theme='light'] .interactive-exercise-card,
+.theme-light:not(.theme-aurora) .interactive-exercise-card {
+  background: #F8F4EC;
+  border-color: #E7DECF;
+}
+
+/* Option Selection Grid (Stages 1 & 2) */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.choice-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-card, #111827);
+  border: 1.5px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-primary, #ffffff);
+  cursor: pointer;
+  transition: all 180ms ease;
+  position: relative;
+}
+
+.theme-light .choice-card-btn {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.choice-card-btn:hover {
+  border-color: var(--brand-primary, #7c3aed);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.choice-card-btn.is-selected {
+  border-color: var(--brand-primary, #7c3aed);
+  background: color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, var(--surface-card, #111827));
+  box-shadow: 0 0 0 1px var(--brand-primary, #7c3aed);
+}
+
+.theme-light .choice-card-btn.is-selected {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 1px #7c3aed;
+}
+
+.choice-card-category {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  color: #c4b5fd;
+  letter-spacing: 0.04em;
+}
+
+.theme-light .choice-card-category {
+  color: #6d28d9;
+}
+
+.choice-card-title {
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.choice-card-desc {
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.theme-light .choice-card-desc {
+  color: #334155;
+}
+
+.choice-card-btn.is-selected .choice-card-desc {
+  color: #f8fafc;
+}
+
+.theme-light .choice-card-btn.is-selected .choice-card-desc {
+  color: #0f172a;
+}
+
+/* Custom Goal Input */
+.custom-input-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.custom-text-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.15));
+  color: inherit;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 150ms ease;
+  box-sizing: border-box;
+}
+
+.custom-text-input:focus {
+  border-color: var(--brand-primary, #7c3aed);
+}
+
+.theme-light .custom-text-input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+/* Objective Feedback Callout */
+.objective-feedback-box {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.objective-feedback-box.is-actionable {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.theme-light .objective-feedback-box.is-actionable {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #047857;
+}
+
+.objective-feedback-box.is-vague {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.theme-light .objective-feedback-box.is-vague {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #b45309;
+}
+
+/* 7. Stage 3 — Task Simulation Layout */
+.task-planner-simulation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .task-planner-simulation {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.task-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.pill-selector-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.selector-pill-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.theme-light .selector-pill-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.selector-pill-btn:hover {
+  border-color: var(--brand-primary, #7c3aed);
+}
+
+.selector-pill-btn.is-active {
+  background: var(--brand-primary, #7c3aed);
+  border-color: var(--brand-primary, #7c3aed);
+  color: #ffffff;
+}
+
+.theme-light:not(.theme-aurora) .selector-pill-btn.is-active,
+html[data-brand='classic'] .selector-pill-btn.is-active {
+  background: #4D7C0F;
+  border-color: #4D7C0F;
+}
+
+/* Simulated Task Card Preview */
+.task-preview-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-primary, #7c3aed) 5%, transparent);
+  border: 1px dashed var(--border-strong, rgba(255, 255, 255, 0.15));
+}
+
+.simulated-task-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-light .simulated-task-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.simulated-task-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.simulated-priority-tag {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.simulated-priority-tag.p-high {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ef4444;
+}
+
+.simulated-priority-tag.p-medium {
+  background: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
+}
+
+.simulated-priority-tag.p-low {
+  background: rgba(59, 130, 246, 0.16);
+  color: #3b82f6;
+}
+
+.simulated-duration-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.theme-light .simulated-duration-pill {
+  color: #64748b;
+}
+
+/* 8. Stage 4 — Calendar Timeline Simulation */
+.calendar-simulation-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.calendar-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.calendar-slot-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-card, #111827);
+  border: 1.5px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.theme-light .calendar-slot-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.calendar-slot-btn:hover {
+  border-color: var(--brand-primary, #7c3aed);
+}
+
+.calendar-slot-btn.is-active {
+  background: color-mix(in srgb, var(--brand-primary, #7c3aed) 14%, var(--surface-card, #111827));
+  border-color: var(--brand-primary, #7c3aed);
+  color: var(--brand-primary, #7c3aed);
+}
+
+.theme-light .calendar-slot-btn.is-active {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6D28D9;
+}
+
+/* Simulated Timeline Track */
+.timeline-track-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.theme-light .timeline-track-preview {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.timeline-hour-gutter {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-text-secondary, #94a3b8);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+}
+
+.timeline-focus-block {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(79, 70, 229, 0.18));
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  color: #ffffff;
+  animation: block-fade 200ms ease;
+}
+
+.theme-light .timeline-focus-block {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(79, 70, 229, 0.1));
+  border-color: rgba(124, 58, 237, 0.35);
+  color: #4C1D95;
+}
+
+@keyframes block-fade {
+  from { opacity: 0; transform: scaleX(0.9); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+/* 9. Stage 5 — Guardian Mode Simulation */
+.guardian-modes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.guardian-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-card, #111827);
+  border: 1.5px solid var(--border, rgba(255, 255, 255, 0.1));
+  cursor: pointer;
+  text-align: left;
+  transition: all 180ms ease;
+}
+
+.theme-light .guardian-mode-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.guardian-mode-card:hover {
+  border-color: var(--brand-primary, #7c3aed);
+}
+
+.guardian-mode-card.is-active {
+  background: color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, var(--surface-card, #111827));
+  border-color: var(--brand-primary, #7c3aed);
+}
+
+.theme-light .guardian-mode-card.is-active {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: #7c3aed;
+}
+
+.guardian-mode-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: inherit;
+}
+
+.guardian-mode-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary, #94a3b8);
+  line-height: 1.35;
+}
+
+.theme-light .guardian-mode-desc {
+  color: #64748b;
+}
+
+/* Simulated App Catalog Rule Row */
+.simulated-rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.theme-light .simulated-rule-row {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.rule-toggle-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.rule-pill-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 750;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+}
+
+.rule-pill-btn.is-blocked {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.rule-pill-btn.is-allowed {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* 10. Stage 6 — Accelerated Focus Engine Demo */
+.timer-simulation-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--brand-primary, #7c3aed) 16%, transparent), transparent 70%);
+}
+
+.demo-timer-clock {
+  font-family: inherit;
+  font-size: 48px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.theme-light .demo-timer-clock {
+  color: #0f172a;
+}
+
+.demo-timer-status {
+  font-size: 13px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-primary, #7c3aed);
+}
+
+.demo-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 160ms ease;
+}
+
+.demo-action-btn.btn-play {
+  background: var(--brand-primary, #7c3aed);
+  color: #ffffff;
+}
+
+.demo-action-btn.btn-pause {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.demo-action-btn.btn-complete {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+/* 11. Stage 7 — Complete Loop Review */
+.complete-loop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.loop-feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-card, #111827);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.theme-light .loop-feature-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.loop-feature-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #c4b5fd;
+}
+
+.theme-light .loop-feature-header {
+  color: #6d28d9;
+}
+
+.loop-feature-detail {
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.theme-light .loop-feature-detail {
+  color: #334155;
+}
+
+.workspace-seed-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(196, 181, 253, 0.35);
+  font-size: 13px;
+  color: #f1f5f9;
+  cursor: pointer;
+}
+
+.theme-light .workspace-seed-option {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #0f172a;
+}
+
+/* 12. Footer Navigation Controls */
+.tutorial-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.theme-light .tutorial-footer {
+  border-top-color: rgba(124, 58, 237, 0.12);
+}
+
+html[data-brand='classic'][data-theme='light'] .tutorial-footer,
+.theme-light:not(.theme-aurora) .tutorial-footer {
+  border-top-color: #E7DECF;
+}
+
+.tutorial-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-tutorial-skip {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary, #94a3b8);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: color 150ms ease;
+}
+
+.btn-tutorial-skip:hover {
+  color: var(--color-text-primary, #ffffff);
+}
+
+.theme-light .btn-tutorial-skip:hover {
+  color: #0f172a;
+}
+
+.btn-tutorial-back {
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.theme-light .btn-tutorial-back {
+  border-color: #cbd5e1;
+}
+
+.btn-tutorial-back:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.theme-light .btn-tutorial-back:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.btn-tutorial-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #6d28d9;
+  border: 1px solid #5b21b6;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 750;
+  padding: 8px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.4);
+}
+
+.theme-light:not(.theme-aurora) .btn-tutorial-primary,
+html[data-brand='classic'] .btn-tutorial-primary {
+  background: #4D7C0F;
+  border-color: #4D7C0F;
+  box-shadow: 0 4px 14px rgba(77, 124, 15, 0.3);
+}
+
+.btn-tutorial-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.btn-tutorial-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-tutorial-backdrop,
+  .shinpo-tutorial-surface,
+  .journey-node,
+  .journey-path-progress,
+  .timeline-focus-block,
+  .choice-card-btn,
+  .btn-tutorial-primary {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

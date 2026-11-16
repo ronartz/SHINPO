@@ -1,0 +1,481 @@
+/* ==========================================================================
+   SHINPO (進歩) — UNIVERSAL THEME-AWARE INTERACTIVE BUTTON SYSTEM
+   FlameButton edge-sensitive radial aura + cursor tracking + tactile feedback
+   ========================================================================== */
+
+/* 1. Theme-Specific Energy Feedback Variables */
+:root,
+[data-brand='classic'][data-theme='dark'],
+[data-theme='classic-dark'],
+html:not([data-brand='aurora']):not([data-theme='light']) {
+  --btn-energy-primary: #AFF33E;
+  --btn-energy-secondary: #a3e635;
+  --btn-energy-aura-opacity: 0.62;
+  --btn-energy-glow-size: 8px;
+  --btn-energy-bg-primary: #AFF33E;
+  --btn-energy-text-primary: #020617;
+  --btn-energy-ripple: rgba(175, 243, 62, 0.45);
+}
+
+[data-brand='classic'][data-theme='light'],
+[data-theme='classic-light'],
+html:not([data-brand='aurora'])[data-theme='light'] {
+  --btn-energy-primary: #4D7C0F;
+  --btn-energy-secondary: #3F6212;
+  --btn-energy-aura-opacity: 0.32;
+  --btn-energy-glow-size: 6px;
+  --btn-energy-bg-primary: #4D7C0F;
+  --btn-energy-text-primary: #FFFFFF;
+  --btn-energy-ripple: rgba(77, 124, 15, 0.35);
+}
+
+[data-brand='aurora'][data-theme='dark'],
+[data-theme='aurora-dark'],
+html[data-brand='aurora']:not([data-theme='light']) {
+  --btn-energy-primary: #9757FA;
+  --btn-energy-secondary: #1BC9DE;
+  --btn-energy-aura-opacity: 0.58;
+  --btn-energy-glow-size: 8px;
+  --btn-energy-bg-primary: linear-gradient(135deg, #9757FA 0%, #7C3AED 100%);
+  --btn-energy-text-primary: #FFFFFF;
+  --btn-energy-ripple: rgba(151, 87, 250, 0.45);
+}
+
+[data-brand='aurora'][data-theme='light'],
+[data-theme='aurora-light'],
+html[data-brand='aurora'][data-theme='light'] {
+  --btn-energy-primary: #7C3AED;
+  --btn-energy-secondary: #0284C7;
+  --btn-energy-aura-opacity: 0.28;
+  --btn-energy-glow-size: 6px;
+  --btn-energy-bg-primary: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  --btn-energy-text-primary: #FFFFFF;
+  --btn-energy-ripple: rgba(124, 58, 237, 0.35);
+}
+
+/* 2. Destructive Actions Semantic Override */
+.shinpo-interactive-btn.variant-destructive,
+.shinpo-interactive-btn.variant-danger,
+.shinpo-btn.variant-danger,
+.btn-timer.danger,
+.btn-timer.danger-subtle,
+.btn-icon-action.danger,
+.modal-btn-delete,
+.btn-icon-delete,
+[data-interactive-variant='destructive'],
+[data-interactive-variant='danger'] {
+  --btn-energy-primary: var(--color-danger, #F87171) !important;
+  --btn-energy-secondary: #DC2626 !important;
+  --btn-energy-aura-opacity: 0.55 !important;
+  --btn-energy-bg-primary: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%) !important;
+  --btn-energy-text-primary: #FFFFFF !important;
+  --btn-energy-ripple: rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 3. Base Universal Interactive Properties */
+button:not([data-no-interactive]):not(.no-interactive),
+.shinpo-interactive-btn,
+.shinpo-btn,
+.aurora-btn-primary,
+.aurora-btn-secondary,
+.aurora-btn-ghost,
+.btn-timer,
+.btn-hero-action,
+.btn-header-action,
+.preset-chip,
+.sidebar-btn,
+.sidebar-toggle-btn,
+.sidebar-quote-refresh-btn,
+.analytics-zero-btn,
+.dashboard-empty-btn,
+.sidecar-empty-action-btn,
+.sidecar-icon-btn,
+.ai-action-apply-btn,
+.ai-commit-plan-btn,
+.modal-btn-arm-sprint,
+.modal-btn-complete,
+.modal-btn-deconstruct,
+.modal-btn-delete,
+[data-interactive-btn] {
+  position: relative;
+  isolation: isolate;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 90ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+/* Direct children stay above background effects */
+button:not([data-no-interactive]):not(.no-interactive)>*,
+.shinpo-interactive-btn>*,
+.shinpo-btn>*,
+.aurora-btn-primary>*,
+.aurora-btn-secondary>*,
+.aurora-btn-ghost>*,
+.btn-timer>*,
+.btn-hero-action>*,
+.preset-chip>*,
+.sidebar-btn>*,
+[data-interactive-btn]:not([data-no-interactive])>* {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Explicit interactive children inside cards and panels retain full pointer-events */
+.sidebar-protection-panel,
+.sidebar-protection-panel *,
+.protection-view-btn,
+.protection-companion-row,
+.protection-companion-row * {
+  pointer-events: auto;
+}
+
+/* 4. Outer Luminous Energy Aura (Edge-Sensitive & Pointer-Tracking) */
+/* Primary variants: bright radiant edge-tracking aura */
+.shinpo-interactive-btn.variant-primary::before,
+.shinpo-btn.variant-primary::before,
+.aurora-btn-primary::before,
+.btn-timer.primary::before,
+.btn-hero-action.primary::before,
+.preset-chip.active::before,
+.analytics-zero-btn::before,
+.dashboard-empty-btn::before,
+[data-interactive-btn][data-interactive-variant='primary']::before,
+button.primary::before,
+button.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle 130px at var(--btn-x, 50%) var(--btn-y, 50%),
+      color-mix(in srgb, var(--btn-energy-primary) 85%, white) 0%,
+      var(--btn-energy-primary) 38%,
+      color-mix(in srgb, var(--btn-energy-secondary) 55%, transparent) 62%,
+      transparent 85%);
+  filter: blur(var(--btn-energy-glow-size, 8px)) saturate(1.35);
+  opacity: calc(var(--btn-hover, 0) * (0.32 + var(--btn-edge-proximity, 0) * 0.68) * var(--btn-energy-aura-opacity, 0.6));
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateZ(0);
+}
+
+/* Secondary, Outline, Ghost & standard native buttons: restrained elegant aura */
+button:not([data-no-interactive]):not(.no-interactive):not(.primary):not(.btn-primary)::before,
+.shinpo-interactive-btn.variant-secondary::before,
+.shinpo-interactive-btn.variant-outline::before,
+.shinpo-interactive-btn.variant-ghost::before,
+.shinpo-interactive-btn.variant-icon::before,
+.shinpo-interactive-btn.variant-navigation::before,
+.shinpo-btn.variant-secondary::before,
+.shinpo-btn.variant-ghost::before,
+.aurora-btn-secondary::before,
+.aurora-btn-ghost::before,
+.btn-timer.secondary::before,
+.btn-hero-action.secondary::before,
+.preset-chip:not(.active)::before,
+.sidebar-btn::before,
+.sidebar-toggle-btn::before,
+.sidebar-quote-refresh-btn::before,
+[data-interactive-btn]:not([data-interactive-variant='primary'])::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle 110px at var(--btn-x, 50%) var(--btn-y, 50%),
+      color-mix(in srgb, var(--btn-energy-secondary) 75%, white) 0%,
+      color-mix(in srgb, var(--btn-energy-primary) 40%, transparent) 45%,
+      transparent 80%);
+  filter: blur(5px) saturate(1.15);
+  opacity: calc(var(--btn-hover, 0) * (0.18 + var(--btn-edge-proximity, 0) * 0.82) * (var(--btn-energy-aura-opacity, 0.5) * 0.55));
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateZ(0);
+}
+
+/* 5. Inner Light Highlight & Pointer Sheen */
+button:not([data-no-interactive]):not(.no-interactive)::after,
+.shinpo-interactive-btn::after,
+.shinpo-btn::after,
+.aurora-btn-primary::after,
+.aurora-btn-secondary::after,
+.btn-timer::after,
+.btn-hero-action::after,
+.sidebar-btn::after,
+[data-interactive-btn]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(circle 95px at var(--btn-x, 50%) var(--btn-y, 50%),
+      color-mix(in srgb, white 40%, var(--btn-energy-primary)) 0%,
+      color-mix(in srgb, var(--btn-energy-secondary) 25%, transparent) 45%,
+      transparent 75%);
+  opacity: calc(var(--btn-hover, 0) * 0.55);
+  transition: opacity 160ms ease-out;
+  transform: translateZ(0);
+}
+
+/* 6. Tactile Press Feedback (Scale 0.972 + Energy Flare) */
+button:not([data-no-interactive]):not(.no-interactive):active:not(:disabled),
+button:not([data-no-interactive]):not(.no-interactive).is-pressed:not(:disabled),
+.shinpo-interactive-btn:active:not(:disabled),
+.shinpo-interactive-btn.is-pressed:not(:disabled),
+.shinpo-btn:active:not(:disabled),
+.shinpo-btn.is-pressed:not(:disabled),
+.btn-timer:active:not(:disabled),
+.btn-timer.is-pressed:not(:disabled),
+.btn-hero-action:active:not(:disabled),
+.preset-chip:active:not(:disabled),
+.sidebar-btn:active:not(:disabled),
+.sidebar-btn.is-pressed:not(:disabled),
+[data-interactive-btn]:active:not(:disabled),
+[data-interactive-btn].is-pressed:not(:disabled),
+[data-interactive-btn][data-pressed='true']:not(:disabled) {
+  transform: scale(0.972) !important;
+  transition: transform 80ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 7. Click Energy Ripple & Activation Pulse */
+@keyframes shinpo-btn-activation-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--btn-energy-ripple, rgba(151, 87, 250, 0.5)) !important;
+  }
+
+  60% {
+    box-shadow: 0 0 0 8px transparent !important;
+  }
+
+  100% {
+    box-shadow: 0 0 0 14px transparent !important;
+  }
+}
+
+button:not([data-no-interactive]):not(.no-interactive).is-activating,
+.shinpo-interactive-btn.is-activating,
+.shinpo-btn.is-activating,
+.btn-timer.is-activating,
+.sidebar-btn.is-activating,
+[data-interactive-btn].is-activating,
+[data-activating='true'] {
+  animation: shinpo-btn-activation-pulse 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 8. Variant Distinct Visuals for Shinpo Interactive Buttons */
+.shinpo-interactive-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+
+.shinpo-interactive-btn.size-sm {
+  height: 34px;
+  padding: 0 var(--space-3, 12px);
+  font-size: 13px;
+}
+
+.shinpo-interactive-btn.size-md {
+  height: 40px;
+  padding: 0 var(--space-4, 16px);
+  font-size: 14px;
+}
+
+.shinpo-interactive-btn.size-lg {
+  height: 48px;
+  padding: 0 var(--space-6, 24px);
+  font-size: 15.5px;
+}
+
+.shinpo-interactive-btn.variant-primary {
+  background: var(--btn-energy-bg-primary);
+  color: var(--btn-energy-text-primary);
+  font-weight: 700;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--btn-energy-primary) 30%, transparent);
+}
+
+.shinpo-interactive-btn.variant-secondary {
+  background: var(--surface-card, var(--palette-dark-surface-1));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  color: var(--text, var(--palette-dark-text-primary));
+}
+
+.shinpo-interactive-btn.variant-secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--btn-energy-primary) 45%, var(--border-subtle));
+}
+
+.shinpo-interactive-btn.variant-outline {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--btn-energy-primary) 55%, transparent);
+  color: var(--btn-energy-primary);
+}
+
+.shinpo-interactive-btn.variant-outline:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn-energy-primary) 10%, transparent);
+  border-color: var(--btn-energy-primary);
+}
+
+.shinpo-interactive-btn.variant-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2, var(--palette-dark-text-secondary));
+}
+
+.shinpo-interactive-btn.variant-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn-energy-primary) 12%, transparent);
+  color: var(--text, var(--palette-dark-text-primary));
+}
+
+.shinpo-interactive-btn.variant-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: var(--radius-md, 10px);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2, var(--palette-dark-text-secondary));
+}
+
+.shinpo-interactive-btn.variant-icon:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn-energy-primary) 14%, transparent);
+  color: var(--text, var(--palette-dark-text-primary));
+}
+
+.shinpo-interactive-btn.variant-compact {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.shinpo-interactive-btn.variant-navigation {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2, var(--palette-dark-text-secondary));
+  border-radius: var(--radius-md, 10px);
+}
+
+.shinpo-interactive-btn.variant-navigation:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn-energy-primary) 14%, transparent);
+  color: var(--text, var(--palette-dark-text-primary));
+}
+
+.shinpo-interactive-btn.variant-floating {
+  border-radius: 9999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* 9. Focus-Visible (Strict Accessibility) */
+button:not([data-no-interactive]):not(.no-interactive):focus-visible,
+.shinpo-interactive-btn:focus-visible,
+[data-interactive-btn]:focus-visible {
+  outline: 2px solid var(--color-focus, var(--btn-energy-secondary));
+  outline-offset: 2px;
+}
+
+/* 10. Disabled and Loading Suppression */
+button:not([data-no-interactive]):not(.no-interactive):disabled,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true'],
+button:not([data-no-interactive]):not(.no-interactive).is-loading,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true'],
+.shinpo-interactive-btn:disabled,
+.shinpo-interactive-btn.is-loading,
+.shinpo-interactive-btn[data-loading='true'],
+.shinpo-interactive-btn[aria-disabled='true'],
+.shinpo-btn:disabled,
+.shinpo-btn[aria-disabled='true'],
+.btn-timer:disabled,
+.btn-timer[aria-disabled='true'],
+[data-interactive-btn]:disabled,
+[data-interactive-btn][aria-disabled='true'],
+[data-interactive-btn].is-loading,
+[data-interactive-btn][data-loading='true'] {
+  opacity: 0.48 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
+button:not([data-no-interactive]):not(.no-interactive):disabled::before,
+button:not([data-no-interactive]):not(.no-interactive):disabled::after,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true']::before,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true']::after,
+button:not([data-no-interactive]):not(.no-interactive).is-loading::before,
+button:not([data-no-interactive]):not(.no-interactive).is-loading::after,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true']::before,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true']::after,
+.shinpo-interactive-btn:disabled::before,
+.shinpo-interactive-btn:disabled::after,
+.shinpo-interactive-btn.is-loading::before,
+.shinpo-interactive-btn.is-loading::after,
+.shinpo-interactive-btn[data-loading='true']::before,
+.shinpo-interactive-btn[data-loading='true']::after,
+.shinpo-interactive-btn[aria-disabled='true']::before,
+.shinpo-interactive-btn[aria-disabled='true']::after,
+.shinpo-btn:disabled::before,
+.shinpo-btn:disabled::after,
+.btn-timer:disabled::before,
+.btn-timer:disabled::after,
+[data-interactive-btn]:disabled::before,
+[data-interactive-btn]:disabled::after,
+[data-interactive-btn][aria-disabled='true']::before,
+[data-interactive-btn][aria-disabled='true']::after,
+[data-interactive-btn].is-loading::before,
+[data-interactive-btn].is-loading::after,
+[data-interactive-btn][data-loading='true']::before,
+[data-interactive-btn][data-loading='true']::after {
+  opacity: 0 !important;
+  display: none !important;
+}
+
+/* 11. Reduced Motion Compliance */
+@media (prefers-reduced-motion: reduce) {
+
+  button:not([data-no-interactive]):not(.no-interactive),
+  .shinpo-interactive-btn,
+  .shinpo-btn,
+  .btn-timer,
+  .sidebar-btn,
+  [data-interactive-btn],
+  button:not([data-no-interactive]):not(.no-interactive)::before,
+  button:not([data-no-interactive]):not(.no-interactive)::after,
+  .shinpo-interactive-btn::before,
+  .shinpo-interactive-btn::after,
+  .shinpo-btn::before,
+  .shinpo-btn::after,
+  .btn-timer::before,
+  .btn-timer::after,
+  .sidebar-btn::before,
+  .sidebar-btn::after {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  button:not([data-no-interactive]):not(.no-interactive)::before,
+  .shinpo-interactive-btn::before,
+  .shinpo-btn::before,
+  .btn-timer::before,
+  .sidebar-btn::before {
+    display: none !important;
+  }
+}

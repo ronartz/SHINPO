@@ -21,7 +21,7 @@
   const LEASE_ALARM = 'shinpo-policy-lease-expiry'
   const PHASE_ALARM = 'shinpo-phase-deadline'
   const MAX_INTERVENTIONS = 32
-  const DEFAULT_REVIEW_URL = 'http://127.0.0.1:5173/focus'
+  const DEFAULT_REVIEW_URL = ''
 
   const state = {
     ready: false,
@@ -29,7 +29,7 @@
     monitoringEnabled: true,
     policy: policyEngine.inactivePolicy('Browser Companion is starting'),
     connection: {
-      state: 'DISCONNECTED',
+      state: 'UNPAIRED',
       paired: false,
       lastSyncAt: null,
       error: null,
@@ -67,7 +67,17 @@
 
     await configureAlarms()
     await updateAction()
-    if (state.pairingToken) await synchronizePolicy()
+    if (state.pairingToken) {
+      await synchronizePolicy()
+    } else {
+      state.connection = {
+        state: 'UNPAIRED',
+        paired: false,
+        lastSyncAt: null,
+        error: null,
+        source: null,
+      }
+    }
   }
 
   async function configureAlarms() {
@@ -85,9 +95,10 @@
 
   async function schedulePhaseAlarm() {
     await apiCall('alarms', 'clear', PHASE_ALARM)
-    if (state.policy.active && state.policy.phaseDeadlineAtMs > Date.now()
-      && ['SHORT_BREAK', 'LONG_BREAK', 'BREAK', 'GRACE'].includes(state.policy.currentPhase)) {
-      await apiCall('alarms', 'create', PHASE_ALARM, { when: state.policy.phaseDeadlineAtMs + 25 })
+    const now = Date.now()
+    const deadline = policyEngine.effectiveDeadlineAt(state.policy, now)
+    if (state.policy.active && deadline > now) {
+      await apiCall('alarms', 'create', PHASE_ALARM, { when: deadline + 25 })
     }
   }
 
@@ -151,6 +162,7 @@
       case 'GET_PAGE_SETTINGS':
         return pageSettings(sender)
       case 'GET_STATUS':
+      case 'STATUS':
         requireExtensionPage(sender)
         return publicStatus()
       case 'PAIR':
@@ -224,24 +236,30 @@
     }
     state.evaluatingByTab.set(tabId, evaluationKey)
 
-    const result = policyEngine.evaluateUrl(state.policy, url)
-    if (result.decision === policyEngine.DECISIONS.ALLOW) {
-      state.lastAllowedByTab.set(tabId, result.normalizedDestination)
-      await apiCall('tabs', 'sendMessage', tabId, { type: 'HIDE_SHINPO_INTERVENTION' }).catch(() => undefined)
-      await setTabBadge(tabId, '', null)
-    } else if (result.decision === policyEngine.DECISIONS.RESTRICT) {
-      await presentIntervention(tabId, result, source, true)
-    } else if (result.decision === policyEngine.DECISIONS.WARN) {
-      await setTabBadge(tabId, '!', '#d97706')
-      await presentIntervention(tabId, result, source, false)
-    } else if (result.decision === policyEngine.DECISIONS.UNCERTAIN) {
-      await setTabBadge(tabId, '?', '#64748b')
-      if (state.policy.mode !== 'GUIDED') await presentIntervention(tabId, result, source, false)
-    } else {
-      await setTabBadge(tabId, '', null)
+    try {
+      const result = policyEngine.evaluateUrl(state.policy, url)
+      if (result.decision === policyEngine.DECISIONS.ALLOW) {
+        state.lastAllowedByTab.set(tabId, result.normalizedDestination)
+        await apiCall('tabs', 'sendMessage', tabId, { type: 'HIDE_SHINPO_INTERVENTION' }).catch(() => undefined)
+        await setTabBadge(tabId, '', null)
+      } else if (result.decision === policyEngine.DECISIONS.RESTRICT) {
+        await presentIntervention(tabId, result, source, true)
+      } else if (result.decision === policyEngine.DECISIONS.WARN) {
+        await setTabBadge(tabId, '!', '#D99A24')
+        await presentIntervention(tabId, result, source, false)
+      } else if (result.decision === policyEngine.DECISIONS.UNCERTAIN) {
+        await setTabBadge(tabId, '?', '#5899E2')
+        if (state.policy.mode !== 'GUIDED') await presentIntervention(tabId, result, source, false)
+      } else {
+        await setTabBadge(tabId, '', null)
+      }
+      await updateAction()
+      return { decision: result.decision, reason: result.reason }
+    } finally {
+      if (state.evaluatingByTab.get(tabId) === evaluationKey) {
+        state.evaluatingByTab.delete(tabId)
+      }
     }
-    await updateAction()
-    return { decision: result.decision, reason: result.reason }
   }
 
   async function presentIntervention(tabId, evaluation, source, blocking) {
@@ -277,7 +295,7 @@
           mode: intervention.mode,
           blocking,
           canReturn: true,
-          canRequestException: blocking && state.policy.active,
+          canRequestException: blocking && state.policy.active && state.policy.allowTemporaryExceptions,
         },
       })
     } catch (error) {
@@ -320,10 +338,13 @@
     if (!nativeProtocol.isPairingToken(normalizedCode)) {
       throw codedError('INVALID_PAIRING_CODE', 'Enter the pairing code printed by the SHINPO host installer')
     }
-    await nativeRequest('pair', {}, normalizedCode)
-    state.pairingToken = normalizedCode
+    const pairing = await nativeRequest('pair', {}, normalizedCode)
+    if (!nativeProtocol.isPairingToken(pairing.sessionToken)) {
+      throw codedError('INVALID_PAIRING_RESPONSE', 'SHINPO returned an invalid browser credential')
+    }
+    state.pairingToken = pairing.sessionToken
     state.connection.paired = true
-    await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: normalizedCode })
+    await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: pairing.sessionToken })
     await synchronizePolicy()
     return publicStatus()
   }
@@ -372,6 +393,9 @@
 
   async function requestTemporaryException(interventionId, senderTabId, navigate = true) {
     const intervention = await getIntervention(interventionId)
+    if (!state.policy.allowTemporaryExceptions) {
+      throw codedError('EXCEPTION_NOT_ALLOWED', 'Temporary access must be configured in SHINPO for this session')
+    }
     if (!state.policy.active || intervention.sessionId !== state.policy.sessionId) {
       throw codedError('SESSION_INACTIVE', 'The Focus session is no longer active')
     }
@@ -416,7 +440,13 @@
 
   async function reviewRules() {
     const target = safeReviewUrl(state.reviewUrl)
-    if (!target) throw codedError('INVALID_REVIEW_URL', 'The Focus Rules URL is not configured safely')
+    if (!target) {
+      if (typeof api?.runtime?.openOptionsPage === 'function') {
+        await api.runtime.openOptionsPage()
+        return { opened: true }
+      }
+      return { opened: false }
+    }
     await apiCall('tabs', 'create', { url: target })
     return { opened: true }
   }
@@ -431,6 +461,11 @@
   }
 
   async function setReviewUrl(reviewUrl) {
+    if (!reviewUrl || String(reviewUrl).trim() === '') {
+      state.reviewUrl = ''
+      await storageSet('local', { [STORAGE_KEYS.REVIEW_URL]: '' })
+      return { reviewUrl: '' }
+    }
     const normalized = safeReviewUrl(reviewUrl)
     if (!normalized) {
       throw codedError('INVALID_REVIEW_URL', 'Use HTTPS, or HTTP only for localhost/loopback')
@@ -441,6 +476,7 @@
   }
 
   async function disconnectExtension() {
+    if (state.pairingToken) await nativeRequest('unpair')
     state.pairingToken = null
     state.policy = policyEngine.inactivePolicy('Browser Companion was disconnected')
     state.connection = {
@@ -519,7 +555,7 @@
       mode: intervention.mode,
       destinationHost: canonical.canonicalizeUrl(intervention.destination).host,
       canReturn: true,
-      canRequestException: state.policy.active && intervention.sessionId === state.policy.sessionId,
+      canRequestException: state.policy.active && state.policy.allowTemporaryExceptions && intervention.sessionId === state.policy.sessionId,
       sessionId: intervention.sessionId,
       destination: intervention.destination,
       returnUrl: intervention.returnUrl,
@@ -550,6 +586,15 @@
   async function markDisconnected(error) {
     state.connection.state = 'DISCONNECTED'
     state.connection.error = safeErrorMessage(error)
+    if (state.policy.active) {
+      state.policy = policyEngine.degradedPolicy(
+        state.policy,
+        'Native connection lost; only explicit restrictions remain enforced',
+      )
+      await persistPolicy()
+      await scheduleLeaseAlarm()
+      await enforceOpenTabs()
+    }
     await updateAction()
   }
 
@@ -560,6 +605,7 @@
     return {
       connection: { ...state.connection },
       monitoringEnabled: state.monitoringEnabled,
+      reviewUrl: state.reviewUrl || '',
       policy: {
         active: state.policy.active,
         degraded: state.policy.degraded === true,
@@ -569,7 +615,7 @@
         sessionStatus: state.policy.status,
         currentPhase: policyEngine.effectivePhase(state.policy, Date.now()),
         phaseRemainingSeconds: state.policy.phaseRemainingSeconds,
-        phaseDeadlineAtMs: state.policy.phaseDeadlineAtMs,
+        phaseDeadlineAtMs: policyEngine.effectiveDeadlineAt(state.policy, Date.now()),
         policyVersion: state.policy.policyVersion,
         remainingLeaseSeconds,
         inactiveReason: state.policy.inactiveReason,
@@ -587,25 +633,25 @@
   async function updateAction() {
     if (!api.action) return
     let text = ''
-    let color = '#64748b'
+    let color = '#D94B52'
     let title = 'SHINPO Browser Companion: disconnected'
     if (!state.monitoringEnabled) {
       text = 'OFF'
       title = 'SHINPO Browser Companion: monitoring disabled'
     } else if (state.connection.state === 'CONNECTED' && state.policy.active) {
       text = 'ON'
-      color = '#4D77F9'
+      color = '#20A36A'
       title = `SHINPO ${state.policy.mode}: ${state.policy.taskTitle}`
     } else if (state.connection.state === 'CONNECTED') {
-      color = '#1BC9DE'
+      color = '#5899E2'
       title = 'SHINPO Browser Companion: connected, no active Focus session'
     } else if (state.connection.state === 'UNPAIRED') {
       text = '!'
-      color = '#9757FA'
+      color = '#D99A24'
       title = 'SHINPO Browser Companion: pairing required'
     } else {
       text = '!'
-      color = '#d97706'
+      color = '#D94B52'
     }
     await apiCall('action', 'setBadgeText', { text }).catch(() => undefined)
     await apiCall('action', 'setBadgeBackgroundColor', { color }).catch(() => undefined)

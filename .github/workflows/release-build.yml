@@ -1,0 +1,436 @@
+name: SHINPO tagged installer build
+
+on:
+  push:
+    branches: ["main", "develop"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa-release-gate:
+    name: Mandatory QA & Release Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Install Playwright Chromium browser
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Execute Mandatory Release Quality Gate
+        run: ./scripts/qa-release.sh release
+      - name: Archive QA Gate Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-release-gate-reports
+          path: docs/qa/
+
+  linux-installers:
+    name: Linux installers and checksums
+    needs: qa-release-gate
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate tag matches the Tauri application version
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const tag = process.env.GITHUB_REF_NAME ?? "";
+            const { version } = JSON.parse(fs.readFileSync("frontend/src-tauri/tauri.conf.json", "utf8"));
+            if (!/^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(tag) || tag !== `v${version}`) {
+              throw new Error(`Tag ${tag} must be v${version}`);
+            }
+            console.log(`Building SHINPO ${version}`);
+          '
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+      - name: Install Tauri Linux bundler dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential curl file libayatana-appindicator3-dev libfuse2t64 \
+            libssl-dev libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev patchelf pkg-config rpm wget
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build Linux installers and updater bundles
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY secret is not configured; building without updater signatures..."
+            node -e '
+              import fs from "node:fs";
+              const p = "src-tauri/tauri.conf.json";
+              const conf = JSON.parse(fs.readFileSync(p, "utf8"));
+              conf.bundle.createUpdaterArtifacts = false;
+              fs.writeFileSync(p, JSON.stringify(conf, null, 2));
+            '
+          fi
+          npm run tauri:build -- --bundles deb,appimage,rpm
+        working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      - name: Package portable Linux tarball
+        run: |
+          set -euo pipefail
+          output=release-artifacts/linux-x64
+          mkdir -p "$output"
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
+          TAR_DIR="release-artifacts/tar-stage"
+          mkdir -p "$TAR_DIR/browser-companion"
+          cp frontend/src-tauri/target/release/shinpo-desktop "$TAR_DIR/"
+          cp frontend/src-tauri/target/bundle-input/shinpo-browser-host "$TAR_DIR/"
+          cp scripts/register-browser-companion.sh "$TAR_DIR/"
+          cp docs/Browser-Companion-Install.md "$TAR_DIR/"
+          cp -r browser-extension/dist/chromium "$TAR_DIR/browser-companion/" 2>/dev/null || true
+          cp -r browser-extension/dist/firefox "$TAR_DIR/browser-companion/" 2>/dev/null || true
+          cat << 'EOF' > "$TAR_DIR/README.txt"
+          SHINPO (進歩) 0.1.0-beta.1 — Portable Linux x86_64 Installation
+
+          SYSTEM REQUIREMENTS:
+          - Linux x86_64 (glibc 2.35+)
+          - WebKit2GTK 4.1 (libwebkit2gtk-4.1)
+          - OpenSSL (libssl3 / openssl-libs)
+
+          RUNNING SHINPO:
+          1. Ensure permissions: chmod +x shinpo-desktop shinpo-browser-host
+          2. Run the application: ./shinpo-desktop
+
+          BROWSER COMPANION SETUP:
+          1. Register Native Messaging Host:
+             ./register-browser-companion.sh --chrome   (or --chromium, --brave, --edge, --firefox, --all)
+          2. Load unpacked extension from browser-companion/chromium or browser-companion/firefox.
+          3. For full details, see Browser-Companion-Install.md.
+          EOF
+          tar -czf "$output/SHINPO_${VERSION}_linux_x86_64.tar.gz" -C "$TAR_DIR" .
+          rm -rf "$TAR_DIR"
+      - name: Generate and display checksums
+        run: |
+          set -euo pipefail
+          output=release-artifacts/linux-x64
+          mkdir -p "$output"
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
+          mapfile -d '' artifacts < <(find frontend/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.AppImage.tar.gz*' \) -print0)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No Linux installer artifacts were produced" >&2
+            exit 1
+          fi
+          for artifact in "${artifacts[@]}"; do cp "$artifact" "$output/"; done
+
+          # Standardize filenames
+          for f in "$output"/*-1.x86_64.rpm "$output"/*_x86_64.rpm; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.rpm" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.rpm"
+            fi
+          done
+          for f in "$output"/*_amd64.deb "$output"/*_x86_64.deb; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.deb" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.deb"
+            fi
+          done
+          for f in "$output"/*.AppImage; do
+            if [ -f "$f" ] && [ "$(basename "$f")" != "SHINPO_${VERSION}_linux_x86_64.AppImage" ]; then
+              cp "$f" "$output/SHINPO_${VERSION}_linux_x86_64.AppImage"
+            fi
+          done
+
+          (cd "$output" && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          echo "=== Linux SHA256SUMS ==="
+          cat "$output/SHA256SUMS"
+      - name: Upload Linux release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-artifacts
+          path: release-artifacts/linux-x64/
+          if-no-files-found: error
+
+  windows-installer:
+    name: Windows NSIS installer and checksum
+    needs: qa-release-gate
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate release tag or internal branch build
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($env:REF_TYPE -eq 'tag') {
+            if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$' -or $env:RELEASE_TAG -ne "v$($config.version)") {
+              throw "Release tag must exactly match v$($config.version)"
+            }
+            Write-Output "Building tagged SHINPO $($config.version)"
+          } else {
+            Write-Output "Building release installer from ref $env:RELEASE_TAG (SHINPO $($config.version))"
+          }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # pinned action revision
+        with:
+          toolchain: 1.99.0
+          components: clippy, rustfmt
+      - name: Confirm MSVC toolchain
+        shell: pwsh
+        run: |
+          rustc -vV
+          cargo -V
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "Visual Studio locator vswhere.exe is unavailable" }
+          $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsPath) { throw "Visual Studio C++ x64 build tools are unavailable" }
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+          if (-not (Test-Path $vcvars)) { throw "MSVC environment script is unavailable: $vcvars" }
+          $vcEnvironment = & $env:ComSpec /d /s /c "call `"$vcvars`" >nul && set"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to initialize the MSVC x64 environment" }
+          $msvcPath = $null
+          $requiredVariables = @('INCLUDE', 'LIB', 'LIBPATH', 'VSINSTALLDIR', 'VCINSTALLDIR', 'VCToolsInstallDir', 'VCToolsVersion', 'WindowsSdkDir', 'WindowsSDKVersion', 'UniversalCRTSdkDir', 'UCRTVersion', 'VisualStudioVersion', 'VSCMD_ARG_TGT_ARCH', 'VSCMD_ARG_HOST_ARCH')
+          $existingPath = $env:PATH -split ';'
+          foreach ($line in $vcEnvironment) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              $name = $Matches[1]
+              $value = $Matches[2]
+              if ($name -ieq 'PATH') {
+                $msvcPath = $value
+                $value -split ';' | Where-Object { $_ -and $_ -notin $existingPath } | Add-Content -Path $env:GITHUB_PATH -Encoding utf8
+              } elseif ($name -in $requiredVariables) {
+                Add-Content -Path $env:GITHUB_ENV -Value "$name=$value" -Encoding utf8
+              }
+            }
+          }
+          $clPath = $msvcPath -split ';' | ForEach-Object { Join-Path $_ 'cl.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $clPath) { throw "MSVC compiler cl.exe is unavailable after initializing vcvars64.bat" }
+      - name: Install static SQLCipher OpenSSL dependency
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:VCPKG_INSTALLATION_ROOT 'vcpkg.exe'
+          & $vcpkg install openssl:x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg failed to install SQLCipher's OpenSSL dependency" }
+          $openssl = Join-Path $env:VCPKG_INSTALLATION_ROOT 'installed\x64-windows-static-md'
+          $include = Join-Path $openssl 'include'
+          $lib = Join-Path $openssl 'lib'
+          if (-not (Test-Path (Join-Path $include 'openssl\opensslv.h')) -or -not (Test-Path (Join-Path $lib 'libcrypto.lib'))) {
+            throw "The installed OpenSSL headers or x64 static library are missing"
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$openssl" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$include" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$lib" -Encoding utf8
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build Windows NSIS installer and updater bundle
+        shell: pwsh
+        working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Output "TAURI_SIGNING_PRIVATE_KEY secret is not configured; building without updater signatures..."
+            $p = "src-tauri/tauri.conf.json"
+            $conf = Get-Content $p -Raw | ConvertFrom-Json
+            $conf.bundle.createUpdaterArtifacts = $false
+            $conf | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding utf8
+          }
+          npm run tauri:build -- --bundles nsis
+      - name: Verify bundled Browser Companion inputs and report installer checksum
+        shell: pwsh
+        run: |
+          $hostPath = 'frontend/src-tauri/target/bundle-input/shinpo-browser-host.exe'
+          $extensionInputs = @(
+            'browser-extension/dist/chromium/manifest.json',
+            'browser-extension/dist/firefox/manifest.json',
+            'scripts/register-browser-companion.ps1',
+            'docs/Browser-Companion-Install.md'
+          )
+          if (-not (Test-Path $hostPath)) { throw "Prepared Browser Host is missing: $hostPath" }
+          foreach ($path in $extensionInputs) {
+            if (-not (Test-Path $path)) { throw "Browser Companion resource is missing: $path" }
+          }
+          $config = Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          foreach ($required in @('target/bundle-input/*', '../../browser-extension/dist/chromium', '../../browser-extension/dist/firefox', '../../scripts/register-browser-companion.ps1')) {
+            if (-not ($config.bundle.resources.PSObject.Properties.Name -contains $required)) {
+              throw "Tauri bundle resource mapping is missing: $required"
+            }
+          }
+          Write-Output 'Prepared resources and Tauri destination mappings:'
+          $allInputs = @($hostPath) + $extensionInputs
+          Get-Item -Path $allInputs | Select-Object FullName, Length | Format-Table -AutoSize
+
+          $output = 'release-artifacts/windows-x64'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $installers = @(Get-ChildItem frontend/src-tauri/target/release/bundle/nsis -Include *.exe,*.zip,*.sig -File -Recurse -ErrorAction SilentlyContinue)
+          if ($installers.Count -eq 0) { throw 'No Windows NSIS installer or updater bundle was produced' }
+          foreach ($installer in $installers) { Copy-Item $installer.FullName $output }
+          $version = (Get-Content frontend/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $setupExe = Get-ChildItem $output -Filter "*setup.exe" | Where-Object { $_.Name -ne "SHINPO_${version}_windows_x64_setup.exe" } | Select-Object -First 1
+          if ($setupExe) {
+            Copy-Item $setupExe.FullName "$output/SHINPO_${version}_windows_x64_setup.exe" -Force
+          }
+          $lines = Get-ChildItem $output -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "${hash}  $($_.Name)  $($_.Length) bytes"
+          }
+          $lines | Set-Content "$output/SHA256SUMS" -Encoding ascii
+          Get-Content "$output/SHA256SUMS"
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: release-artifacts/windows-x64/
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release & Auto-Updater Manifest
+    needs: [qa-release-gate, linux-installers, windows-installer]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Download Linux release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release-artifacts
+          path: staged-release/linux
+      - name: Download Windows release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: staged-release/windows
+      - name: Stage all assets and consolidate SHA256SUMS
+        run: |
+          set -euo pipefail
+          mkdir -p release-dist
+          # Copy Linux artifacts
+          cp -r staged-release/linux/* release-dist/ 2>/dev/null || true
+          # Copy Windows artifacts
+          cp -r staged-release/windows/* release-dist/ 2>/dev/null || true
+          rm -f release-dist/SHA256SUMS
+          (cd release-dist && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          echo "=== CONSOLIDATED SHA256SUMS ==="
+          cat release-dist/SHA256SUMS
+      - name: Generate static updater manifest (updates/beta/latest.json)
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import path from "node:path";
+
+            const tag = process.env.GITHUB_REF_NAME ?? "";
+            const { version } = JSON.parse(fs.readFileSync("frontend/src-tauri/tauri.conf.json", "utf8"));
+            const repo = process.env.GITHUB_REPOSITORY ?? "ronartz/SHINPO";
+
+            // Find Linux AppImage tar.gz and its signature
+            const distFiles = fs.readdirSync("release-dist");
+            const linuxTar = distFiles.find(f => f.endsWith(".AppImage.tar.gz"));
+            const linuxSigFile = distFiles.find(f => f.endsWith(".AppImage.tar.gz.sig"));
+            const winZip = distFiles.find(f => f.endsWith(".nsis.zip"));
+            const winSigFile = distFiles.find(f => f.endsWith(".nsis.zip.sig"));
+
+            let linuxSig = "";
+            if (linuxSigFile) {
+              linuxSig = fs.readFileSync(path.join("release-dist", linuxSigFile), "utf8").trim();
+            }
+
+            let winSig = "";
+            if (winSigFile) {
+              winSig = fs.readFileSync(path.join("release-dist", winSigFile), "utf8").trim();
+            }
+
+            const manifest = {
+              version: version,
+              notes: `SHINPO ${version} Private Beta Release`,
+              pub_date: new Date().toISOString(),
+              platforms: {}
+            };
+
+            if (linuxTar && linuxSig) {
+              manifest.platforms["linux-x86_64"] = {
+                signature: linuxSig,
+                url: `https://github.com/${repo}/releases/download/${tag}/${linuxTar}`
+              };
+            }
+
+            if (winZip && winSig) {
+              manifest.platforms["windows-x86_64"] = {
+                signature: winSig,
+                url: `https://github.com/${repo}/releases/download/${tag}/${winZip}`
+              };
+            }
+
+            if (Object.keys(manifest.platforms).length > 0) {
+              fs.mkdirSync("release-dist/updates/beta", { recursive: true });
+              fs.writeFileSync("release-dist/updates/beta/latest.json", JSON.stringify(manifest, null, 2));
+              fs.writeFileSync("release-dist/latest.json", JSON.stringify(manifest, null, 2));
+              console.log("Generated updater manifest with signatures:", manifest);
+            } else {
+              console.log("No updater signatures present. Skipping updater manifest; beta uses manual downloads.");
+            }
+          '
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+      - name: Determine Prerelease Status
+        id: prerelease_check
+        run: |
+          if [[ "${{ github.ref_name }}" =~ (alpha|beta|rc|preview) ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@c062e08bd53281573c51459229c17b0769e5d4cb # pinned v2.0.8
+        with:
+          name: SHINPO ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ steps.prerelease_check.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            release-dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,6 +17,61 @@ export interface FloatingPositionResult {
   recalculate: () => void
 }
 
+type FloatingGeometry = {
+  trigger: Pick<DOMRect, 'top' | 'right' | 'bottom' | 'left' | 'width'>
+  popoverWidth: number
+  popoverHeight: number
+  viewportWidth: number
+  viewportHeight: number
+  offset: number
+  padding: number
+  matchTriggerWidth: boolean
+  minWidth?: number
+  inDialog: boolean
+}
+
+export function calculateFloatingGeometry({
+  trigger,
+  popoverWidth,
+  popoverHeight,
+  viewportWidth,
+  viewportHeight,
+  offset,
+  padding,
+  matchTriggerWidth,
+  minWidth,
+  inDialog,
+}: FloatingGeometry): { style: React.CSSProperties; placement: 'bottom' | 'top' } {
+  const availableWidth = Math.max(0, viewportWidth - padding * 2)
+  const width = Math.min(availableWidth, matchTriggerWidth
+    ? trigger.width
+    : Math.max(minWidth ?? 0, popoverWidth))
+  const spaceBelow = Math.max(0, viewportHeight - trigger.bottom - offset - padding)
+  const spaceAbove = Math.max(0, trigger.top - offset - padding)
+  const minimumUsefulHeight = Math.min(popoverHeight, 160)
+  const placement = spaceBelow < minimumUsefulHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
+  const availableHeight = Math.min(320, placement === 'bottom' ? spaceBelow : spaceAbove)
+  const height = Math.min(popoverHeight, availableHeight)
+  const top = placement === 'bottom'
+    ? trigger.bottom + offset
+    : trigger.top - height - offset
+  const left = Math.max(padding, Math.min(trigger.left, viewportWidth - padding - width))
+
+  return {
+    placement,
+    style: {
+      position: 'fixed',
+      top: `${Math.round(Math.max(padding, Math.min(top, viewportHeight - padding - height)))}px`,
+      left: `${Math.round(left)}px`,
+      width: matchTriggerWidth ? `${Math.round(width)}px` : undefined,
+      minWidth: minWidth ? `${Math.min(minWidth, availableWidth)}px` : undefined,
+      maxHeight: `${Math.round(availableHeight)}px`,
+      zIndex: inDialog ? 9500 : 1000,
+      visibility: 'visible',
+    },
+  }
+}
+
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 export function useFloatingPosition({
@@ -53,68 +108,24 @@ export function useFloatingPosition({
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
 
-    const spaceBelow = viewportHeight - triggerRect.bottom - offset - padding
-    const spaceAbove = triggerRect.top - offset - padding
-    const spaceRight = viewportWidth - triggerRect.right - offset - padding
-    const spaceLeft = triggerRect.left - offset - padding
-
     const popoverHeight = popover ? popover.offsetHeight : 240
     const popoverWidth = matchTriggerWidth
       ? triggerRect.width
       : Math.max(minWidth || 0, popover ? popover.offsetWidth : triggerRect.width)
-
-    // Flip logic: if insufficient space below and more space above, open upwards
-    let nextPlacement: 'bottom' | 'top' | 'left' | 'right' = 'bottom'
-    if (inDialog && spaceRight >= popoverWidth) {
-      nextPlacement = 'right'
-    } else if (inDialog && spaceLeft >= popoverWidth) {
-      nextPlacement = 'left'
-    } else if (inDialog && spaceAbove >= Math.min(popoverHeight, 200)) {
-      nextPlacement = 'top'
-    } else if (spaceBelow < Math.min(popoverHeight, 200) && spaceAbove > spaceBelow) {
-      nextPlacement = 'top'
-    }
-    setPlacement(nextPlacement)
-
-    // Vertical top coordinate
-    let top: number
-    let maxHeight: number
-    let left = triggerRect.left
-
-    if (nextPlacement === 'right' || nextPlacement === 'left') {
-      top = Math.min(Math.max(padding, triggerRect.top), viewportHeight - padding - 100)
-      maxHeight = Math.max(100, Math.min(320, viewportHeight - top - padding))
-      left = nextPlacement === 'right'
-        ? triggerRect.right + offset
-        : triggerRect.left - popoverWidth - offset
-    } else if (nextPlacement === 'bottom') {
-      top = triggerRect.bottom + offset
-      maxHeight = Math.max(100, Math.min(320, spaceBelow))
-    } else {
-      top = Math.max(padding, triggerRect.top - (popover ? popover.offsetHeight : 240) - offset)
-      maxHeight = Math.max(100, Math.min(320, spaceAbove))
-    }
-
-    // Horizontal left coordinate with edge protection
-    if (nextPlacement !== 'left' && left + popoverWidth > viewportWidth - padding) {
-      left = Math.max(padding, viewportWidth - popoverWidth - padding)
-    }
-    if (left < padding) {
-      left = padding
-    }
-
-    const calculatedZIndex = inDialog ? 9500 : 1000
-
-    setStyle({
-      position: 'fixed',
-      top: `${Math.round(top)}px`,
-      left: `${Math.round(left)}px`,
-      width: matchTriggerWidth ? `${Math.round(triggerRect.width)}px` : undefined,
-      minWidth: minWidth ? `${minWidth}px` : undefined,
-      maxHeight: `${Math.round(maxHeight)}px`,
-      zIndex: calculatedZIndex,
-      visibility: 'visible',
+    const geometry = calculateFloatingGeometry({
+      trigger: triggerRect,
+      popoverWidth,
+      popoverHeight,
+      viewportWidth,
+      viewportHeight,
+      offset,
+      padding,
+      matchTriggerWidth,
+      minWidth,
+      inDialog,
     })
+    setPlacement(geometry.placement)
+    setStyle(geometry.style)
   }, [triggerRef, popoverRef, isOpen, offset, padding, matchTriggerWidth, minWidth])
 
   useIsomorphicLayoutEffect(() => {
@@ -133,7 +144,14 @@ export function useFloatingPosition({
     window.addEventListener('resize', handleScrollOrResize, { passive: true })
     window.addEventListener('scroll', handleScrollOrResize, { capture: true, passive: true })
 
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleScrollOrResize)
+    if (triggerRef.current) resizeObserver?.observe(triggerRef.current)
+    if (popoverRef.current) resizeObserver?.observe(popoverRef.current)
+    const frame = window.requestAnimationFrame(handleScrollOrResize)
+
     return () => {
+      window.cancelAnimationFrame(frame)
+      resizeObserver?.disconnect()
       window.removeEventListener('resize', handleScrollOrResize)
       window.removeEventListener('scroll', handleScrollOrResize, { capture: true })
     }

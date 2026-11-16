@@ -91,7 +91,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0,0,0, 0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
@@ -109,15 +109,15 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         aria-describedby="confirm-dialog-desc"
         className="confirmation-dialog-card"
         style={{
-          backgroundColor: 'var(--surface-card, #181B24)',
-          border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.14))',
+          backgroundColor: 'var(--surface-card, var(--brand-baltic-blue))',
+          border: '1px solid var(--border-strong, rgba(255,255,255, 0.14))',
           borderRadius: 18,
           padding: 24,
           width: '100%',
           maxWidth: 'min(440px, calc(100vw - 32px))',
           maxHeight: 'calc(100vh - 32px)',
           overflowY: 'auto',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 24px 60px rgba(0,0,0, 0.65), 0 0 20px rgba(0,0,0, 0.2)',
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
@@ -130,7 +130,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
               margin: 0,
               fontSize: 18,
               fontWeight: 700,
-              color: 'var(--text, #F3F4F6)',
+              color: 'var(--text, #e7e7e7)',
               letterSpacing: '-0.02em',
             }}
           >
@@ -141,7 +141,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             style={{
               fontSize: 13.5,
               lineHeight: 1.5,
-              color: 'var(--text-2, #8E95A5)',
+              color: 'var(--text-2, #4c4c4c)',
               wordBreak: 'break-word',
             }}
           >
@@ -155,9 +155,9 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             style={{
               padding: '8px 12px',
               borderRadius: 8,
-              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#F87171',
+              backgroundColor: 'color-mix(in srgb, var(--brand-primary) 12.0%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--brand-primary) 30.0%, transparent)',
+              color: 'var(--brand-primary)',
               fontSize: 12.5,
               lineHeight: 1.4,
             }}
@@ -197,11 +197,11 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             style={{
               minWidth: 90,
               background: isDestructive
-                ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                ? 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary) 100%)'
                 : undefined,
-              borderColor: isDestructive ? '#EF4444' : undefined,
+              borderColor: isDestructive ? 'var(--brand-primary)' : undefined,
               boxShadow: isDestructive
-                ? '0 4px 14px rgba(239, 68, 68, 0.35)'
+                ? '0 4px 14px color-mix(in srgb, var(--brand-primary) 35.0%, transparent)'
                 : undefined,
             }}
           >

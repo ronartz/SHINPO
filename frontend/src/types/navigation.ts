@@ -17,6 +17,7 @@ export type IconName =
   | 'focus'
   | 'analytics'
   | 'apps'
+  | 'globe'
   | 'journal'
   | 'rewards'
   | 'settings'
@@ -33,6 +34,7 @@ export type IconName =
   | 'check'
   | 'check-circle'
   | 'plus'
+  | 'minus'
   | 'target'
   | 'clock'
   | 'xp'
@@ -49,6 +51,16 @@ export type IconName =
   | 'lock'
   | 'eye'
   | 'eye-off'
+  | 'copy'
+  | 'star'
+  | 'x'
+  | 'arrow-down'
+  | 'arrow-up'
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'minimize'
+  | 'more-horizontal'
+  | 'ellipsis'
 
 
 export interface NavItemConfig {
@@ -62,32 +74,32 @@ export interface NavItemConfig {
 export const NAVIGATION_ITEMS: readonly NavItemConfig[] = [
   { id: 'Dashboard', icon: 'dashboard', label: 'Dashboard', tut: 'nav-dashboard' },
   { id: 'Goals & Missions', icon: 'goals', label: 'Goals & Tasks', tut: 'nav-goals' },
-  { id: 'Focus Engine', icon: 'focus', label: 'Focus Sprints', tut: 'nav-focus' },
+  { id: 'Focus Engine', icon: 'focus', label: 'Focus', tut: 'nav-focus' },
   { id: 'Schedule', icon: 'schedule', label: 'Calendar', tut: 'nav-schedule', hasBadge: true },
   { id: 'Task Manager', icon: 'shield', label: 'Focus Protection', tut: 'nav-tasks' },
   { id: 'Analytics', icon: 'analytics', label: 'Analytics', tut: 'nav-analytics' },
   { id: 'Rewards', icon: 'rewards', label: 'Rewards & Progress', tut: 'nav-rewards' },
-  { id: 'AI Assistant', icon: 'sparkle', label: 'EONPAI Guide', tut: 'nav-ai' },
+  { id: 'AI Assistant', icon: 'sparkle', label: 'EONPAI', tut: 'nav-ai' },
 ] as const
 
 export function getViewHeaderTitle(view: AppView): string {
   switch (view) {
     case 'AI Assistant':
-      return 'EONPAI Cognitive Guide'
+      return 'EONPAI'
     case 'Focus Engine':
-      return 'Focus Sprint Arena'
+      return 'Focus'
     case 'Goals & Missions':
       return 'Goals & Tasks'
     case 'Schedule':
-      return 'Calendar Schedule'
+      return 'Calendar'
     case 'Task Manager':
-      return 'Focus Protection Sentinel'
+      return 'Focus Protection'
     case 'Analytics':
-      return 'Performance Analytics'
+      return 'Analytics'
     case 'Rewards':
       return 'Rewards & Progress'
     case 'Dashboard':
-      return 'Execution Cockpit'
+      return 'Dashboard'
     default:
       return view
   }

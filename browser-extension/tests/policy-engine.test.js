@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import '../src/lib/canonical-url.js'
 import '../src/lib/policy-engine.js'
 
-const { evaluateUrl, DECISIONS } = globalThis.ShinpoPolicy
+const { evaluateUrl, effectiveDeadlineAt, effectivePhase, normalizePolicy, DECISIONS } = globalThis.ShinpoPolicy
 
 test('normalizePolicy preserves the server phase and deadline metadata', () => {
   const now = Date.now()
@@ -20,6 +20,45 @@ test('normalizePolicy preserves the server phase and deadline metadata', () => {
   assert.equal(policy.currentPhase, 'GRACE')
   assert.equal(policy.phaseRemainingSeconds, 120)
   assert.equal(policy.phaseDeadlineAtMs, now + 120_000)
+})
+
+test('normalizePolicy preserves versioned Guardian catalogs from the native policy', () => {
+  const now = Date.now()
+  const policy = normalizePolicy({
+    sessionId: 10, status: 'ACTIVE', currentPhase: 'FOCUS',
+    leaseExpiresAt: now + 60_000,
+    catalogVersions: { applications: 'guardian-apps-v1', domains: 'guardian-domains-v1' },
+  }, now)
+
+  assert.deepEqual(policy.catalogVersions, {
+    applications: 'guardian-apps-v1', domains: 'guardian-domains-v1',
+  })
+})
+
+test('automatic Guardian warns in Light, restricts in Standard and Strict, and permits only the break exception', () => {
+  const now = Date.now()
+  const policy = {
+    sessionId: 77, status: 'ACTIVE', mode: 'GUIDED', currentPhase: 'FOCUS',
+    phaseDeadlineAt: now + 60_000, breakDeadlineAt: now + 120_000,
+    graceDeadlineAt: now + 180_000, leaseExpiresAt: now + 240_000,
+    resources: [{ id: 'guardian-domains-v1:reddit.com', resourceType: 'WEBSITE', matchType: 'DOMAIN',
+      disposition: 'BLOCKED', destination: 'reddit.com', automaticGuardian: true }],
+  }
+  const breakApproval = { id: 'break-reddit', resourceType: 'WEBSITE', matchType: 'DOMAIN',
+    disposition: 'APPROVED', breakOnly: true, destination: 'reddit.com' }
+  assert.equal(evaluateUrl(policy, 'https://www.reddit.com', now).decision, DECISIONS.WARN)
+  assert.equal(evaluateUrl({ ...policy, currentPhase: 'BREAK', phaseDeadlineAt: now + 60_000 }, 'https://www.reddit.com', now).decision, DECISIONS.WARN)
+  assert.equal(evaluateUrl({ ...policy, mode: 'PROTECTED' }, 'https://www.reddit.com', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl({ ...policy, mode: 'STRICT' }, 'https://www.reddit.com', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl({ ...policy, mode: 'PROTECTED', currentPhase: 'BREAK', phaseDeadlineAt: now + 60_000, resources: [...policy.resources, breakApproval] }, 'https://reddit.com', now).decision, DECISIONS.ALLOW)
+  assert.equal(evaluateUrl({ ...policy, mode: 'PROTECTED', currentPhase: 'BREAK', phaseDeadlineAt: now + 60_000 }, 'https://unlisted.example', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl({ ...policy, mode: 'GUIDED', currentPhase: 'BREAK', phaseDeadlineAt: now + 60_000 }, 'https://unlisted.example', now).decision, DECISIONS.ALLOW)
+  assert.equal(evaluateUrl({ ...policy, mode: 'STRICT', resources: [] }, 'https://arxiv.org', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl({ ...policy, mode: 'STRICT', resources: [{ id: 'trusted-arxiv', resourceType: 'WEBSITE', matchType: 'DOMAIN', disposition: 'APPROVED', destination: 'arxiv.org', automaticGuardian: true }] }, 'https://arxiv.org/abs/1234', now).decision, DECISIONS.ALLOW)
+  assert.equal(evaluateUrl({ ...policy, mode: 'STRICT', resources: [] }, 'https://khanacademy.org', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(policy, 'https://reddit.com', now + 60_001).decision, DECISIONS.WARN)
+  assert.equal(evaluateUrl(policy, 'https://reddit.com', now + 180_001).decision, DECISIONS.WARN)
+  assert.equal(evaluateUrl(policy, 'https://notreddit.com', now).decision, DECISIONS.ALLOW)
 })
 
 test('normalizePolicy rejects an active lease with no recognized server phase', () => {
@@ -40,7 +79,7 @@ test('break-only approvals do not leak into Focus and expire at the server deadl
   const policy = {
     status: 'ACTIVE',
     currentPhase: 'GRACE',
-    mode: 'GUIDED',
+    mode: 'PROTECTED',
     sessionId: 12,
     policyVersion: 3,
     phaseDeadlineAt: now + 60_000,
@@ -63,7 +102,43 @@ test('break-only approvals do not leak into Focus and expire at the server deadl
     ...policy,
     resources: [{ ...policy.resources[0], disposition: 'BLOCKED', breakOnly: false }],
   }
-  assert.equal(evaluateUrl(restrictedPolicy, 'https://game.example', now + 60_001).decision, DECISIONS.WARN)
+  assert.equal(evaluateUrl(restrictedPolicy, 'https://game.example', now + 60_001).decision, DECISIONS.RESTRICT)
+})
+
+test('stale Focus and Break snapshots preserve approved sites through Grace, then cut off', () => {
+  const now = Date.now()
+  const resource = {
+    id: 'break-site', resourceType: 'WEBSITE', matchType: 'DOMAIN', disposition: 'APPROVED',
+    breakOnly: true, destination: 'game.example', canonicalDestination: 'game.example',
+  }
+  const blockedSite = {
+    id: 'blocked-site', resourceType: 'WEBSITE', matchType: 'DOMAIN', disposition: 'BLOCKED',
+    breakOnly: false, destination: 'social.example', canonicalDestination: 'social.example',
+  }
+  const policy = {
+    status: 'ACTIVE', currentPhase: 'FOCUS', mode: 'PROTECTED', sessionId: 19,
+    phaseDeadlineAt: now + 60_000,
+    breakDeadlineAt: now + 960_000,
+    graceDeadlineAt: now + 1_560_000,
+    leaseExpiresAt: now + 1_800_000,
+    resources: [resource, blockedSite],
+  }
+
+  assert.equal(evaluateUrl(policy, 'https://social.example', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(policy, 'https://game.example', now).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(policy, 'https://social.example', now + 60_001).decision, DECISIONS.RESTRICT)
+  assert.equal(evaluateUrl(policy, 'https://game.example', now + 60_001).decision, DECISIONS.ALLOW)
+  const breakSnapshot = normalizePolicy(policy, now + 60_001)
+  assert.equal(effectivePhase(breakSnapshot, now + 60_001), 'BREAK')
+  assert.equal(effectiveDeadlineAt(breakSnapshot, now + 60_001), now + 960_000)
+  assert.equal(evaluateUrl(policy, 'https://game.example', now + 960_001).decision, DECISIONS.ALLOW)
+  const graceSnapshot = normalizePolicy(policy, now + 960_001)
+  assert.equal(effectivePhase(graceSnapshot, now + 960_001), 'GRACE')
+  assert.equal(effectiveDeadlineAt(graceSnapshot, now + 960_001), now + 1_560_000)
+  assert.equal(evaluateUrl(policy, 'https://game.example', now + 1_560_001).decision, DECISIONS.RESTRICT)
+  const cutoffSnapshot = normalizePolicy(policy, now + 1_560_001)
+  assert.equal(effectivePhase(cutoffSnapshot, now + 1_560_001), 'RETURN_REQUIRED')
+  assert.equal(effectiveDeadlineAt(cutoffSnapshot, now + 1_560_001), 0)
 })
 
 test('expired policy retains only explicit restrictions and reports other destinations uncertain', () => {
@@ -93,6 +168,16 @@ test('evaluateUrl returns INACTIVE when policy is INACTIVE', () => {
   }
   const result = evaluateUrl(policy, 'https://youtube.com/shorts/12345678901')
   assert.equal(result.decision, DECISIONS.INACTIVE)
+})
+
+test('local desktop policy can explicitly disable temporary browser exceptions', () => {
+  const policy = globalThis.ShinpoPolicy.normalizePolicy({
+    status: 'ACTIVE', sessionId: 34, currentPhase: 'FOCUS', mode: 'PROTECTED',
+    allowTemporaryExceptions: false, policyVersion: 2,
+    expiresAt: Date.now() + 60_000, resources: [],
+  })
+  assert.equal(policy.active, true)
+  assert.equal(policy.allowTemporaryExceptions, false)
 })
 
 test('evaluateUrl allows explicitly approved YouTube video and blocks unapproved Shorts', () => {

@@ -1,0 +1,73 @@
+/* ==========================================================================
+   SHINPO (進歩) — SILK LOGIN BACKGROUND STYLES
+   Interactive WebGL silk-mesh background layered strictly behind login card
+   ========================================================================== */
+
+.shinpo-silk-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  contain: strict;
+  isolation: isolate;
+  background-color: var(--silk-c0, #060818);
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shinpo-silk-container.silk-ready {
+  opacity: 1;
+}
+
+.shinpo-silk-host {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shinpo-silk-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.shinpo-silk-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* Graceful CSS fallback when WebGL is unavailable or failed */
+.shinpo-silk-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 30%, var(--silk-c2, #4d77f9) 0%, transparent 65%),
+              linear-gradient(135deg, var(--silk-c0, #060818) 0%, var(--silk-c1, #3b1d7a) 55%, var(--silk-c0, #060818) 100%);
+  background-size: 200% 200%;
+  animation: silkFallbackDrift 16s ease-in-out infinite alternate;
+}
+
+@keyframes silkFallbackDrift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-silk-fallback {
+    animation: none;
+  }
+}

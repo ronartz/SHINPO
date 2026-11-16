@@ -40,7 +40,7 @@ export const ShinpoTextArea: React.FC<ShinpoTextAreaProps> = ({
         aria-invalid={Boolean(errorMessage)}
         className="shinpo-textarea"
         style={{
-          borderColor: errorMessage ? 'var(--brand-red, #F87171)' : undefined,
+          borderColor: errorMessage ? 'var(--brand-red, var(--brand-primary))' : undefined,
         }}
         {...props}
       />

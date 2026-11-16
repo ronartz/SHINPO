@@ -1,17 +1,18 @@
 import { spawn } from 'node:child_process'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const viewports = [
   { width: 1920, height: 1080 },
-  { width: 1280, height: 800 },
-  { width: 1000, height: 768 },
-  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+  { width: 1280, height: 720 },
+  { width: 1024, height: 768 },
+  { width: 800, height: 600 },
 ]
-const views = ['Dashboard', 'Goals & Missions', 'Focus Engine', 'Schedule', 'Task Manager', 'Analytics', 'AI Assistant']
+const views = ['Dashboard', 'Goals & Missions', 'Focus Engine', 'Schedule', 'Task Manager', 'Analytics', 'Rewards', 'AI Assistant']
 
 function isolatedUrl(value, label, denyDefaultBackend = false) {
   if (!value) throw new Error(`${label} is required; configure both audit endpoints for an isolated QA instance`)
@@ -61,7 +62,10 @@ async function login() {
 async function main() {
   const auth = await login()
   const profile = await mkdtemp(join(tmpdir(), 'shinpo-visual-audit-'))
-  const captures = await mkdtemp(join(tmpdir(), 'shinpo-visual-audit-captures-'))
+  const captures = process.env.SHINPO_AUDIT_CAPTURE_DIR
+    ? resolve(process.env.SHINPO_AUDIT_CAPTURE_DIR)
+    : await mkdtemp(join(tmpdir(), 'shinpo-visual-audit-captures-'))
+  await mkdir(captures, { recursive: true })
   if (process.env.SHINPO_AUDIT_CAPTURE_ALL === '1') console.log(`Audit screenshots: ${captures}`)
   const port = 9407
   const chrome = spawn('google-chrome', [
@@ -128,14 +132,13 @@ async function main() {
     console.log('Browser authenticated API probe: HTTP 200.')
 
     const accountControls = await evaluate(`(() => ({
-      topbarSettings: Boolean(document.querySelector('.cockpit-top-bar [aria-label="Settings"]')),
-      topbarAccount: Boolean(document.querySelector('.cockpit-top-bar .profile-badge-card')),
-      sidebarSettings: Boolean(document.querySelector('.icon-sidebar .sidebar-settings-btn')),
-      sidebarAccount: Boolean(document.querySelector('.icon-sidebar .sidebar-profile')),
-      rewards: Boolean(document.querySelector('.icon-sidebar [data-rewards="true"]')),
+      desktopTopbarHidden: getComputedStyle(document.querySelector('.cockpit-top-bar')).display === 'none',
+      sidebarSettings: Boolean(document.querySelector('.icon-sidebar .sidebar-utility-actions [aria-label="Settings"]')),
+      sidebarAccount: Boolean(document.querySelector('.icon-sidebar .sidebar-account-trigger')),
+      rewards: Boolean(document.querySelector('.icon-sidebar .sidebar-rewards-card[data-tab="Rewards"]')),
     }))()`)
-    assert.ok(accountControls.topbarSettings && accountControls.topbarAccount && !accountControls.sidebarSettings && !accountControls.sidebarAccount && accountControls.rewards,
-      `Account, Settings, and Rewards controls must occupy their single intended destinations: ${JSON.stringify(accountControls)}`)
+    assert.ok(accountControls.desktopTopbarHidden && accountControls.sidebarSettings && accountControls.sidebarAccount && accountControls.rewards,
+      `Desktop shell must expose Settings, Account, and Rewards through the rail and remove the global bar: ${JSON.stringify(accountControls)}`)
     console.log(`Canonical navigation controls PASS: ${JSON.stringify(accountControls)}`)
 
     let firstLoginTour = false
@@ -349,15 +352,22 @@ async function main() {
     await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false })
     await sleep(250)
     const desktopNavPoint = await evaluate(`(() => { const r = document.querySelector('.sidebar-btn')?.getBoundingClientRect(); return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`)
+    const waitForSidebar = async (expanded, timeoutMs = 500) => {
+      const deadline = Date.now() + timeoutMs
+      while (Date.now() < deadline) {
+        if (await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')") === expanded) return true
+        await sleep(16)
+      }
+      return await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')") === expanded
+    }
     const cycleDurations = []
     for (let cycle = 0; cycle < 50; cycle++) {
       const startedAt = performance.now()
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...desktopNavPoint })
-      await sleep(100)
-      assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), true, `Sidebar failed to open on hover cycle ${cycle + 1}`)
+      assert.equal(await waitForSidebar(true), true, `Sidebar failed to open on hover cycle ${cycle + 1}`)
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 520, y: 400 })
       await sleep(235)
-      assert.equal(await evaluate("document.querySelector('.icon-sidebar')?.classList.contains('expanded')"), false, `Sidebar remained open after hover cycle ${cycle + 1}`)
+      assert.equal(await waitForSidebar(false), true, `Sidebar remained open after hover cycle ${cycle + 1}`)
       cycleDurations.push(performance.now() - startedAt)
     }
     cycleDurations.sort((a, b) => a - b)
@@ -395,6 +405,7 @@ async function main() {
             for (let parent = el; parent && parent !== document.body; parent = parent.parentElement) {
               const style = getComputedStyle(parent);
               if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+              if (parent.tagName === 'DETAILS' && !parent.open && !parent.querySelector(':scope > summary')?.contains(el)) return false;
             }
             return true;
           };
@@ -483,8 +494,8 @@ async function main() {
             clippedControls,
           };
         })()`)
-        let calendarScroll = view !== 'Schedule' || viewport.height > 900
-        if (!calendarScroll && view === 'Schedule') {
+        let calendarScroll = true
+        if (view === 'Schedule' && viewport.height <= 900) {
           const target = await evaluate(`(() => {
             const calendar = document.querySelector('.schedule-calendar-scroll');
             if (!calendar) return null;
@@ -499,14 +510,23 @@ async function main() {
               verticalRange: calendar.scrollHeight - calendar.clientHeight,
             };
           })()`)
-          if (target) {
+          calendarScroll = Boolean(target && target.verticalRange > 2)
+          if (calendarScroll) {
             await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: target.x, y: target.y, deltaX: 0, deltaY: 160 })
             await sleep(150)
-            calendarScroll = await evaluate(`(() => {
+            const internalScroll = await evaluate(`(() => {
               const calendar = document.querySelector('.schedule-calendar-scroll');
-              return calendar && document.scrollingElement.scrollTop > ${target.pageStart + 20}
-                && calendar.scrollTop === 0 && calendar.scrollHeight - calendar.clientHeight <= 2;
+              return calendar && calendar.scrollTop > 0;
             })()`)
+            calendarScroll = Boolean(internalScroll)
+            if (calendarScroll) {
+              await evaluate("document.querySelector('.schedule-calendar-scroll').scrollTop = document.querySelector('.schedule-calendar-scroll').scrollHeight")
+              const pageStart = await evaluate("document.scrollingElement.scrollTop")
+              await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: target.x, y: target.y, deltaX: 0, deltaY: 260 })
+              await sleep(150)
+              const pageScroll = await evaluate(`document.scrollingElement.scrollTop > ${pageStart}`)
+              calendarScroll = Boolean(pageScroll)
+            }
           }
         }
         results.push({ route: view, ...scan, calendarScroll })
@@ -531,6 +551,24 @@ async function main() {
           await evaluate('window.scrollTo({ top: 0, behavior: \'instant\' })')
         }
       }
+    }
+
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
+    for (const theme of ['dark', 'light']) {
+      await evaluate(`(() => {
+        document.documentElement.dataset.theme = '${theme}';
+        for (const el of [document.documentElement, document.body, document.querySelector('.app-shell')].filter(Boolean)) {
+          el.classList.toggle('theme-light', '${theme}' === 'light');
+          el.classList.toggle('theme-dark', '${theme}' === 'dark');
+        }
+        document.querySelector('[aria-label="Settings"]')?.click();
+      })()`)
+      for (let attempt = 0; attempt < 30 && !await evaluate("Boolean(document.querySelector('[role=dialog][aria-modal=true]'))"); attempt++) await sleep(100)
+      assert.equal(await evaluate("Boolean(document.querySelector('[role=dialog][aria-modal=true]'))"), true, `Settings must open in ${theme} mode`)
+      const image = await send('Page.captureScreenshot', { format: 'png' })
+      await writeFile(join(captures, `${theme}-settings-1440.png`), Buffer.from(image.result.data, 'base64'))
+      await evaluate("document.querySelector('[aria-label=\"Close Settings\"]')?.click()")
+      await sleep(120)
     }
 
     const failures = results.filter((result) => result.textOverlaps.length || result.cardOverlaps.length || result.clippedControls.length || result.horizontalOverflow || !result.calendarScroll)

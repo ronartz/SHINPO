@@ -2,6 +2,7 @@
 name = "shinpo-browser-host"
 version = "0.1.0"
 edition = "2021"
+publish = false
 description = "Per-user native messaging bridge for SHINPO Browser Companion"
 license = "UNLICENSED"
 

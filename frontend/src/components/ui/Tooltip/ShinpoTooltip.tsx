@@ -52,10 +52,10 @@ export const ShinpoTooltip: React.FC<ShinpoTooltipProps> = ({
             padding: '6px 10px',
             fontSize: 12,
             fontWeight: 500,
-            color: 'var(--text, #F3F4F6)',
-            backgroundColor: 'var(--surface-elevated, #24252D)',
+            color: 'var(--text, #e7e7e7)',
+            backgroundColor: 'var(--surface-elevated, #050505)',
             borderRadius: 6,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 4px 12px rgba(0,0,0, 0.4)',
             maxWidth: 240,
             lineHeight: 1.4,
           }}

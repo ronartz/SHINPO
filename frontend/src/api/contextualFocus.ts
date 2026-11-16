@@ -1,4 +1,8 @@
 import { apiClient } from './client.ts'
+import { isLocalVaultSession } from './auth.ts'
+import { invokeTauriCommand, isTauriEnvironment } from './tauri.ts'
+
+const shouldUseLocalFocusServices = () => isTauriEnvironment() && isLocalVaultSession()
 
 export type StudyFocusMode = 'GUIDED' | 'PROTECTED' | 'STRICT'
 
@@ -256,7 +260,7 @@ export function validateStudyResourceDraft(draft: StudyResourceDraft): string | 
 
   if (draft.matchType === 'DOMAIN') {
     if (!parseDomain(destination)) {
-      return 'Enter one exact domain, such as docs.spring.io. Paths and wildcards are not allowed.'
+      return 'Enter one exact domain, such as docs.rs. Paths and wildcards are not allowed.'
     }
     return null
   }
@@ -356,16 +360,48 @@ export async function getStudyResources(params: {
   missionId?: number
   sessionId?: number
 }): Promise<StudyResource[]> {
-  return apiClient.get<StudyResource[]>('/contextual-focus/resources', { params })
+  const result: unknown = shouldUseLocalFocusServices()
+    ? await invokeTauriCommand<unknown>('local_get_study_resources', {
+        missionId: params.missionId ?? null,
+        sessionId: params.sessionId ?? null,
+      })
+    : await apiClient.get<unknown>('/contextual-focus/resources', { params })
+
+  return normalizeStudyResourceList(result)
+}
+
+export function normalizeStudyResourceList(value: unknown): StudyResource[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Study resource service returned an invalid list.')
+  }
+  return value as StudyResource[]
 }
 
 export async function createStudyResource(
   request: CreateStudyResourceRequest,
 ): Promise<StudyResource> {
+  if (shouldUseLocalFocusServices()) {
+    const resource = await invokeTauriCommand<StudyResource>('local_create_study_resource', {
+      request: {
+      missionId: request.missionId ?? null, focusSessionId: request.focusSessionId ?? null,
+      resourceType: request.resourceType, matchType: request.matchType,
+      disposition: request.disposition, breakOnly: request.breakOnly ?? false,
+      destination: request.destination, displayName: request.displayName ?? null,
+      expiresAt: request.expiresAt ?? null,
+      },
+    })
+    await invokeTauriCommand('local_sync_browser_policy').catch(() => undefined)
+    return resource
+  }
   return apiClient.post<StudyResource>('/contextual-focus/resources', request)
 }
 
 export async function deleteStudyResource(resourceId: number): Promise<void> {
+  if (shouldUseLocalFocusServices()) {
+    await invokeTauriCommand<void>('local_delete_study_resource', { resourceId })
+    await invokeTauriCommand('local_sync_browser_policy').catch(() => undefined)
+    return
+  }
   return apiClient.delete<void>(`/contextual-focus/resources/${resourceId}`)
 }
 
@@ -373,6 +409,16 @@ export async function updateStudyFocusMode(
   sessionId: number,
   mode: StudyFocusMode,
 ): Promise<ContextualFocusStatus> {
+  if (shouldUseLocalFocusServices()) {
+    await invokeTauriCommand<void>('local_set_browser_focus_mode', { sessionId, mode })
+    const [status, resources] = await Promise.all([invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status'), getStudyResources({ sessionId })])
+    return normalizeContextualFocusStatus({
+      sessionId, sessionStatus: 'ACTIVE', mode, policyRevision: null,
+      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: status.paired ? 'LIMITED' : 'NONE', adapterName: 'Native messaging', detail: status.detail },
+      nativeShield: { state: 'UNAVAILABLE', detail: 'Local Focus Protection is not connected to the browser host.' },
+      restrictions: resources,
+    }, sessionId)
+  }
   const response = await apiClient.patch<unknown>(
     `/contextual-focus/sessions/${sessionId}/mode`,
     { mode },
@@ -383,6 +429,18 @@ export async function updateStudyFocusMode(
 export async function getContextualFocusStatus(
   sessionId: number,
 ): Promise<ContextualFocusStatus> {
+  if (shouldUseLocalFocusServices()) {
+    const [local, policy] = await Promise.all([
+      invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status'),
+      invokeTauriCommand<{ mode?: StudyFocusMode; policyVersion?: number; status?: string }>('local_sync_browser_policy'),
+    ])
+    return normalizeContextualFocusStatus({
+      sessionId, sessionStatus: policy.status ?? null, mode: policy.mode ?? null, policyRevision: policy.policyVersion ?? null,
+      browserCompanion: { state: 'DISCONNECTED', adapterCoverage: local.paired ? 'LIMITED' : 'NONE', adapterName: 'Native messaging', detail: local.detail },
+      nativeShield: { state: 'UNAVAILABLE', detail: 'Native process protection is not connected to local browser policy.' },
+      restrictions: await getStudyResources({ sessionId }),
+    }, sessionId)
+  }
   const response = await apiClient.get<unknown>('/contextual-focus/status', {
     params: { sessionId },
   })
@@ -390,6 +448,8 @@ export async function getContextualFocusStatus(
 }
 
 export async function getFocusRestrictions(sessionId: number): Promise<StudyResource[]> {
+  if (shouldUseLocalFocusServices()) return (await getStudyResources({ sessionId })).filter((resource) =>
+    resource.disposition === 'BLOCKED' || resource.breakOnly)
   return apiClient.get<StudyResource[]>('/contextual-focus/restrictions', {
     params: { sessionId },
   })

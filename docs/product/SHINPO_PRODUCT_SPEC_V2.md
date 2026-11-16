@@ -10,23 +10,23 @@ SHINPO helps an individual turn goals into scheduled tasks, protect focused work
 
 ## Governing decisions
 
-- Preserve React, TypeScript, Vite, Tauri v2, Rust, Spring Boot, and PostgreSQL.
-- Preserve EONPAI and its authorized real tool actions, the server-backed XP ledger, the Fernly-inspired desktop visual direction, and the approved sidebar collapse behavior.
+- Preserve React, TypeScript, Vite, Tauri v2, and the local Rust/SQLCipher authority. Spring Boot/PostgreSQL remain legacy transition code, not a required desktop runtime.
+- Preserve EONPAI and its authorized real tool actions, the locally persisted XP ledger, the Fernly-inspired desktop visual direction, and the approved sidebar collapse behavior.
 - Focus sounds and audio-based rewards are removed.
-- The backend is authoritative for persisted session lifecycle, phase deadlines, policy revision, reward ledger, and penalty idempotency. The extension may display a countdown derived from server timestamps, but must not own a drifting timer or decide penalties.
-- Local native enforcement runs only on the user's machine, only for explicitly enrolled distractions, with safe graceful close and truthful outcome reporting. A disconnected Shield or extension is reported as degraded; it is never presented as successful enforcement.
+- The Rust vault is authoritative for persisted session lifecycle, phase deadlines, policy revision, reward ledger, and penalty idempotency. The extension consumes the local policy lease and never owns a drifting timer or decides penalties.
+- Guardian recognizes bundled distraction categories without user-maintained blocklists. Its browser domain catalog is versioned independently from the application catalog (`guardian-domains-v1`, `guardian-apps-v1`). Light (`GUIDED`) warns on known blocked sites and leaves ordinary browsing available; Standard (`PROTECTED`) restricts known blocked sites and reports unclassified destinations as uncertain; Strict (`STRICT`) restricts destinations outside the trusted catalog and explicit approvals. Local application observation requires per-session consent and stays warning-only until executable identity and closure safety are qualified. User exceptions are optional; disconnected services are reported as degraded.
 - Do not claim store publication without store approval, or platform/release qualification without actual packaged installation and runtime evidence.
 
 ## Focus, break, and return lifecycle
 
-Required journey: **60 minutes Focus → 15-minute break → 10-minute grace → return required at 25 minutes → configured one-time XP penalty and safe enforcement → resume Focus.** The persisted backend lifecycle must represent `FOCUS`, `BREAK`, `GRACE`, and `RETURN_REQUIRED`, plus `PAUSED`, `COMPLETED`, `CANCELLED`, and recoverable interruption as needed. All clients consume the same phase, server timestamps/deadlines, session ID, and policy revision.
+Required journey: **30 minutes Focus → 15-minute break → 10-minute grace → return required at 25 minutes → resume for 30 minutes Focus.** A 60-minute Focus duration means 60 minutes of total verified work across two blocks; break and grace are additional and never count as work. An explicitly enabled late-return XP penalty may apply at Return Required. The persisted Rust lifecycle represents `FOCUS`, `BREAK`, `GRACE`, and `RETURN_REQUIRED`, plus `PAUSED`, `COMPLETED`, `CANCELLED`, and recoverable interruption. Browser policy uses the persisted phase, timestamps/deadlines, session ID, and revision.
 
 - Focus accrues verified active work only. Pause/resume and process restart must not invent elapsed work.
-- During the normal break, only resources explicitly marked **Allow only during scheduled breaks** are available. Ordinary study approvals do not become break approvals. Break-only permissions are revoked at the server-provided cutoff and cannot leak into Focus.
+- During the normal break, only resources explicitly approved for that break are permitted. A break-only approval expires at the persisted cutoff; the site policy then restricts it again until Focus ends.
 - At 15 minutes, transition to a visible 10-minute grace warning. Returning early resumes Focus without penalty.
-- At 25 minutes, persist one overdue event and apply the configured penalty exactly once, capped by the configured daily limit and available XP. Default proposal is −5 XP per overdue break, capped at −20 XP/day; values must be configurable, user-enabled, and confirmed against the existing ledger before implementation.
+- At 25 minutes, an opted-in midpoint session persists one overdue event and applies its configured penalty exactly once, capped by the configured daily limit and available XP. Defaults are −5 XP per overdue break and −20 XP/day. Existing sessions and sessions without opt-in never incur this penalty.
 - Never penalize solely because of network loss, stale client state, clock skew, or computer suspension. Do not claim a process was closed unless the OS confirms it. Never terminate a browser or non-enrolled process.
-- Extension restart/reconnect obtains a fresh backend policy. If the lease expires offline, it reports degraded status, keeps only cached explicit blocked and break-only destinations restricted, marks other destinations uncertain, and claims no active server synchronization. It never invents a phase or blocks unrelated sites.
+- Extension restart/reconnect obtains a fresh policy from the local native host. If the lease expires offline, it reports degraded status, keeps only cached explicit restrictions, marks other destinations uncertain, and claims no active synchronization. It never invents a phase.
 
 ## Browser Companion release acceptance
 

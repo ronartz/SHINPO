@@ -1,0 +1,128 @@
+.auth-warp {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+  perspective: 200px;
+}
+
+.auth-warp__plane {
+  position: absolute;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-focus) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-focus) 18%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  will-change: background-position;
+}
+
+.auth-fullscreen-container.theme-light .auth-warp__plane {
+  opacity: 0.38;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-primary) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-primary) 22%, transparent) 1px, transparent 1px);
+}
+
+.auth-warp__plane--top,
+.auth-warp__plane--bottom {
+  left: -12%;
+  width: 124%;
+  height: 54%;
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 80%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 80%, transparent);
+}
+
+.auth-warp__plane--top {
+  top: -7%;
+  transform: rotateX(-32deg);
+  transform-origin: center bottom;
+  animation: authWarpGridTop 16s linear infinite;
+}
+
+.auth-warp__plane--bottom {
+  bottom: -7%;
+  transform: rotateX(32deg);
+  transform-origin: center top;
+  animation: authWarpGridBottom 16s linear infinite;
+}
+
+.auth-warp__plane--left,
+.auth-warp__plane--right {
+  top: -12%;
+  width: 54%;
+  height: 124%;
+  mask-image: linear-gradient(to right, transparent, #000 35%, #000 80%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 35%, #000 80%, transparent);
+}
+
+.auth-warp__plane--left {
+  left: -7%;
+  transform: rotateY(32deg);
+  transform-origin: right center;
+  animation: authWarpGridLeft 16s linear infinite;
+}
+
+.auth-warp__plane--right {
+  right: -7%;
+  transform: rotateY(-32deg);
+  transform-origin: left center;
+  animation: authWarpGridRight 16s linear infinite;
+}
+
+@keyframes authWarpGridTop {
+  from { background-position: 0 0; }
+  to { background-position: 0 480px; }
+}
+
+@keyframes authWarpGridBottom {
+  from { background-position: 0 0; }
+  to { background-position: 0 -480px; }
+}
+
+@keyframes authWarpGridLeft {
+  from { background-position: 0 0; }
+  to { background-position: 480px 0; }
+}
+
+@keyframes authWarpGridRight {
+  from { background-position: 0 0; }
+  to { background-position: -480px 0; }
+}
+
+.auth-warp__beam {
+  position: absolute;
+  display: block;
+  width: 4px;
+  height: 22%;
+  border-radius: 2px;
+  opacity: 0;
+  transform: rotate(var(--warp-angle, 0deg));
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-primary) 30%, transparent), color-mix(in srgb, var(--color-focus) 60%, transparent), transparent);
+  animation: authWarpTravel 10s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.auth-warp__beam--1,
+.auth-warp__beam--2 {
+  top: -19%;
+  left: 31%;
+  --warp-angle: 0deg;
+}
+
+.auth-warp__beam--2 { left: 68%; animation-delay: -3s; }
+.auth-warp__beam--3,
+.auth-warp__beam--4 { right: -19%; top: 31%; --warp-angle: 90deg; }
+.auth-warp__beam--4 { top: 68%; animation-delay: -3s; }
+.auth-warp__beam--5,
+.auth-warp__beam--6 { bottom: -19%; left: 31%; --warp-angle: 180deg; }
+.auth-warp__beam--6 { left: 68%; animation-delay: -3s; }
+.auth-warp__beam--7,
+.auth-warp__beam--8 { left: -19%; top: 31%; --warp-angle: -90deg; }
+.auth-warp__beam--8 { top: 68%; animation-delay: -3s; }
+
+@keyframes authWarpTravel {
+  0%, 8% { opacity: 0; transform: rotate(var(--warp-angle)) translateY(0) scaleY(0.72); }
+  22% { opacity: 0.85; }
+  84% { opacity: 0.65; }

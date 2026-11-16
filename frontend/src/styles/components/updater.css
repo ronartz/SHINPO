@@ -1,0 +1,566 @@
+/* ==========================================================================
+   SHINPO (進歩) — IN-APP UPDATER STYLESHEET
+   Theme-aware styles across Classic Dark, Classic Light, Aurora Dark, Aurora Light.
+   ========================================================================== */
+
+/* 1. UPDATE FLOATING NOTIFICATION BANNER */
+.shinpo-update-notification {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 99999;
+  max-width: 440px;
+  width: calc(100vw - 56px);
+  background: color-mix(in srgb, var(--color-surface-1, #131B2E) 92%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border-bold, rgba(255, 255, 255, 0.16));
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  animation: updateSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--motion-hover, 150ms) ease, box-shadow var(--motion-hover, 150ms) ease;
+  pointer-events: auto;
+}
+
+@keyframes updateSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.shinpo-update-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+}
+
+.shinpo-update-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.shinpo-update-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-primary, #AFF33E) 18%, transparent);
+  color: var(--color-primary, #AFF33E);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #AFF33E) 35%, transparent);
+}
+
+.shinpo-update-channel-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.shinpo-update-channel-pill.pill-beta {
+  background: color-mix(in srgb, #9757FA 22%, transparent);
+  color: #B9A1FF;
+  border: 1px solid color-mix(in srgb, #9757FA 40%, transparent);
+}
+
+.shinpo-update-channel-pill.pill-stable {
+  background: color-mix(in srgb, #16A36A 22%, transparent);
+  color: #4ADE80;
+  border: 1px solid color-mix(in srgb, #16A36A 40%, transparent);
+}
+
+.shinpo-update-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #94A3B8);
+  padding: 4px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--motion-hover, 150ms) ease, background-color var(--motion-hover, 150ms) ease;
+}
+
+.shinpo-update-dismiss-btn:hover {
+  color: var(--color-text-primary, #F8FAFC);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shinpo-update-title {
+  font-size: var(--font-size-card-heading, 16px);
+  font-weight: 700;
+  color: var(--color-text-primary, #F8FAFC);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.shinpo-update-version-label {
+  font-size: var(--font-size-metadata, 12px);
+  color: var(--color-text-muted, #94A3B8);
+  margin-top: 2px;
+}
+
+.shinpo-update-desc {
+  font-size: var(--font-size-caption, 13px);
+  color: var(--color-text-secondary, #CBD5E1);
+  line-height: 1.45;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.shinpo-update-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-1, 4px);
+}
+
+.shinpo-update-btn {
+  padding: 7px 14px;
+  font-size: var(--font-size-caption, 13px);
+  font-weight: 600;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all var(--motion-control, 210ms) ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.shinpo-update-btn.btn-primary {
+  background: var(--color-primary, #AFF33E);
+  color: var(--color-on-primary, #020617);
+  border: 1px solid var(--color-primary, #AFF33E);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary, #AFF33E) 35%, transparent);
+}
+
+.shinpo-update-btn.btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.shinpo-update-btn.btn-secondary {
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 60%, transparent);
+  color: var(--color-text-primary, #F8FAFC);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.12));
+}
+
+.shinpo-update-btn.btn-secondary:hover {
+  background: var(--color-surface-2, #1E293B);
+  border-color: var(--color-border-bold, rgba(255, 255, 255, 0.2));
+}
+
+/* 2. UPDATE DOWNLOAD & INSTALLATION MODAL */
+.shinpo-update-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  background: rgba(2, 6, 23, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4, 16px);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+@keyframes modalFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.shinpo-update-modal {
+  width: 100%;
+  max-width: 580px;
+  background: var(--color-surface-1, #131B2E);
+  border: 1px solid var(--color-border-bold, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-xl, 18px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  padding: var(--space-6, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  position: relative;
+  animation: modalZoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalZoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.shinpo-update-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+}
+
+.shinpo-update-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shinpo-update-modal-title {
+  font-size: var(--font-size-heading, 20px);
+  font-weight: 700;
+  color: var(--color-text-primary, #F8FAFC);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shinpo-update-version-flow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-caption, 13px);
+  color: var(--color-text-muted, #94A3B8);
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+.shinpo-update-version-flow .curr {
+  color: var(--color-text-secondary, #CBD5E1);
+}
+
+.shinpo-update-version-flow .arrow {
+  color: var(--color-primary, #AFF33E);
+}
+
+.shinpo-update-version-flow .next {
+  color: var(--color-primary, #AFF33E);
+  font-weight: 700;
+}
+
+/* Release Highlights Box */
+.shinpo-update-notes-container {
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 50%, transparent);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 10px);
+  padding: var(--space-4, 16px);
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: var(--font-size-caption, 13px);
+  color: var(--color-text-secondary, #CBD5E1);
+  line-height: 1.6;
+}
+
+.shinpo-update-notes-container h4 {
+  margin: 0 0 8px 0;
+  color: var(--color-text-primary, #F8FAFC);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.shinpo-update-notes-container pre,
+.shinpo-update-notes-container code {
+  font-family: var(--font-mono, monospace);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* Progress Section */
+.shinpo-update-progress-card {
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 60%, transparent);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 10px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.shinpo-update-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-caption, 13px);
+  color: var(--color-text-primary, #F8FAFC);
+}
+
+.shinpo-update-progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.shinpo-update-progress-bar-fill {
+  height: 100%;
+  background: var(--color-primary, #AFF33E);
+  border-radius: 999px;
+  transition: width 0.2s ease-out;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary, #AFF33E) 60%, transparent);
+}
+
+.shinpo-update-progress-bar-fill.indeterminate {
+  width: 40%;
+  animation: indeterminateProgress 1.4s infinite ease-in-out;
+}
+
+@keyframes indeterminateProgress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* Active Focus Protection Alert Box */
+.shinpo-update-focus-alert {
+  background: color-mix(in srgb, var(--status-warning, #B7791F) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-warning, #B7791F) 45%, transparent);
+  border-radius: var(--radius-md, 10px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  gap: var(--space-3, 12px);
+  color: var(--color-text-primary, #F8FAFC);
+}
+
+.shinpo-update-focus-alert-icon {
+  color: var(--status-warning, #F59E0B);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.shinpo-update-focus-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shinpo-update-focus-alert-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--status-warning, #F59E0B);
+}
+
+.shinpo-update-focus-alert-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary, #CBD5E1);
+  margin: 0;
+}
+
+/* Modal Actions */
+.shinpo-update-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3, 12px);
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.shinpo-update-btn.btn-warning {
+  background: var(--status-danger, #DC4455);
+  color: #FFFFFF;
+  border: 1px solid var(--status-danger, #DC4455);
+}
+
+.shinpo-update-btn.btn-warning:hover {
+  filter: brightness(1.1);
+}
+
+/* 3. SETTINGS MODAL "SOFTWARE UPDATES" SECTION */
+.settings-updates-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6, 24px);
+}
+
+.settings-updates-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3, 12px);
+  margin-top: var(--space-3, 12px);
+}
+
+.settings-updates-info-item {
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 40%, transparent);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-updates-info-label {
+  font-size: var(--font-size-metadata, 12px);
+  color: var(--color-text-muted, #94A3B8);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.settings-updates-info-val {
+  font-size: var(--font-size-body, 15px);
+  font-weight: 600;
+  color: var(--color-text-primary, #F8FAFC);
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
+}
+
+/* Channel Radio Cards */
+.settings-channel-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3, 12px);
+  margin-top: var(--space-3, 12px);
+}
+
+@media (max-width: 600px) {
+  .settings-channel-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-channel-card {
+  padding: var(--space-4, 16px);
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 35%, transparent);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  transition: all var(--motion-hover, 150ms) ease;
+}
+
+.settings-channel-card:hover {
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 60%, transparent);
+  border-color: var(--color-border-bold, rgba(255, 255, 255, 0.2));
+}
+
+.settings-channel-card.is-active {
+  border-color: var(--color-primary, #AFF33E);
+  background: color-mix(in srgb, var(--color-primary, #AFF33E) 12%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-primary, #AFF33E) 20%, transparent);
+}
+
+.settings-channel-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-channel-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary, #F8FAFC);
+}
+
+.settings-channel-card-desc {
+  font-size: 12.5px;
+  color: var(--color-text-secondary, #CBD5E1);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Status Banner in Settings */
+.settings-updates-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--color-surface-2, #1E293B) 50%, transparent);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+.settings-updates-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-updates-status-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary, #F8FAFC);
+}
+
+.settings-updates-status-meta {
+  font-size: 12.5px;
+  color: var(--color-text-muted, #94A3B8);
+}
+
+/* Light Theme Overrides */
+.theme-light .shinpo-update-notification,
+html[data-theme='light'] .shinpo-update-notification,
+html[data-theme='classic-light'] .shinpo-update-notification,
+html[data-theme='aurora-light'] .shinpo-update-notification {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .shinpo-update-modal,
+html[data-theme='light'] .shinpo-update-modal,
+html[data-theme='classic-light'] .shinpo-update-modal,
+html[data-theme='aurora-light'] .shinpo-update-modal {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.14);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .shinpo-update-notes-container,
+html[data-theme='light'] .shinpo-update-notes-container,
+html[data-theme='classic-light'] .shinpo-update-notes-container,
+html[data-theme='aurora-light'] .shinpo-update-notes-container {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+.theme-light .shinpo-update-progress-bar-track,
+html[data-theme='light'] .shinpo-update-progress-bar-track,
+html[data-theme='classic-light'] .shinpo-update-progress-bar-track,
+html[data-theme='aurora-light'] .shinpo-update-progress-bar-track {
+  background: #E2E8F0;
+}
+
+/* Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  .shinpo-update-notification,
+  .shinpo-update-modal-backdrop,
+  .shinpo-update-modal,
+  .shinpo-update-progress-bar-fill {
+    animation: none !important;
+    transition: none !important;
+  }
+}

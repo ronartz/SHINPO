@@ -7,6 +7,7 @@ import {
   getContextualFocusStatus,
   getOpenableResourceUrl,
   getStudyResources,
+  normalizeStudyResourceList,
   normalizeContextualFocusStatus,
   updateStudyFocusMode,
   validateStudyResourceDraft,
@@ -18,7 +19,7 @@ const baseDraft: StudyResourceDraft = {
   resourceType: 'WEBSITE',
   matchType: 'EXACT',
   disposition: 'APPROVED',
-  destination: 'https://docs.spring.io/spring-security/reference/',
+  destination: 'https://docs.rs/tauri/latest/tauri/',
 }
 
 function resource(overrides: Partial<StudyResource> = {}): StudyResource {
@@ -31,9 +32,9 @@ function resource(overrides: Partial<StudyResource> = {}): StudyResource {
     matchType: 'EXACT',
     disposition: 'APPROVED',
     breakOnly: false,
-    destination: 'https://docs.spring.io/security',
-    canonicalDestination: 'https://docs.spring.io/security',
-    displayName: 'Spring Security',
+    destination: 'https://docs.rs/tauri',
+    canonicalDestination: 'https://docs.rs/tauri',
+    displayName: 'Rust Documentation',
     expiresAt: null,
     createdAt: '2026-10-16T10:00:00Z',
     updatedAt: '2026-10-16T10:00:00Z',
@@ -46,17 +47,17 @@ test('contextual Focus resource validation is scope-aware and resists lookalike 
   assert.equal(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'docs.spring.io',
+    destination: 'docs.rs',
   }), null)
   assert.equal(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'https://docs.spring.io/',
+    destination: 'https://docs.rs/',
   }), null)
   assert.match(validateStudyResourceDraft({
     ...baseDraft,
     matchType: 'DOMAIN',
-    destination: 'https://docs.spring.io/reference',
+    destination: 'https://docs.rs/reference',
   }) ?? '', /exact domain/)
 
   assert.match(validateStudyResourceDraft({
@@ -92,6 +93,13 @@ test('contextual Focus resource validation is scope-aware and resists lookalike 
     matchType: 'PROCESS',
     destination: 'code',
   }) ?? '', /active Focus session/)
+})
+
+test('study resource API responses must be arrays so malformed success payloads cannot crash Focus', () => {
+  assert.deepEqual(normalizeStudyResourceList([]), [])
+  assert.deepEqual(normalizeStudyResourceList([resource()]), [resource()])
+  assert.throws(() => normalizeStudyResourceList(null), /invalid list/)
+  assert.throws(() => normalizeStudyResourceList({ resources: [] }), /invalid list/)
 })
 
 test('temporary resource request uses the selected scope and produces a bounded expiry', () => {
@@ -161,8 +169,8 @@ test('coverage normalization never upgrades absent status to connected', () => {
 
 test('open-resource helper permits http(s) only and excludes process rules', () => {
   assert.equal(
-    getOpenableResourceUrl(resource({ matchType: 'DOMAIN', canonicalDestination: 'docs.spring.io' })),
-    'https://docs.spring.io/',
+    getOpenableResourceUrl(resource({ matchType: 'DOMAIN', canonicalDestination: 'docs.rs' })),
+    'https://docs.rs/',
   )
   assert.equal(
     getOpenableResourceUrl(resource({
@@ -285,4 +293,35 @@ test('contextual Focus API client uses the authenticated contract', async (t) =>
     assert.equal(changed.mode, 'STRICT')
     assert.equal(status.browserCompanion.state, 'DISCONNECTED')
   })
+})
+
+test('standalone contextual status distinguishes saved pairing from live connection', async () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const originalFetch = globalThis.fetch
+  const tauriWindow = window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string) => Promise<unknown> } }
+  const previousBridge = tauriWindow.__TAURI_INTERNALS__
+  let fetchCalled = false
+  storage.clear()
+  storage.set('shinpo_local_vault_account', 'disposable-user')
+  tauriWindow.__TAURI_INTERNALS__ = { invoke: async (cmd) => {
+    if (cmd === 'browser_companion_local_status') return { paired: true, state: 'PAIRED', detail: 'Saved locally; live connection not verified.' }
+    if (cmd === 'local_sync_browser_policy') return { status: 'ACTIVE', mode: 'PROTECTED', policyVersion: 4 }
+    if (cmd === 'local_get_study_resources') return []
+    if (cmd === 'local_set_browser_focus_mode') return undefined
+    throw new Error(`Unexpected native command: ${cmd}`)
+  } }
+  globalThis.fetch = async () => { fetchCalled = true; throw new Error('standalone status attempted HTTP') }
+  try {
+    const status = await getContextualFocusStatus(12)
+    assert.equal(status.browserCompanion.state, 'DISCONNECTED')
+    assert.equal(status.browserCompanion.adapterCoverage, 'LIMITED')
+    assert.equal(status.browserCompanion.detail, 'Saved locally; live connection not verified.')
+    assert.equal(fetchCalled, false)
+  } finally {
+    storage.clear()
+    globalThis.fetch = originalFetch
+    if (previousBridge) tauriWindow.__TAURI_INTERNALS__ = previousBridge
+    else delete tauriWindow.__TAURI_INTERNALS__
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+  }
 })

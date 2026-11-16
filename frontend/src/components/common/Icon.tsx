@@ -59,6 +59,12 @@ export function Icon({
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
       )
+    case 'star':
+      return (
+        <svg {...common}>
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      )
     case 'calendar':
     case 'schedule':
       return (
@@ -84,6 +90,14 @@ export function Icon({
           <rect x="14" y="3" width="7" height="7" rx="1.5" />
           <rect x="14" y="14" width="7" height="7" rx="1.5" />
           <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      )
+    case 'globe':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </svg>
       )
     case 'journal':
@@ -140,12 +154,47 @@ export function Icon({
           <polyline points="15 18 9 12 15 6" />
         </svg>
       )
+    case 'chevron-down':
+      return (
+        <svg {...common}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      )
+    case 'chevron-up':
+      return (
+        <svg {...common}>
+          <polyline points="18 15 12 9 6 15" />
+        </svg>
+      )
+    case 'arrow-down':
+      return (
+        <svg {...common}>
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <polyline points="19 12 12 19 5 12" />
+        </svg>
+      )
+    case 'arrow-up':
+      return (
+        <svg {...common}>
+          <line x1="12" y1="19" x2="12" y2="5" />
+          <polyline points="5 12 12 5 19 12" />
+        </svg>
+      )
     case 'menu':
       return (
         <svg {...common}>
           <line x1="4" y1="6" x2="20" y2="6" />
           <line x1="4" y1="12" x2="20" y2="12" />
           <line x1="4" y1="18" x2="20" y2="18" />
+        </svg>
+      )
+    case 'more-horizontal':
+    case 'ellipsis':
+      return (
+        <svg {...common} stroke="none" fill="currentColor">
+          <circle cx="12" cy="12" r="2.5" />
+          <circle cx="19" cy="12" r="2.5" />
+          <circle cx="5" cy="12" r="2.5" />
         </svg>
       )
     case 'play':
@@ -172,6 +221,12 @@ export function Icon({
       return (
         <svg {...common}>
           <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      )
+    case 'minus':
+      return (
+        <svg {...common}>
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       )
@@ -204,6 +259,7 @@ export function Icon({
         </svg>
       )
     case 'close':
+    case 'x':
       return (
         <svg {...common}>
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -233,6 +289,12 @@ export function Icon({
           <line x1="12" y1="2" x2="12" y2="12" />
         </svg>
       )
+    case 'minimize':
+      return (
+        <svg {...common}>
+          <line x1="4" y1="14" x2="20" y2="14" />
+        </svg>
+      )
     case 'trash':
       return (
         <svg {...common}>
@@ -260,6 +322,13 @@ export function Icon({
       return (
         <svg {...common}>
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      )
+    case 'copy':
+      return (
+        <svg {...common}>
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
       )
     case 'lock':

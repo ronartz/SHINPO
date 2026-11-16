@@ -70,12 +70,12 @@ export const ShinpoSwitch: React.FC<ShinpoSwitchProps> = ({
           height: 22,
           borderRadius: 12,
           backgroundColor: checked
-            ? 'var(--primary-violet, #3156D8)'
-            : 'var(--surface-subtle, #24252D)',
-          border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.14))',
+            ? 'var(--primary-violet, var(--brand-primary))'
+            : 'var(--surface-subtle, #050505)',
+          border: '1px solid var(--border-strong, rgba(255,255,255, 0.14))',
           position: 'relative',
           transition: 'background-color 0.16s ease',
-          boxShadow: checked ? '0 2px 8px rgba(49, 86, 216, 0.35)' : 'none',
+          boxShadow: checked ? '0 2px 8px color-mix(in srgb, var(--brand-primary) 35.0%, transparent)' : 'none',
           flexShrink: 0,
         }}
       >
@@ -87,15 +87,15 @@ export const ShinpoSwitch: React.FC<ShinpoSwitchProps> = ({
             width: 16,
             height: 16,
             borderRadius: '50%',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: '#ffffff',
             transition: 'left 0.16s cubic-bezier(0.16, 1, 0.3, 1)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+            boxShadow: '0 1px 3px rgba(0,0,0, 0.3)',
           }}
         />
       </div>
 
       {label && (
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text, #F3F4F6)' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text, #e7e7e7)' }}>
           {label}
         </span>
       )}
