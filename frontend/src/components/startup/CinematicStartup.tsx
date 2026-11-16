@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { ShinpoLogo } from '../ShinpoLogo'
+import { GlassLogoReveal } from './GlassLogoReveal'
 
 export interface CinematicStartupProps {
   isReady: boolean
@@ -11,13 +11,14 @@ export interface CinematicStartupProps {
 export const CinematicStartup: React.FC<CinematicStartupProps> = ({
   isReady,
   onComplete,
-  minimumDurationMs = 5000,
+  minimumDurationMs = 4000,
   initializationStatus,
 }) => {
   const [progress, setProgress] = useState(5)
   const [statusMessage, setStatusMessage] = useState('Initializing local runtime...')
   const [isExiting, setIsExiting] = useState(false)
   const [showRecovery, setShowRecovery] = useState(false)
+  const [, setIsGlassSettled] = useState(false)
   const [hasCompleted, setHasCompleted] = useState(() => {
     try {
       return typeof window !== 'undefined' && sessionStorage.getItem('shinpo_splash_shown') === 'true'
@@ -59,7 +60,7 @@ export const CinematicStartup: React.FC<CinematicStartupProps> = ({
     }
   }, [hasCompleted])
 
-  // Motion and Progress Sequence Loop (0 - 5000ms+)
+  // Motion and Progress Sequence Loop (0 - 4000ms+)
   useEffect(() => {
     if (hasCompleted) return
 
@@ -71,31 +72,31 @@ export const CinematicStartup: React.FC<CinematicStartupProps> = ({
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
       const elapsed = now - (startTimeRef.current || now)
 
-      // Phase 1: 0 - 1,500ms: Logo emergence and orbital formation (progress 5% -> 30%)
-      if (elapsed < 1500) {
-        const ratio = elapsed / 1500
-        setProgress(Math.round(5 + ratio * 25))
+      // Phase 1: 0 - 1,200ms: Glass droplet forms and begins spreading (progress 5% -> 35%)
+      if (elapsed < 1200) {
+        const ratio = elapsed / 1200
+        setProgress(Math.round(5 + ratio * 30))
         setStatusMessage(initializationStatus || 'Initializing local runtime...')
       }
-      // Phase 2: 1,500 - 3,000ms: SHINPO wordmark reveal and luminous motion (progress 30% -> 65%)
-      else if (elapsed < 3000) {
-        const ratio = (elapsed - 1500) / 1500
-        setProgress(Math.round(30 + ratio * 35))
+      // Phase 2: 1,200 - 2,500ms: Logo magnification & chromatic dispersion (progress 35% -> 70%)
+      else if (elapsed < 2500) {
+        const ratio = (elapsed - 1200) / 1300
+        setProgress(Math.round(35 + ratio * 35))
         setStatusMessage(initializationStatus || 'Loading security modules & platform services...')
       }
-      // Phase 3: 3,000 - 4,500ms: Supporting caption & progress animation (progress 65% -> 90%)
-      else if (elapsed < 4500) {
-        const ratio = (elapsed - 3000) / 1500
-        setProgress(Math.round(65 + ratio * 25))
+      // Phase 3: 2,500 - 3,600ms: Glass release, crisp logo settlement & brand reveal (progress 70% -> 95%)
+      else if (elapsed < 3600) {
+        const ratio = (elapsed - 2500) / 1100
+        setProgress(Math.round(70 + ratio * 25))
         setStatusMessage(initializationStatus || 'Preparing encrypted vault environment...')
       }
-      // Phase 4: 4,500 - 5,000ms: Final completion and transition preparation (progress 90% -> 99%)
+      // Phase 4: 3,600 - minimumDurationMs (4,000ms): Ready handoff (progress 95% -> 99%)
       else if (elapsed < minimumDurationMs) {
-        const ratio = (elapsed - 4500) / Math.max(1, minimumDurationMs - 4500)
-        setProgress(Math.round(90 + ratio * 9))
+        const ratio = (elapsed - 3600) / Math.max(1, minimumDurationMs - 3600)
+        setProgress(Math.round(95 + ratio * 4))
         setStatusMessage(initializationStatus || 'Finalizing initialization...')
       }
-      // Minimum duration (>= 5,000ms) has elapsed
+      // Minimum duration (>= 4,000ms) has elapsed
       else {
         if (isReadyRef.current) {
           setProgress(100)
@@ -103,7 +104,7 @@ export const CinematicStartup: React.FC<CinematicStartupProps> = ({
           clearInterval(interval)
           finishStartup()
         } else {
-          // Dual condition guard: hold at 96% and display honest status until ready
+          // Dual condition guard: hold at 96% with crisp logo and display honest status until ready
           setProgress(96)
           setStatusMessage(initializationStatus || 'Waiting for local service readiness...')
           if (elapsed > 15000) {
@@ -116,7 +117,7 @@ export const CinematicStartup: React.FC<CinematicStartupProps> = ({
     return () => clearInterval(interval)
   }, [hasCompleted, minimumDurationMs, initializationStatus, finishStartup])
 
-  // Reactive listener if isReady resolves after 5,000ms
+  // Reactive listener if isReady resolves after minimumDurationMs
   useEffect(() => {
     if (hasCompleted || isExiting || startTimeRef.current === null) return
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -150,33 +151,36 @@ export const CinematicStartup: React.FC<CinematicStartupProps> = ({
       <div className="startup-atmosphere-glow startup-glow-cyan" aria-hidden="true" />
 
       <div className="startup-stage">
-        {/* Emblem with orbital ring animation */}
+        {/* Central Emblem Stage with Glass Logo Reveal & Orbitals */}
         <div className="startup-emblem-wrapper">
-          <svg className="startup-orbital-svg" viewBox="0 0 180 180" fill="none" aria-hidden="true">
+          <svg className="startup-orbital-svg" viewBox="0 0 280 280" fill="none" aria-hidden="true">
             {/* Outer dotted orbit */}
             <circle
               className="startup-orbital-outer"
-              cx="90"
-              cy="90"
-              r="76"
+              cx="140"
+              cy="140"
+              r="120"
               strokeWidth="1.2"
             />
             {/* Inner dashed orbit */}
             <circle
               className="startup-orbital-inner"
-              cx="90"
-              cy="90"
-              r="62"
+              cx="140"
+              cy="140"
+              r="104"
               strokeWidth="1.5"
             />
             {/* Glowing orbital tracer node */}
             <g className="startup-orbital-glow-dot">
-              <circle cx="90" cy="14" r="3.5" fill="#148bff" filter="drop-shadow(0 0 4px #148bff)" />
+              <circle cx="140" cy="20" r="3.5" fill="#148bff" filter="drop-shadow(0 0 4px #148bff)" />
             </g>
           </svg>
 
-          {/* Authentic SHINPO matrix mark */}
-          <ShinpoLogo size={68} variant="icon" />
+          {/* Authentic SHINPO Glass Logo Reveal Engine */}
+          <GlassLogoReveal
+            size={240}
+            onSettled={() => setIsGlassSettled(true)}
+          />
         </div>
 
         {/* Product Wordmark */}

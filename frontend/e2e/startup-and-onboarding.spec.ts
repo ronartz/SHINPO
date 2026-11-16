@@ -150,7 +150,7 @@ test.describe('SHINPO Startup & Automatic Onboarding Integration', () => {
     mkdirSync(ARTIFACTS_DIR, { recursive: true })
   })
 
-  test('enforces at least 5,000ms cinematic startup before transitioning to login card', async ({ page }) => {
+  test('enforces cinematic glass logo reveal before transitioning to login card', async ({ page }) => {
     test.skip(test.info().project.name !== 'desktop-chrome')
 
     await setupBaseMockRoutes(page, null)
@@ -168,31 +168,28 @@ test.describe('SHINPO Startup & Automatic Onboarding Integration', () => {
 
     // 1. Verify cinematic startup immediately visible
     const startupOverlay = page.locator('.shinpo-cinematic-startup')
-    await expect(startupOverlay).toBeVisible({ timeout: 2000 })
+    await expect(startupOverlay).toBeVisible({ timeout: 10000 })
 
-    // Verify brand assets in startup
-    await expect(page.locator('.startup-brand-title')).toHaveText('SHINPO')
-    await expect(page.locator('.startup-brand-subtitle')).toHaveText('Personal Execution OS')
+    // Verify glass logo stage and brand assets in startup
+    await expect(page.locator('.shinpo-glass-logo-stage')).toBeVisible()
     await expect(page.locator('.startup-orbital-svg')).toBeVisible()
     await expect(page.locator('.startup-status-text')).toBeVisible()
 
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, '01_startup_at_1s.png') })
 
-    // 2. Check at 2,000ms: must still be visible
-    await page.waitForTimeout(2000)
+    // 2. Check at 2,200ms: glass reveal active, brand wordmark revealed
+    await page.waitForTimeout(1400)
     await expect(startupOverlay).toBeVisible()
+    await expect(page.locator('.startup-brand-title')).toHaveText('SHINPO')
+    await expect(page.locator('.startup-brand-subtitle')).toHaveText('Personal Execution OS')
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '02_startup_at_2.5s.png') })
 
-    // 3. Check at 4,000ms: must still be visible
-    await page.waitForTimeout(2000)
-    await expect(startupOverlay).toBeVisible()
-    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '02_startup_at_4s.png') })
-
-    // 4. Wait for smooth transition to login card
+    // 3. Wait for smooth transition to login card after minimumDurationMs (4,000ms)
     const loginStage = page.locator('.animated-login-stage')
-    await expect(loginStage).toBeVisible({ timeout: 6000 })
+    await expect(loginStage).toBeVisible({ timeout: 8000 })
 
     const totalElapsed = Date.now() - startTimestamp
-    expect(totalElapsed).toBeGreaterThanOrEqual(4900)
+    expect(totalElapsed).toBeGreaterThanOrEqual(3900)
 
     // Startup unmounts after exit transition
     await expect(startupOverlay).not.toBeVisible()

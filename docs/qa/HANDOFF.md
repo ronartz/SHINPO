@@ -329,23 +329,29 @@ All 8 local feature and fix branches are 100% merged into `fix/systematic-layout
   - `npm --prefix frontend run build` (`tsc -b && vite build`) passed with 0 errors.
   - `npm --prefix frontend test` passed all 203 unit tests (0 failures).
 
-## 2026-11-15 — Operation Visual Perfection (Evidence Reconciliation & Multi-Tier Matrix)
+## 2026-11-16 — Cinematic Glass Logo Reveal Implementation
 
-- **Source identity:** branch `fix/visual-perfection-beta`, local atomic work.
-- **Evidence Reconciliation:**
-  - Audited all 20 canonical primary screenshots in `docs/qa/screenshots/visual-perfection/` (plus 40 supplementary variant captures = 60 total PNGs).
-  - All captures verified at **1440×900** resolution across all four themes (`classic-dark`, `classic-light`, `aurora-dark`, `aurora-light`).
-  - Evaluated against user reference Screens A, B, C, D, E:
-    - Screen A (Dashboard Cockpit): Quick actions gap closed, empty schedule hole filled, particles active.
-    - Screen B (Goals & Tasks): Eyebrow removed, toolbar 38px baseline aligned, Kanban columns compacted.
-    - Screen C (Focus Engine): Preset and intention footer dividers removed, column heights balanced.
-    - Screen D (Analytics): Skyline divider removed, ghost charts eliminated, zero state compacted to 140px.
-    - Screen E (Rewards & Progress): Palette migrated to semantic CSS tokens.
-- **Categorization of Surfaces:**
-  - **Screenshots Captured & Visually Inspected:** Dashboard, Goals & Tasks (List & Board), Focus Engine, Analytics, Rewards & Progress (Screens A–E across 4 themes).
-  - **Automated Test Passed / Source Inspected Only:** Calendar / Schedule, Focus Guardian, EONPAI / AI Assistant, Onboarding / Vault Auth.
-  - **Source Inspected Only (NOT TESTED in visual-perfection):** Study Resources, Settings Drawer, Notifications Drawer, Modals & Dialogs.
-  - **Viewports:** 1440×900 verified; 1920×1080 and mobile viewports NOT TESTED in this specific run.
-- **Release Distinction:** Visual defect implementation and remediation complete on Screens A–E; cross-platform release acceptance remains conditional pending Windows/macOS native execution and multi-OS packaging runs.
-- **Canonical Report:** Updated in `docs/qa/VISUAL_ACCEPTANCE_REPORT.md`.
+- **Source identity:** branch `fix/systematic-layout-and-composition`, local atomic commit.
+- **Engine Architecture (`glassShaderEngine.ts` & `GlassLogoReveal.tsx`):**
+  - Integrated 21st.dev / `zanwei/glass-icon-reveal`-inspired WebGL2 glass refraction and chromatic dispersion engine with MIT copyright attribution preserved.
+  - Removed sample 21st.dev mark; integrated authentic SHINPO brand logo (`frontend/src/assets/shinpo-logo.png`) with true transparency detection and authentic color preservation (`originalColors: true`).
+  - WebGL2 fragment shader calculates 20-wavelength spectral dispersion, Snell's law refraction, superellipse contour bevels (`corner: 5.0`), specular rim highlights, and sheen band crossing.
+  - Single-shot playback (`loop: false`); automatically halts animation loop on completion and holds the crisp, settled logo with zero ongoing GPU cycles.
+  - Zero rectangular canvas seams: stage includes radial feather mask (`radial-gradient(circle at center, black 65%, transparent 100%)`) and stage background matching (`#0f1738` in Aurora Dark, `#0d1527` in Classic Dark, `#f1f5f9` in Aurora Light, `#f5ecd8` in Classic Light).
+  - Graceful fallback: renders static `<ShinpoLogo />` when WebGL2 is unsupported, context is lost, or `prefers-reduced-motion: reduce` is active.
+- **Startup Integration (`CinematicStartup.tsx` & `cinematic-startup.css`):**
+  - Replaced static emblem with 240px `<GlassLogoReveal />` inside centered emblem stage with expanded 280px orbital rings.
+  - Calibrated startup duration to 4,000ms (3.5s - 4.5s target budget) with synchronized milestones:
+    - 0 – 1,200ms: Glass droplet forms and begins spreading (progress 5% -> 35%, "Initializing local runtime...").
+    - 1,200 – 2,500ms: Logo magnification, refraction, and chromatic dispersion (progress 35% -> 70%, "Loading security modules...").
+    - 2,500 – 3,600ms: Glass release and crisp logo settlement (progress 70% -> 95%, wordmark and subtitle glide in).
+    - 3,600 – 4,000ms: Readiness handoff and smooth 360ms transition to login card.
+  - Preserved dual-condition readiness gate (`isReady` from local vault), honest status caption, 15s recovery fallback, and one-time `sessionStorage` guard (`shinpo_splash_shown`).
+- **Verification Evidence:**
+  - `npm --prefix frontend run build` (`tsc -b && vite build`): Passed (0 errors).
+  - `npm --prefix frontend run lint` (`eslint .`): Passed (0 errors, 60 pre-existing e2e warnings).
+  - `npm --prefix frontend test` (`node --test 'src/**/*.test.ts'`): 208 tests passed in 11 suites (0 failures).
+  - `cargo test --manifest-path frontend/src-tauri/Cargo.toml --locked`: 85 native tests passed (0 failures).
+  - Playwright visual keyframes: 13 captures generated in `docs/qa/screenshots/startup/` covering droplet formation, refraction, release, settlement, theme adaptability (Aurora Dark, Classic Dark, Aurora Light, Classic Light), reduced motion, and warm session bypass.
+
 
