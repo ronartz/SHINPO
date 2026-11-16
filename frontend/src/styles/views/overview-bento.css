@@ -1928,29 +1928,37 @@ html[data-theme='light'] .duration-pill.paused {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Editorial execution order: next action first, supporting metrics afterward. */
-.shinpo-dashboard>.dashboard-header-bar {
+/* Editorial execution order: clean 3-row dashboard hierarchy */
+.shinpo-dashboard > .dashboard-header-bar {
   order: 0;
 }
 
-.shinpo-dashboard>.dashboard-cockpit-grid {
+.shinpo-dashboard > .dashboard-reference-grid {
   order: 1;
 }
 
-.shinpo-dashboard>.daily-objectives-card {
+.shinpo-dashboard > .dashboard-cockpit-grid {
   order: 2;
 }
 
-.shinpo-dashboard>.dashboard-metrics-grid {
+.shinpo-dashboard > .dashboard-insights-row {
   order: 3;
 }
 
-.shinpo-dashboard>.dashboard-insight-grid {
+.shinpo-dashboard > .daily-objectives-card {
   order: 4;
 }
 
-.shinpo-dashboard>.flight-deck-board-panel {
+.shinpo-dashboard > .dashboard-metrics-grid {
   order: 5;
+}
+
+.shinpo-dashboard > .dashboard-insight-grid {
+  order: 6;
+}
+
+.shinpo-dashboard > .flight-deck-board-panel {
+  order: 7;
 }
 
 .shinpo-dashboard .dashboard-metrics-grid {
@@ -2688,6 +2696,7 @@ html[data-theme='light'] .duration-pill.paused {
 }
 
 @media (max-width: 720px) {
+
   .shinpo-dashboard .schedule-card.is-empty,
   .shinpo-dashboard .schedule-is-empty .schedule-card,
   .shinpo-dashboard .schedule-is-empty .dashboard-activity-card,
