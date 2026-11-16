@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="540" viewBox="0 0 1600 540" role="img" aria-labelledby="title desc">
+  <title id="title">SHINPO — Personal Execution OS</title>
+  <desc id="desc">A dark, atmospheric banner with violet and cyan light, a progress motif, and the message: Turn intention into action.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#090e1b"/>
+      <stop offset=".54" stop-color="#111a34"/>
+      <stop offset="1" stop-color="#17152e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9b5cff"/>
+      <stop offset=".55" stop-color="#6f83ff"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <radialGradient id="violetGlow">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cyanGlow">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#202a49" stop-opacity=".94"/>
+      <stop offset="1" stop-color="#121b32" stop-opacity=".88"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#9aa9d8" stroke-opacity=".075" stroke-width="1"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
+      <feOffset dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".34"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="540" rx="30" fill="url(#bg)"/>
+  <rect width="1600" height="540" rx="30" fill="url(#grid)"/>
+  <circle cx="1270" cy="145" r="310" fill="url(#violetGlow)" filter="url(#blur)"/>
+  <circle cx="1500" cy="420" r="260" fill="url(#cyanGlow)" filter="url(#blur)"/>
+  <path d="M0 430C280 360 420 510 700 430S1120 330 1600 430" fill="none" stroke="url(#accent)" stroke-opacity=".22" stroke-width="2"/>
+  <path d="M0 450C260 380 450 530 720 450S1170 350 1600 450" fill="none" stroke="#8b5cf6" stroke-opacity=".13" stroke-width="1"/>
+  <g opacity=".6">
+    <circle cx="1190" cy="74" r="3" fill="#22d3ee"/>
+    <circle cx="1330" cy="112" r="2.5" fill="#a78bfa"/>
+    <circle cx="1485" cy="220" r="3" fill="#22d3ee"/>
+    <circle cx="1100" cy="410" r="2" fill="#a78bfa"/>
+    <circle cx="1550" cy="355" r="2" fill="#a78bfa"/>
+  </g>
+
+  <g transform="translate(104 94)">
+    <rect x="0" y="0" width="10" height="110" rx="5" fill="url(#accent)"/>
+    <text x="38" y="34" fill="#a7b4d3" font-family="Ubuntu, Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="5">PERSONAL EXECUTION OS</text>
+    <text x="34" y="145" fill="#f4f6ff" font-family="Ubuntu, Arial, sans-serif" font-size="100" font-weight="700" letter-spacing="-3">SHINPO</text>
+    <text x="40" y="188" fill="#b8c5e4" font-family="Ubuntu, Arial, sans-serif" font-size="21" letter-spacing="2">進歩  /  PROGRESS</text>
+    <text x="40" y="274" fill="#f5f7ff" font-family="Ubuntu, Arial, sans-serif" font-size="43" font-weight="600">Turn intention into action.</text>
+    <text x="40" y="320" fill="#aebbd8" font-family="Ubuntu, Arial, sans-serif" font-size="22">Plan with purpose. Focus on what matters. See your progress.</text>
+    <g transform="translate(40 372)">
+      <rect x="0" y="0" width="116" height="38" rx="19" fill="#8b5cf6" fill-opacity=".17" stroke="#9b75ff" stroke-opacity=".55"/>
+      <text x="58" y="25" fill="#d8caff" text-anchor="middle" font-family="Ubuntu, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">PLAN</text>
+      <rect x="130" y="0" width="128" height="38" rx="19" fill="#22d3ee" fill-opacity=".1" stroke="#22d3ee" stroke-opacity=".45"/>
+      <text x="194" y="25" fill="#b9f5ff" text-anchor="middle" font-family="Ubuntu, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">FOCUS</text>
+      <rect x="272" y="0" width="154" height="38" rx="19" fill="#8b5cf6" fill-opacity=".12" stroke="#8b5cf6" stroke-opacity=".42"/>
+      <text x="349" y="25" fill="#d8caff" text-anchor="middle" font-family="Ubuntu, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">FOLLOW THROUGH</text>
+    </g>
+  </g>
+
+  <g transform="translate(1010 82)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="466" height="376" rx="26" fill="url(#panel)" stroke="#6575a8" stroke-opacity=".45"/>
+    <path d="M24 1H442" stroke="url(#accent)" stroke-width="3" stroke-linecap="round"/>
+    <text x="34" y="48" fill="#97a8ce" font-family="Ubuntu, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">TODAY / EXECUTION OVERVIEW</text>
+    <text x="34" y="109" fill="#f5f7ff" font-family="Ubuntu, Arial, sans-serif" font-size="38" font-weight="700">Make it count.</text>
+    <text x="34" y="137" fill="#91a1c5" font-family="Ubuntu, Arial, sans-serif" font-size="15">A little progress, consistently.</text>
+
+    <rect x="30" y="169" width="406" height="82" rx="16" fill="#293556" fill-opacity=".68" stroke="#7181b2" stroke-opacity=".22"/>
+    <circle cx="73" cy="210" r="22" fill="#8b5cf6" fill-opacity=".22" stroke="#a78bfa" stroke-opacity=".7"/>
+    <path d="M65 210l6 6 12-14" fill="none" stroke="#d8caff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="111" y="201" fill="#e7ebfa" font-family="Ubuntu, Arial, sans-serif" font-size="15" font-weight="600">Priority task</text>
+    <text x="111" y="224" fill="#95a4c7" font-family="Ubuntu, Arial, sans-serif" font-size="13">One clear next action</text>
+    <rect x="30" y="269" width="406" height="76" rx="16" fill="#293556" fill-opacity=".48" stroke="#7181b2" stroke-opacity=".18"/>
+    <text x="52" y="298" fill="#a9b7d8" font-family="Ubuntu, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.4">FOCUS MOMENTUM</text>
+    <text x="52" y="326" fill="#f5f7ff" font-family="Ubuntu, Arial, sans-serif" font-size="19" font-weight="700">Progress is built daily.</text>
+    <circle cx="390" cy="307" r="19" fill="none" stroke="#39496f" stroke-width="6"/>
+    <path d="M390 288a19 19 0 1 1-17 27" fill="none" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <rect x=".75" y=".75" width="1598.5" height="538.5" rx="29.25" fill="none" stroke="#9aa9d8" stroke-opacity=".18" stroke-width="1.5"/>
+</svg>
