@@ -58,6 +58,7 @@
   "bundle": {
     "active": true,
     "targets": ["deb", "appimage", "rpm", "nsis"],
+    "createUpdaterArtifacts": true,
     "resources": {
       "target/bundle-input/*": "browser-companion/",
       "../../browser-extension/dist/chromium": "browser-companion/chromium",

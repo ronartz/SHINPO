@@ -89,6 +89,20 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      - name: Package portable Linux tarball
+        run: |
+          set -euo pipefail
+          output=release-artifacts/linux-x64
+          mkdir -p "$output"
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version")
+          TAR_DIR="release-artifacts/tar-stage"
+          mkdir -p "$TAR_DIR"
+          cp frontend/src-tauri/target/release/shinpo-desktop "$TAR_DIR/"
+          cp frontend/src-tauri/target/bundle-input/shinpo-browser-host "$TAR_DIR/"
+          cp scripts/register-browser-companion.sh "$TAR_DIR/"
+          cp docs/Browser-Companion-Install.md "$TAR_DIR/"
+          tar -czf "$output/SHINPO_${VERSION}_linux_x86_64.tar.gz" -C "$TAR_DIR" .
+          rm -rf "$TAR_DIR"
       - name: Generate and display checksums
         run: |
           set -euo pipefail
@@ -102,6 +116,12 @@ jobs:
           for artifact in "${artifacts[@]}"; do cp "$artifact" "$output/"; done
           (cd "$output" && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
           cat "$output/SHA256SUMS"
+      - name: Upload Linux release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-artifacts
+          path: release-artifacts/linux-x64/
+          if-no-files-found: error
 
   windows-installer:
     name: Windows NSIS installer and checksum
@@ -225,3 +245,127 @@ jobs:
           }
           $lines | Set-Content "$output/SHA256SUMS" -Encoding ascii
           Get-Content "$output/SHA256SUMS"
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: release-artifacts/windows-x64/
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release & Auto-Updater Manifest
+    needs: [qa-release-gate, linux-installers, windows-installer]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Download Linux release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release-artifacts
+          path: staged-release/linux
+      - name: Download Windows release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: staged-release/windows
+      - name: Stage all assets and consolidate SHA256SUMS
+        run: |
+          set -euo pipefail
+          mkdir -p release-dist
+          # Copy Linux artifacts
+          cp -r staged-release/linux/* release-dist/ 2>/dev/null || true
+          # Copy Windows artifacts
+          cp -r staged-release/windows/* release-dist/ 2>/dev/null || true
+          rm -f release-dist/SHA256SUMS
+          (cd release-dist && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          echo "=== CONSOLIDATED SHA256SUMS ==="
+          cat release-dist/SHA256SUMS
+      - name: Generate static updater manifest (updates/beta/latest.json)
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import path from "node:path";
+
+            const tag = process.env.GITHUB_REF_NAME ?? "";
+            const { version } = JSON.parse(fs.readFileSync("frontend/src-tauri/tauri.conf.json", "utf8"));
+            const repo = process.env.GITHUB_REPOSITORY ?? "ronartz/SHINPO";
+
+            // Find Linux AppImage tar.gz and its signature
+            const distFiles = fs.readdirSync("release-dist");
+            const linuxTar = distFiles.find(f => f.endsWith(".AppImage.tar.gz"));
+            const linuxSigFile = distFiles.find(f => f.endsWith(".AppImage.tar.gz.sig"));
+            const winZip = distFiles.find(f => f.endsWith(".nsis.zip"));
+            const winSigFile = distFiles.find(f => f.endsWith(".nsis.zip.sig"));
+
+            let linuxSig = "";
+            if (linuxSigFile) {
+              linuxSig = fs.readFileSync(path.join("release-dist", linuxSigFile), "utf8").trim();
+            }
+
+            let winSig = "";
+            if (winSigFile) {
+              winSig = fs.readFileSync(path.join("release-dist", winSigFile), "utf8").trim();
+            }
+
+            const manifest = {
+              version: version,
+              notes: `SHINPO ${version} Release - Cinematic Glass Logo Reveal, theme-aware interactive buttons, local SQLCipher vault, and signed auto-updater.`,
+              pub_date: new Date().toISOString(),
+              platforms: {}
+            };
+
+            if (linuxTar && linuxSig) {
+              manifest.platforms["linux-x86_64"] = {
+                signature: linuxSig,
+                url: `https://github.com/${repo}/releases/download/${tag}/${linuxTar}`
+              };
+            }
+
+            if (winZip && winSig) {
+              manifest.platforms["windows-x86_64"] = {
+                signature: winSig,
+                url: `https://github.com/${repo}/releases/download/${tag}/${winZip}`
+              };
+            }
+
+            // Write both updates/beta/latest.json and releases/beta/latest.json
+            fs.mkdirSync("release-dist/updates/beta", { recursive: true });
+            fs.writeFileSync("release-dist/updates/beta/latest.json", JSON.stringify(manifest, null, 2));
+            fs.writeFileSync("release-dist/latest.json", JSON.stringify(manifest, null, 2));
+
+            console.log("Generated updater manifest:");
+            console.log(JSON.stringify(manifest, null, 2));
+          '
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+      - name: Determine Prerelease Status
+        id: prerelease_check
+        run: |
+          if [[ "${{ github.ref_name }}" =~ (alpha|beta|rc|preview) ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@c062e08bd53281573c51459229c17b0769e5d4cb # pinned v2.0.8
+        with:
+          name: SHINPO ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ steps.prerelease_check.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: |
+            release-dist/*
+            release-dist/updates/beta/latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

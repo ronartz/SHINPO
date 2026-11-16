@@ -13,6 +13,9 @@ set -euo pipefail
 #    References to "postgres" / "postgresql" are part of the OS system daemon
 #    immunity list (SYSTEM_PROTECTED_DAEMONS) preventing accidental termination
 #    of host OS database services.
+# 2. frontend/src/components/startup/GlassLogoReveal.tsx & glassShaderEngine.ts:
+#    Physics damped-spring oscillator mathematics and timeline functions
+#    (unrelated to Java Spring framework).
 # ==============================================================================
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -38,8 +41,12 @@ echo "Scanning active source, config, and workflows for forbidden legacy backend
 MATCHES=$(grep -rnI -i -E "$FORBIDDEN_REGEX" "${TARGET_DIRS[@]}" "${TARGET_FILES[@]}" --exclude-dir=target --exclude-dir=node_modules || true)
 
 # Filter out documented exceptions:
-# Exception: OS system daemon immunity list in shinpo-shield
-FILTERED_MATCHES=$(echo "$MATCHES" | grep -v -E "crates/shinpo-shield/src/(enforcer|process_identity)\.rs.*(postgres|postgresql)" | grep -v "^$" || true)
+# Exception 1: OS system daemon immunity list in shinpo-shield
+# Exception 2: WebGL2 physics damped-spring oscillator in frontend startup
+FILTERED_MATCHES=$(echo "$MATCHES" \
+  | grep -v -E "crates/shinpo-shield/src/(enforcer|process_identity)\.rs.*(postgres|postgresql)" \
+  | grep -v -E "frontend/src/components/startup/(GlassLogoReveal\.tsx|glassShaderEngine\.ts).*spring" \
+  | grep -v "^$" || true)
 
 if [ -n "$FILTERED_MATCHES" ]; then
   echo "FAIL: Forbidden legacy backend terms detected in active source:"

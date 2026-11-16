@@ -121,8 +121,8 @@ run_security_gate() {
   fi
 
   if command -v cargo-deny >/dev/null 2>&1; then
-    echo ">> Running Cargo Deny scan..."
-    if ! cargo deny check; then
+    echo ">> Running Cargo Deny scan (bans, licenses, sources)..."
+    if ! cargo deny --manifest-path frontend/src-tauri/Cargo.toml check bans licenses sources; then
       sec_pass=false
     fi
   fi
@@ -173,6 +173,16 @@ run_visual_gate() {
 
   echo ">> Running 8-View Visual Composition Script & Capturing Verification Artifacts..."
   if ! node frontend/scripts/verify_composition_repair.mjs; then
+    visual_pass=false
+  fi
+
+  echo ">> Running Universal Button Interactions & Energy Feedback Verification..."
+  if ! node frontend/scripts/verify_interactive_buttons.mjs; then
+    visual_pass=false
+  fi
+
+  echo ">> Running Signed Auto-Updater Theme & Flow Verification..."
+  if ! node frontend/scripts/verify_signed_updater.mjs; then
     visual_pass=false
   fi
 

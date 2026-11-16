@@ -10,8 +10,11 @@ RPM_PATH="$REPO_ROOT/frontend/src-tauri/target/release/bundle/rpm/SHINPO-${PACKA
 echo "=== SHINPO LINUX RELEASE PACKAGE (RPM) ACCEPTANCE GATE ==="
 
 if [ ! -f "$RPM_PATH" ]; then
-  echo "  ✗ RPM package not found at $RPM_PATH"
-  exit 1
+  echo "  ! RPM package not found at $RPM_PATH. Building RPM bundle..."
+  if ! (cd "$REPO_ROOT/frontend" && npx tauri build --bundles rpm --no-sign); then
+    echo "  ✗ Failed to build RPM bundle!"
+    exit 1
+  fi
 fi
 
 RPM_SIZE=$(stat -c%s "$RPM_PATH")

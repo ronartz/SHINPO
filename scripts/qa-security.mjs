@@ -79,9 +79,11 @@ if (results.secretsScan.findings.length > 0) {
 // -----------------------------------------------------------------------------
 console.log('\n[2/7] Running cargo-audit on frontend/src-tauri...')
 try {
-  const auditTauriOut = execSync('cargo audit --deny unsound', { cwd: 'frontend/src-tauri', encoding: 'utf8' })
+  // Policy Exception: RUSTSEC-2024-0429 (glib v0.18.5 VariantStrIter unsoundness)
+  // Transitive GTK 0.18 binding pinned by Tauri 2.12.3 (wry/tao); unreachable in SHINPO; review: 2027-02-16
+  const auditTauriOut = execSync('cargo audit --ignore RUSTSEC-2024-0429 --deny unsound', { cwd: 'frontend/src-tauri', encoding: 'utf8' })
   results.cargoAuditTauri.status = 'PASS'
-  console.log(`  ✓ frontend/src-tauri: cargo audit exited 0.\n${auditTauriOut.trim() || 'No findings reported.'}`)
+  console.log(`  ✓ frontend/src-tauri: cargo audit exited 0 (policy exception active for RUSTSEC-2024-0429, review date: 2027-02-16).\n${auditTauriOut.trim() || 'No findings reported.'}`)
 } catch (err) {
   const out = (err.stdout || '') + (err.stderr || '')
   results.cargoAuditTauri.status = 'FAIL'

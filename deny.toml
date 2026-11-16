@@ -15,6 +15,15 @@ ignore = [
     "RUSTSEC-2026-0370",
     "RUSTSEC-2026-0371",
     "RUSTSEC-2026-0372",
+    # Accepted Security Policy Exception:
+    # ID: RUSTSEC-2024-0429
+    # Crate: glib v0.18.5
+    # Title: Unsoundness in Iterator and DoubleEndedIterator impls for glib::VariantStrIter
+    # Dependency Path: tauri v2.12.3 -> muda / wry / tao -> gtk v0.18.2 / webkit2gtk v2.0.2 -> glib v0.18.5
+    # Upstream Status: glib >=0.20.0 requires gtk >=0.20, blocked upstream by Tauri 2.x Linux windowing layer
+    # Reachability: UNREACHABLE. SHINPO codebase uses Tauri serde IPC, never invoking GVariant string iteration
+    # Review Date: 2027-02-16 (or upon next Tauri 2.x gtk-rs upgrade)
+    "RUSTSEC-2024-0429",
 ]
 
 [bans]
