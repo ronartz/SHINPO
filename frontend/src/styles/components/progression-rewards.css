@@ -903,8 +903,8 @@ button:not(:disabled):active {
 .rewards-heading h1 { margin: 4px 0 5px; font-size: clamp(25px, 2.4vw, 34px); }
 .rewards-heading p, .rewards-section-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 .rewards-ledger-trust { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 8px 11px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--surface-card)); border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--border)); border-radius: 99px; font-size: 11px; font-weight: 750; }
-.rewards-hero { position: relative; isolation: isolate; display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(180px, 230px); align-items: center; gap: clamp(20px, 3.5vw, 48px); min-width: 0; overflow: hidden; padding: clamp(22px, 3.3vw, 42px); color: var(--text-primary); background: radial-gradient(ellipse at 12% 12%, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 45%), linear-gradient(122deg, color-mix(in srgb, var(--color-primary) 6%, var(--surface-card)), var(--surface-card)); border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--border)); border-radius: 24px; box-shadow: var(--shadow-card, 0 18px 48px rgba(0, 0, 0, 0.25)); }
-.rewards-hero::after { position: absolute; z-index: -1; inset: 0; content: ''; pointer-events: none; opacity: .12; background: repeating-linear-gradient(135deg, transparent 0 42px, rgba(255, 255, 255, 0.04) 43px 44px); }
+.rewards-hero { position: relative; isolation: isolate; display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(180px, 230px); align-items: center; gap: clamp(20px, 3.5vw, 48px); min-width: 0; overflow: hidden; padding: clamp(22px, 3.3vw, 42px); color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--border); border-left: 3px solid var(--color-accent); border-radius: 24px; box-shadow: var(--shadow-card, 0 18px 48px rgba(0, 0, 0, 0.25)); }
+.rewards-hero::after { position: absolute; z-index: -1; inset: 0; content: ''; pointer-events: none; opacity: .06; background: repeating-linear-gradient(135deg, transparent 0 42px, rgba(255, 255, 255, 0.04) 43px 44px); }
 .rewards-hero-orbit { position: absolute; z-index: -1; top: -95px; right: 14%; width: 270px; height: 270px; border: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent); border-radius: 50%; }
 .rewards-hero-orbit::before, .rewards-hero-orbit::after { position: absolute; inset: 22px; border: 1px solid color-mix(in srgb, var(--color-primary) 11%, transparent); border-radius: inherit; content: ''; }
 .rewards-hero-orbit::after { inset: 52px; }
@@ -915,8 +915,8 @@ button:not(:disabled):active {
 .rewards-ring-track, .rewards-ring-progress { fill: none; stroke-width: 5; }
 .rewards-ring-track { stroke: color-mix(in srgb, var(--text-primary) 12%, transparent); }
 .rewards-ring-progress { stroke: var(--color-primary); stroke-linecap: round; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-primary) 42%, transparent)); transition: stroke-dashoffset .7s cubic-bezier(.16,1,.3,1); }
-.rewards-level-emblem { position: absolute; inset: 17px; display: grid; align-content: center; justify-items: center; gap: 4px; color: var(--text-primary); background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--color-primary) 28%, var(--surface-card)), var(--surface-card) 68%); border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--border)); border-radius: 50%; box-shadow: inset 0 1px 14px rgba(255, 255, 255, 0.1), 0 9px 24px rgba(0, 0, 0, 0.3); }
-.rewards-level-emblem span { color: var(--text-primary); font-size: 11px; font-weight: 850; letter-spacing: .11em; }
+.rewards-level-emblem { position: absolute; inset: 17px; display: grid; align-content: center; justify-items: center; gap: 4px; color: var(--color-on-primary, #ffffff); background: var(--color-accent); border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--border)); border-radius: 50%; box-shadow: inset 0 1px 14px rgba(255, 255, 255, 0.15), 0 9px 24px rgba(0, 0, 0, 0.25); }
+.rewards-level-emblem span { color: var(--color-on-primary, #ffffff); font-size: 11px; font-weight: 850; letter-spacing: .11em; }
 .rewards-hero-copy { min-width: 0; }
 .rewards-hero-copy > .rewards-eyebrow { color: var(--color-primary); }
 .rewards-hero-copy h2 { margin: 3px 0 2px; color: var(--text-primary); font-size: clamp(24px, 2.6vw, 36px); line-height: 1.15; letter-spacing: -.03em; }
@@ -978,12 +978,19 @@ button:not(:disabled):active {
 @keyframes rewards-node-enter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes rewards-ledger-arrive { from { opacity: .45; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes rewards-badge-reveal { 0% { transform: scale(.76) rotate(-8deg); box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 0.0%, transparent); } 65% { transform: scale(1.1) rotate(3deg); box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-primary) 12.5%, transparent); } 100% { transform: scale(1) rotate(0); box-shadow: 0 5px 14px color-mix(in srgb, var(--brand-space-indigo) 11.0%, transparent); } }
-.theme-light .rewards-hero, html[data-theme='light'] .rewards-hero { color: #091629; background: radial-gradient(ellipse at 12% 12%, color-mix(in srgb, var(--brand-primary) 13.3%, transparent), transparent 48%), linear-gradient(122deg, #e7f1ff, #f1f6fc 62%, #e8f2ff); border-color: color-mix(in srgb, var(--brand-primary) 28.6%, transparent); box-shadow: 0 12px 30px color-mix(in srgb, var(--brand-space-indigo) 7.1%, transparent); }
-.theme-light .rewards-hero-copy h2, html[data-theme='light'] .rewards-hero-copy h2, .theme-light .rewards-streak-card > strong, html[data-theme='light'] .rewards-streak-card > strong { color: #091629; }
-.theme-light .rewards-hero-copy > .rewards-eyebrow, html[data-theme='light'] .rewards-hero-copy > .rewards-eyebrow { color: #18395F; }
-.theme-light .rewards-hero-summary, html[data-theme='light'] .rewards-hero-summary, .theme-light .rewards-hero-progress-labels, html[data-theme='light'] .rewards-hero-progress-labels, .theme-light .rewards-hero-next, html[data-theme='light'] .rewards-hero-next { color: #18395F; }
-.theme-light .rewards-hero-next strong, html[data-theme='light'] .rewards-hero-next strong { color: #091629; }
-.theme-light .rewards-streak-card, html[data-theme='light'] .rewards-streak-card { color: #112541; background: transparent; border-color: color-mix(in srgb, var(--brand-baltic-blue) 25.1%, transparent); }.theme-light .rewards-streak-card small, html[data-theme='light'] .rewards-streak-card small { color: #18395F; }
+.theme-light .rewards-hero, html[data-theme='light'] .rewards-hero {
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--color-accent);
+  box-shadow: var(--shadow-card, 0 10px 28px rgba(0, 0, 0, 0.06));
+}
+.theme-light .rewards-hero-copy h2, html[data-theme='light'] .rewards-hero-copy h2, .theme-light .rewards-streak-card > strong, html[data-theme='light'] .rewards-streak-card > strong { color: var(--text-primary); }
+.theme-light .rewards-hero-copy > .rewards-eyebrow, html[data-theme='light'] .rewards-hero-copy > .rewards-eyebrow { color: var(--color-accent); }
+.theme-light .rewards-hero-summary, html[data-theme='light'] .rewards-hero-summary, .theme-light .rewards-hero-progress-labels, html[data-theme='light'] .rewards-hero-progress-labels, .theme-light .rewards-hero-next, html[data-theme='light'] .rewards-hero-next { color: var(--text-secondary); }
+.theme-light .rewards-hero-next strong, html[data-theme='light'] .rewards-hero-next strong { color: var(--text-primary); }
+.theme-light .rewards-streak-card, html[data-theme='light'] .rewards-streak-card { color: var(--text-primary); background: transparent; border: 0; border-left: 1px solid var(--border); }
+.theme-light .rewards-streak-card small, html[data-theme='light'] .rewards-streak-card small { color: var(--text-muted); }
 
 /* Classic Light Semantic Warm Recolor (Eliminates blue/cyan contamination) */
 .app-shell:not(.theme-aurora).theme-light .rewards-hero,

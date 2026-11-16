@@ -106,7 +106,7 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
     const updatePalette = () => {
       const styles = getComputedStyle(stage)
       const accent = colorValue(styles.getPropertyValue('--analytics-chart-bar').trim() || '#4D7C0F')
-      const empty = colorValue(styles.getPropertyValue('--surface-hover').trim() || '#e5e7eb')
+      const empty = colorValue(styles.getPropertyValue('--surface-2').trim() || styles.getPropertyValue('--surface-subtle').trim() || '#1e293b')
       levelColors.current = [empty, ...[0.24, 0.43, 0.68, 1].map((factor) => [
         Math.round(empty[0] + (accent[0] - empty[0]) * factor),
         Math.round(empty[1] + (accent[1] - empty[1]) * factor),

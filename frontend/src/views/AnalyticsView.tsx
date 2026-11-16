@@ -212,7 +212,7 @@ function ActivityChart({
                 const cHeight = axisMaxSeconds > 0 ? (cSeconds / axisMaxSeconds) * plotHeight : 0
                 const pHeight = axisMaxSeconds > 0 ? (pSeconds / axisMaxSeconds) * plotHeight : 0
 
-                const currentBarHeight = cSeconds > 0 ? Math.min(plotHeight, Math.max(4, cHeight)) : 2
+                const currentBarHeight = cSeconds > 0 ? Math.min(plotHeight, Math.max(4, cHeight)) : 0
                 const currentBarY = bottom - currentBarHeight
 
                 const prevBarHeight = pSeconds > 0 ? Math.min(plotHeight, Math.max(4, pHeight)) : 0
@@ -225,7 +225,7 @@ function ActivityChart({
 
                 return (
                   <g key={`bucket-${i}`} className="analytics-bucket-group">
-                    {/* Previous period benchmark ghost bar */}
+                    {/* Previous period benchmark bar */}
                     {pSeconds > 0 && (
                       <rect
                         x={bx - 2}
@@ -238,23 +238,25 @@ function ActivityChart({
                       />
                     )}
 
-                    {/* Current period bar or subtle zero slot indicator */}
-                    <rect
-                      x={bx}
-                      y={currentBarY}
-                      width={barWidth}
-                      height={currentBarHeight}
-                      rx={cSeconds > 0 ? 5 : 1}
-                      className={cSeconds > 0 ? 'analytics-bar-current' : 'analytics-bar-zero'}
-                      tabIndex={0}
-                      role="graphics-symbol"
-                      aria-label={ariaLabel}
-                      onMouseEnter={() => handlePointerEnter(i, bx, currentBarY)}
-                      onFocus={() => handlePointerEnter(i, bx, currentBarY)}
-                      onBlur={handlePointerLeave}
-                    >
-                      <title>{ariaLabel}</title>
-                    </rect>
+                    {/* Current period bar */}
+                    {cSeconds > 0 && (
+                      <rect
+                        x={bx}
+                        y={currentBarY}
+                        width={barWidth}
+                        height={currentBarHeight}
+                        rx={5}
+                        className="analytics-bar-current"
+                        tabIndex={0}
+                        role="graphics-symbol"
+                        aria-label={ariaLabel}
+                        onMouseEnter={() => handlePointerEnter(i, bx, currentBarY)}
+                        onFocus={() => handlePointerEnter(i, bx, currentBarY)}
+                        onBlur={handlePointerLeave}
+                      >
+                        <title>{ariaLabel}</title>
+                      </rect>
+                    )}
 
                     {/* X-Axis Tick Label */}
                     {showLabel && (

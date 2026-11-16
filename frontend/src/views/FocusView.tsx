@@ -471,7 +471,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 <section className="pomodoro-config" aria-label="Pomodoro cycle configuration">
                   {guardianModeAvailable && !activeSession && (
                     <div className="study-mode-section" id="study-mode-section">
-                      <div className="study-mode-separator" aria-hidden="true" />
                       <div className="study-section-label-row">
                         <span className="study-section-label">Guardian mode</span>
                       </div>
