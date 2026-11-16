@@ -414,44 +414,101 @@
   pointer-events: none;
 }
 
-/* Logo Badge & Header */
+/* Brand Identity Lockup & Header */
 .animated-header-section {
   text-align: center;
   margin-bottom: 20px;
 }
 
-.animated-logo-badge {
-  margin: 0 auto 12px auto;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  display: flex;
+.auth-brand-lockup {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  animation: logoBounceEntrance 800ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  gap: 12px;
+  margin: 0 auto 18px auto;
+  user-select: none;
+  animation: brandLockupEntrance 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes logoBounceEntrance {
+@keyframes brandLockupEntrance {
   0% {
     opacity: 0;
-    transform: scale(0.5);
+    transform: translateY(-8px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-.animated-logo-badge__inner-light {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-  pointer-events: none;
+.auth-brand-lockup__symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.auth-brand-lockup__symbol svg,
+.auth-brand-lockup__symbol img {
+  display: block;
+}
+
+.auth-brand-lockup__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+}
+
+.auth-brand-lockup__title-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1;
+}
+
+.auth-brand-lockup__wordmark {
+  font-family: var(--font-family, 'Ubuntu', sans-serif);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--heading-gradient-start, #ffffff);
+  line-height: 1.1;
+}
+
+.theme-light .auth-brand-lockup__wordmark,
+html[data-theme='light'] .auth-brand-lockup__wordmark {
+  color: var(--heading-gradient-start, #0f172a);
+}
+
+.auth-brand-lockup__kanji {
+  font-family: var(--font-family, 'Ubuntu', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text-supporting);
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.auth-brand-lockup__descriptor {
+  font-family: var(--font-family, 'Ubuntu', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-supporting);
+  opacity: 0.72;
+  margin-top: 3px;
+  line-height: 1;
+}
+
+/* Preserved legacy alias for backward compatibility */
+.animated-logo-badge {
+  display: none !important;
 }
 
 .animated-card-title {
@@ -886,10 +943,12 @@
     animation: none !important;
   }
   .animated-logo-badge,
+  .auth-brand-lockup,
   .animated-card-title,
   .animated-card-desc {
     animation: none !important;
     opacity: 1 !important;
+    transform: none !important;
   }
   .animated-field-wrapper:hover,
   .animated-field-wrapper.is-focused,

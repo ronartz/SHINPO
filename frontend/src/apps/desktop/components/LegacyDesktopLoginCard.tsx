@@ -79,7 +79,18 @@ export function LegacyDesktopLoginCard(props: DesktopLoginCardProps) {
       }}
     >
       <div className="auth-brand-row">
-        <ShinpoLogo size={36} variant="full" />
+        <div className="auth-brand-lockup" role="banner" aria-label="SHINPO Progress">
+          <div className="auth-brand-lockup__symbol" aria-hidden="true">
+            <ShinpoLogo size={42} variant="icon" />
+          </div>
+          <div className="auth-brand-lockup__text">
+            <div className="auth-brand-lockup__title-row">
+              <span className="auth-brand-lockup__wordmark">SHINPO</span>
+              <span className="auth-brand-lockup__kanji" aria-hidden="true">進歩</span>
+            </div>
+            <span className="auth-brand-lockup__descriptor">Progress</span>
+          </div>
+        </div>
         <div className="auth-system-badge">
           <span>SHINPO WORKSPACE</span>
         </div>

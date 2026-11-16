@@ -177,11 +177,19 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
             {/* Subtle Diagonal Pattern Overlay */}
             <div className="animated-card-pattern" />
 
-            {/* Header & Logo Section */}
+            {/* Header & Brand Identity Section */}
             <div className="animated-header-section">
-              <div className="animated-logo-badge">
-                <ShinpoLogo size={28} variant="icon" />
-                <div className="animated-logo-badge__inner-light" />
+              <div className="auth-brand-lockup" role="banner" aria-label="SHINPO Progress">
+                <div className="auth-brand-lockup__symbol" aria-hidden="true">
+                  <ShinpoLogo size={42} variant="icon" />
+                </div>
+                <div className="auth-brand-lockup__text">
+                  <div className="auth-brand-lockup__title-row">
+                    <span className="auth-brand-lockup__wordmark">SHINPO</span>
+                    <span className="auth-brand-lockup__kanji" aria-hidden="true">進歩</span>
+                  </div>
+                  <span className="auth-brand-lockup__descriptor">Progress</span>
+                </div>
               </div>
               <h1 className="animated-card-title">{headingTitle}</h1>
               <p className="animated-card-desc">{supportingDesc}</p>
