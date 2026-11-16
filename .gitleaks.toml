@@ -18,5 +18,9 @@ paths = [
   '''(?:^|/)target/''',
   '''(?:^|/)node_modules/''',
   '''(?:^|/)\.git/''',
-  '''\.bundle$'''
+  '''\.bundle$''',
+  '''docs/qa/.*'''
+]
+regexes = [
+  '''RWRkSu6Fz4a4p8L5W\+5iXGj4\+5POTolE80oS3/OxmOFcZ/m2055mWFbk'''
 ]
