@@ -2937,13 +2937,13 @@ html[data-theme='light'] .board-view-remaining-btn:hover,
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: var(--space-6) var(--space-4);
-  border: 1.5px dashed var(--border);
+  padding: var(--space-3) var(--space-2);
+  border: 1px dashed var(--border);
   border-radius: 12px;
   gap: var(--space-2);
   margin: 0;
   flex: 0 1 auto;
-  min-height: 100px;
+  min-height: 80px;
   box-sizing: border-box;
 }
 

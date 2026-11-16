@@ -228,7 +228,8 @@ html:not([data-brand='aurora']) .analytics-zero-btn {
 }
 
 .analytics-chart-canvas-container.focus-activity-empty {
-  min-height: 240px;
+  min-height: 160px;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;

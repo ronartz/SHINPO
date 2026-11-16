@@ -9,7 +9,7 @@
 ---
 
 ## Batch 1A: Design Token Enforcement
-- **Commit:** Pending (`fix(tokens): enforce semantic design tokens across themes`)
+- **Commit:** `4ddae5b` (`fix(tokens): enforce semantic design tokens across themes`)
 - **Changes Completed:**
   - `frontend/src/styles/components/progression-rewards.css`:
     - Replaced `.rewards-hero` hardcoded blue gradients (`#e7f1ff`, `#f1f6fc`, `#e8f2ff`) with semantic surface `var(--surface-card)` and accent border `border-left: 3px solid var(--color-accent)`.
@@ -26,7 +26,19 @@
   - `frontend/src/views/AnalyticsView.tsx`:
     - Eliminated 2px ghost bars on empty data buckets in `ActivityChart`.
 - **Verification:**
-  - `npm run build`: Success (`tsc -b && vite build` passed in 638ms).
+  - `npm run build`: Success.
+  - `npm test`: All 247 tests passing.
+
+---
+
+## Batch 1B: Universal Empty-State Design System
+- **Commit:** Pending (`fix(empty-states): standardize compact empty states`)
+- **Changes Completed:**
+  - Standardized `.status-column-empty` across `goals-kanban.css`, `goals.css`, and `overview-bento.css` to compact ~80px minimum drop zone with dashed border `1px dashed var(--border)` and transparent background, preserving full drag-and-drop capability.
+  - Standardized `.analytics-chart-canvas-container.focus-activity-empty` in `analytics.css` to `min-height: 160px; height: auto;` eliminating the 240px dead-space container.
+  - Maintained compact empty-state guidelines for Goals (`.goals-empty-card`), Schedule (`.schedule-week-empty`), and Focus history.
+- **Verification:**
+  - `npm run build`: Success (`tsc -b && vite build` passed in 882ms).
   - `npm test`: All 247 tests passing.
 
 ---

@@ -52,13 +52,16 @@
 }
 
 .goals-view-deck .status-column-empty {
-  min-height: 52px;
-  padding: 12px;
-  border-style: solid;
-  border-width: 1px;
+  min-height: 80px;
+  padding: var(--space-3) var(--space-2);
+  border: 1px dashed var(--border);
   border-radius: var(--radius-md);
-  text-align: left;
-  align-items: flex-start;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
 }
 
 .goals-view-deck .status-column-empty .empty-title {
