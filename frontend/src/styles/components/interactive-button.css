@@ -396,12 +396,21 @@ button:not([data-no-interactive]):not(.no-interactive):focus-visible,
 
 /* 10. Disabled and Loading Suppression */
 button:not([data-no-interactive]):not(.no-interactive):disabled,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true'],
+button:not([data-no-interactive]):not(.no-interactive).is-loading,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true'],
 .shinpo-interactive-btn:disabled,
 .shinpo-interactive-btn.is-loading,
+.shinpo-interactive-btn[data-loading='true'],
+.shinpo-interactive-btn[aria-disabled='true'],
 .shinpo-btn:disabled,
+.shinpo-btn[aria-disabled='true'],
 .btn-timer:disabled,
+.btn-timer[aria-disabled='true'],
 [data-interactive-btn]:disabled,
-[data-interactive-btn][aria-disabled='true'] {
+[data-interactive-btn][aria-disabled='true'],
+[data-interactive-btn].is-loading,
+[data-interactive-btn][data-loading='true'] {
   opacity: 0.48 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
@@ -410,16 +419,32 @@ button:not([data-no-interactive]):not(.no-interactive):disabled,
 
 button:not([data-no-interactive]):not(.no-interactive):disabled::before,
 button:not([data-no-interactive]):not(.no-interactive):disabled::after,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true']::before,
+button:not([data-no-interactive]):not(.no-interactive)[aria-disabled='true']::after,
+button:not([data-no-interactive]):not(.no-interactive).is-loading::before,
+button:not([data-no-interactive]):not(.no-interactive).is-loading::after,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true']::before,
+button:not([data-no-interactive]):not(.no-interactive)[data-loading='true']::after,
 .shinpo-interactive-btn:disabled::before,
 .shinpo-interactive-btn:disabled::after,
 .shinpo-interactive-btn.is-loading::before,
 .shinpo-interactive-btn.is-loading::after,
+.shinpo-interactive-btn[data-loading='true']::before,
+.shinpo-interactive-btn[data-loading='true']::after,
+.shinpo-interactive-btn[aria-disabled='true']::before,
+.shinpo-interactive-btn[aria-disabled='true']::after,
 .shinpo-btn:disabled::before,
 .shinpo-btn:disabled::after,
 .btn-timer:disabled::before,
 .btn-timer:disabled::after,
 [data-interactive-btn]:disabled::before,
-[data-interactive-btn]:disabled::after {
+[data-interactive-btn]:disabled::after,
+[data-interactive-btn][aria-disabled='true']::before,
+[data-interactive-btn][aria-disabled='true']::after,
+[data-interactive-btn].is-loading::before,
+[data-interactive-btn].is-loading::after,
+[data-interactive-btn][data-loading='true']::before,
+[data-interactive-btn][data-loading='true']::after {
   opacity: 0 !important;
   display: none !important;
 }

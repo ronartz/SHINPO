@@ -88,3 +88,5 @@ coverage/
 
 # Temporary script artifacts
 *_tmp/
+docs/qa/screenshots/**/*.png
+docs/qa/screenshots/*.png

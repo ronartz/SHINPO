@@ -108,7 +108,7 @@ async function runButtonVerification() {
 
   try {
     // -------------------------------------------------------------
-    // THEME TESTING ACROSS ALL 4 CANONICAL THEMES
+    // THEME TESTING ACROSS ALL 4 CANONICAL THEMES (1440x900 & 1920x1080)
     // -------------------------------------------------------------
     const themes = [
       { name: 'classic-dark', brand: 'classic', theme: 'dark', title: 'Classic Dark (Lime #AFF33E + #020617 text)' },
@@ -119,7 +119,9 @@ async function runButtonVerification() {
 
     for (let i = 0; i < themes.length; i++) {
       const t = themes[i]
-      console.log(`\n--- Capturing Theme [${i + 1}/4]: ${t.title} ---`)
+      console.log(`\n=============================================================`)
+      console.log(`--- Theme [${i + 1}/4]: ${t.title} ---`)
+      console.log(`=============================================================`)
 
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
       const page = await context.newPage()
@@ -129,40 +131,127 @@ async function runButtonVerification() {
       await page.goto(`${server.url}?v2=${t.brand === 'aurora'}&theme=${t.theme}`)
       await page.waitForSelector('.app-shell', { timeout: 10000 })
 
-      // Hover over the primary action button in Focus Engine
-      const startBtn = page.locator('button.btn-timer.primary, button:has-text("Start Focus"), button:has-text("Start a Focus session")').first()
-      if (await startBtn.count() > 0) {
-        const box = await startBtn.boundingBox()
-        if (box) {
-          // Hover near the right edge to showcase edge-proximity aura
-          await page.mouse.move(box.x + box.width * 0.88, box.y + box.height * 0.5)
-          await page.waitForTimeout(300)
-        }
+      let startBtn = page.locator('button.aurora-btn-primary, button.btn-timer.primary, button:has-text("Start Focus"), button:has-text("Start a Focus session"), button:has-text("Start"), button.sidebar-btn').first()
+      if (await startBtn.count() === 0) {
+        startBtn = page.locator('button').first()
+      }
+      if (await startBtn.count() === 0) {
+        throw new Error(`No buttons found in theme ${t.name}`)
       }
 
-      const filename = `0${i + 1}_${t.name}_button_hover_edge.png`
-      await page.screenshot({ path: path.join(LOCAL_DIR, filename) })
-      copyToArtifacts(filename)
-      console.log(`Saved: ${filename}`)
+      const box = await startBtn.boundingBox()
+      if (!box) throw new Error(`Bounding box not available for ${t.name}`)
 
-      // Also trigger a pointer press and activation pulse
-      if (await startBtn.count() > 0) {
-        const box = await startBtn.boundingBox()
-        if (box) {
-          await page.mouse.down()
-          await page.waitForTimeout(100)
-          const pressFilename = `0${i + 1}_${t.name}_button_press_active.png`
-          await page.screenshot({ path: path.join(LOCAL_DIR, pressFilename) })
-          copyToArtifacts(pressFilename)
-          await page.mouse.up()
+      // 1. Center hover test
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5)
+      await page.waitForTimeout(200)
+
+      const centerStyles = await startBtn.evaluate((el) => {
+        const computed = window.getComputedStyle(el)
+        const before = window.getComputedStyle(el, '::before')
+        const after = window.getComputedStyle(el, '::after')
+        return {
+          hover: el.style.getPropertyValue('--btn-hover'),
+          normX: el.style.getPropertyValue('--btn-norm-x'),
+          normY: el.style.getPropertyValue('--btn-norm-y'),
+          edgeProximity: el.style.getPropertyValue('--btn-edge-proximity'),
+          edgeSide: el.style.getPropertyValue('--btn-edge-side'),
+          beforeContent: before.content,
+          beforeOpacity: before.opacity,
+          afterContent: after.content,
+          afterOpacity: after.opacity,
+          energyPrimary: computed.getPropertyValue('--btn-energy-primary').trim(),
         }
-      }
+      })
+
+      console.log(`  [Center Hover Metrics]:`, {
+        normX: centerStyles.normX,
+        edgeProximity: centerStyles.edgeProximity,
+        edgeSide: centerStyles.edgeSide,
+        energyPrimary: centerStyles.energyPrimary,
+        beforeOpacity: centerStyles.beforeOpacity,
+        afterOpacity: centerStyles.afterOpacity,
+      })
+
+      // 2. Left Edge hover test
+      await page.mouse.move(box.x + box.width * 0.08, box.y + box.height * 0.5)
+      await page.waitForTimeout(200)
+
+      const leftStyles = await startBtn.evaluate((el) => ({
+        normX: el.style.getPropertyValue('--btn-norm-x'),
+        edgeProximity: el.style.getPropertyValue('--btn-edge-proximity'),
+        edgeSide: el.style.getPropertyValue('--btn-edge-side'),
+      }))
+      console.log(`  [Left Edge Hover Metrics]:`, leftStyles)
+
+      // 3. Right Edge hover test & screenshot
+      await page.mouse.move(box.x + box.width * 0.92, box.y + box.height * 0.5)
+      await page.waitForTimeout(250)
+
+      const rightStyles = await startBtn.evaluate((el) => ({
+        normX: el.style.getPropertyValue('--btn-norm-x'),
+        edgeProximity: el.style.getPropertyValue('--btn-edge-proximity'),
+        edgeSide: el.style.getPropertyValue('--btn-edge-side'),
+      }))
+      console.log(`  [Right Edge Hover Metrics]:`, rightStyles)
+
+      const hoverFilename = `0${i + 1}_${t.name}_button_hover_edge.png`
+      await page.screenshot({ path: path.join(LOCAL_DIR, hoverFilename) })
+      copyToArtifacts(hoverFilename)
+      console.log(`  📸 Saved: ${hoverFilename}`)
+
+      // 4. Pointer press & activation pulse
+      await page.mouse.down()
+      await page.waitForTimeout(100)
+
+      const pressStyles = await startBtn.evaluate((el) => {
+        const computed = window.getComputedStyle(el)
+        return {
+          pressedVar: el.style.getPropertyValue('--btn-pressed'),
+          isPressedClass: el.classList.contains('is-pressed'),
+          transform: computed.transform,
+        }
+      })
+      console.log(`  [Press Compression Metrics]:`, pressStyles)
+
+      const pressFilename = `0${i + 1}_${t.name}_button_press_active.png`
+      await page.screenshot({ path: path.join(LOCAL_DIR, pressFilename) })
+      copyToArtifacts(pressFilename)
+      console.log(`  📸 Saved: ${pressFilename}`)
+
+      await page.mouse.up()
+      await page.waitForTimeout(100)
 
       await context.close()
     }
 
     // -------------------------------------------------------------
-    // TEST 5: BUTTON VARIANTS SHOWCASE (Primary, Secondary, Outline, Ghost, Destructive, Icon, Compact)
+    // TEST 5: 1920x1080 FULL HD DISPLAY VERIFICATION
+    // -------------------------------------------------------------
+    console.log('\n--- Capturing 1920x1080 Full HD Viewport ---')
+    {
+      const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+      const page = await context.newPage()
+      await page.addInitScript(getInitScript('aurora', 'dark'), { brand: 'aurora', theme: 'dark' })
+      await page.goto(`${server.url}?v2=true&theme=dark`)
+      await page.waitForSelector('.app-shell', { timeout: 10000 })
+
+      const startBtn = page.locator('button.aurora-btn-primary, button.btn-timer.primary, button:has-text("Start Focus"), button:has-text("Start a Focus session"), button.sidebar-btn').first()
+      const box = await startBtn.boundingBox()
+      if (box) {
+        await page.mouse.move(box.x + box.width * 0.88, box.y + box.height * 0.5)
+        await page.waitForTimeout(300)
+      }
+
+      const filename = '05_1920x1080_full_hd_button_interaction.png'
+      await page.screenshot({ path: path.join(LOCAL_DIR, filename) })
+      copyToArtifacts(filename)
+      console.log(`Saved: ${filename}`)
+      await context.close()
+    }
+
+    // -------------------------------------------------------------
+    // TEST 6: BUTTON VARIANTS SHOWCASE MATRIX
     // -------------------------------------------------------------
     console.log('\n--- Capturing Button Variants Matrix ---')
     {
@@ -246,6 +335,19 @@ async function runButtonVerification() {
             </div>
 
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 12px;">
+              <span style="color: #cbd5e1; font-weight: 600; font-size: 13px; text-transform: uppercase;">Disabled & Loading State</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="shinpo-interactive-btn variant-primary size-md" disabled data-qa="disabled-btn">
+                  <span>Disabled Button</span>
+                </button>
+                <button class="shinpo-interactive-btn variant-primary size-md is-loading" data-qa="loading-btn">
+                  <span>Loading...</span>
+                </button>
+              </div>
+              <small style="color: #64748b;">Aura and transforms cleanly suppressed</small>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 12px;">
               <span style="color: #cbd5e1; font-weight: 600; font-size: 13px; text-transform: uppercase;">Icon & Compact Actions</span>
               <div style="display: flex; gap: 12px; align-items: center;">
                 <button class="shinpo-interactive-btn variant-icon" title="Settings" data-qa="icon-btn">
@@ -273,7 +375,7 @@ async function runButtonVerification() {
         await page.waitForTimeout(300)
       }
 
-      const filename = '05_button_variants_matrix.png'
+      const filename = '06_button_variants_matrix.png'
       await page.screenshot({ path: path.join(LOCAL_DIR, filename) })
       copyToArtifacts(filename)
       console.log(`Saved: ${filename}`)
@@ -282,7 +384,7 @@ async function runButtonVerification() {
     }
 
     // -------------------------------------------------------------
-    // TEST 6: DESTRUCTIVE BUTTON BEHAVIOR & MODAL ACTIONS
+    // TEST 7: DESTRUCTIVE BUTTON BEHAVIOR & MODAL ACTIONS
     // -------------------------------------------------------------
     console.log('\n--- Capturing Destructive Button Behavior ---')
     {
@@ -341,7 +443,7 @@ async function runButtonVerification() {
         await page.waitForTimeout(300)
       }
 
-      const filename = '06_destructive_button_behavior.png'
+      const filename = '07_destructive_button_behavior.png'
       await page.screenshot({ path: path.join(LOCAL_DIR, filename) })
       copyToArtifacts(filename)
       console.log(`Saved: ${filename}`)
@@ -350,7 +452,7 @@ async function runButtonVerification() {
     }
 
     // -------------------------------------------------------------
-    // TEST 7: REDUCED MOTION BEHAVIOR
+    // TEST 8: REDUCED MOTION BEHAVIOR
     // -------------------------------------------------------------
     console.log('\n--- Capturing Reduced Motion Behavior ---')
     {
@@ -365,7 +467,7 @@ async function runButtonVerification() {
       await page.goto(`${server.url}?v2=true&theme=dark`)
       await page.waitForSelector('.app-shell', { timeout: 10000 })
 
-      const startBtn = page.locator('button.btn-timer.primary, button:has-text("Start Focus"), button:has-text("Start a Focus session")').first()
+      const startBtn = page.locator('button.aurora-btn-primary, button.btn-timer.primary, button:has-text("Start Focus"), button:has-text("Start a Focus session"), button.sidebar-btn').first()
       if (await startBtn.count() > 0) {
         const box = await startBtn.boundingBox()
         if (box) {
@@ -374,7 +476,7 @@ async function runButtonVerification() {
         }
       }
 
-      const filename = '07_reduced_motion_behavior.png'
+      const filename = '08_reduced_motion_behavior.png'
       await page.screenshot({ path: path.join(LOCAL_DIR, filename) })
       copyToArtifacts(filename)
       console.log(`Saved: ${filename}`)

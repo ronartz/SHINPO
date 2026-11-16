@@ -24,7 +24,12 @@ function getTargetButton(eventTarget: EventTarget | null): HTMLButtonElement | n
   }
 
   // Ignore disabled or loading buttons
-  if (btn.disabled || btn.getAttribute('aria-disabled') === 'true' || btn.classList.contains('is-loading')) {
+  if (
+    btn.disabled ||
+    btn.getAttribute('aria-disabled') === 'true' ||
+    btn.classList.contains('is-loading') ||
+    btn.getAttribute('data-loading') === 'true'
+  ) {
     return null
   }
 
