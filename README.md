@@ -179,29 +179,31 @@ SHINPO is designed around local-first desktop use.
 
 ## Platform & beta status
 
-SHINPO is packaged for Linux x86_64 and Windows x64.
+SHINPO is packaged for **Linux x86_64** for a private friends-and-family beta.
 
 | Platform | Packaging format | Release qualification status |
 |---|---|---|
-| Linux x86_64 | RPM, DEB | **EMPIRICALLY VERIFIED (GO)** — Passed full test gate, package extraction, dynamic library linkage, and user journey suites. |
-| Windows x64 | NSIS installer (.exe) | **CI-TESTED (CONDITIONAL GO)** — Built via GitHub Actions; requires initial launch feedback on native hardware. |
-| Browser companion | Chromium & Firefox unpacked | Unpacked developer builds bundled in package; paired via local native messaging. |
+| Linux x86_64 (Fedora/RHEL) | RPM, Portable Tarball | **EMPIRICALLY VERIFIED (GO)** — Passed full test gate, package extraction, dynamic library linkage, and user journey suites. |
+| Linux x86_64 (Debian/Ubuntu) | `.deb` | **NOT QUALIFIED** — `.deb` packages were not generated or tested for this beta run. |
+| Windows x64 | NSIS installer (.exe) | **NO-GO / NOT QUALIFIED** — Windows testing cannot be verified on Linux hosts; distribution strictly unauthorized. |
+| Browser companion | Chromium & Firefox unpacked | Bundled in package; paired via local native messaging. |
 
 ### For Beta Testers
 
 Detailed guides are available in the repository documentation:
 - 🐧 **Linux Setup:** [Linux Installation Guide](docs/INSTALL_LINUX.md)
-- 🪟 **Windows Setup:** [Windows Installation Guide](docs/INSTALL_WINDOWS.md)
 - ⚠️ **Known Boundaries:** [Known Limits & Beta Characteristics](docs/KNOWN_LIMITS.md)
+- 🪟 **Windows Status:** [Windows Status Notice (NO-GO)](docs/INSTALL_WINDOWS.md)
 
-### Linux Quick Install
+### Linux Quick Install (Fedora / RHEL)
 
 ```bash
-# Fedora / RHEL / RPM-based:
+# Install RPM package:
 sudo dnf install ./SHINPO-0.1.0-beta.1-1.x86_64.rpm
 
-# Ubuntu / Debian / Pop!_OS:
-sudo apt install ./shinpo-desktop_0.1.0-beta.1_amd64.deb
+# Or extract portable tarball without root:
+tar -xzf SHINPO-0.1.0-beta.1-linux-x86_64.tar.gz
+cd SHINPO-0.1.0-beta.1-linux-x86_64 && ./shinpo-desktop
 ```
 
 ## Security & Data Privacy
