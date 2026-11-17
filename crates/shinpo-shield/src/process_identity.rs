@@ -69,7 +69,6 @@ pub fn protected_process_name(name: &str) -> bool {
             | "shinpo-shield"
             | "shinpo-desktop"
             | "postgres"
-            | "postgresql"
     )
 }
 

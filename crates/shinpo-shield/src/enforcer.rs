@@ -66,7 +66,6 @@ impl ShieldEnforcer {
             "shinpo-shield",
             "shinpo-desktop",
             "postgres",
-            "postgresql",
         ] {
             protected.insert(name.to_string());
         }

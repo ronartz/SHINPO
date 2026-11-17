@@ -1,7 +1,7 @@
 /*
  * glassShaderEngine.ts
  *
- * Core WebGL2 shader definitions, spring timeline calculations,
+ * Core WebGL2 shader definitions, damped oscillation timeline calculations,
  * and Signed Distance Field (SDF) algorithms for SHINPO Glass Logo Reveal.
  *
  * Attribution:
@@ -160,7 +160,7 @@ export function hexToRgb(hex: string): [number, number, number] {
 
 export const luminance = ([r, g, b]: number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b
 
-export function spring(t: number, response: number, damping: number): number {
+export function dampedOscillation(t: number, response: number, damping: number): number {
   if (t <= 0) return 0
   const w = (2 * Math.PI) / response
   if (damping >= 1) return 1 - Math.exp(-w * t) * (1 + w * t)
@@ -177,7 +177,7 @@ export function timeToReach(level: number, response: number, damping: number): n
     let hi = 3
     for (let i = 0; i < 40; i++) {
       const mid = (lo + hi) / 2
-      if (spring(mid, response, damping) < level) lo = mid
+      if (dampedOscillation(mid, response, damping) < level) lo = mid
       else hi = mid
     }
     reachCache.set(key, (t = hi))
@@ -189,17 +189,17 @@ export function frameAt(T: number, P: Settings, outro = 0) {
   const tx = P.present
   const keep = P.keepPlate ? 1 : 0
   const damping = 1 - P.bounce
-  const grow = spring(T + 0.01, P.response, damping)
+  const grow = dampedOscillation(T + 0.01, P.response, damping)
   const tl = timeToReach(0.85, P.response, damping) - 0.01
   const tm = timeToReach(0.92, P.response, damping) - 0.01
-  const morph = spring(T - tm, 0.4, 1)
+  const morph = dampedOscillation(T - tm, 0.4, 1)
   const drop = 1 - smooth(0.05, 1, morph)
   const appear = smooth(0, 0.08, T)
-  const drift = P.drift * spring(T - 0.3, 2.2, 1)
-  const zoomIn = 0.25 * spring(T, 0.7, 1) + 0.75 * smoother(0, P.glide, T)
-  const settle = spring(T - 0.5, 2.4, 1)
-  const exit = spring(T - tx, 0.95, 1)
-  const release = spring(T - tx - 0.05, 0.65, 1)
+  const drift = P.drift * dampedOscillation(T - 0.3, 2.2, 1)
+  const zoomIn = 0.25 * dampedOscillation(T, 0.7, 1) + 0.75 * smoother(0, P.glide, T)
+  const settle = dampedOscillation(T - 0.5, 2.4, 1)
+  const exit = dampedOscillation(T - tx, 0.95, 1)
+  const release = dampedOscillation(T - tx - 0.05, 0.65, 1)
   const dome = 0.15 * P.bulge * (1 - smooth(0.4, 0.95, grow))
   const view = (1 + (P.startZoom - 1) * (1 - zoomIn)) * (1 - 0.045 * settle) * mix(1, P.finalScale, exit) * (1 - 0.06 * outro)
   const bandW = mix(P.bevelWidth, Math.max(P.bevelWidth, 0.4), drop)

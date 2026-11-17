@@ -11,7 +11,7 @@
  *   4. Glass settles and releases smoothly, leaving the sharp, crisp SHINPO mark.
  *
  * Attribution:
- * Shader mathematics and spring-motion timeline adapted from:
+ * Shader mathematics and harmonic oscillation timeline adapted from:
  * zanwei/glass-icon-reveal (MIT License)
  * https://github.com/zanwei/glass-icon-reveal
  * Copyright (c) 2024 Zan Wei

@@ -2,7 +2,7 @@ import type {
   FocusSessionEvent,
   SentinelQuarantineEvent,
   SentinelStatusEvent,
-} from './websocket'
+} from './eventTypes.ts'
 
 /**
  * Safely parses any date/time representation into a valid ISO-8601 string.
