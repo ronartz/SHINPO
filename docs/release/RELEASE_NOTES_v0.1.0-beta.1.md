@@ -10,11 +10,13 @@ This release includes the native desktop application for Linux x86_64 and the ac
 
 | Asset | Description | Size | SHA-256 Checksum |
 |---|---|---:|---|
-| **[`SHINPO-0.1.0-beta.1-1.x86_64.rpm`](SHINPO-0.1.0-beta.1-1.x86_64.rpm)** | Native installer for Fedora 40/41, RHEL 9+, Rocky Linux | 15.7 MiB | `8002e80edaa1efd63b83b61f0e6ea28b86c60974fca98cda6149f2d7e3e154ec` |
-| **[`SHINPO-0.1.0-beta.1-linux-x86_64.tar.gz`](SHINPO-0.1.0-beta.1-linux-x86_64.tar.gz)** | Portable standalone bundle for any Linux distribution | 15.5 MiB | `680fe538c93d759a788b19e59329294277b0bb4a8536a679da52af3839453b9c` |
-| **[`shinpo-browser-companion-chromium.zip`](shinpo-browser-companion-chromium.zip)** | Unpacked extension for Chrome, Brave, Edge | 1.3 MiB | Included in tarball / bundle |
-| **[`shinpo-browser-companion-firefox.zip`](shinpo-browser-companion-firefox.zip)** | Unpacked extension for Mozilla Firefox | 1.3 MiB | Included in tarball / bundle |
-| **[`SHA256SUMS`](SHA256SUMS)** | Cryptographic verification manifest | 464 B | — |
+| **[`SHINPO-0.1.0-beta.1-1.x86_64.rpm`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO-0.1.0-beta.1-1.x86_64.rpm)** | Native installer for Fedora 40/41, RHEL 9+, Rocky Linux | 15.7 MiB | `8002e80edaa1efd63b83b61f0e6ea28b86c60974fca98cda6149f2d7e3e154ec` |
+| **[`SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz)** | Portable standalone bundle for any Linux distribution | 15.5 MiB | `680fe538c93d759a788b19e59329294277b0bb4a8536a679da52af3839453b9c` |
+| **[`SHINPO_0.1.0-beta.1_amd64.AppImage`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_amd64.AppImage)** | Universal single-file Linux executable | 88.5 MiB | Standalone AppImage |
+| **[`SHINPO_0.1.0-beta.1_amd64.deb`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_amd64.deb)** | Native Debian / Ubuntu package | 15.6 MiB | Debian package |
+| **[`shinpo-browser-companion-chromium.zip`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-browser-companion-chromium.zip)** | Unpacked extension for Chrome, Brave, Edge | 1.3 MiB | Included in tarball / bundle |
+| **[`shinpo-browser-companion-firefox.zip`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-browser-companion-firefox.zip)** | Unpacked extension for Mozilla Firefox | 1.3 MiB | Included in tarball / bundle |
+| **[`SHA256SUMS`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHA256SUMS)** | Cryptographic verification manifest | 1.1 KiB | — |
 
 ---
 
@@ -33,8 +35,8 @@ shinpo-desktop
 ### Option 2: Portable Tarball (Ubuntu, Debian, Arch, or No-Root)
 Download and extract the portable `.tar.gz` archive:
 ```bash
-tar -xzf SHINPO-0.1.0-beta.1-linux-x86_64.tar.gz
-cd SHINPO-0.1.0-beta.1-linux-x86_64
+tar -xzf SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz
+cd SHINPO_0.1.0-beta.1_linux_x86_64
 ./shinpo-desktop
 ```
 *(Ensure your system has `webkit2gtk-4.1` and `openssl` installed)*
