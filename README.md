@@ -179,15 +179,37 @@ SHINPO is designed around local-first desktop use.
 
 ## Platform & beta status
 
-SHINPO is being prepared for Windows x64 and Linux x86_64 desktop use.
+SHINPO is packaged for Linux x86_64 and Windows x64.
 
-| Platform | Packaging direction | Current qualification note |
+| Platform | Packaging format | Release qualification status |
 |---|---|---|
-| Windows x64 | NSIS installer | CI builds are separate from a verified native Windows installation. Runtime acceptance remains in progress. |
-| Linux x86_64 | AppImage, DEB and RPM | Compatibility depends on the distribution and system libraries. Do not assume every Linux distribution is supported. |
-| Browser companion | Chromium-family browsers and Firefox | Unpacked developer builds; not yet signed or published through browser extension stores. Firefox permanent installation requires a signed extension. |
+| Linux x86_64 | RPM, DEB | **EMPIRICALLY VERIFIED (GO)** — Passed full test gate, package extraction, dynamic library linkage, and user journey suites. |
+| Windows x64 | NSIS installer (.exe) | **CI-TESTED (CONDITIONAL GO)** — Built via GitHub Actions; requires initial launch feedback on native hardware. |
+| Browser companion | Chromium & Firefox unpacked | Unpacked developer builds bundled in package; paired via local native messaging. |
 
-**Downloads:** installer files will be attached to [GitHub Releases](https://github.com/ronartz/SHINPO/releases) when a beta release is published. There are no public installer downloads linked from this README yet.
+### For Beta Testers
+
+Detailed guides are available in the repository documentation:
+- 🐧 **Linux Setup:** [Linux Installation Guide](docs/INSTALL_LINUX.md)
+- 🪟 **Windows Setup:** [Windows Installation Guide](docs/INSTALL_WINDOWS.md)
+- ⚠️ **Known Boundaries:** [Known Limits & Beta Characteristics](docs/KNOWN_LIMITS.md)
+
+### Linux Quick Install
+
+```bash
+# Fedora / RHEL / RPM-based:
+sudo dnf install ./SHINPO-0.1.0-beta.1-1.x86_64.rpm
+
+# Ubuntu / Debian / Pop!_OS:
+sudo apt install ./shinpo-desktop_0.1.0-beta.1_amd64.deb
+```
+
+## Security & Data Privacy
+
+- **SQLCipher 256-bit AES Encryption:** All user data, goals, tasks, reflection logs, and intention notes are stored in a local SQLCipher database vault.
+- **Argon2id Key Derivation:** Master passphrases derive encryption keys locally via Argon2id with zero cloud telemetry or key escrows.
+- **Zero Plaintext on Disk:** Byte-level inspection verifies zero plaintext strings for tasks, goals, or queries leak to disk.
+- **Warning-Only Guardian:** Process observation never terminates user applications; it provides non-destructive reminders and overlays.
 
 ## Run from source
 

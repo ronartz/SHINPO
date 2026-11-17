@@ -9,7 +9,8 @@ const REPO_ROOT = process.cwd()
 const DESKTOP_BIN = path.resolve('frontend/src-tauri/target/release/shinpo-desktop')
 const BROWSER_HOST_BIN = path.resolve('crates/shinpo-browser-host/target/release/shinpo-browser-host')
 const EXTENSION_PATH = path.resolve('browser-extension/dist/chromium')
-const RPM_PATH = path.resolve('frontend/src-tauri/target/release/bundle/rpm/SHINPO-1.0.0-1.x86_64.rpm')
+const PACKAGE_VERSION = JSON.parse(fs.readFileSync('frontend/src-tauri/tauri.conf.json', 'utf8')).version
+const RPM_PATH = path.resolve(`frontend/src-tauri/target/release/bundle/rpm/SHINPO-${PACKAGE_VERSION}-1.x86_64.rpm`)
 
 const RUN_ID = Date.now()
 const TEST_ROOT = `/tmp/shinpo-standalone-test-${RUN_ID}`

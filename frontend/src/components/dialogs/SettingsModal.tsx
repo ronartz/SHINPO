@@ -1707,14 +1707,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Product:</span>
                       <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>進歩 (SHINPO)</span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Version:</span>
-                      <span style={{ color: 'var(--text-primary)' }}>1.0.0 (Private Beta)</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Release:</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        <span className="badge-pill" style={{ display: 'inline-block', marginRight: '6px' }}>Beta — Friends &amp; Family</span>
+                        0.1.0-beta.1
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Commit:</span>
+                      <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '12px' }}>
+                        {typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'release-gate'}
+                      </span>
                       <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Runtime Shell:</span>
                       <span style={{ color: 'var(--text-primary)' }}>
-                        {isTauriEnvironment() ? 'Tauri desktop app' : 'Browser app (Chromium/Gecko)'}
+                        {isTauriEnvironment() ? 'Tauri 2 desktop app' : 'Browser shell'}
                       </span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Data model:</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isTauriEnvironment() ? 'Encrypted local vault' : 'Server-backed workspace'}</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Data Protection:</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Encrypted local SQLCipher vault (Argon2id KDF)</span>
                     </div>
                   </div>
 
