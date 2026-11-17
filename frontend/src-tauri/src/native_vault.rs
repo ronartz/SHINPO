@@ -9143,4 +9143,190 @@ mod tests {
 
         fs::remove_dir_all(root).unwrap();
     }
+
+    #[test]
+    fn test_complete_paused_session_returns_error() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "pause_complete_user_spec", "a-long-qa-password").unwrap();
+        let session_id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes) VALUES('Paused Session Completion',25)",
+                [],
+            )?;
+            Ok(db.last_insert_rowid())
+        })
+        .unwrap();
+
+        let now = 1_800_000_000;
+        with_db(&manager, |db| start_focus_session(db, session_id, now)).unwrap();
+        let paused = with_db(&manager, |db| pause_focus_session(db, session_id, now + 60)).unwrap();
+        assert_eq!(paused.status, "PAUSED");
+
+        let completed = with_db(&manager, |db| {
+            complete_focus_session(
+                db,
+                session_id,
+                now + 120,
+                Some(5),
+                Some("Reflection note".into()),
+                Some("Accomplishment text".into()),
+                false,
+            )
+        })
+        .unwrap();
+        assert_eq!(completed.status, "COMPLETED");
+
+        let loaded = with_db(&manager, |db| focus_session_by_id(db, session_id)).unwrap();
+        assert_eq!(loaded.status, "COMPLETED");
+        assert_eq!(loaded.reflection_note.as_deref(), Some("Reflection note"));
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn test_goal_completion_atomic_transaction() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "atomic_goal_user", "a-long-qa-password").unwrap();
+
+        with_db(&manager, |db| {
+            db.execute("INSERT INTO goals(title,start_date) VALUES('Atomic Goal','2026-11-17')", [])?;
+            db.execute_batch(
+                "CREATE TRIGGER test_abort_reward BEFORE INSERT ON progress_events
+                 WHEN NEW.event_type='GOAL_COMPLETED' BEGIN SELECT RAISE(ABORT, 'forced ledger failure'); END;"
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        // Must fail when reward ledger write fails
+        assert!(with_db(&manager, |db| update_goal_record(
+            db,
+            1,
+            "Atomic Goal",
+            None,
+            "2026-11-17",
+            None,
+            "COMPLETED",
+        ))
+        .is_err());
+
+        with_db(&manager, |db| {
+            let current_status: String = db.query_row(
+                "SELECT status FROM goals WHERE id=1",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(current_status, "ACTIVE", "Goal status must remain ACTIVE after rollback");
+
+            let event_count: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(event_count, 0, "No progress events should be written");
+
+            db.execute_batch("DROP TRIGGER test_abort_reward")?;
+            update_goal_record(
+                db,
+                1,
+                "Atomic Goal",
+                None,
+                "2026-11-17",
+                None,
+                "COMPLETED",
+            )?;
+            let final_status: String = db.query_row(
+                "SELECT status FROM goals WHERE id=1",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(final_status, "COMPLETED");
+            let final_events: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(final_events, 1, "Exactly one progress event written after clean completion");
+            Ok(())
+        })
+        .unwrap();
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn test_reward_key_no_collision_after_delete_recreate() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "reward_collision_user", "a-long-qa-password").unwrap();
+
+        with_db(&manager, |db| {
+            let g1 = insert_goal_record(db, "Goal One", None, "2026-11-17", None)?;
+            update_goal_record(db, g1.id, "Goal One", None, "2026-11-17", None, "COMPLETED")?;
+            let events_after_first: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(events_after_first, 1);
+
+            db.execute("DELETE FROM goals WHERE id=?1", [g1.id])?;
+
+            let g2 = insert_goal_record(db, "Goal Two", None, "2026-11-17", None)?;
+            assert_eq!(g1.id, g2.id);
+
+            update_goal_record(db, g2.id, "Goal Two", None, "2026-11-17", None, "COMPLETED")?;
+            let events_after_second: i64 = db.query_row(
+                "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(events_after_second, 2, "Second completion must award XP without collision suppression");
+            Ok(())
+        })
+        .unwrap();
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn test_background_ipc_does_not_reset_idle_timer() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        manager.set_idle_timeout(Duration::from_millis(100));
+        create_account(&manager, "bg_ipc_user", "a-long-qa-password").unwrap();
+
+        std::thread::sleep(Duration::from_millis(60));
+        with_db_background(&manager, |_| Ok(())).unwrap();
+
+        std::thread::sleep(Duration::from_millis(60));
+        assert!(!manager.is_unlocked().unwrap(), "Vault must lock after timeout despite background IPC");
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn test_every_data_command_rejects_when_locked() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "locked_guard_user", "a-long-qa-password").unwrap();
+
+        manager.unlocked.lock().unwrap().take();
+        assert!(!manager.is_unlocked().unwrap());
+
+        let res = with_db(&manager, |_| Ok(()));
+        assert!(res.is_err(), "Data access must reject while vault is locked");
+
+        let bg_res = with_db_background(&manager, |_| Ok(()));
+        assert!(bg_res.is_err(), "Background data access must reject while vault is locked");
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -335,6 +335,23 @@ test.describe('OPERATION CORE UI REPAIR - Automated Acceptance Suite', () => {
     expect(intentionBox!.height).toBeGreaterThan(60)
   })
 
+  test('Bug 7: Active Focus right panel card hugs content without stretching into dead space', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    await page.locator('[data-tab="Focus Engine"]').click()
+    await page.waitForSelector('.card-timer-hud')
+    await page.waitForSelector('.card-session-creator')
+
+    const card = page.locator('.card-session-creator')
+    const box = await card.boundingBox()
+    expect(box).not.toBeNull()
+
+    const scrollHeight = await card.evaluate((el) => el.scrollHeight)
+    const clientHeight = await card.evaluate((el) => el.clientHeight)
+    // Card height should match its content + padding (scrollHeight), not stretch to viewport or column height
+    expect(Math.abs(clientHeight - scrollHeight)).toBeLessThanOrEqual(4)
+  })
+
   test('Phase C: PC System Monitor sub-tab displays live native telemetry metrics and process table', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
     await page.goto('/')

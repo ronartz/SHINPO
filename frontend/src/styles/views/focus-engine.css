@@ -973,6 +973,9 @@ html[data-theme='light'] .btn-timer.warning:hover,
    ========================================================================== */
 .card-session-creator {
   grid-column: span 6;
+  align-self: start;
+  height: auto;
+  min-height: auto;
 }
 
 .focus-session-live-context {

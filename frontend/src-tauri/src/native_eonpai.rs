@@ -1325,4 +1325,22 @@ mod tests {
         app.state::<VaultManager>().unlocked.lock().unwrap().take();
         assert!(invoke("local_eonpai_get_active", json!({})).is_err());
     }
+
+    #[test]
+    fn test_eonpai_stale_proposal_rejected_after_edit() {
+        let mut f = Fixture::new();
+        let action = decomposition(&f.db, 1).unwrap();
+        let id = propose(&f.db, &action, "Preview").unwrap();
+        let preview = issue_preview(&f.db, &id, "first-unlock").unwrap();
+        let token = preview["confirmationToken"].as_str().unwrap().to_string();
+
+        // Mutate underlying task after proposal issued
+        f.db.execute("UPDATE tasks SET title='Edited title after proposal' WHERE id=1", []).unwrap();
+
+        // Confirmation must be rejected as stale because underlying data changed
+        let result = confirm(&mut f.db, "first-unlock", &id, &token);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("stale") || err.contains("data changed"));
+    }
 }
