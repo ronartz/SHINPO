@@ -248,7 +248,7 @@ jobs:
         if: always()
         run: |
           set +e
-          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src semgrep/semgrep semgrep scan --config p/default --config p/secrets --config p/security-audit --sarif --output /src/security-reports/semgrep.sarif
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src semgrep/semgrep semgrep scan --config p/default --config p/secrets --config p/security-audit --error --sarif --output /src/security-reports/semgrep.sarif
           STATUS_SEMGREP=$?
           set -e
           if [ -s security-reports/semgrep.sarif ] && [ "$STATUS_SEMGREP" -eq 0 ]; then
@@ -260,8 +260,7 @@ jobs:
         if: always()
         run: |
           set +e
-          osv-scanner scan source -r . --format table
-          osv-scanner scan source -r . --format json --output-file security-reports/osv-scanner.json
+          osv-scanner scan -r .
           STATUS_OSV=$?
           set -e
           echo "$STATUS_OSV" > security-reports/status-osv-scanner.txt
@@ -295,19 +294,16 @@ jobs:
           set +e
           echo "=== Cargo Deny: crates/shinpo-shield ==="
           cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
-          cargo deny --manifest-path crates/shinpo-shield/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-shield.json
           STATUS_DENY_SHIELD=$?
           echo "$STATUS_DENY_SHIELD" > security-reports/status-cargo-deny-shield.txt
 
           echo "=== Cargo Deny: crates/shinpo-browser-host ==="
           cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
-          cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-browser-host.json
           STATUS_DENY_HOST=$?
           echo "$STATUS_DENY_HOST" > security-reports/status-cargo-deny-browser-host.txt
 
           echo "=== Cargo Deny: frontend/src-tauri ==="
           cargo deny --manifest-path frontend/src-tauri/Cargo.toml check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources
-          cargo deny --manifest-path frontend/src-tauri/Cargo.toml --format json check --config "$GITHUB_WORKSPACE/deny.toml" bans licenses sources > security-reports/cargo-deny-frontend-tauri.json
           STATUS_DENY_TAURI=$?
           echo "$STATUS_DENY_TAURI" > security-reports/status-cargo-deny-frontend-tauri.txt
           set -e
