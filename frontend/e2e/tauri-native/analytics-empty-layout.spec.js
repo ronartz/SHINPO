@@ -38,6 +38,10 @@ describe('SHINPO native Analytics empty-state layout', function () {
       const stage = document.querySelector('.focus-skyline-stage')
       return stage && stage.getBoundingClientRect().width > 100 && stage.getBoundingClientRect().height > 100
     }), { timeout: 10000 })
+    await browser.waitUntil(async () => await browser.execute(() => Boolean(document.querySelector('.focus-activity-empty, .analytics-activity-chart'))), {
+      timeout: 15000,
+      timeoutMsg: 'Activity container did not mount',
+    })
 
     for (const [width, height, suffix] of [[1400, 900, '1400x900'], [1280, 720, '1280x720']]) {
       await browser.setWindowSize(width, height)
@@ -53,7 +57,7 @@ describe('SHINPO native Analytics empty-state layout', function () {
         const skyline = document.querySelector('.focus-contribution-skyline')
         const canvas = document.querySelector('.focus-skyline-stage canvas')
         const activity = document.querySelector('.analytics-activity-panel')
-        const chart = document.querySelector('.analytics-activity-chart')
+        const chart = document.querySelector('.focus-activity-empty, .analytics-activity-chart')
         const reflections = document.querySelector('.analytics-recent-panel')
         const metricValues = [...document.querySelectorAll('.analytics-metrics-grid article strong')].map((item) => item.textContent.trim())
         const skylineStats = [...document.querySelectorAll('.focus-skyline-stats > div strong')].map((item) => item.textContent.trim())
@@ -61,16 +65,24 @@ describe('SHINPO native Analytics empty-state layout', function () {
           viewport: { width: innerWidth, height: innerHeight },
           root: rect('.analytics-view'), skyline: rect('.focus-contribution-skyline'),
           stage: rect('.focus-skyline-stage'), canvas: rect('.focus-skyline-stage canvas'),
-          activity: rect('.analytics-activity-panel'), chart: rect('.analytics-activity-chart'),
+          activity: rect('.analytics-activity-panel'), chart: rect('.focus-activity-empty, .analytics-activity-chart'),
           reflections: rect('.analytics-recent-panel'), reflectionEmpty: rect('.analytics-debrief-empty'),
           documentHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           canvasPixels: { width: canvas.width, height: canvas.height },
           emptyCopy: skyline?.textContent.includes('No completed Focus sessions in this period yet.') ?? false,
-          activityEmpty: activity?.querySelector('.analytics-activity-zero-overlay')?.textContent.trim() ?? null,
+          activityEmpty: activity?.querySelector('.analytics-activity-zero-state, .analytics-activity-zero-overlay')?.textContent.trim() ?? null,
           metricValues, skylineStats,
         }
       })
 
+      console.log('Geometry components:', {
+        skyline: Boolean(geometry.skyline),
+        stage: Boolean(geometry.stage),
+        canvas: Boolean(geometry.canvas),
+        activity: Boolean(geometry.activity),
+        chart: Boolean(geometry.chart),
+        reflections: Boolean(geometry.reflections),
+      })
       assert.equal(geometry.documentHorizontalOverflow, false, JSON.stringify(geometry))
       assert.ok(geometry.skyline && geometry.stage && geometry.canvas && geometry.activity && geometry.chart && geometry.reflections)
       assert.ok(geometry.stage.width > 0 && geometry.stage.height > 0)
@@ -90,8 +102,8 @@ describe('SHINPO native Analytics empty-state layout', function () {
     await browser.pause(250)
     const activityComposition = await browser.execute(() => {
       const activity = document.querySelector('.analytics-activity-panel').getBoundingClientRect()
-      const chart = document.querySelector('.analytics-activity-chart').getBoundingClientRect()
-      const zero = document.querySelector('.analytics-activity-zero-overlay')?.getBoundingClientRect()
+      const chart = (document.querySelector('.focus-activity-empty') || document.querySelector('.analytics-activity-chart')).getBoundingClientRect()
+      const zero = document.querySelector('.analytics-activity-zero-state, .analytics-activity-zero-overlay')?.getBoundingClientRect()
       const reflections = document.querySelector('.analytics-recent-panel').getBoundingClientRect()
       return {
         activity: { y: activity.y, height: activity.height, bottom: activity.bottom },

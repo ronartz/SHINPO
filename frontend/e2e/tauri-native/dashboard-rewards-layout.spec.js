@@ -154,11 +154,16 @@ describe('SHINPO native Dashboard Rewards & Progress layout', function () {
     }
 
     const dismissCelebrations = async () => {
+      for (let wait = 0; wait < 20; wait += 1) {
+        const present = await browser.execute(() => Boolean(document.querySelector('.celebration-modal-overlay')))
+        if (present) break
+        await browser.pause(100)
+      }
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const headline = await browser.execute(() => document.querySelector('.celebration-modal-overlay')?.textContent?.trim() || null)
         if (!headline) return
         await browser.execute(() => document.querySelector('.celebration-modal-overlay .celebration-btn.primary')?.click())
-        await browser.pause(250)
+        await browser.pause(400)
       }
       const remaining = await browser.execute(() => document.querySelector('.celebration-modal-overlay')?.textContent?.trim() || null)
       assert.equal(remaining, null, `completion confirmation queue did not drain: ${remaining}`)

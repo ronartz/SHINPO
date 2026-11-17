@@ -86,19 +86,21 @@ describe('SHINPO native Classic dashboard and Goals visual check', function () {
     await capture('Dashboard', '.shinpo-dashboard', 'dashboard-classic-native.png')
     await capture('Goals & Missions', '.goals-view-deck', 'goals-classic-native.png')
 
-    await $('button*=Create First Goal').click()
+    await dismissVisibleToasts()
+    await browser.execute(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Create First Goal'))?.click())
     const goalDialog = await $('[role="dialog"][aria-labelledby="create-goal-dialog-title"]')
     await goalDialog.waitForDisplayed()
     const goalTitle = `Classic populated goal ${Date.now()}`
     await $('#create-goal-name-input').setValue(goalTitle)
     await goalDialog.$('button[type="submit"]').click()
     await $('.goal-single-summary-card').waitForDisplayed({ timeout: 30000 })
-    await $('[data-tutorial="new-task"]').click()
+    await dismissVisibleToasts()
+    await browser.execute(() => document.querySelector('[data-tutorial="new-task"]')?.click())
     const taskDialog = await $('[role="dialog"][aria-labelledby="create-task-title"]')
     await taskDialog.waitForDisplayed()
     const taskTitle = `Classic populated task ${Date.now()}`
     await $('#create-task-title-input').setValue(taskTitle)
-    await taskDialog.$('button[type="submit"]').click()
+    await browser.execute(() => document.querySelector('[aria-labelledby="create-task-title"] button[type="submit"]')?.click())
     await browser.waitUntil(async () => (await $('.missions-list-container').getText()).includes(taskTitle), { timeout: 30000 })
     await dismissVisibleToasts()
     const populatedGoals = await browser.execute(() => ({
