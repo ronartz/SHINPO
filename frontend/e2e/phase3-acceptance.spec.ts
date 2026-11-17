@@ -171,6 +171,7 @@ test.describe('Phase 3 Priority Inspection Suite', () => {
     const companionCol = page.locator('.intention-companion-col, .intention-guidance-footer')
     const tagsBox = await tagsRow.boundingBox()
     const companionBox = await companionCol.boundingBox()
+    expect(tagsBox).not.toBeNull()
     expect(companionBox).not.toBeNull()
 
     // Measure Guardian mode buttons

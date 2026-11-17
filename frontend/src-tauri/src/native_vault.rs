@@ -9214,12 +9214,12 @@ mod tests {
         .is_err());
 
         with_db(&manager, |db| {
-            let current_status: String = db.query_row(
-                "SELECT status FROM goals WHERE id=1",
-                [],
-                |row| row.get(0),
-            )?;
-            assert_eq!(current_status, "ACTIVE", "Goal status must remain ACTIVE after rollback");
+            let current_status: String =
+                db.query_row("SELECT status FROM goals WHERE id=1", [], |row| row.get(0))?;
+            assert_eq!(
+                current_status, "ACTIVE",
+                "Goal status must remain ACTIVE after rollback"
+            );
 
             let event_count: i64 = db.query_row(
                 "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
@@ -9229,27 +9229,19 @@ mod tests {
             assert_eq!(event_count, 0, "No progress events should be written");
 
             db.execute_batch("DROP TRIGGER test_abort_reward")?;
-            update_goal_record(
-                db,
-                1,
-                "Atomic Goal",
-                None,
-                "2026-11-17",
-                None,
-                "COMPLETED",
-            )?;
-            let final_status: String = db.query_row(
-                "SELECT status FROM goals WHERE id=1",
-                [],
-                |row| row.get(0),
-            )?;
+            update_goal_record(db, 1, "Atomic Goal", None, "2026-11-17", None, "COMPLETED")?;
+            let final_status: String =
+                db.query_row("SELECT status FROM goals WHERE id=1", [], |row| row.get(0))?;
             assert_eq!(final_status, "COMPLETED");
             let final_events: i64 = db.query_row(
                 "SELECT COUNT(*) FROM progress_events WHERE event_type='GOAL_COMPLETED'",
                 [],
                 |row| row.get(0),
             )?;
-            assert_eq!(final_events, 1, "Exactly one progress event written after clean completion");
+            assert_eq!(
+                final_events, 1,
+                "Exactly one progress event written after clean completion"
+            );
             Ok(())
         })
         .unwrap();
@@ -9285,7 +9277,10 @@ mod tests {
                 [],
                 |row| row.get(0),
             )?;
-            assert_eq!(events_after_second, 2, "Second completion must award XP without collision suppression");
+            assert_eq!(
+                events_after_second, 2,
+                "Second completion must award XP without collision suppression"
+            );
             Ok(())
         })
         .unwrap();
@@ -9305,7 +9300,10 @@ mod tests {
         with_db_background(&manager, |_| Ok(())).unwrap();
 
         std::thread::sleep(Duration::from_millis(60));
-        assert!(!manager.is_unlocked().unwrap(), "Vault must lock after timeout despite background IPC");
+        assert!(
+            !manager.is_unlocked().unwrap(),
+            "Vault must lock after timeout despite background IPC"
+        );
 
         drop(manager);
         fs::remove_dir_all(root).unwrap();
@@ -9321,10 +9319,16 @@ mod tests {
         assert!(!manager.is_unlocked().unwrap());
 
         let res = with_db(&manager, |_| Ok(()));
-        assert!(res.is_err(), "Data access must reject while vault is locked");
+        assert!(
+            res.is_err(),
+            "Data access must reject while vault is locked"
+        );
 
         let bg_res = with_db_background(&manager, |_| Ok(()));
-        assert!(bg_res.is_err(), "Background data access must reject while vault is locked");
+        assert!(
+            bg_res.is_err(),
+            "Background data access must reject while vault is locked"
+        );
 
         drop(manager);
         fs::remove_dir_all(root).unwrap();

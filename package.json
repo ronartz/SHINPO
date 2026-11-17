@@ -13,6 +13,7 @@
     "test:a11y": "npm --prefix frontend run test:a11y",
     "visual:test": "npm --prefix frontend run visual:test",
     "visual:reference": "npm --prefix frontend run visual:reference",
+    "typecheck": "npm --prefix frontend run typecheck",
     "test": "npm --prefix frontend test",
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",

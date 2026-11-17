@@ -11,6 +11,7 @@
     "qa:security": "../scripts/qa-release.sh security",
     "qa:native": "../scripts/qa-release.sh native",
     "dev": "vite",
+    "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "node --test 'src/**/*.test.ts'",

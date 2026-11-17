@@ -1335,7 +1335,11 @@ mod tests {
         let token = preview["confirmationToken"].as_str().unwrap().to_string();
 
         // Mutate underlying task after proposal issued
-        f.db.execute("UPDATE tasks SET title='Edited title after proposal' WHERE id=1", []).unwrap();
+        f.db.execute(
+            "UPDATE tasks SET title='Edited title after proposal' WHERE id=1",
+            [],
+        )
+        .unwrap();
 
         // Confirmation must be rejected as stale because underlying data changed
         let result = confirm(&mut f.db, "first-unlock", &id, &token);
