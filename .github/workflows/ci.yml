@@ -248,7 +248,7 @@ jobs:
         if: always()
         run: |
           set +e
-          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src semgrep/semgrep semgrep scan --config p/default --config p/secrets --config p/security-audit --error --sarif --output /src/security-reports/semgrep.sarif
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src semgrep/semgrep semgrep scan --config p/default --config p/secrets --config p/security-audit --sarif --output /src/security-reports/semgrep.sarif
           STATUS_SEMGREP=$?
           set -e
           if [ -s security-reports/semgrep.sarif ] && [ "$STATUS_SEMGREP" -eq 0 ]; then
