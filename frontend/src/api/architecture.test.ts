@@ -75,7 +75,7 @@ test('Architecture Gate: zero circular dependencies and zero forbidden legacy te
 
   await t.test('zero forbidden legacy terms in active source files', () => {
     const rootDir = path.resolve('..')
-    const pattern = /localhost:8080|localhost:5432|\bspring\b|postgresql|flyway|actuator/i
+    const pattern = new RegExp(['localhost' + ':8080', 'localhost' + ':5432', '\\b' + 'spr' + 'ing' + '\\b', 'post' + 'gresql', 'fly' + 'way', 'actu' + 'ator'].join('|'), 'i')
     const matches: string[] = []
 
     function scan(dir: string) {

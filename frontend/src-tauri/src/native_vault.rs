@@ -9091,4 +9091,56 @@ mod tests {
         drop(manager);
         fs::remove_dir_all(root).unwrap();
     }
+
+    #[test]
+    fn test_vault_file_has_zero_plaintext_strings_on_disk() {
+        let root = scratch_path();
+        let username = "vault_security_qa";
+        let password = "Shinpo test vault passphrase 2026";
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, username, password).unwrap();
+        unlock_account(&manager, username, password).unwrap();
+
+        with_db(&manager, |db| {
+            let goal = insert_goal_record(
+                db,
+                "SuperSecretGoalTitle",
+                Some("ConfidentialDescription"),
+                "2026-11-17",
+                None,
+            )?;
+            insert_task_record(
+                db,
+                goal.id,
+                "UltraConfidentialTaskName",
+                None,
+                "2026-11-17",
+                Some(25),
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        drop(manager);
+
+        let db_path = root.join(username).join("shinpo.db");
+        let bytes = fs::read(&db_path).unwrap();
+        let patterns = [
+            b"SELECT".as_slice(),
+            b"INSERT".as_slice(),
+            b"SuperSecretGoalTitle".as_slice(),
+            b"UltraConfidentialTaskName".as_slice(),
+            b"ConfidentialDescription".as_slice(),
+            b"SQLite format 3".as_slice(),
+        ];
+        for pattern in patterns {
+            assert!(
+                !bytes.windows(pattern.len()).any(|window| window == pattern),
+                "Found plaintext pattern {:?} in SQLCipher database file!",
+                String::from_utf8_lossy(pattern)
+            );
+        }
+
+        fs::remove_dir_all(root).unwrap();
+    }
 }
