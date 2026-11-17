@@ -260,7 +260,7 @@ jobs:
         if: always()
         run: |
           set +e
-          osv-scanner scan -r .
+          osv-scanner scan -r . --config "$GITHUB_WORKSPACE/osv-scanner.toml"
           STATUS_OSV=$?
           set -e
           echo "$STATUS_OSV" > security-reports/status-osv-scanner.txt

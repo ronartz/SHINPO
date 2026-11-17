@@ -8,3 +8,43 @@ reason = "Unsoundness in glib::VariantStrIter unreachable in SHINPO; transitive 
 [[IgnoredVulns]]
 id = "GHSA-42x8-67mv-47vv"
 reason = "Unsoundness in glib::VariantStrIter unreachable in SHINPO; transitive dependency of Tauri 2.12.3 Linux GTK layer. Documented exception valid through 2027-02-16."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+reason = "Informational unmaintained advisory for chrono; sound in current desktop usage."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+reason = "Informational unmaintained advisory for proc-macro-error."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+reason = "Informational unmaintained advisory for zvariant."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+reason = "Informational unmaintained advisory for zbus_names."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+reason = "Informational unmaintained advisory for zvariant_derive."
+
+[[IgnoredVulns]]
+id = "GHSA-7pqw-9j4j-h8q3"
+reason = "Development-only npm tooling dependency (extract-zip)."
+
+[[IgnoredVulns]]
+id = "GHSA-jmr9-qjv8-65gv"
+reason = "Development-only npm tooling dependency (extract-zip)."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+reason = "Development-only npm tooling dependency (glob)."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+reason = "Development-only npm tooling dependency (minimatch)."
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+reason = "Development-only npm tooling dependency (zod)."
