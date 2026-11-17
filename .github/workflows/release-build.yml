@@ -324,8 +324,8 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release & Auto-Updater Manifest
-    needs: [qa-release-gate, linux-installers]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [qa-release-gate, linux-installers, windows-installer]
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.qa-release-gate.result == 'success' && needs.linux-installers.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -344,6 +344,7 @@ jobs:
           path: staged-release/linux
       - name: Download Windows release artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: windows-release-artifacts
           path: staged-release/windows
