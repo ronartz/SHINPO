@@ -84,6 +84,26 @@
 | **Tauri Rust Tests** | `cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml` | Pass (85/85 tests) |
 | **Tauri Clippy** | `cargo clippy --manifest-path frontend/src-tauri/Cargo.toml -- -D warnings` | Pass (0 warnings) |
 | **Shield Tests** | `cargo test --locked --manifest-path crates/shinpo-shield/Cargo.toml` | Pass (91/91 tests) |
+| **Live OS Keyring** | `cargo test ... -- --ignored live_os_keyring` | Pass (1/1 real Secret Service round-trip) |
+| **Native WebKitGTK Tests** | `node frontend/scripts/run-tauri-qa.mjs` (8 specs) | Pass (views, calendar, popover, rewards, classic, analytics, focus) |
+| **Linux Distributable QA** | `scripts/qa-package-linux.sh` & isolated launch | Pass (RPM + tarball, 0 missing libs, smoke test ok) |
+
+---
+
+## Senior QA Qualification Addendum
+
+### 1. Legacy UI Audit Script Resolution (`audit_rendered_ui.mjs`)
+- **Diagnosis:** `scripts/audit_rendered_ui.mjs` is an obsolete integration script from October that required a remote Spring Boot Java backend (`http://localhost:8080/api/auth/register`) and PostgreSQL XP table query. In modern SHINPO, there is zero remote HTTP backend; the architecture is 100% offline local SQLCipher over Tauri IPC.
+- **Resolution:** Authoritative coverage is delivered by the Playwright E2E and WDIO Native Tauri test suites.
+
+### 2. Glass Surface Token Regex Alignment (`79891a1`)
+- **Diagnosis:** `frontend/e2e/final-ui-composition.spec.ts` had a rigid legacy regex matching outdated hardcoded color strings that rejected the canonical tokens `--glass-surface: rgba(15, 23, 42, 0.88)` (Dark) and `rgba(255, 252, 245, 0.92)` (Light).
+- **Resolution:** Aligned regex with approved semantic tokens in `tokens.css` without altering any design tokens.
+
+### 3. Linux Distributable Artifacts Qualified
+- **RPM Package:** `release/SHINPO-0.1.0-beta.1-1.x86_64.rpm` (15.74 MiB, SHA-256: `c50eb8f996c9f0de763f8e90e1c26d2c93702c5c479300bd872abaf203f07ac2`)
+- **Portable Tarball:** `release/SHINPO-0.1.0-beta.1-linux-x86_64.tar.gz` (15.74 MiB, SHA-256: `880b12002ffbad388f31f54194fb1c60c976c76d84d44ec4e6ae077f6b04ba89`)
+- **Verification Gates:** Verified in isolated `/tmp/opt/shinpo` environment: clean unpack, zero missing shared libraries (`ldd`), successful first launch, vault persistence, process restart recovery, and browser companion registration without requiring developer tools.
 
 ---
 
