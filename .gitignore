@@ -101,6 +101,7 @@ coverage/
 *_tmp/
 docs/qa/screenshots/**/*.png
 docs/qa/screenshots/*.png
+!docs/qa/screenshots/final/*.png
 docs/qa/visual-final/**/*.png
 docs/qa/visual-final/*.png
 docs/qa/visual-final/*-results.json
