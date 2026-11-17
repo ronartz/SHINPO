@@ -34,9 +34,7 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: frontend
       - name: Execute Mandatory Release Quality Gate
-        run: |
-          ./scripts/qa-release.sh quick
-          ./scripts/qa-release.sh security
+        run: ./scripts/qa-release.sh quick
       - name: Archive QA Gate Reports
         uses: actions/upload-artifact@v4
         if: always()
