@@ -1,15 +1,15 @@
 {
-  "version": "0.1.0-beta.2",
-  "notes": "Fixed Linux companion pairing, Wayland taskbar icon, and clean window title",
-  "pub_date": "2026-11-18T15:09:32.168Z",
+  "version": "0.1.0-beta.3",
+  "notes": "Remove login card 3D hover tilt, fix host registration detection, and auto-register on launch",
+  "pub_date": "2026-11-18T15:59:34.786Z",
   "platforms": {
     "linux-x86_64": {
       "signature": "",
-      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.2/SHINPO_0.1.0-beta.2_linux_x86_64.AppImage.tar.gz"
+      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.3/SHINPO_0.1.0-beta.3_linux_x86_64.AppImage.tar.gz"
     },
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.2/SHINPO_0.1.0-beta.2_windows_x64_setup.exe.zip"
+      "url": "https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.3/SHINPO_0.1.0-beta.3_windows_x64_setup.exe.zip"
     }
   }
 }
