@@ -174,20 +174,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           paired: boolean
           state: string
           detail: string
+          hostRegistered?: boolean
           host_registered?: boolean
+          hostBinaryExists?: boolean
           host_binary_exists?: boolean
+          hostSummary?: string
           host_summary?: string
+          registeredBrowsers?: string[]
           registered_browsers?: string[]
         }>('browser_companion_local_status')
+        const isRegistered = data.hostRegistered ?? data.host_registered ?? false
+        const isPaired = data.paired || data.state === 'PAIRED' || data.state === 'CONNECTED'
         setCompanionStatus({
           state: data.state,
-          coverage: 'LIMITED',
+          coverage: isPaired && isRegistered ? 'FULL' : isPaired ? 'ACTIVE' : 'LIMITED',
           adapterName: 'Native messaging',
           detail: data.detail,
-          hostRegistered: data.host_registered,
-          hostBinaryExists: data.host_binary_exists,
-          hostSummary: data.host_summary,
-          registeredBrowsers: data.registered_browsers,
+          hostRegistered: isRegistered,
+          hostBinaryExists: data.hostBinaryExists ?? data.host_binary_exists ?? false,
+          hostSummary: data.hostSummary ?? data.host_summary,
+          registeredBrowsers: data.registeredBrowsers ?? data.registered_browsers,
         })
         return
       }

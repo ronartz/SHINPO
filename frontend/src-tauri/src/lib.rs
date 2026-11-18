@@ -356,6 +356,7 @@ pub fn run() {
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
             #[cfg(target_os = "linux")]
             setup_linux_desktop_integration();
+            let _ = shinpo_browser_host::registration::register_host(None);
             log::info!("[SHINPO Desktop] Tauri shell initialized.");
             Ok(())
         })
