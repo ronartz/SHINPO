@@ -48,9 +48,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE3Qjg4NkNGODVFRTRBNjQKUldSa1N1NkZ6NGE0cDhMNVcrNWlYR2o0KzVQT1RvbEU4MG9TMy9PeG1PRmNaL20yMDU1bVdGYmsK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI4QTVCNkM1NjkzNjU2NDIKUldSQ1ZqWnB4YmFsdU54MDl3RCtuRWE0cDVKMHNNZWVtL0JIZlh4d05oNW04UmJlajF4RmE1NUwK",
       "endpoints": [
-        "https://ronartz.github.io/SHINPO/updates/beta/latest.json",
+        "https://github.com/ronartz/SHINPO/releases/latest/download/latest.json",
         "https://raw.githubusercontent.com/ronartz/SHINPO/main/releases/beta/latest.json"
       ]
     }

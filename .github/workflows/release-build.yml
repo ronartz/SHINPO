@@ -2,7 +2,6 @@ name: SHINPO tagged installer build
 
 on:
   push:
-    branches: ["main", "develop"]
     tags: ["v*"]
   workflow_dispatch:
 
