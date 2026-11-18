@@ -62,22 +62,7 @@ export function LegacyDesktopLoginCard(props: DesktopLoginCardProps) {
       : authMode === 'RECOVER' ? 'Recover & Unlock Workspace' : isTauriEnvironment() ? 'Unlock workspace' : 'Sign In'
 
   return (
-    <div
-      className="auth-card"
-      onPointerMove={(event) => {
-        if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-        const bounds = event.currentTarget.getBoundingClientRect()
-        if (!bounds.width || !bounds.height) return
-        const x = (event.clientX - bounds.left) / bounds.width - 0.5
-        const y = (event.clientY - bounds.top) / bounds.height - 0.5
-        event.currentTarget.style.setProperty('--auth-tilt-x', `${-y * 2}deg`)
-        event.currentTarget.style.setProperty('--auth-tilt-y', `${x * 2}deg`)
-      }}
-      onPointerLeave={(event) => {
-        event.currentTarget.style.setProperty('--auth-tilt-x', '0deg')
-        event.currentTarget.style.setProperty('--auth-tilt-y', '0deg')
-      }}
-    >
+    <div className="auth-card">
       <div className="auth-brand-row">
         <div className="auth-brand-lockup" role="banner" aria-label="SHINPO Progress">
           <div className="auth-brand-lockup__symbol" aria-hidden="true">

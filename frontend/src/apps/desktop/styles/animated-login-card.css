@@ -142,13 +142,12 @@
   --link-hover: #0f172a;
 }
 
-/* Card Root & 3D Perspective Container */
+/* Card Root Container */
 .animated-login-stage {
   width: 100%;
   max-width: 440px;
   position: relative;
   z-index: 10;
-  perspective: 1500px;
   animation: animatedLoginEntrance 800ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   display: flex;
   justify-content: center;
@@ -166,24 +165,18 @@
   }
 }
 
-/* 3D Tilt Wrapper — purely structural transformation container, ZERO visible styling */
+/* Card Wrapper — stable, flat structural container */
 .auth-fullscreen-container .animated-card-tilt-wrapper,
 .animated-card-tilt-wrapper {
   position: relative;
   width: 100%;
-  transform-style: preserve-3d;
-  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
-  will-change: transform;
+  transform: none !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-.animated-card-tilt-wrapper:hover {
-  /* translateZ(10px) on hover matches reference whileHover: { z: 10 } */
 }
 
 /* Card Group Outer Frame */

@@ -192,8 +192,8 @@
   position: relative;
   z-index: 10;
   backdrop-filter: blur(10px);
-  transform: perspective(1000px) rotateX(var(--auth-tilt-x, 0deg)) rotateY(var(--auth-tilt-y, 0deg));
-  transition: transform 220ms var(--ease-kinetic), border-color 180ms ease, box-shadow 180ms ease;
+  transform: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
   animation: authFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

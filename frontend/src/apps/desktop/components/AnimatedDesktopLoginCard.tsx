@@ -45,8 +45,6 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
 
   const localVaultExists = isLocalVaultSession()
 
-  // 3D Tilt State
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const [focusedField, setFocusedField] = useState<'identifier' | 'password' | 'email' | 'recoveryKey' | null>(null)
   const [rememberMe, setRememberMe] = useState(() => {
     try {
@@ -85,37 +83,6 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
     handleAuthSubmit(e)
   }
 
-  // Tilt event handlers
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const dx = e.clientX - rect.left - rect.width / 2
-    const dy = e.clientY - rect.top - rect.height / 2
-    const clampedX = Math.max(-300, Math.min(300, dx))
-    const clampedY = Math.max(-300, Math.min(300, dy))
-    const rotX = (-clampedY / 300) * 10
-    const rotY = (clampedX / 300) * 10
-    setTilt({ x: rotX, y: rotY })
-    e.currentTarget.style.setProperty('--auth-tilt-x', `${rotX}deg`)
-    e.currentTarget.style.setProperty('--auth-tilt-y', `${rotY}deg`)
-    const authCard = e.currentTarget.querySelector('.auth-card') as HTMLElement | null
-    if (authCard) {
-      authCard.style.setProperty('--auth-tilt-x', `${rotX}deg`)
-      authCard.style.setProperty('--auth-tilt-y', `${rotY}deg`)
-    }
-  }
-
-  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-    setTilt({ x: 0, y: 0 })
-    e.currentTarget.style.setProperty('--auth-tilt-x', '0deg')
-    e.currentTarget.style.setProperty('--auth-tilt-y', '0deg')
-    const authCard = e.currentTarget.querySelector('.auth-card') as HTMLElement | null
-    if (authCard) {
-      authCard.style.setProperty('--auth-tilt-x', '0deg')
-      authCard.style.setProperty('--auth-tilt-y', '0deg')
-    }
-  }
-
   // Titles and descriptions
   const headingTitle = authMode === 'REGISTER'
     ? isTauriEnvironment() ? 'Create your workspace' : 'Create Account'
@@ -145,14 +112,7 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
 
   return (
     <div className="animated-login-stage">
-      <div
-        className="animated-card-tilt-wrapper"
-        style={{
-          transform: `perspective(1500px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${tilt.y.toFixed(2)}deg)`,
-        }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
+      <div className="animated-card-tilt-wrapper">
         <div className="animated-card-group">
           {/* Card Ambient Glow */}
           <div className="animated-card-glow" />
