@@ -38,9 +38,11 @@ if [[ "${CURRENT_BRANCH}" != "beta" ]]; then
 fi
 
 # Ensure clean working tree
-if ! git diff-index --quiet HEAD --; then
-    echo "Error: Uncommitted changes detected. Commit or stash them before releasing." >&2
-    git status --short
+git update-index -q --refresh || true
+UNCOMMITTED="$(git status --porcelain)"
+if [[ -n "${UNCOMMITTED}" ]]; then
+    echo "Error: Uncommitted changes detected. Commit or stash them before releasing:" >&2
+    echo "${UNCOMMITTED}"
     exit 1
 fi
 
