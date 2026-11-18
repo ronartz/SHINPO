@@ -67,7 +67,16 @@ node -e "
   fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
 "
 
-# 3. Update releases/beta/latest.json
+# 3. Update frontend/src-tauri/Cargo.toml
+node -e "
+  const fs = require('fs');
+  const path = 'frontend/src-tauri/Cargo.toml';
+  let cargo = fs.readFileSync(path, 'utf8');
+  cargo = cargo.replace(/version\s*=\s*\"[^\"]+\"/, 'version = \"${TARGET_VERSION}\"');
+  fs.writeFileSync(path, cargo);
+"
+
+# 4. Update releases/beta/latest.json
 node -e "
   const fs = require('fs');
   const path = 'releases/beta/latest.json';
@@ -86,6 +95,7 @@ node -e "
 
 echo "  ✓ tauri.conf.json -> ${TARGET_VERSION}"
 echo "  ✓ frontend/package.json -> ${TARGET_VERSION}"
+echo "  ✓ frontend/src-tauri/Cargo.toml -> ${TARGET_VERSION}"
 echo "  ✓ releases/beta/latest.json -> ${TARGET_VERSION}"
 
 echo ""
@@ -96,7 +106,7 @@ echo "  ✓ All tests passed"
 
 echo ""
 echo "[3/5] Committing release metadata to beta..."
-git add frontend/src-tauri/tauri.conf.json frontend/package.json releases/beta/latest.json
+git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml releases/beta/latest.json
 git commit -m "chore(release): bump version to ${TARGET_VERSION} and update release manifests"
 git push origin beta
 
