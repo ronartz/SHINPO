@@ -354,6 +354,8 @@ pub fn run() {
             }
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
+            #[cfg(target_os = "linux")]
+            setup_linux_desktop_integration();
             log::info!("[SHINPO Desktop] Tauri shell initialized.");
             Ok(())
         })
@@ -453,4 +455,61 @@ mod native_vault;
 
 pub fn smoke_test() -> Result<(), String> {
     native_vault::smoke_test()
+}
+
+#[cfg(target_os = "linux")]
+fn setup_linux_desktop_integration() {
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return;
+    };
+
+    // Determine target execution path: prioritize AppImage path if running from an AppImage bundle.
+    let exec_cmd = match std::env::var("APPIMAGE") {
+        Ok(appimage_path) if !appimage_path.trim().is_empty() => {
+            format!("\"{}\" %U", appimage_path.trim())
+        }
+        _ => match std::env::current_exe() {
+            Ok(exe_path) => format!("\"{}\" %U", exe_path.to_string_lossy()),
+            Err(_) => return,
+        },
+    };
+
+    let icon_sizes: &[(&str, &[u8])] = &[
+        ("32x32", include_bytes!("../icons/32x32.png")),
+        ("64x64", include_bytes!("../icons/64x64.png")),
+        ("128x128", include_bytes!("../icons/128x128.png")),
+        ("256x256", include_bytes!("../icons/128x128@2x.png")),
+        ("512x512", include_bytes!("../icons/icon.png")),
+    ];
+
+    for (size, bytes) in icon_sizes {
+        let icon_dir = home.join(format!(".local/share/icons/hicolor/{size}/apps"));
+        if std::fs::create_dir_all(&icon_dir).is_ok() {
+            let _ = std::fs::write(icon_dir.join("shinpo-desktop.png"), bytes);
+            let _ = std::fs::write(icon_dir.join("SHINPO.png"), bytes);
+            let _ = std::fs::write(icon_dir.join("com.shinpo.desktop.png"), bytes);
+        }
+    }
+
+    let pixmaps_dir = home.join(".local/share/pixmaps");
+    if std::fs::create_dir_all(&pixmaps_dir).is_ok() {
+        let icon_512 = include_bytes!("../icons/icon.png");
+        let _ = std::fs::write(pixmaps_dir.join("shinpo-desktop.png"), icon_512);
+        let _ = std::fs::write(pixmaps_dir.join("SHINPO.png"), icon_512);
+        let _ = std::fs::write(pixmaps_dir.join("com.shinpo.desktop.png"), icon_512);
+    }
+
+    let app_dir = home.join(".local/share/applications");
+    if std::fs::create_dir_all(&app_dir).is_ok() {
+        for (file_name, wm_class) in &[
+            ("shinpo-desktop.desktop", "shinpo-desktop"),
+            ("SHINPO.desktop", "SHINPO"),
+            ("com.shinpo.desktop.desktop", "com.shinpo.desktop"),
+        ] {
+            let desktop_content = format!(
+                "[Desktop Entry]\nVersion=1.0\nType=Application\nName=SHINPO\nGenericName=Personal Execution OS\nComment=SHINPO Personal Execution OS\nExec={exec_cmd}\nIcon=shinpo-desktop\nTerminal=false\nCategories=Utility;Office;\nStartupWMClass={wm_class}\nStartupNotify=true\n"
+            );
+            let _ = std::fs::write(app_dir.join(file_name), desktop_content);
+        }
+    }
 }
