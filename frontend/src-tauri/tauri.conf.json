@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "SHINPO",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "identifier": "com.shinpo.app",
   "build": {
     "frontendDist": "../dist",
@@ -58,7 +58,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage", "rpm", "nsis"],
+    "targets": [
+      "deb",
+      "appimage",
+      "rpm",
+      "nsis"
+    ],
     "createUpdaterArtifacts": true,
     "resources": {
       "target/bundle-input/*": "browser-companion/",
@@ -82,11 +87,15 @@
     ],
     "linux": {
       "deb": {
-        "depends": ["libssl3 | libssl3t64"]
+        "depends": [
+          "libssl3 | libssl3t64"
+        ]
       },
       "rpm": {
         "release": "1",
-        "depends": ["openssl-libs"]
+        "depends": [
+          "openssl-libs"
+        ]
       }
     },
     "windows": {
