@@ -338,15 +338,21 @@
     if (!nativeProtocol.isPairingToken(normalizedCode)) {
       throw codedError('INVALID_PAIRING_CODE', 'Enter the pairing code printed by the SHINPO host installer')
     }
-    const pairing = await nativeRequest('pair', {}, normalizedCode)
-    if (!nativeProtocol.isPairingToken(pairing.sessionToken)) {
-      throw codedError('INVALID_PAIRING_RESPONSE', 'SHINPO returned an invalid browser credential')
+    try {
+      const pairing = await nativeRequest('pair', {}, normalizedCode)
+      if (!nativeProtocol.isPairingToken(pairing.sessionToken)) {
+        throw codedError('INVALID_PAIRING_RESPONSE', 'SHINPO returned an invalid browser credential')
+      }
+      state.pairingToken = pairing.sessionToken
+      state.connection.paired = true
+      state.connection.error = null
+      await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: pairing.sessionToken })
+      await synchronizePolicy()
+      return publicStatus()
+    } catch (err) {
+      state.connection.error = safeErrorMessage(err)
+      throw err
     }
-    state.pairingToken = pairing.sessionToken
-    state.connection.paired = true
-    await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: pairing.sessionToken })
-    await synchronizePolicy()
-    return publicStatus()
   }
 
   async function synchronizePolicy() {

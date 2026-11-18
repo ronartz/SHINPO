@@ -120,6 +120,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     adapterName?: string
     lastSeenAt?: string
     detail?: string
+    hostRegistered?: boolean
+    hostBinaryExists?: boolean
+    hostSummary?: string
+    registeredBrowsers?: string[]
   } | null>(null)
   const [companionLoading, setCompanionLoading] = useState(false)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
@@ -166,12 +170,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setCompanionLoading(true)
     try {
       if (isTauriEnvironment() || isLocalVaultSession()) {
-        const data = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
+        const data = await invokeTauriCommand<{
+          paired: boolean
+          state: string
+          detail: string
+          host_registered?: boolean
+          host_binary_exists?: boolean
+          host_summary?: string
+          registered_browsers?: string[]
+        }>('browser_companion_local_status')
         setCompanionStatus({
           state: data.state,
           coverage: 'LIMITED',
           adapterName: 'Native messaging',
           detail: data.detail,
+          hostRegistered: data.host_registered,
+          hostBinaryExists: data.host_binary_exists,
+          hostSummary: data.host_summary,
+          registeredBrowsers: data.registered_browsers,
         })
         return
       }
@@ -191,6 +207,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCompanionLoading(false)
     }
   }, [])
+
+  const registerCompanionHost = async () => {
+    setCompanionLoading(true)
+    try {
+      await invokeTauriCommand('browser_companion_register_host')
+      await fetchCompanionInfo()
+    } catch (error) {
+      setCompanionStatus(prev => (prev ? {
+        ...prev,
+        detail: error instanceof Error ? error.message : 'Could not register native messaging host.',
+      } : null))
+    } finally {
+      setCompanionLoading(false)
+    }
+  }
 
   const createCompanionPairingCode = async () => {
     setCompanionLoading(true)
@@ -1467,7 +1498,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="companion-grid-details">
                       <div className="companion-grid-item">
                         <span className="companion-grid-label">Native Messaging:</span>
-                        <span className="companion-grid-val">{isTauriEnvironment() ? 'Registered host (com.shinpo.companion)' : 'Web fallback mode'}</span>
+                        <span className="companion-grid-val" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          {isTauriEnvironment() ? (
+                            companionStatus?.hostRegistered ? (
+                              <span style={{ color: 'var(--status-connected, #10b981)' }}>
+                                ✓ Registered ({companionStatus.registeredBrowsers && companionStatus.registeredBrowsers.length > 0 ? companionStatus.registeredBrowsers.join(', ') : 'Active'})
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--status-danger, #ef4444)' }}>Not Registered</span>
+                                <button
+                                  type="button"
+                                  className="btn-timer secondary"
+                                  style={{ padding: '2px 8px', fontSize: '11px', height: '24px' }}
+                                  onClick={registerCompanionHost}
+                                  disabled={companionLoading}
+                                  title="Register native messaging manifests in your browser directories"
+                                >
+                                  Register Host
+                                </button>
+                              </span>
+                            )
+                          ) : (
+                            'Web fallback mode'
+                          )}
+                        </span>
                       </div>
                       <div className="companion-grid-item">
                         <span className="companion-grid-label">Pairing State:</span>

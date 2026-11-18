@@ -63,6 +63,24 @@ fn run() -> Result<(), HostError> {
             });
             write_status_json(&mut io::stdout(), &status_val)
         }
+        "register" => {
+            let explicit = if args.len() > 2 {
+                Some(PathBuf::from(&args[2]))
+            } else {
+                None
+            };
+            let report = shinpo_browser_host::registration::register_host(explicit.as_deref())?;
+            write_status_json(&mut io::stdout(), &report)
+        }
+        "check-registration" => {
+            let explicit = if args.len() > 2 {
+                Some(PathBuf::from(&args[2]))
+            } else {
+                None
+            };
+            let report = shinpo_browser_host::registration::check_registration(explicit.as_deref());
+            write_status_json(&mut io::stdout(), &report)
+        }
         arg if arg.starts_with("chrome-extension://")
             || arg.starts_with("moz-extension://")
             || arg.ends_with(".json")

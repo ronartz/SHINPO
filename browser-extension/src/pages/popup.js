@@ -235,7 +235,7 @@ import {
     if (status?.connection?.source) {
       el['connection-source'].textContent = `Source: ${status.connection.source}`
     } else {
-      el['connection-source'].textContent = 'Host: com.shinpo.companion'
+      el['connection-source'].textContent = 'Host: com.shinpo.browser_companion'
     }
 
     updateControlStates()

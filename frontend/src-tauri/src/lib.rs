@@ -107,6 +107,10 @@ struct BrowserCompanionLocalStatus {
     paired: bool,
     state: &'static str,
     detail: &'static str,
+    host_registered: bool,
+    host_binary_exists: bool,
+    host_summary: String,
+    registered_browsers: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -192,6 +196,10 @@ fn browser_companion_pairing_code(
     let code = shinpo_browser_host::rotate_pairing(&paths)
         .map_err(|_| "Could not create a pairing challenge".to_string())?;
     native_vault::local_sync_browser_policy(state)?;
+
+    // Ensure native messaging host manifests are automatically written for all supported browsers
+    let _ = shinpo_browser_host::registration::register_host(None);
+
     Ok(code)
 }
 
@@ -201,6 +209,7 @@ fn browser_companion_local_status() -> BrowserCompanionLocalStatus {
     let paired = shinpo_browser_host::config::HostConfig::load(&paths)
         .ok()
         .is_some_and(|config| config.browser_token_hash.is_some());
+    let report = shinpo_browser_host::registration::check_registration(None);
     BrowserCompanionLocalStatus {
         paired,
         state: if paired { "PAIRED" } else { "UNPAIRED" },
@@ -209,7 +218,18 @@ fn browser_companion_local_status() -> BrowserCompanionLocalStatus {
         } else {
             "Pair the installed extension using a short-lived code from SHINPO."
         },
+        host_registered: report.total_registered > 0,
+        host_binary_exists: report.host_binary_exists,
+        host_summary: report.status_summary,
+        registered_browsers: report.registered_browsers,
     }
+}
+
+#[tauri::command]
+fn browser_companion_register_host(
+) -> Result<shinpo_browser_host::registration::HostDiscoveryReport, String> {
+    shinpo_browser_host::registration::register_host(None)
+        .map_err(|e| format!("Could not register native messaging host: {e}"))
 }
 
 #[tauri::command]
@@ -410,6 +430,7 @@ pub fn run() {
             browser_companion_pairing_code,
             browser_companion_local_status,
             browser_companion_revoke,
+            browser_companion_register_host,
             local_platform_capabilities,
             local_get_package_info,
             native_system_monitor::local_get_system_telemetry,

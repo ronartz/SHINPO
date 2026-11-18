@@ -3,6 +3,7 @@ pub mod config;
 pub mod framing;
 pub mod policy;
 pub mod protocol;
+pub mod registration;
 
 use std::fs;
 use std::io::{self, Read, Write};

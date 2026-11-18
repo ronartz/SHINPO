@@ -145,6 +145,9 @@ import {
     if (status.connection?.error) {
       el.diagError.textContent = status.connection.error
       el.diagError.style.color = 'var(--status-danger)'
+    } else if (unpaired) {
+      el.diagError.textContent = 'Unpaired · Awaiting registration and pairing'
+      el.diagError.style.color = 'var(--text-secondary)'
     } else {
       el.diagError.textContent = 'None (healthy)'
       el.diagError.style.color = 'var(--status-connected)'
@@ -223,6 +226,10 @@ import {
       await operation()
     } catch (error) {
       show(error.message || 'Operation failed', true)
+      if (el.diagError) {
+        el.diagError.textContent = error.message || 'Operation failed'
+        el.diagError.style.color = 'var(--status-danger)'
+      }
       throw error
     }
   }
