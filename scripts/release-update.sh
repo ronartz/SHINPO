@@ -94,10 +94,29 @@ node -e "
   fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
 "
 
+# 5. Create docs/release/RELEASE_NOTES_${TAG}.md
+mkdir -p docs/release
+cat <<EOF > "docs/release/RELEASE_NOTES_${TAG}.md"
+# SHINPO ${TAG} — Release Notes
+
+${RELEASE_NOTES}
+
+---
+
+## 📥 Downloads & Assets
+* **Linux RPM**: \`SHINPO-${TARGET_VERSION}-1.x86_64.rpm\`
+* **Linux AppImage**: \`SHINPO_${TARGET_VERSION}_amd64.AppImage\`
+* **Linux Tarball**: \`SHINPO_${TARGET_VERSION}_linux_x86_64.tar.gz\`
+* **Linux DEB**: \`SHINPO_${TARGET_VERSION}_amd64.deb\`
+* **Windows x64 Setup**: \`SHINPO_${TARGET_VERSION}_windows_x64_setup.exe.zip\`
+* **Browser Companion**: \`shinpo-browser-companion-chromium.zip\` and \`shinpo-browser-companion-firefox.zip\`
+EOF
+
 echo "  ✓ tauri.conf.json -> ${TARGET_VERSION}"
 echo "  ✓ frontend/package.json -> ${TARGET_VERSION}"
 echo "  ✓ frontend/src-tauri/Cargo.toml -> ${TARGET_VERSION}"
 echo "  ✓ releases/beta/latest.json -> ${TARGET_VERSION}"
+echo "  ✓ docs/release/RELEASE_NOTES_${TAG}.md created"
 
 echo ""
 echo "[2/5] Running test suites..."
@@ -107,7 +126,7 @@ echo "  ✓ All tests passed"
 
 echo ""
 echo "[3/5] Committing release metadata to beta..."
-git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml frontend/src-tauri/Cargo.lock releases/beta/latest.json
+git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml frontend/src-tauri/Cargo.lock releases/beta/latest.json "docs/release/RELEASE_NOTES_${TAG}.md"
 git commit -m "chore(release): bump version to ${TARGET_VERSION} and update release manifests"
 git push origin beta
 

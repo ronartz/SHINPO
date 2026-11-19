@@ -19,6 +19,8 @@ body,
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
 }
 
 body {
@@ -90,16 +92,16 @@ button:disabled {
 
 @media (prefers-reduced-motion: reduce) {
 
-  *,
-  *::before,
-  *::after {
+  body:not(.allow-animations) *,
+  body:not(.allow-animations) *::before,
+  body:not(.allow-animations) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 
-  button:not(:disabled):active {
+  body:not(.allow-animations) button:not(:disabled):active {
     transform: none !important;
   }
 }

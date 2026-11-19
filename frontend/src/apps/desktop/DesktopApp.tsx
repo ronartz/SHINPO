@@ -235,7 +235,17 @@ export function DesktopApp() {
     }
   })
   const [authEmail, setAuthEmail] = useState('')
-  const [authPassword, setAuthPassword] = useState('')
+  const [authPassword, setAuthPassword] = useState(() => {
+    try {
+      const saved = localStorage.getItem('shinpo_remembered_password_vault')
+      if (saved) {
+        return decodeURIComponent(escape(atob(saved)))
+      }
+    } catch {
+      // ignore
+    }
+    return ''
+  })
   const [authRecoveryKey, setAuthRecoveryKey] = useState('')
   const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -706,6 +716,7 @@ export function DesktopApp() {
       // ignore
     }
     document.body.classList.add('shinpo-glass-ui')
+    document.body.classList.add('allow-animations')
     if (isDarkMode) {
       document.body.classList.remove('theme-light')
       document.body.classList.add('theme-dark')
@@ -1311,12 +1322,24 @@ export function DesktopApp() {
           setAuthLoading(false)
           return
         }
+        const cleanEmail = authEmail.trim()
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+        if (!cleanEmail) {
+          setAuthError('Please enter an email address.')
+          setAuthLoading(false)
+          return
+        }
+        if (!emailRegex.test(cleanEmail)) {
+          setAuthError('Please enter a valid email address (e.g. user@example.com).')
+          setAuthLoading(false)
+          return
+        }
         if (authPassword.length < 15) {
           setAuthError('Password must contain at least 15 characters.')
           setAuthLoading(false)
           return
         }
-        const res = await register(authIdentifier.trim(), authEmail.trim(), authPassword)
+        const res = await register(authIdentifier.trim(), cleanEmail, authPassword)
         if (res.recoveryKey) {
           setPendingRecovery({ user: res.user, recoveryKey: res.recoveryKey })
           setRecoveryKeyCopied(false)

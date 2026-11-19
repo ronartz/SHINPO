@@ -7,7 +7,7 @@ import { ShinpoSelect } from '../ui'
 import type { SentinelStatus } from '../../api/device'
 import { updateSentinelMode, emergencyOverride } from '../../api/device'
 import { isTauriEnvironment } from '../../api/nativeShield'
-import { invokeTauriCommand } from '../../api/tauri'
+import { invokeTauriCommand, openExternalLink } from '../../api/tauri'
 import type { Goal, Mission } from '../../api/goalsAndMissions'
 import type { FocusSession } from '../../api/focusSessions'
 import { getAiProviderStatus, getNativeAiProviderConfig, configureNativeAiProvider } from '../../api/ai'
@@ -1936,16 +1936,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <span>Restart App</span>
                         </button>
                       ) : updaterState.status === 'unsupported-package' ? (
-                        <a
-                          href="https://github.com/ronartz/SHINPO/releases"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
                           className="btn-timer primary"
-                          style={{ padding: '8px 16px', fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          style={{ padding: '8px 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          onClick={() => void openExternalLink('https://github.com/ronartz/SHINPO/releases')}
                         >
                           <span>Get Package</span>
                           <Icon name="arrow-up-right" size={14} />
-                        </a>
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -1967,6 +1966,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Dev Notes & What's New */}
+                  {updaterState.availableUpdate?.body && (
+                    <div className="settings-group-card">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                          <Icon name="check-circle" size={15} />
+                          <span>What&apos;s New in v{updaterState.availableUpdate.version} (Dev Notes)</span>
+                        </label>
+                        {updaterState.availableUpdate.date && (
+                          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                            Released {new Date(updaterState.availableUpdate.date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.28)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: 8,
+                          padding: '12px 14px',
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: 'var(--color-text-primary, #e2e8f0)',
+                          maxHeight: 180,
+                          overflowY: 'auto',
+                          whiteSpace: 'pre-wrap',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        {updaterState.availableUpdate.body}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Channel Selection */}
                   <div className="settings-group-card">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../common/Icon'
 import { useUpdater, updaterService } from '../../services/updater/index.ts'
+import { openExternalLink } from '../../api/tauri'
 
 export interface UpdateModalProps {
   isOpen: boolean
@@ -284,15 +285,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
               >
                 Close
               </button>
-              <a
-                href="https://github.com/ronartz/SHINPO/releases"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
                 className="shinpo-update-btn btn-primary"
+                onClick={() => void openExternalLink('https://github.com/ronartz/SHINPO/releases')}
               >
                 <span>Download from GitHub</span>
                 <Icon name="arrow-up-right" size={14} />
-              </a>
+              </button>
             </>
           ) : (
             <>

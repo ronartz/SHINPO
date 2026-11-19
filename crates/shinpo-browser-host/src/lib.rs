@@ -168,7 +168,14 @@ pub struct NativeHostService {
 
 impl NativeHostService {
     pub fn load(paths: HostPaths) -> Result<Self, HostError> {
-        let config = HostConfig::load(&paths)?;
+        let config = match HostConfig::load(&paths) {
+            Ok(cfg) => cfg,
+            Err(_) => {
+                // If config file is missing or corrupted, auto-initialize clean installation
+                let _ = initialize_installation(&paths)?;
+                HostConfig::load(&paths)?
+            }
+        };
         let policy_store = PolicyStore::new(paths.clone());
         Ok(Self {
             paths,

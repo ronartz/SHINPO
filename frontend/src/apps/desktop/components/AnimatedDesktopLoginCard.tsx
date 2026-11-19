@@ -7,6 +7,7 @@ import { isTauriEnvironment } from '../../../api/tauri'
 import type { DesktopLoginCardProps } from './loginCardTypes'
 
 const REMEMBERED_USER_KEY = 'shinpo_remembered_username'
+const REMEMBERED_PASSWORD_KEY = 'shinpo_remembered_password_vault'
 
 export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
   const {
@@ -54,6 +55,14 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
     }
   })
 
+  const [rememberPassword, setRememberPassword] = useState(() => {
+    try {
+      return Boolean(localStorage.getItem(REMEMBERED_PASSWORD_KEY))
+    } catch {
+      return false
+    }
+  })
+
   const handleToggleRememberMe = () => {
     setRememberMe((prev) => {
       const nextState = !prev
@@ -70,12 +79,33 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
     })
   }
 
+  const handleToggleRememberPassword = () => {
+    setRememberPassword((prev) => {
+      const nextState = !prev
+      try {
+        if (!nextState) {
+          localStorage.removeItem(REMEMBERED_PASSWORD_KEY)
+        } else if (authPassword) {
+          localStorage.setItem(REMEMBERED_PASSWORD_KEY, btoa(encodeURIComponent(authPassword)))
+        }
+      } catch {
+        // ignore
+      }
+      return nextState
+    })
+  }
+
   const onSubmitForm = (e: React.FormEvent) => {
     try {
       if (rememberMe && authIdentifier.trim()) {
         localStorage.setItem(REMEMBERED_USER_KEY, authIdentifier.trim())
       } else {
         localStorage.removeItem(REMEMBERED_USER_KEY)
+      }
+      if (rememberPassword && authPassword) {
+        localStorage.setItem(REMEMBERED_PASSWORD_KEY, btoa(encodeURIComponent(authPassword)))
+      } else {
+        localStorage.removeItem(REMEMBERED_PASSWORD_KEY)
       }
     } catch {
       // ignore
@@ -466,27 +496,50 @@ export function AnimatedDesktopLoginCard(props: DesktopLoginCardProps) {
 
                 {/* Remember Me & Forgot Password Row */}
                 {authMode === 'LOGIN' && (
-                  <div className="animated-actions-row">
-                    <label htmlFor="remember-me" className="animated-remember-label">
-                      <div className="animated-checkbox-container">
-                        <input
-                          id="remember-me"
-                          name="remember-me"
-                          type="checkbox"
-                          checked={rememberMe}
-                          onChange={handleToggleRememberMe}
-                          className="animated-checkbox-input"
-                        />
-                        {rememberMe && (
-                          <div className="animated-checkbox-icon">
-                            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <span>Remember username</span>
-                    </label>
+                  <div className="animated-actions-row" style={{ flexWrap: 'wrap', gap: '8px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <label htmlFor="remember-me" className="animated-remember-label">
+                        <div className="animated-checkbox-container">
+                          <input
+                            id="remember-me"
+                            name="remember-me"
+                            type="checkbox"
+                            checked={rememberMe}
+                            onChange={handleToggleRememberMe}
+                            className="animated-checkbox-input"
+                          />
+                          {rememberMe && (
+                            <div className="animated-checkbox-icon">
+                              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <span>Remember user</span>
+                      </label>
+
+                      <label htmlFor="remember-password" className="animated-remember-label">
+                        <div className="animated-checkbox-container">
+                          <input
+                            id="remember-password"
+                            name="remember-password"
+                            type="checkbox"
+                            checked={rememberPassword}
+                            onChange={handleToggleRememberPassword}
+                            className="animated-checkbox-input"
+                          />
+                          {rememberPassword && (
+                            <div className="animated-checkbox-icon">
+                              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <span>Remember password</span>
+                      </label>
+                    </div>
 
                     <button
                       type="button"

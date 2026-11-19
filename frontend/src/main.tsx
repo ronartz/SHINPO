@@ -10,8 +10,10 @@ import './index.css'
 import { PlatformRoot } from './platform'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { initInteractiveButtonEngine } from './utils/interactiveButtonListener'
+import { disableAccidentalZoom } from './utils/disableAccidentalZoom'
 
 initInteractiveButtonEngine()
+disableAccidentalZoom()
 
 const params = new URLSearchParams(window.location.search)
 let savedBrand: string | null = null

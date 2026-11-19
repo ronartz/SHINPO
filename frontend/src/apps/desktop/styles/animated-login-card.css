@@ -379,20 +379,28 @@
   position: relative;
   width: 100%;
   max-width: 440px;
-  max-height: calc(100vh - 40px);
-  max-height: calc(100dvh - 40px);
+  max-height: min(92vh, 690px);
+  max-height: min(92dvh, 690px);
   background: var(--card-glass-bg) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-radius: 16px !important;
-  padding: clamp(28px, 3.5vw, 34px) clamp(24px, 3vw, 30px) !important;
+  padding: clamp(22px, 2.8vw, 30px) clamp(22px, 2.8vw, 28px) !important;
   border: 1px solid var(--card-glass-border) !important;
   box-shadow: var(--card-glass-shadow) !important;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   box-sizing: border-box;
   transform: none !important;
   animation: none !important;
+}
+
+.animated-glass-card::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Inner Diagonal Pattern */
@@ -915,37 +923,37 @@ html[data-theme='light'] .auth-brand-lockup__wordmark {
 
 /* Reduced Motion Overrides */
 @media (prefers-reduced-motion: reduce) {
-  .animated-login-stage {
+  body:not(.allow-animations) .animated-login-stage {
     animation: none;
     transform: none;
   }
-  .animated-card-tilt-wrapper {
+  body:not(.allow-animations) .animated-card-tilt-wrapper {
     transform: none !important;
     transition: none !important;
   }
-  .animated-beam--top,
-  .animated-beam--right,
-  .animated-beam--bottom,
-  .animated-beam--left,
-  .animated-corner--tl,
-  .animated-corner--tr,
-  .animated-corner--br,
-  .animated-corner--bl,
-  .animated-card-glow,
-  .animated-btn-shimmer {
+  body:not(.allow-animations) .animated-beam--top,
+  body:not(.allow-animations) .animated-beam--right,
+  body:not(.allow-animations) .animated-beam--bottom,
+  body:not(.allow-animations) .animated-beam--left,
+  body:not(.allow-animations) .animated-corner--tl,
+  body:not(.allow-animations) .animated-corner--tr,
+  body:not(.allow-animations) .animated-corner--br,
+  body:not(.allow-animations) .animated-corner--bl,
+  body:not(.allow-animations) .animated-card-glow,
+  body:not(.allow-animations) .animated-btn-shimmer {
     animation: none !important;
   }
-  .animated-logo-badge,
-  .auth-brand-lockup,
-  .animated-card-title,
-  .animated-card-desc {
+  body:not(.allow-animations) .animated-logo-badge,
+  body:not(.allow-animations) .auth-brand-lockup,
+  body:not(.allow-animations) .animated-card-title,
+  body:not(.allow-animations) .animated-card-desc {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
-  .animated-field-wrapper:hover,
-  .animated-field-wrapper.is-focused,
-  .animated-signin-btn:hover {
+  body:not(.allow-animations) .animated-field-wrapper:hover,
+  body:not(.allow-animations) .animated-field-wrapper.is-focused,
+  body:not(.allow-animations) .animated-signin-btn:hover {
     transform: none !important;
   }
 }

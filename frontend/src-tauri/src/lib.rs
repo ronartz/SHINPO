@@ -321,6 +321,40 @@ fn desktop_exit_app(app: tauri::AppHandle, state: tauri::State<'_, native_vault:
     app.exit(0);
 }
 
+#[tauri::command]
+fn desktop_open_url(url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {e}"))?;
+    if parsed.scheme() != "https" && parsed.scheme() != "http" {
+        return Err("Only http and https URLs can be opened externally".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -444,6 +478,7 @@ pub fn run() {
             desktop_minimize_window,
             desktop_restart_app,
             desktop_exit_app,
+            desktop_open_url,
             #[cfg(feature = "qa-clock")]
             native_vault::qa_set_clock_offset
         ])

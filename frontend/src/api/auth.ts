@@ -236,11 +236,17 @@ export async function login(usernameOrEmail: string, password: string): Promise<
 }
 
 export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
+  const cleanEmail = email.trim()
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    throw new Error('Please enter a valid email address (e.g. user@example.com).')
+  }
+
   if (isTauriEnvironment()) {
     const created = await invokeTauriCommand<{ username: string; recoveryKey: string }>('create_local_account', { username, password })
     const response: AuthResponse = {
       accessToken: 'local-vault', refreshToken: '', tokenType: 'Local', expiresInSeconds: Number.MAX_SAFE_INTEGER,
-      user: { id: 1, username: created.username, email }, recoveryKey: created.recoveryKey,
+      user: { id: 1, username: created.username, email: cleanEmail }, recoveryKey: created.recoveryKey,
     }
     await setAuthSession(response)
     return response
