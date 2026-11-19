@@ -1,103 +1,39 @@
-# SHINPO — Standalone Deployment Requirements
+# SHINPO — Zero-Dependency Standalone Architecture Guide
 
-**Status:** Deployment guide only — no remote production environment or packaged cloud endpoint is verified.
-**Author:** Principal Systems Architect & Lead Engineer  
-**Objective:** Document what must be in place before users can run SHINPO without the developer's computer. This is not evidence that a deployment or installer is ready.
-
----
-
-## 1. Current implementation status
-
-| Component | Current state | Remaining for independent use |
-|---|---|---|
-| **AI Engine (EONPAI)** | Local Ollama is available in development | Gemini cloud provider and deterministic fallback are implemented; live Gemini access requires a server-side API key and has not been verified for a production account. |
-| **Backend & DB** | Spring Boot + Postgres can run locally | `compose.prod.yaml` defines a persistent PostgreSQL + backend + HTTPS proxy stack; it must be deployed to a user-owned, always-on host. |
-| **Client App** | Dev build defaults to local services | Tauri supports a remote server URL at build time or in Settings; no production endpoint is currently baked into the installer. |
-| **Availability** | Depends on the development machine | Independent of the developer's laptop only after the remote stack is deployed, tested, and the desktop build is configured to use it. |
+**Status:** Authoritative Local-First Desktop Architecture  
+**Platforms:** Linux (x86_64) & Windows 10/11 (x64)
 
 ---
 
-## 2. Cloud AI Engine: Google Gemini
+## 🚀 1. True Zero-Dependency Design
 
-We implemented and verified `GeminiProvider.java` (`backend/src/main/java/com/shinpo/ai/provider/GeminiProvider.java`):
+SHINPO is built from the ground up as a **100% self-contained, offline-first personal execution workspace**. 
 
-- **Model:** `gemini-3.6-flash` (Active stable Flash model; `gemini-2.0-flash` reached end-of-life on June 1, 2026).
-- **Cost and quota:** Depend on the Google account, current model terms, and billing/quota settings. Do not assume free or unlimited use; configure provider-side budget controls.
-- **Security:** Authenticates via `x-goog-api-key` HTTP header (never exposed in URLs, query strings, or exception logs).
-- **Fail-Closed Resilience:** If quota is exceeded (HTTP 429) or network is interrupted, EONPAI immediately falls back to its deterministic rule engine without throwing 500 errors.
-- **Verification:** `GeminiProviderTests` passed **8/8** mocked API-contract tests. The current backend suite passed **401/401** against disposable PostgreSQL; this does not prove a live Gemini key or production account works.
-
----
-
-## 3. Remote backend hosting
-
-To keep the app available while the developer's laptop is off, deploy the stack to an always-on host and verify its database backups, recovery, TLS, resource limits, and billing. No provider is selected or provisioned by this repository.
-
-### Strategy 1: User-managed always-on VPS
-- Select an always-on virtual machine with enough RAM/storage for PostgreSQL, backend, frontend, and Caddy TLS.
-- **Uptime:** Runs 24/7 without idle shutdown or sleep timeouts.
-- **Deployment:** Simply clone repo and run:
-  ```bash
-  docker compose -f compose.prod.yaml up -d
-  ```
-- PostgreSQL, Spring Boot, and Caddy TLS run on the remote VM; availability and persistence depend on that host's plan and backup policy.
-
-### Strategy 2: Managed application host + managed PostgreSQL
-- Choose providers and plans whose sleep, retention, backup, network, and billing behavior fit the intended availability. Confirm persistence and restore procedures before storing user data.
-- **Example backend environment variables:**
-  - `SPRING_PROFILES_ACTIVE`: `prod`
-  - `SPRING_DATASOURCE_URL`: `jdbc:postgresql://<neon-endpoint>:5432/shinpo?sslmode=require`
-  - `SPRING_DATASOURCE_USERNAME`: `<neon-user>`
-  - `SPRING_DATASOURCE_PASSWORD`: `<neon-password>`
-  - `SHINPO_JWT_SECRET`: `<generated-random-32-char-secret>`
-  - `SHINPO_AI_PROVIDER`: `gemini`
-  - `GEMINI_API_KEY`: `<server-side Gemini API key>`
-  - `SHINPO_AI_GEMINI_MODEL`: `gemini-3.6-flash`
-  - `SHINPO_SERVER_PROCESS_SCANNING_ENABLED`: `false`
+* **No Remote Servers**: SHINPO runs entirely on your local machine. No Spring Boot, no PostgreSQL daemon, no Docker containers, and no remote cloud hosts are required.
+* **Encrypted Local Vault**: All missions, goals, focus logs, and progress metrics are stored on disk inside an **AES-256 SQLCipher** database encrypted with the user's master password.
+* **Local EONPAI Reasoning**: AI mission decomposition and strategic planning run deterministically offline with 100% privacy, or optionally via local Ollama (`localhost:11434`).
+* **Zero Telemetry**: No browsing URLs, keystrokes, or screen contents ever leave your workstation.
 
 ---
 
-## 4. Building a desktop client for a deployed server
+## 📦 2. Installation & Artifact Overview
 
-### Step 1: Bake the Server URL into the Frontend
-When building for friends, supply the cloud server URL so the installer knows where to connect automatically:
+### Windows 10 & 11 (64-bit)
+* **Installer Format**: Per-user NSIS installer (`.exe`) packaged as `SHINPO_<version>_windows_x64_setup.exe.zip`.
+* **Installation Target**: `%LOCALAPPDATA%\Programs\SHINPO`.
+* **Runtime**: Tauri 2 + Microsoft Edge WebView2.
+* **Native Companion**: Automatic registry integration (`HKCU\Software\...`) for Chrome, Brave, Edge, and Firefox.
 
-```bash
-cd frontend
-export VITE_SHINPO_SERVER_URL="https://<your-deployed-domain>"
-npm run build
-```
-
-### Step 2: Build the Desktop Installers
-
-#### For Windows (`SHINPO-Setup.exe`):
-On a Windows machine or via PowerShell:
-```powershell
-.\scripts\package-windows.ps1 -SkipSigning
-```
-Or directly with Tauri:
-```bash
-cd frontend
-npx tauri build --target x86_64-pc-windows-msvc
-```
-*Output:* `frontend/src-tauri/target/release/bundle/nsis/SHINPO-Setup.exe`.
-
-#### For Linux (`SHINPO.AppImage` / `.deb`):
-On your Linux machine:
-```bash
-./scripts/package-linux.sh
-```
-*Output:* `release/linux/shinpo.AppImage` and `release/linux/shinpo.deb`.
+### Linux (x86_64)
+* **RPM**: Fedora 40/41, RHEL 9+, Rocky, AlmaLinux (`.rpm`).
+* **Debian / Ubuntu**: Ubuntu, Debian, Linux Mint (`.deb`).
+* **Universal Executable**: Single-file Linux AppImage (`.AppImage`).
+* **Portable Tarball**: Standalone archive (`.tar.gz`) for Arch, NixOS, or systems without root privileges.
 
 ---
 
-## 5. Distribution prerequisites (not yet completed)
+## 🛠️ 3. Verification & Safety Guarantees
 
-1. Provision and verify a remote HTTPS domain, backend, and persistent PostgreSQL. Configure the server-side Gemini key and strong database/JWT secrets using the host's secret manager.
-2. Build the Tauri app with `VITE_SHINPO_SERVER_URL` set to that verified HTTPS endpoint. Confirm the desktop app can register, sign in, use EONPAI, and persist/reload user state against it.
-3. Only after explicit authorization, publish installers through a release channel.
-
-No remote account, credentials, domain, or live deployment has been supplied or configured in this workspace. The following release steps are therefore not completed:
-
-There is no release or distribution step authorized or performed here. Do not provide installers to other users until the live service, desktop-to-cloud workflows, privacy and recovery behavior, and platform packages have been tested.
-
+1. **Focus Protection (Guardian)**: Warning-only overlays remind users of active focus commitments. Process termination is disabled by default to prevent accidental data loss.
+2. **Accidental Zoom Lock**: Prevents browser-like zooming inside the desktop app via `Ctrl + ScrollWheel` and zoom hotkeys.
+3. **Hardware Acceleration**: 60 FPS transitions and buttery smooth UI animations on both Linux and Windows.

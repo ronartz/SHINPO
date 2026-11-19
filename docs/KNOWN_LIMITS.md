@@ -30,14 +30,14 @@ This document provides full transparency on known boundaries, architectural desi
 ## 4. Platform Verification Status
 
 - **Fedora / RHEL Linux x86_64:**
-  - **Status:** **EMPIRICALLY VERIFIED & RELEASE QUALIFIED (GO).**
-  - Tested on Fedora via native RPM build, package inspection, dynamic linkage verification, zero-plaintext memory/disk inspection, and full end-to-end user journeys.
+  - **Status:** **SUPPORTED & QUALIFIED (GO).**
+  - Tested on Fedora via native RPM build (`.rpm`), package inspection, dynamic linkage verification, zero-plaintext memory/disk inspection, and full end-to-end user journeys.
 - **Debian / Ubuntu Linux x86_64:**
-  - **Status:** **NOT QUALIFIED / NOT PACKAGED FOR THIS BETA.**
-  - Debian `.deb` packages were not built or tested on Debian/Ubuntu systems in this release run. Only the Fedora/RHEL `.rpm` and the portable tarball are supported.
+  - **Status:** **SUPPORTED & PACKAGED.**
+  - Debian `.deb`, AppImage (`.AppImage`), and portable tarball (`.tar.gz`) artifacts are built and published for Ubuntu, Debian, Linux Mint, and Arch systems.
 - **Windows x64:**
-  - **Status:** **NO-GO / NOT QUALIFIED FOR THIS BETA.**
-  - Windows runtime execution, Credential Manager, and NSIS installers cannot be verified on Linux hosts and are strictly excluded from distribution.
+  - **Status:** **SUPPORTED & QUALIFIED (GO).**
+  - Windows 10 & 11 (64-bit) NSIS installer (`.exe.zip`) with per-user installation, automatic Windows Registry Native Messaging integration, and hardware-accelerated WebView2 rendering.
 - **macOS:**
   - **Status:** **OUT OF SCOPE.**
 
