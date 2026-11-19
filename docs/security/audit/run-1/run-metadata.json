@@ -1,0 +1,28 @@
+{
+  "run_id": "run-1",
+  "repo": "shinpo",
+  "target": "SHINPO",
+  "source_ref": "5d53af574a30be9d26c9962f14c24306df8ce127",
+  "profile": "standard",
+  "scope_paths": [],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "selected_companion_files": [
+    "CLIENT-SIDE.md",
+    "DESKTOP-MOBILE-AND-LOCAL-IPC.md",
+    "DATA-ISOLATION-AND-LIFECYCLE.md",
+    "AI-AND-LLM.md",
+    "MEMORY-SAFETY-AND-BINARY.md"
+  ],
+  "prior_run_paths": [],
+  "shared_file_owners": {
+    "run-metadata.json": "parent",
+    "architecture.md": "parent",
+    "coverage-ledger.json": "parent",
+    "findings.json": "parent",
+    "REPORT.md": "parent",
+    "FINDINGS-DETAIL.md": "parent",
+    "NEEDS-VALIDATION.md": "parent"
+  },
+  "run_status": "complete"
+}

@@ -1,0 +1,213 @@
+[
+  {
+    "coverage_id": "crates%2Fshinpo-browser-host%2Fsrc%2Fframing.rs%23read_message::crates%2Fshinpo-browser-host%2Fsrc%2Flib.rs%23stdio_loop::crates%2Fshinpo-browser-host::PROTOCOLS-RPC-AND-MESSAGING.md%23Framing%20bypass",
+    "canonical_refs": {
+      "surface": "crates/shinpo-browser-host/src/framing.rs#read_message",
+      "boundary": "crates/shinpo-browser-host/src/lib.rs#stdio_loop",
+      "subsystem": "crates/shinpo-browser-host",
+      "attack_class": "PROTOCOLS-RPC-AND-MESSAGING.md#Framing bypass"
+    },
+    "surface": "Browser Native Messaging Host",
+    "boundary": "Stdio Protocol Framing Boundary",
+    "subsystem": "Browser Companion Host",
+    "attack_class": "Protocol Framing Bypass",
+    "starting_paths": [
+      "crates/shinpo-browser-host/src/framing.rs",
+      "crates/shinpo-browser-host/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "PROTOCOLS-RPC-AND-MESSAGING.md#Framing bypass",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-wave-1",
+    "reviewed_paths": [
+      "crates/shinpo-browser-host/src/framing.rs",
+      "crates/shinpo-browser-host/src/lib.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-wave-1",
+        "reviewed_paths": [
+          "crates/shinpo-browser-host/src/framing.rs",
+          "crates/shinpo-browser-host/src/lib.rs"
+        ],
+        "invariant": "Native messaging frames must adhere to length prefixes capped at 1MB and reject malformed JSON",
+        "method": "source",
+        "result": "Strict 1MB bounds, LE length prefix validation, and malformed JSON rejection verified",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "crates%2Fshinpo-shield%2Fsrc%2Fenforcer.rs%23evaluate_process::crates%2Fshinpo-shield%2Fsrc%2Fprocess_identity.rs%23verify_identity::crates%2Fshinpo-shield::DESKTOP-MOBILE-AND-LOCAL-IPC.md%23Unauthorized%20termination",
+    "canonical_refs": {
+      "surface": "crates/shinpo-shield/src/enforcer.rs#evaluate_process",
+      "boundary": "crates/shinpo-shield/src/process_identity.rs#verify_identity",
+      "subsystem": "crates/shinpo-shield",
+      "attack_class": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Unauthorized termination"
+    },
+    "surface": "Focus Guardian Enforcer",
+    "boundary": "Process Identity Verification Boundary",
+    "subsystem": "Shield Daemon",
+    "attack_class": "Unauthorized Process Termination",
+    "starting_paths": [
+      "crates/shinpo-shield/src/enforcer.rs",
+      "crates/shinpo-shield/src/process_identity.rs"
+    ],
+    "ordinary_attack_class_block": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Unauthorized termination",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-wave-1",
+    "reviewed_paths": [
+      "crates/shinpo-shield/src/enforcer.rs",
+      "crates/shinpo-shield/src/process_identity.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-wave-1",
+        "reviewed_paths": [
+          "crates/shinpo-shield/src/enforcer.rs",
+          "crates/shinpo-shield/src/process_identity.rs"
+        ],
+        "invariant": "System processes and unconsented executables must never be killed",
+        "method": "source",
+        "result": "Protected process immunity and consent-verified graceful termination confirmed",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "frontend%2Fsrc-tauri%2Fsrc%2Flib.rs%23desktop_open_url::frontend%2Fsrc-tauri%2Fsrc%2Flib.rs%23ipc_boundary::frontend%2Fsrc-tauri::DESKTOP-MOBILE-AND-LOCAL-IPC.md%23Command%20injection",
+    "canonical_refs": {
+      "surface": "frontend/src-tauri/src/lib.rs#desktop_open_url",
+      "boundary": "frontend/src-tauri/src/lib.rs#ipc_boundary",
+      "subsystem": "frontend/src-tauri",
+      "attack_class": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Command injection"
+    },
+    "surface": "Desktop IPC URL Handler",
+    "boundary": "Tauri IPC Command Boundary",
+    "subsystem": "Desktop Backend",
+    "attack_class": "Command Injection",
+    "starting_paths": [
+      "frontend/src-tauri/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Command injection",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-wave-1",
+    "reviewed_paths": [
+      "frontend/src-tauri/src/lib.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-wave-1",
+        "reviewed_paths": [
+          "frontend/src-tauri/src/lib.rs"
+        ],
+        "invariant": "URLs opened externally must never escape to the shell or execute arbitrary commands",
+        "method": "source",
+        "result": "Verified remediation: rundll32 and cmd.exe completely removed and replaced with tauri-plugin-opener; strict scheme and control character rejection verified with unit tests",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "frontend%2Fsrc-tauri%2Fsrc%2Fnative_eonpai.rs%23handle_proposal::frontend%2Fsrc-tauri%2Fsrc%2Fnative_eonpai.rs%23two_phase_confirm::frontend%2Fsrc-tauri::AI-AND-LLM.md%23Model%20action%20abuse",
+    "canonical_refs": {
+      "surface": "frontend/src-tauri/src/native_eonpai.rs#handle_proposal",
+      "boundary": "frontend/src-tauri/src/native_eonpai.rs#two_phase_confirm",
+      "subsystem": "frontend/src-tauri",
+      "attack_class": "AI-AND-LLM.md#Model action abuse"
+    },
+    "surface": "EONPAI AI Ingestion",
+    "boundary": "Two-Phase Confirmation Boundary",
+    "subsystem": "AI Assistant",
+    "attack_class": "Model Action Abuse",
+    "starting_paths": [
+      "frontend/src-tauri/src/native_eonpai.rs"
+    ],
+    "ordinary_attack_class_block": "AI-AND-LLM.md#Model action abuse",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-wave-1",
+    "reviewed_paths": [
+      "frontend/src-tauri/src/native_eonpai.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-wave-1",
+        "reviewed_paths": [
+          "frontend/src-tauri/src/native_eonpai.rs"
+        ],
+        "invariant": "AI action proposals must never execute autonomously without explicit user confirmation",
+        "method": "source",
+        "result": "Two-phase proposal confirmation and revision validation verified",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "frontend%2Fsrc-tauri%2Fsrc%2Fnative_vault.rs%23sqlcipher_init::frontend%2Fsrc-tauri%2Fsrc%2Fnative_vault.rs%23argon2_kdf::frontend%2Fsrc-tauri::DATA-ISOLATION-AND-LIFECYCLE.md%23Cryptographic%20storage",
+    "canonical_refs": {
+      "surface": "frontend/src-tauri/src/native_vault.rs#sqlcipher_init",
+      "boundary": "frontend/src-tauri/src/native_vault.rs#argon2_kdf",
+      "subsystem": "frontend/src-tauri",
+      "attack_class": "DATA-ISOLATION-AND-LIFECYCLE.md#Cryptographic storage"
+    },
+    "surface": "SQLCipher Encrypted Storage",
+    "boundary": "Argon2id Key Derivation Boundary",
+    "subsystem": "Native Vault",
+    "attack_class": "Cryptographic Key Storage",
+    "starting_paths": [
+      "frontend/src-tauri/src/native_vault.rs"
+    ],
+    "ordinary_attack_class_block": "DATA-ISOLATION-AND-LIFECYCLE.md#Cryptographic storage",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-wave-1",
+    "reviewed_paths": [
+      "frontend/src-tauri/src/native_vault.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-wave-1",
+        "reviewed_paths": [
+          "frontend/src-tauri/src/native_vault.rs"
+        ],
+        "invariant": "Database pages must be encrypted at rest and key derivation must use Argon2id parameters",
+        "method": "source",
+        "result": "Argon2id key derivation and zero plaintext leaks verified on disk",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  }
+]
