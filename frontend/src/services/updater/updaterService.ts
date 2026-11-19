@@ -229,11 +229,13 @@ export class UpdaterService {
         this.state.status = 'update-available'
       }
 
-      // Reset dismissed state if this is a newer version than previously dismissed
+      // Honor dismissal state if this exact version was previously dismissed
       const dismissedVersion = typeof localStorage !== 'undefined'
         ? localStorage.getItem(DISMISSED_VERSION_KEY)
         : null
-      if (dismissedVersion !== update.version) {
+      if (dismissedVersion === update.version) {
+        this.state.isDismissed = true
+      } else {
         this.state.isDismissed = false
       }
 

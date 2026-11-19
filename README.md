@@ -2,11 +2,11 @@
   <img src="frontend/src-tauri/icons/icon.png" width="96" alt="SHINPO app icon" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);" />
   <h1>SHINPO (進歩)</h1>
   <p><strong>Progress, made intentional.</strong></p>
-  <p>A high-performance, local-first personal execution workspace & deep focus engine for Linux.</p>
+  <p>A high-performance, local-first personal execution workspace & deep focus engine for Linux & Windows.</p>
 
   <p>
-    <a href="https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.1"><img src="https://img.shields.io/badge/Release-v0.1.0--beta.1-10b981?style=for-the-badge&logo=github&logoColor=white" alt="Release v0.1.0-beta.1" /></a>
-    <img src="https://img.shields.io/badge/Platform-Linux%20x86__64-f97316?style=for-the-badge&logo=linux&logoColor=white" alt="Linux x86_64" />
+    <a href="https://github.com/ronartz/SHINPO/releases/latest"><img src="https://img.shields.io/badge/Release-v0.1.0--beta.3-10b981?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release" /></a>
+    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20x64-f97316?style=for-the-badge&logo=linux&logoColor=white" alt="Linux & Windows x64" />
     <img src="https://img.shields.io/badge/Desktop-Tauri%202%20·%20Rust-ffc131?style=for-the-badge&logo=tauri&logoColor=171717" alt="Tauri 2" />
     <img src="https://img.shields.io/badge/UI-React%2019%20·%20Vite-61dafb?style=for-the-badge&logo=react&logoColor=171717" alt="React 19" />
     <img src="https://img.shields.io/badge/Security-AES--256%20SQLCipher-8b5cf6?style=for-the-badge&logo=shield&logoColor=white" alt="AES-256 SQLCipher" />
@@ -41,7 +41,7 @@
 🎯 Set Clear Direction  ➔  📋 Select Next Action  ➔  ⏱️ Deep Focus Session  ➔  📈 Review Momentum
 ```
 
-Modern knowledge workers are inundated with scattered to-do apps, noisy calendars, and complex productivity trackers. SHINPO brings goals, task execution, pomodoro timing, schedule visibility, distraction protection, and progression analytics into a **single, unified, local-first Linux desktop workspace**.
+Modern knowledge workers are inundated with scattered to-do apps, noisy calendars, and complex productivity trackers. SHINPO brings goals, task execution, pomodoro timing, schedule visibility, distraction protection, and progression analytics into a **single, unified, local-first cross-platform desktop workspace**.
 
 > **No forced cloud sign-in. Zero telemetry. 100% locally encrypted on your disk.**
 
@@ -49,35 +49,65 @@ Modern knowledge workers are inundated with scattered to-do apps, noisy calendar
 
 ## 📥 Quick Download & Installation
 
-SHINPO is packaged for **Linux x86_64** with verified builds available on the [GitHub Releases page](https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.1):
+SHINPO is packaged for **Linux x86_64** and **Windows 10/11 x64** with verified releases on the [GitHub Releases page](https://github.com/ronartz/SHINPO/releases):
 
-| Package / Format | Target Distribution | Download Link |
-|---|---|---|
-| **RPM Package** | Fedora 40/41, RHEL 9+, Rocky Linux, AlmaLinux | [`SHINPO-0.1.0-beta.1-1.x86_64.rpm`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO-0.1.0-beta.1-1.x86_64.rpm) |
-| **Portable Tarball** | Ubuntu, Debian, Arch Linux, or No-Root | [`SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz) |
-| **AppImage** | Universal single-file Linux executable | [`SHINPO_0.1.0-beta.1_amd64.AppImage`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_amd64.AppImage) |
-| **Debian Package** | Ubuntu / Debian systems | [`SHINPO_0.1.0-beta.1_amd64.deb`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/SHINPO_0.1.0-beta.1_amd64.deb) |
-| **Chromium Companion** | Google Chrome, Brave, Microsoft Edge | [`shinpo-browser-companion-chromium.zip`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-browser-companion-chromium.zip) |
-| **Firefox Companion** | Mozilla Firefox | [`shinpo-browser-companion-firefox.zip`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.1/shinpo-browser-companion-firefox.zip) |
+| Platform | Package / Format | Target Environment | Download Link |
+|---|---|---|---|
+| **Windows** | **NSIS Installer (`.exe`)** | Windows 10 & 11 (64-bit) | [`SHINPO_windows_x64_setup.exe.zip`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Linux** | **RPM Package (`.rpm`)** | Fedora 40/41, RHEL 9+, Rocky, AlmaLinux | [`SHINPO-latest-1.x86_64.rpm`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Linux** | **Debian Package (`.deb`)** | Ubuntu, Debian, Linux Mint | [`SHINPO_latest_amd64.deb`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Linux** | **AppImage (`.AppImage`)** | Universal single-file Linux executable | [`SHINPO_latest_amd64.AppImage`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Linux** | **Portable Tarball (`.tar.gz`)** | Arch Linux, NixOS, or No-Root | [`SHINPO_latest_linux_x86_64.tar.gz`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Browser** | **Chromium Companion** | Google Chrome, Brave, Microsoft Edge | [`shinpo-browser-companion-chromium.zip`](https://github.com/ronartz/SHINPO/releases/latest) |
+| **Browser** | **Firefox Companion** | Mozilla Firefox | [`shinpo-browser-companion-firefox.zip`](https://github.com/ronartz/SHINPO/releases/latest) |
 
-### Option 1: Fedora / RHEL (Recommended)
+---
+
+### 🪟 Windows 10 / 11 Installation Guide
+
+1. Download [`SHINPO_windows_x64_setup.exe.zip`](https://github.com/ronartz/SHINPO/releases/latest) from Releases and extract it.
+2. Run `SHINPO_0.1.0-beta.3_windows_x64_setup.exe`.
+3. **Windows SmartScreen Note**: Because SHINPO is an independent private-beta release without an enterprise EV certificate:
+   * When the blue *"Windows protected your PC"* banner appears, click **More info**.
+   * Click **Run anyway**.
+4. The installer completes in seconds and adds SHINPO to your Start Menu and Desktop.
+
+---
+
+### 🐧 Linux Installation Guide
+
+#### Option 1: Fedora / RHEL (Recommended)
 ```bash
-sudo dnf install ./SHINPO-0.1.0-beta.1-1.x86_64.rpm
+sudo dnf install ./SHINPO-*-1.x86_64.rpm
 shinpo-desktop
 ```
 
-### Option 2: Portable Tarball (Any Linux Distribution)
+#### Option 2: Ubuntu / Debian
 ```bash
-tar -xzf SHINPO_0.1.0-beta.1_linux_x86_64.tar.gz
-cd SHINPO_0.1.0-beta.1_linux_x86_64
-./shinpo-desktop
+sudo apt install ./SHINPO_*_amd64.deb
+shinpo-desktop
 ```
 
-### Option 3: Universal AppImage
+#### Option 3: Universal AppImage
 ```bash
-chmod +x SHINPO_0.1.0-beta.1_amd64.AppImage
-./SHINPO_0.1.0-beta.1_amd64.AppImage
+chmod +x SHINPO_*_amd64.AppImage
+./SHINPO_*_amd64.AppImage
 ```
+
+---
+
+### 🌐 Browser Companion Setup (Windows & Linux)
+
+The browser companion pairs securely with SHINPO to detect distracting browser tabs during active focus blocks with zero cloud reliance.
+
+1. **Install Extension in Browser:**
+   * **Chrome / Brave / Edge**: Go to `chrome://extensions` or `edge://extensions`, toggle **Developer Mode** on, click **Load unpacked**, and select the extracted `shinpo-browser-companion-chromium` directory.
+   * **Firefox**: Go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and choose `manifest.json` inside `shinpo-browser-companion-firefox`.
+2. **Pair with SHINPO Desktop:**
+   * Open SHINPO Desktop, go to **Settings → Browser Companion**.
+   * Click **Generate Pairing Code** (SHINPO automatically registers the native messaging host in your OS registry / user config).
+   * In the extension popup or options page, paste the code and click **Pair this browser**.
+   * Status will turn green: **Connected & Protected**.
 
 ---
 

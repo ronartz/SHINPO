@@ -81,19 +81,20 @@ fn run() -> Result<(), HostError> {
             let report = shinpo_browser_host::registration::check_registration(explicit.as_deref());
             write_status_json(&mut io::stdout(), &report)
         }
-        arg if arg.starts_with("chrome-extension://")
-            || arg.starts_with("moz-extension://")
-            || arg.ends_with(".json")
-            || arg == "--native" =>
-        {
-            run_native_loop(paths, &mut io::stdin(), &mut io::stdout())
+        "help" | "--help" | "-h" => {
+            println!("SHINPO Native Browser Host v{}", env!("CARGO_PKG_VERSION"));
+            println!("Usage: shinpo-browser-host [init|rotate-pairing|configure-backend|publish-policy|clear|clear-credentials|disconnect|status|register|check-registration]");
+            Ok(())
         }
-        unknown => {
-            eprintln!("Unknown subcommand: {unknown}");
-            eprintln!("Usage: shinpo-browser-host [init|rotate-pairing|configure-backend|publish-policy|clear|clear-credentials|disconnect|status]");
-            Err(HostError::InvalidRequest(format!(
-                "Unknown subcommand: {unknown}"
-            )))
+        "version" | "--version" | "-v" => {
+            println!("shinpo-browser-host {}", env!("CARGO_PKG_VERSION"));
+            Ok(())
+        }
+        _ => {
+            // Any other argument represents browser-initiated native messaging:
+            // e.g. chrome-extension://, edge-extension://, moz-extension://, --parent-window=<hwnd>,
+            // /path/to/manifest.json, or --native.
+            run_native_loop(paths, &mut io::stdin(), &mut io::stdout())
         }
     }
 }

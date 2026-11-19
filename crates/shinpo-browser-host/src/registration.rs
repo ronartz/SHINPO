@@ -107,9 +107,52 @@ pub fn standard_linux_targets() -> Vec<TargetSpec> {
     ]
 }
 
+pub fn standard_windows_targets() -> Vec<TargetSpec> {
+    vec![
+        TargetSpec {
+            browser_name: "Google Chrome",
+            relative_dir: "SHINPO\\browser-companion\\chrome",
+            is_firefox: false,
+            base_env: Some("LOCALAPPDATA"),
+        },
+        TargetSpec {
+            browser_name: "Microsoft Edge",
+            relative_dir: "SHINPO\\browser-companion\\edge",
+            is_firefox: false,
+            base_env: Some("LOCALAPPDATA"),
+        },
+        TargetSpec {
+            browser_name: "Brave Browser",
+            relative_dir: "SHINPO\\browser-companion\\brave",
+            is_firefox: false,
+            base_env: Some("LOCALAPPDATA"),
+        },
+        TargetSpec {
+            browser_name: "Mozilla Firefox",
+            relative_dir: "SHINPO\\browser-companion\\firefox",
+            is_firefox: true,
+            base_env: Some("LOCALAPPDATA"),
+        },
+    ]
+}
+
+pub fn platform_targets() -> Vec<TargetSpec> {
+    if cfg!(windows) {
+        standard_windows_targets()
+    } else {
+        standard_linux_targets()
+    }
+}
+
 pub fn resolve_target_dir(spec: &TargetSpec) -> Option<PathBuf> {
     let base = match spec.base_env {
-        Some("HOME") => std::env::var_os("HOME").map(PathBuf::from)?,
+        Some("HOME") => std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))?,
+        Some("LOCALAPPDATA") => std::env::var_os("LOCALAPPDATA")
+            .or_else(|| std::env::var_os("APPDATA"))
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)?,
         _ => return None,
     };
     Some(base.join(spec.relative_dir))
@@ -168,7 +211,25 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
         }
     }
 
-    // 3. Current working directory or target/release build artifacts
+    // 3. Windows standard installation locations
+    #[cfg(windows)]
+    {
+        if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+            let win_candidates = [
+                format!("{local_app}\\Programs\\SHINPO\\browser-companion\\{bin_name}"),
+                format!("{local_app}\\Programs\\SHINPO\\{bin_name}"),
+                format!("{local_app}\\SHINPO\\browser-companion\\{bin_name}"),
+            ];
+            for dev_path in win_candidates {
+                let path = PathBuf::from(&dev_path);
+                if path.exists() {
+                    return Some(path);
+                }
+            }
+        }
+    }
+
+    // 4. Current working directory or target/release build artifacts
     let dev_candidates = [
         format!("release/{bin_name}"),
         format!("release/rc/{bin_name}"),
@@ -238,7 +299,7 @@ pub fn check_registration(explicit_bin: Option<&Path>) -> HostDiscoveryReport {
     let mut registered_browsers = Vec::new();
     let mut missing_browsers = Vec::new();
 
-    let specs = standard_linux_targets();
+    let specs = platform_targets();
     for spec in &specs {
         if let Some(target_dir) = resolve_target_dir(spec) {
             let canonical_file = target_dir.join(format!("{HOST_NAME_CANONICAL}.json"));
@@ -337,7 +398,7 @@ pub fn register_host(explicit_bin: Option<&Path>) -> Result<HostDiscoveryReport,
         HostError::Config("shinpo-browser-host binary not found on system".to_string())
     })?;
 
-    let specs = standard_linux_targets();
+    let specs = platform_targets();
     for spec in &specs {
         if let Some(target_dir) = resolve_target_dir(spec) {
             // Check if parent configuration directory exists (indicating browser is installed or likely to be used)
@@ -389,11 +450,41 @@ pub fn register_host(explicit_bin: Option<&Path>) -> Result<HostDiscoveryReport,
                         let _ = fs::set_permissions(&alias_path, fs::Permissions::from_mode(0o644));
                     }
                 }
+
+                #[cfg(windows)]
+                {
+                    register_windows_registry(&canonical_path, spec.is_firefox);
+                }
             }
         }
     }
 
     Ok(check_registration(Some(&host_bin)))
+}
+
+#[cfg(windows)]
+pub fn register_windows_registry(manifest_path: &Path, is_firefox: bool) {
+    let path_str = manifest_path.to_string_lossy().to_string();
+    let keys = if is_firefox {
+        vec![
+            r"HKCU\Software\Mozilla\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"HKCU\Software\Mozilla\NativeMessagingHosts\com.shinpo.companion",
+        ]
+    } else {
+        vec![
+            r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.shinpo.companion",
+            r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.companion",
+            r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.companion",
+        ]
+    };
+    for key in keys {
+        let _ = std::process::Command::new("reg")
+            .args(["add", key, "/ve", "/t", "REG_SZ", "/d", &path_str, "/f"])
+            .output();
+    }
 }
 
 #[cfg(test)]

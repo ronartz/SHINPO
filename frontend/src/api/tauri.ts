@@ -31,3 +31,17 @@ export async function invokeTauriCommand<T>(cmd: string, args?: Record<string, u
     throw new Error(message, { cause: err })
   }
 }
+
+export async function openExternalLink(targetUrl: string): Promise<void> {
+  if (isTauriEnvironment()) {
+    try {
+      await invokeTauriCommand('desktop_open_url', { url: targetUrl })
+      return
+    } catch (err) {
+      console.warn('[Tauri] Failed to open external link via desktop command:', err)
+    }
+  }
+  if (typeof window !== 'undefined') {
+    window.open(targetUrl, '_blank', 'noopener,noreferrer')
+  }
+}

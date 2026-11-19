@@ -1,6 +1,7 @@
 import React from 'react'
 import { Icon } from '../common/Icon'
 import { useUpdater, updaterService } from '../../services/updater/index.ts'
+import { openExternalLink } from '../../api/tauri'
 
 export interface UpdateNotificationProps {
   onOpenModal: () => void
@@ -109,15 +110,14 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenMo
             >
               Dismiss
             </button>
-            <a
-              href="https://github.com/ronartz/SHINPO/releases"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               className="shinpo-update-btn btn-primary"
+              onClick={() => void openExternalLink('https://github.com/ronartz/SHINPO/releases')}
             >
               <span>Download Package</span>
               <Icon name="arrow-up-right" size={13} />
-            </a>
+            </button>
           </>
         ) : status === 'restart-required' ? (
           <>
