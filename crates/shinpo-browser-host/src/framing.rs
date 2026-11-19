@@ -13,18 +13,21 @@ pub fn read_message<R: Read>(
         Err(err) => return Err(HostError::Io(err)),
     }
 
-    let len = u32::from_ne_bytes(len_bytes) as usize;
-    if len == 0 {
+    let raw_len = u32::from_le_bytes(len_bytes);
+    if raw_len == 0 {
         return Err(HostError::InvalidRequest(
             "Native message length is zero".into(),
         ));
     }
-    if len > max_bytes {
+    const MAX_ALLOWED: u32 = 1_048_576; // 1MB native messaging limit
+    let max_u32 = std::cmp::min(max_bytes as u32, MAX_ALLOWED);
+    if raw_len > max_u32 {
         return Err(HostError::InvalidRequest(format!(
-            "Native message length {len} exceeds limit of {max_bytes} bytes"
+            "Native message length {raw_len} exceeds limit of {max_u32} bytes"
         )));
     }
 
+    let len = raw_len as usize;
     let mut buf = vec![0u8; len];
     reader.read_exact(&mut buf).map_err(HostError::Io)?;
     Ok(Some(buf))
@@ -73,5 +76,18 @@ mod tests {
         let mut source = Cursor::new(Vec::new());
         let read = read_message(&mut source, 1024).expect("read failed");
         assert!(read.is_none());
+    }
+
+    #[test]
+    fn test_oversized_frame_rejected_before_usize_cast() {
+        // Frame exceeding 1MB (1_048_576 bytes) must reject immediately on u32 check
+        let oversized: u32 = 2_000_000;
+        let mut bytes = oversized.to_le_bytes().to_vec();
+        bytes.extend_from_slice(&[0u8; 16]);
+        let mut source = Cursor::new(bytes);
+        let res = read_message(&mut source, 10_000_000);
+        assert!(res.is_err(), "Must reject oversized message before allocating buffer");
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("exceeds limit"), "Expected bounds error: {err}");
     }
 }

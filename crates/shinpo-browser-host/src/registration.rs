@@ -166,6 +166,20 @@ pub fn normalize_binary_path(path: PathBuf) -> PathBuf {
     path
 }
 
+#[cfg(unix)]
+fn persist_appimage_host_binary(source: &Path, bin_name: &str) -> Option<PathBuf> {
+    let home = std::env::var_os("HOME").map(PathBuf::from)?;
+    let target_dir = home.join(".local").join("share").join("shinpo").join("bin");
+    let _ = fs::create_dir_all(&target_dir);
+    let target_path = target_dir.join(bin_name);
+    if fs::copy(source, &target_path).is_ok() {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&target_path, fs::Permissions::from_mode(0o755));
+        return Some(target_path);
+    }
+    None
+}
+
 pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
     if let Some(path) = explicit {
         if path.exists() {
@@ -182,56 +196,78 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
         "shinpo-browser-host"
     };
 
-    // 1. Check adjacent to current running binary
+    // 1. Check adjacent or bundled in Tauri resources
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(parent) = current_exe.parent() {
-            let adjacent = parent.join(bin_name);
-            if adjacent.exists() {
-                if let Ok(c) = fs::canonicalize(&adjacent) {
-                    return Some(normalize_binary_path(c));
+            let candidates = [
+                parent.join(bin_name),
+                parent.join("browser-companion").join(bin_name),
+                parent.join("resources").join("browser-companion").join(bin_name),
+                parent.join("resources").join(bin_name),
+            ];
+            for cand in candidates {
+                if cand.exists() {
+                    #[cfg(unix)]
+                    {
+                        // If running inside an AppImage mount (/tmp/.mount_*), persist the binary to user local bin
+                        if cand.to_string_lossy().contains(".mount_") || std::env::var("APPIMAGE").is_ok() {
+                            if let Some(persisted) = persist_appimage_host_binary(&cand, bin_name) {
+                                return Some(persisted);
+                            }
+                        }
+                    }
+                    if let Ok(c) = fs::canonicalize(&cand) {
+                        return Some(normalize_binary_path(c));
+                    }
+                    return Some(cand);
                 }
-                return Some(adjacent);
-            }
-            // Check parent/browser-companion/shinpo-browser-host
-            let sub = parent.join("browser-companion").join(bin_name);
-            if sub.exists() {
-                if let Ok(c) = fs::canonicalize(&sub) {
-                    return Some(normalize_binary_path(c));
-                }
-                return Some(sub);
             }
         }
     }
 
-    // 2. Standard RPM/DEB installation directory
+    // 2. Standard RPM/DEB and user local installation directory
     #[cfg(unix)]
     {
-        let standard_paths = [
+        let mut standard_paths = vec![
+            format!("/usr/lib/SHINPO/resources/browser-companion/{bin_name}"),
             format!("/usr/lib/SHINPO/browser-companion/{bin_name}"),
+            format!("/usr/local/lib/SHINPO/resources/browser-companion/{bin_name}"),
             format!("/usr/local/lib/SHINPO/browser-companion/{bin_name}"),
             format!("/usr/bin/{bin_name}"),
             format!("/usr/local/bin/{bin_name}"),
         ];
+        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+            standard_paths.push(home.join(".local/share/shinpo/bin").join(bin_name).to_string_lossy().to_string());
+            standard_paths.push(home.join(".local/lib/shinpo").join(bin_name).to_string_lossy().to_string());
+        }
         for p in standard_paths {
             let path = PathBuf::from(p);
             if path.exists() {
+                if let Ok(c) = fs::canonicalize(&path) {
+                    return Some(normalize_binary_path(c));
+                }
                 return Some(path);
             }
         }
     }
 
-    // 3. Windows standard installation locations
+    // 3. Windows standard installation locations (including Tauri resources)
     #[cfg(windows)]
     {
         if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
             let win_candidates = [
+                format!("{local_app}\\Programs\\SHINPO\\resources\\browser-companion\\{bin_name}"),
                 format!("{local_app}\\Programs\\SHINPO\\browser-companion\\{bin_name}"),
                 format!("{local_app}\\Programs\\SHINPO\\{bin_name}"),
+                format!("{local_app}\\SHINPO\\resources\\browser-companion\\{bin_name}"),
                 format!("{local_app}\\SHINPO\\browser-companion\\{bin_name}"),
             ];
             for dev_path in win_candidates {
                 let path = PathBuf::from(&dev_path);
                 if path.exists() {
+                    if let Ok(c) = fs::canonicalize(&path) {
+                        return Some(normalize_binary_path(c));
+                    }
                     return Some(path);
                 }
             }
@@ -555,5 +591,28 @@ mod tests {
         let read_back: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
         assert_eq!(read_back["path"], bin_path.to_str().unwrap());
+    }
+
+    #[test]
+    fn test_registration_contains_exact_extension_id() {
+        let bin = Path::new("/usr/bin/shinpo-browser-host");
+        let manifest = generate_manifest_content(HOST_NAME_CANONICAL, bin, false);
+        let origins = manifest["allowed_origins"].as_array().expect("origins array");
+        assert_eq!(origins.len(), 1);
+        let origin = origins[0].as_str().expect("origin string");
+        assert_eq!(
+            origin,
+            format!("chrome-extension://{CHROMIUM_EXTENSION_ID}/")
+        );
+        assert!(!origin.contains('*'), "Origins must not contain wildcard");
+        assert_eq!(CHROMIUM_EXTENSION_ID, "ndknhgihhogcfkliohfjcllglpjdgjpj");
+
+        let firefox_manifest = generate_manifest_content(HOST_NAME_CANONICAL, bin, true);
+        let ext_ids = firefox_manifest["allowed_extensions"].as_array().expect("extensions array");
+        assert!(!ext_ids.is_empty());
+        for id in ext_ids {
+            let id_str = id.as_str().unwrap();
+            assert!(!id_str.contains('*'), "Firefox extension IDs must not contain wildcard");
+        }
     }
 }

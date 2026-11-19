@@ -151,7 +151,33 @@
     return true
   })
 
+  function validateMessageSender(sender) {
+    if (!sender || typeof sender !== 'object') {
+      throw codedError('INVALID_SENDER', 'Message has no sender context')
+    }
+    const currentId = api?.runtime?.id || 'ndknhgihhogcfkliohfjcllglpjdgjpj'
+    if (sender.id && sender.id !== currentId) {
+      throw codedError('INVALID_SENDER', 'Message from unknown sender rejected')
+    }
+    const rawOrigin = sender.origin || (sender.url ? safeOrigin(sender.url) : null)
+    if (rawOrigin && rawOrigin.startsWith('chrome-extension://')) {
+      const expectedOrigin = `chrome-extension://${currentId}`
+      if (rawOrigin !== expectedOrigin) {
+        throw codedError('INVALID_ORIGIN', 'Message from spoofed origin rejected')
+      }
+    }
+  }
+
+  function safeOrigin(urlStr) {
+    try {
+      return new URL(urlStr).origin
+    } catch {
+      return null
+    }
+  }
+
   async function routeMessage(message, sender) {
+    validateMessageSender(sender)
     if (!message || typeof message !== 'object' || typeof message.type !== 'string') {
       throw codedError('INVALID_MESSAGE', 'Invalid extension message')
     }

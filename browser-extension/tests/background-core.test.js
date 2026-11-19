@@ -125,3 +125,60 @@ test('initializes with UNPAIRED state when no pairing token is stored', async ()
   assert.equal(state.connection.state, 'UNPAIRED')
   assert.equal(state.connection.paired, false)
 })
+
+test('test_message_from_unknown_sender_rejected', async () => {
+  const { api } = apiStub()
+  api.runtime.id = 'ndknhgihhogcfkliohfjcllglpjdgjpj'
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { routeMessage };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  const { routeMessage } = context.__testHooks
+  const invalidSender = { id: 'malicious_extension_id_9999' }
+  await assert.rejects(
+    async () => routeMessage({ type: 'GET_STATUS' }, invalidSender),
+    /Message from unknown sender rejected/
+  )
+})
+
+test('test_message_from_spoofed_origin_rejected', async () => {
+  const { api } = apiStub()
+  api.runtime.id = 'ndknhgihhogcfkliohfjcllglpjdgjpj'
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { routeMessage };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  const { routeMessage } = context.__testHooks
+  const spoofedSender = {
+    id: 'ndknhgihhogcfkliohfjcllglpjdgjpj',
+    origin: 'chrome-extension://attacker_spoofed_extension_id',
+  }
+  await assert.rejects(
+    async () => routeMessage({ type: 'GET_STATUS' }, spoofedSender),
+    /Message from spoofed origin rejected/
+  )
+})
