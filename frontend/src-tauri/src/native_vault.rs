@@ -1123,9 +1123,41 @@ fn delete_local_account_data(
     clear_browser_policy()?;
     clear_provider_credential(&vault.connection, &username)?;
     *unlocked = None;
+
+    let db_path = account_dir.join("vault.db");
+    let wal_path = account_dir.join("vault.db-wal");
+    let shm_path = account_dir.join("vault.db-shm");
+
+    let _ = secure_wipe_file(&db_path);
+    let _ = secure_wipe_file(&wal_path);
+    let _ = secure_wipe_file(&shm_path);
+
     fs::remove_dir_all(&account_dir).map_err(|_| {
         "Could not remove all local account files; the account may need recovery".into()
     })
+}
+
+pub fn secure_wipe_file(path: &Path) -> std::io::Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    if let Ok(metadata) = path.metadata() {
+        let len = metadata.len();
+        if len > 0 {
+            use std::io::Write;
+            if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(path) {
+                let zeros = vec![0u8; 4096];
+                let mut written = 0;
+                while written < len {
+                    let to_write = std::cmp::min(zeros.len() as u64, len - written) as usize;
+                    let _ = file.write_all(&zeros[..to_write]);
+                    written += to_write as u64;
+                }
+                let _ = file.sync_all();
+            }
+        }
+    }
+    std::fs::remove_file(path)
 }
 
 fn pause_focus_before_vault_lock(db: &mut Connection, now_seconds: i64) -> rusqlite::Result<()> {
@@ -9396,5 +9428,62 @@ mod tests {
         }
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn test_vault_delete_wipes_wal_and_shm_files() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "wipe_target_user", "a-long-qa-password").unwrap();
+
+        let account_dir = manager.account_dir("wipe_target_user").unwrap();
+        let wal_path = account_dir.join("vault.db-wal");
+        let shm_path = account_dir.join("vault.db-shm");
+
+        // Write sensitive test data into dummy WAL and SHM
+        fs::write(&wal_path, b"super_sensitive_wal_page_data_12345").unwrap();
+        fs::write(&shm_path, b"super_sensitive_shm_index_data_67890").unwrap();
+        assert!(wal_path.exists());
+        assert!(shm_path.exists());
+
+        // Perform account deletion
+        delete_local_account_data(
+            &manager,
+            "wipe_target_user",
+            || Ok(()),
+            |_, _| Ok(()),
+        )
+        .unwrap();
+
+        assert!(!wal_path.exists(), "WAL file must be securely wiped and deleted");
+        assert!(!shm_path.exists(), "SHM file must be securely wiped and deleted");
+        assert!(!account_dir.exists(), "Account dir must be removed");
+
+        drop(manager);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn test_recovery_key_minimum_entropy_128_bits() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        let created = create_account(&manager, "entropy_user", "a-long-qa-password").unwrap();
+
+        // 128 bits = 16 bytes = 32 hex chars.
+        // SHINPO generates 32 bytes = 256 bits = 64 hex chars.
+        let key = &created.recovery_key;
+        assert!(
+            key.len() >= 32,
+            "Recovery key must contain at least 128 bits of entropy (>= 32 hex characters): len was {}",
+            key.len()
+        );
+        assert_eq!(key.len(), 64, "SHINPO recovery key provides 256 bits of entropy (64 hex chars)");
+        assert!(
+            key.chars().all(|c| c.is_ascii_hexdigit()),
+            "Recovery key must be valid hex characters"
+        );
+
+        drop(manager);
+        let _ = fs::remove_dir_all(root);
     }
 }
