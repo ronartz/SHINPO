@@ -1129,7 +1129,14 @@ mod tests {
     #[tokio::test]
     async fn test_ollama_oversized_response_rejected() {
         let (url, worker) = server(200, "x".repeat(1_048_577), Duration::ZERO);
-        let result = generate_at(&config("ollama"), url, json!([]), None, Duration::from_secs(2)).await;
+        let result = generate_at(
+            &config("ollama"),
+            url,
+            json!([]),
+            None,
+            Duration::from_secs(2),
+        )
+        .await;
         assert!(result.is_err());
         assert!(result.err().unwrap().contains("exceeds the safe limit"));
         worker.join().unwrap();
@@ -1137,7 +1144,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_ollama_response_timeout_falls_back_to_offline() {
-        let root = std::env::temp_dir().join(format!("shinpo-test-timeout-{}", opaque_id().unwrap()));
+        let root =
+            std::env::temp_dir().join(format!("shinpo-test-timeout-{}", opaque_id().unwrap()));
         std::fs::create_dir_all(&root).unwrap();
         let manager = VaultManager::new(root.clone());
         create_account(&manager, "test_timeout_user", "ValidPassword123456!").unwrap();
@@ -1189,7 +1197,8 @@ mod tests {
 
     #[test]
     fn test_task_title_prompt_injection_treated_as_literal_data() {
-        let root = std::env::temp_dir().join(format!("shinpo-test-injection-{}", opaque_id().unwrap()));
+        let root =
+            std::env::temp_dir().join(format!("shinpo-test-injection-{}", opaque_id().unwrap()));
         std::fs::create_dir_all(&root).unwrap();
         let path = root.join("vault.db");
         let db = open_encrypted_database(&path, &[0x42; 32], "qa_injection", true).unwrap();
@@ -1206,15 +1215,22 @@ mod tests {
             insert_task_record(&db, goal.id, title, None, "2026-11-04", Some(25)).unwrap();
         }
 
-        let task_count: i64 = db.query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0)).unwrap();
+        let task_count: i64 = db
+            .query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(task_count, 3);
 
         // 1. Verify offline planning treats task titles as literal data and deletes nothing
         let (_reply, suggestion_type, _card) =
             offline_reply(&db, "Plan my day", Some(goal.id), None, None).unwrap();
         assert_eq!(suggestion_type, "OFFLINE_PLAN");
-        let remaining_tasks: i64 = db.query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0)).unwrap();
-        assert_eq!(remaining_tasks, 3, "Injected task title must not delete any tasks");
+        let remaining_tasks: i64 = db
+            .query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            remaining_tasks, 3,
+            "Injected task title must not delete any tasks"
+        );
 
         // 2. Verify delimiters wrap all user data and context
         let ctx = context(&db).unwrap();
@@ -1246,7 +1262,9 @@ mod tests {
         assert!(!redacted.contains("sk-proj-1234567890abcdef1234567890"));
         assert!(!redacted.contains("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
         assert!(!redacted.contains("MyPassword123!"));
-        assert!(!redacted.contains("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"));
+        assert!(
+            !redacted.contains("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        );
         assert!(redacted.contains("[REDACTED_KEY]"));
         assert!(redacted.contains("[REDACTED_TOKEN]"));
         assert!(redacted.contains("[REDACTED]"));

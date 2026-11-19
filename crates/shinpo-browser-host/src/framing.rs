@@ -86,8 +86,14 @@ mod tests {
         bytes.extend_from_slice(&[0u8; 16]);
         let mut source = Cursor::new(bytes);
         let res = read_message(&mut source, 10_000_000);
-        assert!(res.is_err(), "Must reject oversized message before allocating buffer");
+        assert!(
+            res.is_err(),
+            "Must reject oversized message before allocating buffer"
+        );
         let err = res.unwrap_err().to_string();
-        assert!(err.contains("exceeds limit"), "Expected bounds error: {err}");
+        assert!(
+            err.contains("exceeds limit"),
+            "Expected bounds error: {err}"
+        );
     }
 }

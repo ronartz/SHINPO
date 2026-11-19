@@ -9447,16 +9447,16 @@ mod tests {
         assert!(shm_path.exists());
 
         // Perform account deletion
-        delete_local_account_data(
-            &manager,
-            "wipe_target_user",
-            || Ok(()),
-            |_, _| Ok(()),
-        )
-        .unwrap();
+        delete_local_account_data(&manager, "wipe_target_user", || Ok(()), |_, _| Ok(())).unwrap();
 
-        assert!(!wal_path.exists(), "WAL file must be securely wiped and deleted");
-        assert!(!shm_path.exists(), "SHM file must be securely wiped and deleted");
+        assert!(
+            !wal_path.exists(),
+            "WAL file must be securely wiped and deleted"
+        );
+        assert!(
+            !shm_path.exists(),
+            "SHM file must be securely wiped and deleted"
+        );
         assert!(!account_dir.exists(), "Account dir must be removed");
 
         drop(manager);
@@ -9477,7 +9477,11 @@ mod tests {
             "Recovery key must contain at least 128 bits of entropy (>= 32 hex characters): len was {}",
             key.len()
         );
-        assert_eq!(key.len(), 64, "SHINPO recovery key provides 256 bits of entropy (64 hex chars)");
+        assert_eq!(
+            key.len(),
+            64,
+            "SHINPO recovery key provides 256 bits of entropy (64 hex chars)"
+        );
         assert!(
             key.chars().all(|c| c.is_ascii_hexdigit()),
             "Recovery key must be valid hex characters"
