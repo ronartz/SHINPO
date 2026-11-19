@@ -1,10 +1,17 @@
-# Installing and running SHINPO
+# Installing and Running SHINPO
 
-## Current qualification note
+SHINPO is a local-first personal execution workspace available for **Linux (x86_64)** and **Windows 10/11 (x64)**.
 
-This repository does not provide a currently qualified public release. Do not treat old packages in historical QA reports as current installers. Linux and Windows runtime qualification, signed updater qualification, and release publication are separate gates; see `docs/qa/latest-release-gate.md`.
+## 📥 Quick Download (Pre-built Binaries)
 
-## Build from source
+Official verified releases are published on the [GitHub Releases page](https://github.com/ronartz/SHINPO/releases):
+* **Windows 10 & 11 (64-bit)**: Download `SHINPO_<version>_windows_x64_setup.exe.zip`, extract, and run setup. (If Windows SmartScreen prompts, click *More info* → *Run anyway*).
+* **Linux Fedora / RHEL**: Install `SHINPO-<version>-1.x86_64.rpm` via `sudo dnf install ./SHINPO-*.rpm`.
+* **Linux Ubuntu / Debian**: Install `SHINPO_<version>_amd64.deb` via `sudo apt install ./SHINPO-*.deb`.
+* **Linux Universal**: Run `SHINPO_<version>_amd64.AppImage` directly (`chmod +x && ./SHINPO_*.AppImage`).
+* **Linux Portable Tarball**: Extract `SHINPO_<version>_linux_x86_64.tar.gz` and run `./shinpo-desktop` without root permissions.
+
+## 🛠️ Build From Source
 
 Install the supported Tauri v2 prerequisites for your operating system, then from the repository root:
 

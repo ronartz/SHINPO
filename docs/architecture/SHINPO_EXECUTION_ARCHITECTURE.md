@@ -1,49 +1,59 @@
-# SHINPO Execution Architecture
+# SHINPO Execution & Policy Architecture
 
-**Status:** Contract for implementation; integrated behavior is not yet qualified.
+**Status:** Authoritative Local-First Desktop Execution Architecture  
+**Platforms:** Linux & Windows
 
-## Authority and data flow
+---
+
+## 🏛️ 1. Authority and Data Flow
 
 ```text
-React UI ── authenticated API/WebSocket ── Spring Boot ── PostgreSQL
-   │                                         │
-   ├── Tauri commands ── Sentinel Shield     └── versioned contextual policy
-   │                          │                              │
-   └── status display         └── local enrolled-app action  └── native host
-                                                                  │
-                                                        Chrome/Chromium/Edge/
-                                                        Firefox extension
+React 19 Desktop UI ── Tauri IPC (Bridge) ── Native Rust Core (Tauri 2)
+                                                │
+                                                ├── AES-256 SQLCipher Local Vault
+                                                │   └── Offline Sessions, Goals & XP
+                                                │
+                                                └── Policy Engine (Leased Snapshot)
+                                                        │
+                                                        v (stdio)
+                                            shinpo-browser-host (Rust)
+                                                        │
+                                                        v
+                                            Chrome / Edge / Brave / Firefox
+                                            WebExtension Companion
 ```
 
-PostgreSQL and Spring Boot own session identity, phase transitions/deadlines, idempotent reward and penalty events, and policy revisions. Tauri/Rust owns local host integration and operating-system enforcement. The native messaging host authenticates to the backend and supplies a leased policy snapshot to the extension. The extension evaluates navigations and presents restrictions; it does not invent phase transitions, extend a break, or calculate XP.
+In SHINPO:
+1. **The Native Rust Core & Encrypted SQLCipher Vault** own session identity, phase transitions, Pomodoro timing deadlines, idempotent reward events, and policy revisions locally on the user's computer.
+2. **No remote backend, no Spring Boot, and no PostgreSQL server** are required. Everything is 100% self-contained and operates completely offline.
+3. The **`shinpo-browser-host`** binary communicates via standard input/output (`stdio`) with browser extensions using OS-native messaging (`com.shinpo.browser_companion`).
+4. The extension enforces distraction blocking and presents intervention overlays based on the leased policy snapshot without modifying local timers or calculating XP.
 
-## Lifecycle and synchronization
+---
 
-The backend transition service must atomically persist phase, transition timestamp/deadline, revision, and any event identity. Session responses, WebSocket events, active policy snapshots, native host cache, and extension UI expose the same session ID, phase, revision, and server timestamps. Clients render remaining time as `max(0, deadline - current time)` and resynchronize on reconnect. They never add elapsed time to a client-owned authoritative counter.
+## ⏱️ 2. Focus Lifecycle and Synchronization
 
-Focus restrictions, break allowlist, grace behavior, and return-required restrictions are server-defined policy states. A lease includes issued/expiry timestamps and policy revision. Stale leases are visibly stale; enforcement outcome is reported separately from desired policy. Offline native actions must follow the explicitly accepted safety policy and cannot create a server XP penalty.
+* Supported lifecycle states:
+  * `FOCUS`: Active focus block; designated distraction websites and apps are blocked.
+  * `SHORT_BREAK` / `LONG_BREAK`: Timed breaks where approved break websites are permitted.
+  * `GRACE`: Safe transition period before returning to focus or completing the block.
+  * `PAUSED`: Timer frozen; distraction checks held in place.
+  * `COMPLETED`: Session finished; XP and stats awarded transactionally to the local vault ledger.
+* Countdown timing uses the native core's monotonic clock (`max(0, deadline - current_time)`), eliminating cumulative JavaScript timer drift when tabs or windows are in the background.
 
-Current source persists `FOCUS`, `SHORT_BREAK`, `LONG_BREAK`, `GRACE`, `RETURN_REQUIRED`, and `COMPLETE`, with a configurable additional grace duration and server-derived deadlines. Resource rules include a session-scoped `breakOnly` flag: only these explicit approvals apply during break/grace, and they become restrictions outside that phase. The extension evaluates the server deadline locally only to revoke break-only access at cutoff; it does not advance backend state. On lease expiry it reports degraded, preserves only known explicit restrictions, treats other destinations as uncertain, and does not claim an active synchronized policy. Focused accelerated backend and extension policy tests pass; native enforcement and connected browser runtime remain unverified.
+---
 
-## Penalty and enforcement integrity
+## 🛡️ 3. Safety and Enforcement Integrity
 
-At hard cutoff, one transaction locks/validates the session, confirms server-observed lifecycle eligibility, inserts a unique overdue-break event, applies the configured bounded nonnegative-balance adjustment, advances policy revision, and emits the resulting state. Duplicate scheduler, reconnect, or WebSocket delivery must converge on that same event identity. Suspension/network ambiguity defers penalty until a trustworthy server state can be established. The Shield closes only verified, explicitly enrolled distraction processes gracefully; browser restrictions act per tab/site and never close the browser.
+* **Warning-Only Guardian**: Focus Guardian alerts and prompts the user when distraction applications or websites are visited during active focus. SHINPO never force-terminates applications, guaranteeing zero user data loss.
+* **Local Sandboxing**: Pairing keys are generated on-the-fly and expire in 10 minutes. Only the authorized extension instance on the local device can access the active policy.
+* **Zero Telemetry**: No browsing URLs, keystrokes, or screen contents ever leave your workstation.
 
-## Compatibility and privacy
+---
 
-- Preserve existing REST DTOs where possible; add versioned fields additively and keep older clients safe/inactive when they cannot interpret an enforcement phase.
-- Host pairing secrets stay in OS-appropriate user storage; never log tokens. Browser permissions and the data inspected by URL evaluation are disclosed during setup.
-- Do not introduce production credentials or a paid service as part of local implementation. Production hosting, PostgreSQL backup custody, and public distribution require their own authorization and evidence.
-- Native messaging manifests/registration are OS- and browser-specific. Chromium-family and Firefox packages may share policy logic but are qualified separately.
+## 📂 4. Source Locations
 
-## Current implementation anchors
-
-- Backend lifecycle: `backend/src/main/java/com/shinpo/entity/FocusSession.java`, `FocusSessionService.java`.
-- Active policy endpoint: `ContextualFocusPolicyService.java`, `ContextualFocusController.java`.
-- Native IPC and registration: `crates/shinpo-browser-host/`, `scripts/register-browser-companion.*`.
-- Extension evaluation/recovery: `browser-extension/src/lib/policy-engine.js`, `background-core.js`.
-- Local process protection: `crates/shinpo-shield/` and Tauri commands in `frontend/src-tauri/`.
-
-## Deployment boundary
-
-Desktop binaries are clients, not standalone service hosts. Friends require an independently reachable HTTPS backend and persistent PostgreSQL, securely managed credentials, migrations, backups/recovery, and account isolation. Native Shield and browser host remain local on each user's machine. Until a real remote backend and installed clients are exercised, remote/private-beta readiness remains unqualified.
+* **Native Vault & FSM**: [frontend/src-tauri/src/native_vault/](file:///home/eonx/Projects/SHINPO/frontend/src-tauri/src/native_vault/)
+* **Browser Host**: [crates/shinpo-browser-host/](file:///home/eonx/Projects/SHINPO/crates/shinpo-browser-host/)
+* **Browser Companion Extension**: [browser-extension/](file:///home/eonx/Projects/SHINPO/browser-extension/)
+* **Desktop UI & Views**: [frontend/src/](file:///home/eonx/Projects/SHINPO/frontend/src/)
