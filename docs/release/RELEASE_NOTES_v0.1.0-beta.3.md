@@ -1,76 +1,50 @@
-# SHINPO (進歩) v0.1.0-beta.3 — Cross-Platform Beta & Security Hardening
+# 🌌 SHINPO (進歩) v0.1.0-beta.3
 
-> **Plan it. Protect it. See the truth.**  
-> A local-first, privacy-respecting personal execution OS that turns your goals into a daily plan, defends your focus with consent-based enforcement, and shows you honestly what happened.
-
-Welcome to **SHINPO v0.1.0-beta.3**! This release brings full Windows MSVC and Linux builds, comprehensive security hardening across all IPC and native vault boundaries, and a refined, rock-solid desktop login experience.
+> [!TIP]
+> **Local-First Continuity:** Existing beta users can install the updated package below directly over their previous installation. All personal objectives, tasks, encrypted vaults, focus telemetry, and local AI configurations remain 100% intact, private, and offline.
 
 ---
 
-## 🚀 What's New in v0.1.0-beta.3
+## ✨ What's New in v0.1.0-beta.3
 
-### 🛡️ Security Remediation & Hardening (Run-2)
-* **Safe Native URL Opener**: Completely eliminated shell and LOLBin invocations (`rundll32`, `cmd.exe`). Replaced with `tauri-plugin-opener` with strict URL parsing that accepts only validated `http` and `https` schemes while rejecting file URIs, control characters, and script injections.
-* **Strict Vault-Lock IPC Gates**: Every IPC command accessing user data or local intelligence strictly verifies that the local vault is unlocked before execution. Locked states return an explicit rejection.
-* **Zeroize Key Management & Secure File Wipe**: Vault encryption keys are wrapped in `Zeroizing` memory buffers to prevent retention in process memory. Account deletion performs multi-pass zero-overwrite and sync flushes across all SQLCipher database, WAL, and SHM files.
-* **Native Messaging Companion IPC Hardening**: Browser Companion IPC now validates extension sender ID and origin, enforces strict message size limits (<1MB) before casting, and dynamically discovers host binaries across Windows `%LOCALAPPDATA%` and Linux AppImage paths.
-* **AI Defense & Data Confidentiality**: EONPAI local assistant wraps untrusted inputs with strict delimiters to prevent prompt injection. All LLM contexts are automatically scanned to redact API keys, tokens, and credentials. Ollama requests feature strict 30s timeouts and 1MB size bounds with instant fallback to the local heuristic planner.
+### 🛡️ Zero-Trust IPC & Security Hardening (Run-2)
+* **Safe Native URL Opener:** Completely eliminated shell and LOLBin invocations (`rundll32`, `cmd.exe`). Replaced with `tauri-plugin-opener` with strict URL parsing that accepts only validated `http` and `https` schemes while rejecting file schemes, control characters, and script injections.
+* **Strict Vault-Lock IPC Gates:** Every IPC command accessing user data, task graphs, or local intelligence strictly enforces vault-unlocked status as its first operation. Any locked-state access returns an immediate, explicit `VaultLocked` rejection.
+* **Zeroize In-Memory Key Lifecycle & DoD-Grade Wipe:** Database encryption keys are wrapped in `Zeroizing` memory buffers to prevent secret leakage in process dumps. Account deletion performs multi-pass zero-overwrite and disk synchronization across all SQLCipher database, WAL, and SHM files.
+* **Hardened Browser Companion IPC:** Browser extension native messaging now validates extension sender ID and origin, enforces strict message size bounds (<1MB) before casting, and dynamically discovers host binaries across Windows `%LOCALAPPDATA%` and Linux AppImage directories.
+* **AI Defense & Data Confidentiality:** EONPAI local assistant wraps untrusted inputs in literal data delimiters to prevent prompt injection. All LLM contexts are automatically scanned to redact API keys, tokens, and credentials. Local Ollama requests feature strict 30s timeouts and 1MB size bounds with instant fallback to the offline heuristic planner.
 
-### 🎨 Desktop UI & Ergonomics
-* **Rock-Solid Flat Login**: Removed mouse-tracking 3D tilt transformations on authentication cards for a stable, distraction-free desktop aesthetic while preserving subtle border illumination and particles.
-* **Full Theme Engine**: Seamless support for all built-in themes (Classic Dark, Tokyo Night, Catppuccin Mocha, Cyberpunk, Forest, and Monochrome) across all operating systems.
+### 🎨 Distraction-Free Modern Ergonomics & Ambient Design
+* **Rock-Solid Flat Desktop Login:** Removed mouse-tracking 3D tilt transformations on authentication cards for a stable, distraction-free desktop aesthetic while preserving subtle border illumination and interactive ambient particles.
+* **Multi-Theme Palette Engine:** Seamless native rendering for all built-in themes: **Classic Dark**, **Tokyo Night**, **Catppuccin Mocha**, **Cyberpunk**, **Forest**, and **Monochrome**.
 
-### 💻 Cross-Platform Parity
-* Native packaging for **Windows 10/11 x64** and **Linux x86_64** (Ubuntu/Debian, Fedora/RHEL, and universal AppImage).
-* Fully local SQLCipher encryption with zero external cloud dependencies.
-
----
-
-## 📥 Downloads & Assets
-
-| Asset | Platform / Target | Description |
-|---|---|---|
-| **`SHINPO_0.1.0-beta.3_windows_x64_setup.exe`** | Windows 10/11 (x64) | Official Windows NSIS installer |
-| **`SHINPO_0.1.0-beta.3_amd64.AppImage`** | Linux (Universal) | Standalone executable for any Linux distro |
-| **`SHINPO_0.1.0-beta.3_amd64.deb`** | Ubuntu / Debian | Native `.deb` package |
-| **`SHINPO-0.1.0-beta.3-1.x86_64.rpm`** | Fedora / RHEL | Native `.rpm` package |
-| **`SHINPO_0.1.0-beta.3_linux_x86_64.tar.gz`** | Linux (Portable) | Portable standalone tarball bundle |
-| **`shinpo-browser-companion-chromium.zip`** | Chrome / Brave / Edge | Unpacked Browser Companion extension |
-| **`shinpo-browser-companion-firefox.zip`** | Mozilla Firefox | Unpacked Browser Companion extension |
-| **`SHA256SUMS`** | All Platforms | Cryptographic SHA-256 verification hashes |
+### ⚡ Cross-Platform Execution Engine
+* **Native Windows 10/11 Support:** Official Windows NSIS installer package (`SHINPO_0.1.0-beta.3_windows_x64_setup.exe`) with automated browser companion registration script.
+* **Universal Linux Packaging:** Standalone universal AppImage executable, native Debian package (`.deb`), native Fedora/RHEL package (`.rpm`), and portable no-root `.tar.gz` bundle.
+* **100% Offline SQLCipher Encryption:** High-performance AES-256 local storage without external cloud dependencies or third-party telemetry.
 
 ---
 
-## ⚡ Quick Start Guide
+## 📦 Download Matrix
 
-### Windows Installation
-1. Download **`SHINPO_0.1.0-beta.3_windows_x64_setup.exe`**.
-2. Run the installer and launch **SHINPO** from your Start Menu.
-3. To pair your browser, open PowerShell in the install directory and run:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\register-browser-companion.ps1
-   ```
+| Platform / Environment | Architecture | File Name | Recommended For |
+| :--- | :--- | :--- | :--- |
+| 🪟 **Windows** | **64-bit (`x86_64`)** | `SHINPO_0.1.0-beta.3_windows_x64_setup.exe` | **Windows 10 & 11 (Official Installer)** |
+| 🐧 **Linux (Universal)** | **64-bit (`x86_64`)** | `SHINPO_0.1.0-beta.3_amd64.AppImage` | **All Linux distributions (Single Executable)** |
+| 🐧 **Linux (DEB)** | **64-bit (`x86_64`)** | `SHINPO_0.1.0-beta.3_amd64.deb` | Ubuntu 22.04/24.04, Debian 12+, Linux Mint |
+| 🐧 **Linux (RPM)** | **64-bit (`x86_64`)** | `SHINPO-0.1.0-beta.3-1.x86_64.rpm` | Fedora 40/41, RHEL 9+, Rocky Linux |
+| 🐧 **Linux (Portable)** | **64-bit (`x86_64`)** | `SHINPO_0.1.0-beta.3_linux_x86_64.tar.gz` | Portable standalone bundle (No root required) |
+| 🌐 **Browser Companion** | **Chromium / Chrome** | `shinpo-browser-companion-chromium.zip` | Google Chrome, Brave, Microsoft Edge, Opera |
+| 🦊 **Browser Companion** | **Firefox / Gecko** | `shinpo-browser-companion-firefox.zip` | Mozilla Firefox, LibreWolf, Floorp |
 
-### Linux Installation
-* **AppImage**:
+---
+
+## 🛡️ App Identity & Verification
+
+* **Application Identifier:** `com.shinpo.app`
+* **Version:** `0.1.0-beta.3`
+* **Desktop Binary:** `shinpo-desktop`
+* **Cryptographic Checksum Verification:**
   ```bash
-  chmod +x SHINPO_0.1.0-beta.3_amd64.AppImage
-  ./SHINPO_0.1.0-beta.3_amd64.AppImage
+  sha256sum -c SHA256SUMS
   ```
-* **Fedora / RHEL**:
-  ```bash
-  sudo dnf install ./SHINPO-0.1.0-beta.3-1.x86_64.rpm
-  ```
-* **Ubuntu / Debian**:
-  ```bash
-  sudo apt install ./SHINPO_0.1.0-beta.3_amd64.deb
-  ```
-
----
-
-## 🔐 Checksum Verification
-
-Verify your downloaded binary against the published checksums:
-```bash
-sha256sum -c SHA256SUMS
-```
