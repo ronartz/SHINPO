@@ -1,0 +1,84 @@
+[
+  {
+    "verdict": "confirmed",
+    "fingerprint": "SHINPO-VULN-001",
+    "title": "Command Injection via Windows Shell Metacharacters in desktop_open_url",
+    "description": "The desktop_open_url Tauri command on Windows invokes cmd.exe /c start with unquoted user-controlled URL arguments, allowing shell metacharacters such as & and | to escape argument boundaries and execute arbitrary host commands.",
+    "root_cause": "frontend/src-tauri/src/lib.rs invokes std::process::Command::new(\"cmd\").args([\"/c\", \"start\", \"\", &url]). Because Rust standard library only automatically quotes arguments on Windows when whitespace is present, URLs containing & are parsed by cmd.exe as command separators.",
+    "intended_behavior": "The application should open external HTTP/HTTPS URLs directly via the operating system shell handler (rundll32 url.dll,FileProtocolHandler) and strictly reject URLs containing control characters or shell quotes.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src-tauri/src/lib.rs",
+        "line": 324,
+        "scope": "desktop_open_url",
+        "description": "URL received from renderer via Tauri IPC invocation"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src-tauri/src/lib.rs",
+        "line": 326,
+        "scope": "desktop_open_url",
+        "description": "URL parsed and verified for http/https scheme without validating shell metacharacters"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src-tauri/src/lib.rs",
+        "line": 332,
+        "scope": "desktop_open_url",
+        "description": "Unquoted URL passed as argument to cmd.exe /c start"
+      }
+    ],
+    "evidence": [
+      {
+        "file": "frontend/src-tauri/src/lib.rs",
+        "line": 332,
+        "description": "std::process::Command::new(\"cmd\").args([\"/c\", \"start\", \"\", &url]) executes via cmd.exe"
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "Running on Microsoft Windows host where cmd.exe parses & as command separator"
+      },
+      {
+        "kind": "user_interaction",
+        "description": "User or renderer triggers external URL navigation containing shell metacharacters"
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Compromised webview or malicious external link passed to desktop_open_url IPC",
+      "payloads": [
+        "https://example.com/?q=1&calc.exe"
+      ],
+      "instructions": [
+        "Invoke desktop_open_url with payload https://example.com/?q=1&calc.exe on Windows"
+      ],
+      "observed_result": "cmd.exe splits on & and executes calc.exe in the user context"
+    },
+    "remediation": {
+      "strategy": "Replace cmd.exe invocation with rundll32 url.dll,FileProtocolHandler and validate that URLs contain no control or quote characters.",
+      "code_changes": [
+        {
+          "file_name": "frontend/src-tauri/src/lib.rs",
+          "fixed_code": "std::process::Command::new(\"rundll32\").args([\"url.dll,FileProtocolHandler\", parsed.as_str()]).spawn()"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires either webview XSS or malicious URL passed through update / external link triggers"
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Arbitrary command execution on host Windows system in user context"
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Demonstrated through Rust standard library Windows argument quoting mechanics and cmd.exe behavior"
+    }
+  }
+]
