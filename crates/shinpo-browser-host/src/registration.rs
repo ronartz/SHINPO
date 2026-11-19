@@ -202,7 +202,10 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
             let candidates = [
                 parent.join(bin_name),
                 parent.join("browser-companion").join(bin_name),
-                parent.join("resources").join("browser-companion").join(bin_name),
+                parent
+                    .join("resources")
+                    .join("browser-companion")
+                    .join(bin_name),
                 parent.join("resources").join(bin_name),
             ];
             for cand in candidates {
@@ -210,7 +213,9 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
                     #[cfg(unix)]
                     {
                         // If running inside an AppImage mount (/tmp/.mount_*), persist the binary to user local bin
-                        if cand.to_string_lossy().contains(".mount_") || std::env::var("APPIMAGE").is_ok() {
+                        if cand.to_string_lossy().contains(".mount_")
+                            || std::env::var("APPIMAGE").is_ok()
+                        {
                             if let Some(persisted) = persist_appimage_host_binary(&cand, bin_name) {
                                 return Some(persisted);
                             }
@@ -237,8 +242,18 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
             format!("/usr/local/bin/{bin_name}"),
         ];
         if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-            standard_paths.push(home.join(".local/share/shinpo/bin").join(bin_name).to_string_lossy().to_string());
-            standard_paths.push(home.join(".local/lib/shinpo").join(bin_name).to_string_lossy().to_string());
+            standard_paths.push(
+                home.join(".local/share/shinpo/bin")
+                    .join(bin_name)
+                    .to_string_lossy()
+                    .to_string(),
+            );
+            standard_paths.push(
+                home.join(".local/lib/shinpo")
+                    .join(bin_name)
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
         for p in standard_paths {
             let path = PathBuf::from(p);
@@ -597,7 +612,9 @@ mod tests {
     fn test_registration_contains_exact_extension_id() {
         let bin = Path::new("/usr/bin/shinpo-browser-host");
         let manifest = generate_manifest_content(HOST_NAME_CANONICAL, bin, false);
-        let origins = manifest["allowed_origins"].as_array().expect("origins array");
+        let origins = manifest["allowed_origins"]
+            .as_array()
+            .expect("origins array");
         assert_eq!(origins.len(), 1);
         let origin = origins[0].as_str().expect("origin string");
         assert_eq!(
@@ -608,11 +625,16 @@ mod tests {
         assert_eq!(CHROMIUM_EXTENSION_ID, "ndknhgihhogcfkliohfjcllglpjdgjpj");
 
         let firefox_manifest = generate_manifest_content(HOST_NAME_CANONICAL, bin, true);
-        let ext_ids = firefox_manifest["allowed_extensions"].as_array().expect("extensions array");
+        let ext_ids = firefox_manifest["allowed_extensions"]
+            .as_array()
+            .expect("extensions array");
         assert!(!ext_ids.is_empty());
         for id in ext_ids {
             let id_str = id.as_str().unwrap();
-            assert!(!id_str.contains('*'), "Firefox extension IDs must not contain wildcard");
+            assert!(
+                !id_str.contains('*'),
+                "Firefox extension IDs must not contain wildcard"
+            );
         }
     }
 }
