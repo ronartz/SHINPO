@@ -3056,22 +3056,23 @@ pub fn local_get_discovered_apps(
 fn local_get_discovered_apps_from(
     state: &VaultManager,
 ) -> Result<Vec<shinpo_shield::app_discovery::DiscoveredApp>, String> {
+    if !state.is_unlocked()? {
+        return Err("Unlock the local vault first".to_string());
+    }
     let mut apps = shinpo_shield::app_discovery::discover_installed_apps();
-    if state.is_unlocked().unwrap_or(false) {
-        let policies = local_get_app_policies_from(state).unwrap_or_default();
-        let mut by_app_id = std::collections::HashMap::new();
-        let mut by_exec = std::collections::HashMap::new();
-        for p in policies {
-            by_app_id.insert(p.app_id, p.policy_type.clone());
-            by_exec.insert(p.exec_name.to_ascii_lowercase(), p.policy_type);
-        }
-        for app in &mut apps {
-            if let Some(p) = by_app_id.get(&app.id) {
+    let policies = local_get_app_policies_from(state).unwrap_or_default();
+    let mut by_app_id = std::collections::HashMap::new();
+    let mut by_exec = std::collections::HashMap::new();
+    for p in policies {
+        by_app_id.insert(p.app_id, p.policy_type.clone());
+        by_exec.insert(p.exec_name.to_ascii_lowercase(), p.policy_type);
+    }
+    for app in &mut apps {
+        if let Some(p) = by_app_id.get(&app.id) {
+            app.policy = p.clone();
+        } else if let Some(ref ename) = app.exec_name {
+            if let Some(p) = by_exec.get(&ename.to_ascii_lowercase()) {
                 app.policy = p.clone();
-            } else if let Some(ref ename) = app.exec_name {
-                if let Some(p) = by_exec.get(&ename.to_ascii_lowercase()) {
-                    app.policy = p.clone();
-                }
             }
         }
     }
@@ -3257,23 +3258,7 @@ pub fn local_get_guardian_status(
 
 fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianStatus, String> {
     if !state.is_unlocked()? {
-        return Ok(LocalGuardianStatus {
-            status: "LOCKED",
-            active_focus_session_id: None,
-            active_focus_session_name: None,
-            guardian_mode: None,
-            focus_phase: None,
-            observations_today: 0,
-            last_observation_at: None,
-            app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
-            domain_catalog_version: DOMAIN_CATALOG_VERSION,
-            warning_only: true,
-            intervention_capability: "LOCKED",
-            standard_allowance_seconds: None,
-            observer_status: "LOCKED",
-            application_policy_status: "LOCKED",
-            application_catalog: local_guardian_catalog(),
-        });
+        return Err("Unlock the local vault first".to_string());
     }
 
     with_db_background(state, |db| {
@@ -5721,7 +5706,7 @@ mod tests {
 
         let deadline = Instant::now() + Duration::from_millis(300);
         while Instant::now() < deadline {
-            let _ = local_get_guardian_status_from(&manager).unwrap();
+            let _ = local_get_guardian_status_from(&manager);
             std::thread::sleep(Duration::from_millis(30));
         }
 
@@ -9310,27 +9295,106 @@ mod tests {
     }
 
     #[test]
-    fn test_every_data_command_rejects_when_locked() {
+    fn test_every_data_command_rejects_while_locked() {
         let root = scratch_path();
         let manager = VaultManager::new(root.clone());
         create_account(&manager, "locked_guard_user", "a-long-qa-password").unwrap();
 
+        // Ensure vault is locked
         manager.unlocked.lock().unwrap().take();
         assert!(!manager.is_unlocked().unwrap());
 
+        // Verify with_db rejects
         let res = with_db(&manager, |_| Ok(()));
         assert!(
             res.is_err(),
             "Data access must reject while vault is locked"
         );
+        let err_msg = res.unwrap_err();
+        assert!(
+            err_msg.contains("Unlock the local vault first") || err_msg.contains("VaultLocked"),
+            "Error must specify locked vault: {err_msg}"
+        );
 
+        // Verify background access rejects
         let bg_res = with_db_background(&manager, |_| Ok(()));
         assert!(
             bg_res.is_err(),
             "Background data access must reject while vault is locked"
         );
 
-        drop(manager);
+        // Verify IPC command execution via tauri mock app
+        let app = tauri::test::mock_builder()
+            .manage(manager)
+            .invoke_handler(tauri::generate_handler![
+                local_get_goals,
+                local_get_tasks,
+                local_get_progress,
+                local_get_streak,
+                local_get_focus_sessions,
+                local_get_study_resources,
+                local_get_guardian_status,
+                local_get_guardian_observations,
+                local_get_guardian_preferences,
+                local_get_discovered_apps,
+                local_get_app_policies,
+                local_sync_browser_policy,
+                local_emergency_stop_guardian
+            ])
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+            .build()
+            .unwrap();
+
+        let invoke = |cmd: &str, body: serde_json::Value| {
+            tauri::test::get_ipc_response(
+                &webview,
+                tauri::webview::InvokeRequest {
+                    cmd: cmd.into(),
+                    callback: tauri::ipc::CallbackFn(0),
+                    error: tauri::ipc::CallbackFn(1),
+                    url: if cfg!(windows) {
+                        "http://tauri.localhost"
+                    } else {
+                        "tauri://localhost"
+                    }
+                    .parse()
+                    .unwrap(),
+                    body: tauri::ipc::InvokeBody::Json(body),
+                    headers: Default::default(),
+                    invoke_key: tauri::test::INVOKE_KEY.into(),
+                },
+            )
+        };
+
+        // Assert all non-allowlisted commands reject while locked
+        let locked_commands = [
+            "local_get_goals",
+            "local_get_tasks",
+            "local_get_progress",
+            "local_get_streak",
+            "local_get_focus_sessions",
+            "local_get_study_resources",
+            "local_get_guardian_status",
+            "local_get_guardian_observations",
+            "local_get_guardian_preferences",
+            "local_get_discovered_apps",
+            "local_get_app_policies",
+            "local_sync_browser_policy",
+            "local_emergency_stop_guardian",
+        ];
+
+        for cmd in &locked_commands {
+            let result = invoke(cmd, serde_json::json!({}));
+            assert!(
+                result.is_err(),
+                "Command {} MUST reject while the vault is locked",
+                cmd
+            );
+        }
+
         fs::remove_dir_all(root).unwrap();
     }
 }
