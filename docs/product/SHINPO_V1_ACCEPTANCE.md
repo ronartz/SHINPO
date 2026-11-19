@@ -10,49 +10,47 @@
 
 ## 1. System Architecture & Responsibilities
 
-SHINPO is structured into four distinct execution layers with strict separation of concerns:
+SHINPO is structured as a 100% local-first, zero-dependency desktop operating system:
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│               SHINPO Client Shell                       │
-│  - Tauri v2 (Rust Native Desktop Container)            │
-│  - Chromium / Gecko Web Presentation (React 19 / TS)   │
-│  - Nunito + Aurora / Classic Design Systems            │
+│               SHINPO Presentation Layer                │
+│  - React 19 + TypeScript + Vite                         │
+│  - Ubuntu Typography + Aurora / Classic Themes         │
+│  - Bento Grid, Pomodoro Timer & EONPAI UI              │
 └──────────────────────────┬─────────────────────────────┘
-                           │ Authenticated REST + WS (JWT)
+                           │ Tauri 2 IPC Bridge
 ┌──────────────────────────▼─────────────────────────────┐
-│             Spring Boot 3.3.4 Backend                  │
-│  - Stateless Security & Tenant Isolation               │
-│  - Concurrency Locks & Token Rotation                  │
-│  - Contextual Focus & Sentinel Daemon Gateway          │
-│  - Gemini Cloud AI Provider + Deterministic Silence    │
+│               SHINPO Native Core (Rust)                │
+│  - Focus Lifecycle & Phase Deadlines FSM               │
+│  - Guardian Process Observation Engine                 │
+│  - EONPAI Deterministic AI & Local Ollama IPC          │
 └──────────────────────────┬─────────────────────────────┘
-                           │ Liquibase / Flyway Transactions
+                           │ AES-256 SQLCipher Page Cipher
 ┌──────────────────────────▼─────────────────────────────┐
-│              Managed PostgreSQL (16+)                  │
-│  - Tenant-Isolated User Schema                         │
-│  - Relational Integrity (Goals, Tasks, Sessions)       │
-│  - Progress & Reward Ledger (Idempotent Events)        │
+│             Encrypted Local Database                   │
+│  - Zero-Plaintext On-Disk Storage                      │
+│  - Goals, Tasks, Sessions & Progression Ledger         │
+│  - Argon2id Password Wrapping & Local Recovery         │
 └────────────────────────────────────────────────────────┘
 ```
 
 ### Layer Responsibilities:
-1. **Desktop Native (Rust / Tauri v2):**
-   - Window lifecycle, system tray minimization, local native IPC.
-   - Local distraction enforcement interface (Shield client). Host process killing on remote cloud servers is strictly prohibited.
-2. **Frontend Presentation (React 19, TypeScript, Vite):**
+1. **Frontend Presentation (React 19, TypeScript, Vite):**
    - Interactive execution cockpit (Aurora Bento & Classic layouts).
-   - Zero-unhandled-rejections API client with automatic token refresh.
+   - Zero-unhandled-rejections IPC client with instant reactive state.
    - Interactive game-inspired onboarding engine with controlled focus overlays.
-   - Tasteful celebratory reward feedback and progress visualizations.
-   - Dual-theme (Nunito Dark / Light) with strict WCAG AA contrast.
-3. **Backend Service (Spring Boot 3, Java 21):**
-   - Stateless JWT authentication with database-backed token versioning.
-   - Process containment policy validation and contextual URL whitelisting.
-   - Gemini Cloud AI integration with deterministic offline fallback.
-   - Event-driven WebSocket telemetry (STOMP `/ws`).
-4. **Persistence (PostgreSQL):**
-   - ACID-compliant relational storage with cascading safety.
+   - Dual-theme (Ubuntu Dark / Light) with strict WCAG AA contrast.
+2. **Desktop Native (Rust / Tauri v2):**
+   - Window lifecycle, system tray minimization, local native IPC.
+   - Local distraction enforcement interface (Guardian).
+   - Monotonic countdown timing resilient to background tab suspension.
+3. **Native IPC & Security Vault (Argon2id, SQLCipher):**
+   - AES-256 encrypted storage on disk with memory-hard Argon2id key wrapping.
+   - Process observation and contextual website policy evaluation.
+   - EONPAI offline planning engine with optional local Ollama integration.
+4. **Persistence (Local Encrypted Vault):**
+   - Zero-network relational storage with cascading safety.
    - Idempotent `progress_events` ledger for user progression.
 
 ---
@@ -70,7 +68,7 @@ The application executes a continuous, unbroken execution loop:
 - **Account & Security Settings:**
   - Authenticated username editing via `PUT /api/users/me/username`.
   - Enforces length (3-50 chars), allowed regex (`^[a-zA-Z0-9_.-]+$`), and uniqueness (HTTP 409 Conflict).
-  - Persists changes in PostgreSQL and updates profile badges, topbar, and greetings in real time.
+  - Persists changes in the encrypted local vault and updates profile badges, topbar, and greetings in real time.
   - Change Password form with 3 independent visibility toggles.
   - Secure Session Sign Out purges local tokens and invalidates backend refresh tokens.
 

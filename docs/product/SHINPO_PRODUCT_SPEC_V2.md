@@ -10,7 +10,7 @@ SHINPO helps an individual turn goals into scheduled tasks, protect focused work
 
 ## Governing decisions
 
-- Preserve React, TypeScript, Vite, Tauri v2, and the local Rust/SQLCipher authority. Spring Boot/PostgreSQL remain legacy transition code, not a required desktop runtime.
+- Preserve React, TypeScript, Vite, Tauri v2, and the local Rust/SQLCipher authority. The legacy Spring Boot/PostgreSQL service has been decommissioned in favor of the 100% offline local SQLCipher authority.
 - Preserve EONPAI and its authorized real tool actions, the locally persisted XP ledger, the Fernly-inspired desktop visual direction, and the approved sidebar collapse behavior.
 - Focus sounds and audio-based rewards are removed.
 - The Rust vault is authoritative for persisted session lifecycle, phase deadlines, policy revision, reward ledger, and penalty idempotency. The extension consumes the local policy lease and never owns a drifting timer or decides penalties.
@@ -44,7 +44,7 @@ Exercise boundaries at 14:59, 15:00, during grace, 24:59, and 25:00; restart/rec
 
 ## Remaining desktop feature scope
 
-Continue the existing audit and `docs/product/SHINPO_V1_ACCEPTANCE.md` for authentication, Goals/Tasks, Calendar, Analytics/reviews, EONPAI, rewards, Settings, security/privacy, notifications, accessibility, and the existing native shell. Complete only confirmed gaps; preserve working behavior and historical QA evidence. The authorized feature inventory includes projects, subtasks/checklists, recurrence, persisted Kanban ordering/view preference, month calendar, planning/reminders, weekly/monthly reviews, native shortcuts/tray/window recovery, installation/update/rollback, remote backend/PostgreSQL, encrypted backups, and private beta onboarding. Those items remain individually gated in the backlog; their presence in source is not acceptance.
+Continue the existing audit and `docs/product/SHINPO_V1_ACCEPTANCE.md` for authentication, Goals/Tasks, Calendar, Analytics/reviews, EONPAI, rewards, Settings, security/privacy, notifications, accessibility, and the existing native shell. Complete only confirmed gaps; preserve working behavior and historical QA evidence. The authorized feature inventory includes projects, subtasks/checklists, recurrence, persisted Kanban ordering/view preference, month calendar, planning/reminders, weekly/monthly reviews, native shortcuts/tray/window recovery, installation/update/rollback, encrypted local backups, and private beta onboarding. Those items remain individually gated in the backlog; their presence in source is not acceptance.
 
 ## Acceptance vocabulary
 

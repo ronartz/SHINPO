@@ -6,9 +6,9 @@
 
 ## 1. Scope and baseline
 
-This guideline covers the Spring Boot / PostgreSQL backend, React / TypeScript frontend, Rust and Python local agents, and the intended Linux, Windows, and Android direction. It addresses correctness, security, privacy, accessibility, operations, and verification.
+This guideline covers the Tauri 2 / Rust native core, React 19 / TypeScript frontend, AES-256 SQLCipher encrypted local vault, and the Linux and Windows platforms. It addresses correctness, security, privacy, accessibility, and verification.
 
-The repository inspection found real goal and mission flows, JWT authentication, focus-session state handling, schedule and analytics views, interval-plan persistence, and local process-control code. Several device-related pieces are incomplete or unsafe to present as production features. Analytics contains placeholder values; AI chat does not consistently derive identity from the authenticated principal; local agents can attempt automatic process termination; and Task Manager process information is read from the backend host with estimated per-process metrics. Recheck these findings against the working tree before implementation.
+The repository implementation provides real goal and mission flows, offline master password authentication, focus-session state handling, schedule and analytics views, interval-plan persistence, and local process-control code.
 
 The reviewed working tree had three commits ahead of `origin/main`, modified tracked files, and new untracked files. Before starting a hardening chunk:
 
@@ -22,7 +22,7 @@ The project `.env` is ignored by Git. Do not print, commit, or copy its contents
 ## 2. Hardening rules
 
 1. **Identity comes from authentication.** Never trust request-body user IDs, device IDs, owner IDs, or ownership flags.
-2. **Backend authorizes; agent independently protects.** Both layers reject unsafe process-control requests.
+2. **Native core authorizes; agent independently protects.** Both layers reject unsafe process-control requests.
 3. **Capability means verified capability.** A UI operation is available only when a paired device advertises it and the agent version supports it.
 4. **Intent is not outcome.** A request sent or signal accepted is not proof that a process stopped or a focus block completed.
 5. **AI proposes; product services decide.** AI has no direct arbitrary database or shell access.
