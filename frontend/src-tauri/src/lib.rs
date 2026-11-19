@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 use tauri::Manager;
+use tauri_plugin_opener::OpenerExt;
 
 static SHUTDOWN_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
@@ -321,41 +322,23 @@ fn desktop_exit_app(app: tauri::AppHandle, state: tauri::State<'_, native_vault:
     app.exit(0);
 }
 
-#[tauri::command]
-fn desktop_open_url(url: String) -> Result<(), String> {
+pub fn validate_open_url(url: &str) -> Result<url::Url, String> {
     if url.chars().any(|c| c.is_control() || c == '"' || c == '\'') {
         return Err("URL contains forbidden control or quote characters".to_string());
     }
-    let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {e}"))?;
+    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
     if parsed.scheme() != "https" && parsed.scheme() != "http" {
         return Err("Only http and https URLs can be opened externally".to_string());
     }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("rundll32")
-            .args(["url.dll,FileProtocolHandler", parsed.as_str()])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    #[allow(unreachable_code)]
-    Ok(())
+    Ok(parsed)
+}
+
+#[tauri::command]
+fn desktop_open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let parsed = validate_open_url(&url)?;
+    app.opener()
+        .open_url(parsed.as_str(), None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -391,6 +374,7 @@ pub fn run() {
             }
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle().plugin(tauri_plugin_opener::init())?;
             #[cfg(target_os = "linux")]
             setup_linux_desktop_integration();
             let _ = shinpo_browser_host::registration::register_host(None);
@@ -558,21 +542,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_desktop_open_url_validation() {
-        // Rejects non-http(s)
-        assert!(desktop_open_url("ftp://example.com".into()).is_err());
-        assert!(desktop_open_url("javascript:alert(1)".into()).is_err());
-        assert!(desktop_open_url("file:///etc/passwd".into()).is_err());
+    fn test_open_url_http_accepted() {
+        let res = validate_open_url("http://example.com/update");
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().scheme(), "http");
+    }
 
-        // Rejects control characters and shell quotes
-        assert!(desktop_open_url("https://example.com/\"".into()).is_err());
-        assert!(desktop_open_url("https://example.com/'".into()).is_err());
-        assert!(desktop_open_url("https://example.com/\ncalc.exe".into()).is_err());
-        assert!(desktop_open_url("https://example.com/\0calc.exe".into()).is_err());
+    #[test]
+    fn test_open_url_https_accepted() {
+        let res = validate_open_url("https://github.com/ronartz/SHINPO/releases");
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().scheme(), "https");
+    }
 
-        // Valid URLs parse cleanly
-        let valid = "https://github.com/ronartz/SHINPO/releases";
-        let parsed = url::Url::parse(valid).unwrap();
-        assert_eq!(parsed.scheme(), "https");
+    #[test]
+    fn test_open_url_file_scheme_rejected() {
+        assert!(validate_open_url("file:///etc/passwd").is_err());
+        assert!(validate_open_url("file://C:/Windows/System32").is_err());
+    }
+
+    #[test]
+    fn test_open_url_javascript_scheme_rejected() {
+        assert!(validate_open_url("javascript:alert(1)").is_err());
+    }
+
+    #[test]
+    fn test_open_url_control_chars_rejected() {
+        assert!(validate_open_url("https://example.com/\"").is_err());
+        assert!(validate_open_url("https://example.com/'").is_err());
+        assert!(validate_open_url("https://example.com/\ncalc.exe").is_err());
+        assert!(validate_open_url("https://example.com/\0calc.exe").is_err());
+        assert!(validate_open_url("https://example.com/\r\ncmd").is_err());
     }
 }
