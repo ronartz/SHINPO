@@ -323,14 +323,17 @@ fn desktop_exit_app(app: tauri::AppHandle, state: tauri::State<'_, native_vault:
 
 #[tauri::command]
 fn desktop_open_url(url: String) -> Result<(), String> {
+    if url.chars().any(|c| c.is_control() || c == '"' || c == '\'') {
+        return Err("URL contains forbidden control or quote characters".to_string());
+    }
     let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {e}"))?;
     if parsed.scheme() != "https" && parsed.scheme() != "http" {
         return Err("Only http and https URLs can be opened externally".to_string());
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "", &url])
+        std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", parsed.as_str()])
             .spawn()
             .map_err(|e| e.to_string())?;
         return Ok(());
@@ -547,5 +550,29 @@ fn setup_linux_desktop_integration() {
             );
             let _ = std::fs::write(app_dir.join(file_name), desktop_content);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_desktop_open_url_validation() {
+        // Rejects non-http(s)
+        assert!(desktop_open_url("ftp://example.com".into()).is_err());
+        assert!(desktop_open_url("javascript:alert(1)".into()).is_err());
+        assert!(desktop_open_url("file:///etc/passwd".into()).is_err());
+
+        // Rejects control characters and shell quotes
+        assert!(desktop_open_url("https://example.com/\"".into()).is_err());
+        assert!(desktop_open_url("https://example.com/'".into()).is_err());
+        assert!(desktop_open_url("https://example.com/\ncalc.exe".into()).is_err());
+        assert!(desktop_open_url("https://example.com/\0calc.exe".into()).is_err());
+
+        // Valid URLs parse cleanly
+        let valid = "https://github.com/ronartz/SHINPO/releases";
+        let parsed = url::Url::parse(valid).unwrap();
+        assert_eq!(parsed.scheme(), "https");
     }
 }

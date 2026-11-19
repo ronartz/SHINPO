@@ -158,10 +158,19 @@ pub fn resolve_target_dir(spec: &TargetSpec) -> Option<PathBuf> {
     Some(base.join(spec.relative_dir))
 }
 
+pub fn normalize_binary_path(path: PathBuf) -> PathBuf {
+    let path_str = path.to_string_lossy();
+    if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+        return PathBuf::from(stripped);
+    }
+    path
+}
+
 pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
     if let Some(path) = explicit {
         if path.exists() {
             return fs::canonicalize(path)
+                .map(normalize_binary_path)
                 .ok()
                 .or_else(|| Some(path.to_path_buf()));
         }
@@ -179,7 +188,7 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
             let adjacent = parent.join(bin_name);
             if adjacent.exists() {
                 if let Ok(c) = fs::canonicalize(&adjacent) {
-                    return Some(c);
+                    return Some(normalize_binary_path(c));
                 }
                 return Some(adjacent);
             }
@@ -187,7 +196,7 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
             let sub = parent.join("browser-companion").join(bin_name);
             if sub.exists() {
                 if let Ok(c) = fs::canonicalize(&sub) {
-                    return Some(c);
+                    return Some(normalize_binary_path(c));
                 }
                 return Some(sub);
             }
@@ -242,7 +251,7 @@ pub fn find_host_binary(explicit: Option<&Path>) -> Option<PathBuf> {
         let path = PathBuf::from(&dev_path);
         if path.exists() {
             if let Ok(c) = fs::canonicalize(&path) {
-                return Some(c);
+                return Some(normalize_binary_path(c));
             }
             return Some(path);
         }
@@ -256,7 +265,12 @@ pub fn generate_manifest_content(
     binary_path: &Path,
     is_firefox: bool,
 ) -> serde_json::Value {
-    let path_str = binary_path.to_string_lossy().to_string();
+    let raw_path = binary_path.to_string_lossy();
+    let path_str = if let Some(stripped) = raw_path.strip_prefix(r"\\?\") {
+        stripped.to_string()
+    } else {
+        raw_path.to_string()
+    };
     if is_firefox {
         json!({
             "name": host_name,
@@ -464,7 +478,12 @@ pub fn register_host(explicit_bin: Option<&Path>) -> Result<HostDiscoveryReport,
 
 #[cfg(windows)]
 pub fn register_windows_registry(manifest_path: &Path, is_firefox: bool) {
-    let path_str = manifest_path.to_string_lossy().to_string();
+    let raw_path = manifest_path.to_string_lossy();
+    let path_str = if let Some(stripped) = raw_path.strip_prefix(r"\\?\") {
+        stripped.to_string()
+    } else {
+        raw_path.to_string()
+    };
     let keys = if is_firefox {
         vec![
             r"HKCU\Software\Mozilla\NativeMessagingHosts\com.shinpo.browser_companion",
