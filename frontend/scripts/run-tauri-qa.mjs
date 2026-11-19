@@ -51,7 +51,7 @@ console.log(`Disposable Tauri profile: ${profile}`)
 console.log(`Expected vault directory: ${path.join(data, 'com.shinpo.app', 'vaults')}`)
 console.log(`Evidence directory: ${evidence}`)
 console.log(`WebKitWebDriver path: ${webkitDriverPath}`)
-console.log('Spring Boot/PostgreSQL preflight: ports 8080 and 5432 are not listening')
+console.log('Zero-Server preflight: verified standalone offline execution')
 
 const child = spawn('npx', ['wdio', 'run', 'wdio.tauri.conf.js', ...process.argv.slice(2)], {
   cwd: frontendDir,
