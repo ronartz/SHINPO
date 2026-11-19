@@ -534,7 +534,7 @@ pub(crate) fn redact_sensitive_context(input: &str) -> String {
                 };
                 let val_end = if quote {
                     result[val_start..]
-                        .find(|c: char| c == '"' || c == '\'')
+                        .find(['"', '\''])
                         .map(|o| val_start + o)
                         .unwrap_or(result.len())
                 } else {
