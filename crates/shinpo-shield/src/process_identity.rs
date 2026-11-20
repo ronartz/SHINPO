@@ -192,7 +192,6 @@ pub fn request_graceful_close(
 ) -> Result<CloseResult, String> {
     use std::{
         os::fd::{AsRawFd, FromRawFd, OwnedFd},
-        time::Duration,
     };
 
     if !closure_consent {
@@ -237,7 +236,7 @@ pub fn request_graceful_close(
         revents: 0,
     };
     // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
-    let ready = unsafe { libc::poll(&mut descriptor, 1, Duration::from_millis(500).as_millis() as i32) };
+    let ready = unsafe { libc::poll(&mut descriptor, 1, 500) };
     if ready < 0 {
         return Ok(CloseResult::RequestedButNotConfirmed);
     }
