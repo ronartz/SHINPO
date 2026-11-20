@@ -207,7 +207,9 @@ pub fn observe_processes_with_targets(
                 return None;
             }
 
-            let (category, rationale) = if let Some(entry) = catalog_entry {
+            let (category, rationale) = if is_explicit_blocked {
+                ("USER_BLOCKED", "User-configured focus protection policy")
+            } else if let Some(entry) = catalog_entry {
                 (entry.category, entry.rationale)
             } else {
                 ("USER_BLOCKED", "User-configured focus protection policy")
