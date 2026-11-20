@@ -27,6 +27,7 @@ export interface StudyResourcesPanelProps {
   taskTitle?: string | null
   surface?: 'card' | 'plain'
   showProtectionControls?: boolean
+  initialMode?: StudyFocusMode
 }
 
 type ResourceScope = 'TASK' | 'SESSION'
@@ -225,6 +226,7 @@ export function StudyResourcesPanel({
   taskTitle,
   surface = 'card',
   showProtectionControls = true,
+  initialMode,
 }: StudyResourcesPanelProps) {
   const {
     resources,
@@ -239,7 +241,7 @@ export function StudyResourcesPanel({
     removeResource,
     setMode,
     reload,
-  } = useStudyResources({ missionId, sessionId })
+  } = useStudyResources({ missionId, sessionId, initialMode })
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [resourceType, setResourceType] = useState<StudyResourceType>('WEBSITE')

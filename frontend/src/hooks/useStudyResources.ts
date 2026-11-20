@@ -23,6 +23,7 @@ export interface UseStudyResourcesOptions {
   missionId?: number
   sessionId?: number
   enabled?: boolean
+  initialMode?: StudyFocusMode
 }
 
 function errorMessage(error: unknown): string {
@@ -33,12 +34,14 @@ export function useStudyResources({
   missionId,
   sessionId,
   enabled = true,
+  initialMode,
 }: UseStudyResourcesOptions) {
   const [resources, setResources] = useState<StudyResource[]>([])
   const [restrictions, setRestrictions] = useState<StudyResource[]>([])
-  const [status, setStatus] = useState<ContextualFocusStatus>(() =>
-    disconnectedContextualFocusStatus(sessionId),
-  )
+  const [status, setStatus] = useState<ContextualFocusStatus>(() => {
+    const base = disconnectedContextualFocusStatus(sessionId)
+    return initialMode ? { ...base, mode: initialMode } : base
+  })
   const [loading, setLoading] = useState(false)
   const [mutating, setMutating] = useState(false)
   const [error, setError] = useState<string | null>(null)

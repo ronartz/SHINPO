@@ -425,9 +425,25 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 {activeSession.guardianAppMonitoring && <section className="guardian-observations" aria-live="polite" aria-label="Local app monitoring">
                   <div><strong>Local app monitoring</strong><span>{guardianCapabilityLabel(guardianStatus?.interventionCapability)}</span></div>
                   {guardianStatus?.standardAllowanceSeconds !== null && guardianStatus?.standardAllowanceSeconds !== undefined && <span>Standard allowance used: {Math.floor(guardianStatus.standardAllowanceSeconds / 60)}:{String(guardianStatus.standardAllowanceSeconds % 60).padStart(2, '0')} of 10:00 · sampled app-running time</span>}
-                  {!guardianStatus || guardianStatus.warningOnly ? <span>App closure is not currently armed.</span> : null}
-                  {guardianStatus && guardianStatus.interventionCapability !== 'MONITORING_DISABLED' && guardianStatus.interventionCapability !== 'EMERGENCY_STOPPED' && <button type="button" onClick={() => void emergencyStopGuardianInterventions().then(() => { setGuardianStopMessage('Guardian intervention stopped for this session.'); return getGuardianStatus().then(setGuardianStatus) }).catch(() => setGuardianStopMessage('Could not confirm the emergency stop.'))}>Emergency stop</button>}
-                  {guardianStopMessage && <p role="status">{guardianStopMessage}</p>}
+                  <div className="guardian-intervention-banner">
+                    <span className="guardian-intervention-status">
+                      {!guardianStatus || guardianStatus.warningOnly ? 'App closure is not currently armed.' : 'Active protection armed.'}
+                    </span>
+                    {guardianStatus && guardianStatus.interventionCapability !== 'MONITORING_DISABLED' && guardianStatus.interventionCapability !== 'EMERGENCY_STOPPED' && (
+                      <button
+                        type="button"
+                        className="btn-guardian-emergency-stop"
+                        onClick={() => void emergencyStopGuardianInterventions().then(() => {
+                          setGuardianStopMessage('Guardian intervention stopped for this session.')
+                          return getGuardianStatus().then(setGuardianStatus)
+                        }).catch(() => setGuardianStopMessage('Could not confirm the emergency stop.'))}
+                      >
+                        <Icon name="shield" size={13} />
+                        <span>Emergency stop</span>
+                      </button>
+                    )}
+                  </div>
+                  {guardianStopMessage && <p role="status" className="guardian-stop-status-msg">{guardianStopMessage}</p>}
                   {isRecentGuardianObservation && <p role="status" className="guardian-observation-notice">
                     {latestGuardianObservation.outcome === 'ALLOWED_BREAK'
                       ? `${latestGuardianObservation.processName} is allowed during this break. Guardian does not control applications.`
@@ -467,6 +483,37 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     Custom
                   </button>
                 </div>
+
+                {isCustomDuration && (
+                  <div className="custom-duration-card">
+                    <div className="custom-duration-header">
+                      <span>Custom Duration</span>
+                      <span className="custom-mins-badge">{selectedDuration} min</span>
+                    </div>
+                    <div className="custom-slider-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <input
+                        type="range"
+                        min={5}
+                        max={180}
+                        step={5}
+                        value={selectedDuration}
+                        onChange={(e) => setSelectedDuration(Number(e.target.value))}
+                        className="custom-slider microkit-scrub-range"
+                        style={{ flex: 1, '--scrub-progress': `${((selectedDuration - 5) / 175) * 100}%` } as React.CSSProperties}
+                      />
+                      <div style={{ width: 110 }}>
+                        <ShinpoNumberStepper
+                          min={1}
+                          max={480}
+                          value={selectedDuration}
+                          onChange={(val) => setSelectedDuration(Math.max(1, Math.min(480, val)))}
+                          unit="m"
+                          ariaLabel="Custom duration in minutes"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <section className="pomodoro-config" aria-label="Pomodoro cycle configuration">
                   {guardianModeAvailable && !activeSession && (
@@ -572,37 +619,6 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </>}
                   </div>}
                 </section>
-
-                {isCustomDuration && (
-                  <div className="custom-duration-card">
-                    <div className="custom-duration-header">
-                      <span>Custom Duration</span>
-                      <span className="custom-mins-badge">{selectedDuration} min</span>
-                    </div>
-                    <div className="custom-slider-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <input
-                        type="range"
-                        min={5}
-                        max={180}
-                        step={5}
-                        value={selectedDuration}
-                        onChange={(e) => setSelectedDuration(Number(e.target.value))}
-                        className="custom-slider microkit-scrub-range"
-                        style={{ flex: 1, '--scrub-progress': `${((selectedDuration - 5) / 175) * 100}%` } as React.CSSProperties}
-                      />
-                      <div style={{ width: 110 }}>
-                        <ShinpoNumberStepper
-                          min={1}
-                          max={480}
-                          value={selectedDuration}
-                          onChange={(val) => setSelectedDuration(Math.max(1, Math.min(480, val)))}
-                          unit="m"
-                          ariaLabel="Custom duration in minutes"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -680,6 +696,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
         missionId={activeSession?.missionId ?? undefined}
         sessionId={activeSession?.id}
         taskTitle={activeSession?.name ?? null}
+        initialMode={guardianMode}
       />
 
       {/* Bento Card 3: Focus Sessions History */}
