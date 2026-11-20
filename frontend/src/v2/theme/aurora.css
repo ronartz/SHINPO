@@ -646,6 +646,26 @@ body.shinpo-glass-ui.theme-light .auth-fullscreen-container {
   font-weight: 700 !important;
 }
 
+.app-shell.theme-aurora .study-mode-option.is-active,
+.app-shell.theme-aurora .card-session-creator .study-mode-option.is-active {
+  border-color: var(--brand-primary, #a855f7) !important;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.28), rgba(59, 130, 246, 0.18)) !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.32), inset 0 0 0 1px rgba(168, 85, 247, 0.55) !important;
+}
+
+.app-shell.theme-aurora .study-mode-option.is-active strong,
+.app-shell.theme-aurora .card-session-creator .study-mode-option.is-active strong {
+  color: #ffffff !important;
+}
+
+.app-shell.theme-aurora .study-mode-option.is-active span,
+.app-shell.theme-aurora .study-mode-option.is-active .study-mode-option-detail,
+.app-shell.theme-aurora .card-session-creator .study-mode-option.is-active span,
+.app-shell.theme-aurora .card-session-creator .study-mode-option.is-active .study-mode-option-detail {
+  color: #c084fc !important;
+  font-weight: 600 !important;
+}
+
 .app-shell.theme-aurora .study-mode-option span,
 .app-shell.theme-aurora .study-mode-option .study-mode-option-detail {
   display: block !important;

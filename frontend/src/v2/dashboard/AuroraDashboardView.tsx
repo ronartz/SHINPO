@@ -1829,6 +1829,12 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           </AuroraCard>
 
         </Box>
+      </Box>
+
+      {/* =========================================================================
+          5. INSIGHTS & ACTIVITY: Last 7 Days Velocity & Recent Focus Sessions
+          ========================================================================= */}
+      <Box sx={{ width: '100%', mt: 2 }}>
         <DashboardInsights analyticsData={analyticsData} setActiveTab={setActiveTab} showRecentSessions />
       </Box>
 

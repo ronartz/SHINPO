@@ -2496,7 +2496,7 @@ export function DesktopApp() {
         guardianAppMonitoring,
       })
       const started = await startFocusSession(created.id, userId)
-      setGuardianMode(savedGuardianPreferences.applyToNewSessions ? savedGuardianPreferences.preferredMode : 'PROTECTED')
+      setGuardianMode(savedGuardianPreferences.applyToNewSessions ? savedGuardianPreferences.preferredMode : guardianMode)
       setGuardianAppMonitoring(savedGuardianPreferences.applyToNewSessions && savedGuardianPreferences.appMonitoringConsent)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
       advanceTutorialAfterAction('FOCUS')

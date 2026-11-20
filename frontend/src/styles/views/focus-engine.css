@@ -1047,6 +1047,54 @@ html[data-theme='light'] .btn-timer.warning:hover,
   background: var(--surface-2);
 }
 
+.guardian-intervention-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-card, #1e1b2e) 85%, transparent);
+  border: 1px solid var(--border);
+}
+
+.guardian-intervention-status {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.btn-guardian-emergency-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-guardian-emergency-stop:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+  transform: translateY(-1px);
+}
+
+.guardian-stop-status-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--accent-orange, #f97316);
+  font-weight: 600;
+}
+
 .guardian-observations>div {
   display: flex;
   justify-content: space-between;
@@ -1165,20 +1213,47 @@ html[data-theme='light'] .btn-timer.warning:hover,
   gap: 3px !important;
   text-align: left !important;
   box-sizing: border-box !important;
+  background: var(--surface-subtle, rgba(255, 255, 255, 0.04)) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+}
+
+.card-session-creator .study-mode-option:hover:not(:disabled) {
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.3)) !important;
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08)) !important;
+  transform: translateY(-1px);
+}
+
+.card-session-creator .study-mode-option.is-active {
+  border-color: var(--brand-primary, #a855f7) !important;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.26), rgba(59, 130, 246, 0.16)) !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.3), inset 0 0 0 1px rgba(168, 85, 247, 0.5) !important;
 }
 
 .card-session-creator .study-mode-option strong {
   font-size: 13px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
+  color: var(--text, #fff) !important;
+}
+
+.card-session-creator .study-mode-option.is-active strong {
+  color: #ffffff !important;
 }
 
 .card-session-creator .study-mode-option .study-mode-option-detail {
   font-size: 11px !important;
-  color: var(--text-3) !important;
+  color: var(--text-3, rgba(255, 255, 255, 0.6)) !important;
   font-weight: 500 !important;
   line-height: 1.2 !important;
   white-space: nowrap !important;
+}
+
+.card-session-creator .study-mode-option.is-active .study-mode-option-detail {
+  color: #c084fc !important;
+  font-weight: 600 !important;
 }
 
 .study-mode-description {

@@ -15,8 +15,8 @@ interface Particle {
   scale: number
 }
 
-const DESKTOP_QUANTITY = 72
-const MOBILE_QUANTITY = 28
+const DESKTOP_QUANTITY = 90
+const MOBILE_QUANTITY = 40
 const MAX_DPR = 1.5
 const TAU = Math.PI * 2
 const COLOR_TOKENS = ['--particle-color', '--particle-color-secondary', '--color-primary']
@@ -32,11 +32,11 @@ function resolveThemePalette(shell: HTMLElement): string[] {
 
   const fallbacks: string[] = isAurora
     ? isLight
-      ? ['rgba(15, 118, 110, 0.6)', 'rgba(124, 58, 237, 0.45)', '#7C3AED']
-      : ['rgba(155, 140, 255, 0.7)', 'rgba(27, 201, 222, 0.5)', '#9757FA']
+      ? ['rgba(15, 118, 110, 0.75)', 'rgba(124, 58, 237, 0.65)', '#7C3AED']
+      : ['rgba(168, 85, 247, 0.85)', 'rgba(56, 189, 248, 0.75)', '#c084fc', '#38bdf8']
     : isLight
-      ? ['rgba(79, 70, 229, 0.55)', 'rgba(77, 124, 15, 0.45)', '#4D7C0F']
-      : ['rgba(163, 230, 53, 0.65)', 'rgba(56, 189, 248, 0.45)', '#AFF33E']
+      ? ['rgba(79, 70, 229, 0.7)', 'rgba(77, 124, 15, 0.6)', '#4D7C0F']
+      : ['rgba(163, 230, 53, 0.8)', 'rgba(56, 189, 248, 0.7)', '#AFF33E', '#a855f7']
 
   try {
     const probe = document.createElement('span')
@@ -89,10 +89,10 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 1.1 + Math.random() * 1.4,
-        angularSpeed: (Math.random() - 0.5) * 0.0012,
-        driftSpeed: 0.15 + Math.random() * 0.08,
-        baseOpacity: 0.55 + Math.random() * 0.15,
+        size: 2.0 + Math.random() * 2.6,
+        angularSpeed: (Math.random() - 0.5) * 0.0035,
+        driftSpeed: 0.65 + Math.random() * 0.55,
+        baseOpacity: 0.70 + Math.random() * 0.25,
         opacityPhase: Math.random() * TAU,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
@@ -105,7 +105,7 @@ export function ShinpoParticles() {
       if (advance) {
         particle.angle += particle.angularSpeed
         particle.y -= particle.driftSpeed
-        particle.opacityPhase += 0.015
+        particle.opacityPhase += 0.03
         if (particle.screenY < -30 || particle.y < -height * 0.9) {
           particle.y = height * 0.9
           particle.radius = Math.random() * Math.hypot(width, height) * 0.75
@@ -123,11 +123,11 @@ export function ShinpoParticles() {
       for (const particle of particles) project(particle, advance)
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
-        const renderRadius = Math.max(1.1, particle.size * particle.scale)
-        const pulse = Math.sin(particle.opacityPhase) * 0.08
-        const renderAlpha = Math.min(0.80, Math.max(0.48, (particle.baseOpacity + pulse) * particle.scale))
+        const renderRadius = Math.max(1.8, particle.size * particle.scale)
+        const pulse = Math.sin(particle.opacityPhase) * 0.12
+        const renderAlpha = Math.min(0.95, Math.max(0.45, (particle.baseOpacity + pulse) * particle.scale))
         context.globalAlpha = renderAlpha
-        context.shadowBlur = Math.min(6, 3.5 * particle.scale)
+        context.shadowBlur = Math.min(12, 6 * particle.scale)
         context.shadowColor = palette[particle.colorIndex]
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()
