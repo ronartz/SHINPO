@@ -89,10 +89,10 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 2.6 + Math.random() * 3.4,
-        angularSpeed: (Math.random() - 0.5) * 0.009,
-        driftSpeed: 1.35 + Math.random() * 1.25,
-        baseOpacity: 0.80 + Math.random() * 0.20,
+        size: 3.2 + Math.random() * 4.0,
+        angularSpeed: (Math.random() - 0.5) * 0.022,
+        driftSpeed: 2.2 + Math.random() * 2.2,
+        baseOpacity: 0.90 + Math.random() * 0.10,
         opacityPhase: Math.random() * TAU,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
@@ -105,7 +105,7 @@ export function ShinpoParticles() {
       if (advance) {
         particle.angle += particle.angularSpeed
         particle.y -= particle.driftSpeed
-        particle.opacityPhase += 0.03
+        particle.opacityPhase += 0.06
         if (particle.screenY < -30 || particle.y < -height * 0.9) {
           particle.y = height * 0.9
           particle.radius = Math.random() * Math.hypot(width, height) * 0.75
@@ -123,11 +123,11 @@ export function ShinpoParticles() {
       for (const particle of particles) project(particle, advance)
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
-        const renderRadius = Math.max(2.2, particle.size * particle.scale)
+        const renderRadius = Math.max(2.8, particle.size * particle.scale)
         const pulse = Math.sin(particle.opacityPhase) * 0.15
-        const renderAlpha = Math.min(1.0, Math.max(0.55, (particle.baseOpacity + pulse) * particle.scale))
+        const renderAlpha = Math.min(1.0, Math.max(0.70, (particle.baseOpacity + pulse) * particle.scale))
         context.globalAlpha = renderAlpha
-        context.shadowBlur = Math.min(18, 9 * particle.scale)
+        context.shadowBlur = Math.min(22, 12 * particle.scale)
         context.shadowColor = palette[particle.colorIndex]
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()

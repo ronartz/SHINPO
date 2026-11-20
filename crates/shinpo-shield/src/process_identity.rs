@@ -103,7 +103,8 @@ fn inspect_process_internal(
         return Ok(None);
     }
     let proc_root = PathBuf::from(format!("/proc/{pid}"));
-    let executable_path = fs::canonicalize(proc_root.join("exe"))
+    let executable_path = fs::read_link(proc_root.join("exe"))
+        .or_else(|_| fs::canonicalize(proc_root.join("exe")))
         .map_err(|_| "Process executable identity is unavailable".to_string())?;
     if !executable_path.is_absolute() {
         return Err("Process executable path is not absolute".into());
@@ -236,7 +237,7 @@ pub fn request_graceful_close(
                 events: libc::POLLIN,
                 revents: 0,
             };
-            let timeout = Duration::from_millis(150).as_millis() as i32;
+            let timeout = Duration::from_millis(40).as_millis() as i32;
             // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
             let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
             if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
