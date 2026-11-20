@@ -187,6 +187,8 @@ pub fn local_get_process_snapshot(
         .map(|p| p.trim().to_uppercase())
         .filter(|p| !p.is_empty());
 
+    let num_cpus = sys.cpus().len().max(1) as f32;
+
     let mut processes: Vec<LocalProcessInfo> = sys
         .processes()
         .iter()
@@ -220,12 +222,13 @@ pub fn local_get_process_snapshot(
             }
 
             let status_str = format!("{:?}", p.status());
+            let normalized_cpu = (p.cpu_usage() / num_cpus).min(100.0);
 
             Some(LocalProcessInfo {
                 pid: pid_u32,
                 name,
                 executable_path: exe,
-                cpu_percent: Some(p.cpu_usage()),
+                cpu_percent: Some(normalized_cpu),
                 memory_bytes: Some(p.memory()),
                 status: status_str,
                 started_at: Some(format!("{}", p.start_time())),

@@ -42,6 +42,7 @@
 
   let lastHeartbeat = Date.now()
   let heartbeatTimer = null
+  let heartbeatFailures = 0
   const setIntervalFn = typeof setInterval === 'function' ? setInterval : (global.setInterval || globalThis.setInterval)
   const clearIntervalFn = typeof clearInterval === 'function' ? clearInterval : (global.clearInterval || globalThis.clearInterval)
 
@@ -629,6 +630,7 @@
       try {
         await nativeRequest('PING')
         lastHeartbeat = Date.now()
+        heartbeatFailures = 0
         if (state.connection.state !== 'CONNECTED') {
           state.connection.state = 'CONNECTED'
           state.connection.paired = true
@@ -636,7 +638,8 @@
           await synchronizePolicy().catch(() => undefined)
         }
       } catch (err) {
-        if (Date.now() - lastHeartbeat > 12000) {
+        heartbeatFailures++
+        if (heartbeatFailures >= 2 || Date.now() - lastHeartbeat > 6000) {
           if (state.connection.state !== 'DISCONNECTED') {
             await markDisconnected(err)
           }

@@ -178,13 +178,13 @@ struct LocalPlatformCapabilities {
 #[tauri::command]
 fn local_platform_capabilities() -> LocalPlatformCapabilities {
     LocalPlatformCapabilities {
-        guardian: if cfg!(target_os = "linux") {
+        guardian: if cfg!(any(target_os = "linux", target_os = "windows")) {
             "OBSERVE_AND_WARN"
         } else {
             "UNAVAILABLE"
         },
-        guardian_process_observation: cfg!(target_os = "linux"),
-        guardian_process_close: false,
+        guardian_process_observation: cfg!(any(target_os = "linux", target_os = "windows")),
+        guardian_process_close: cfg!(any(target_os = "linux", target_os = "windows")),
         browser_companion_supported: cfg!(any(target_os = "linux", target_os = "windows")),
     }
 }
@@ -372,10 +372,61 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
+                let _ = window.unminimize();
                 let _ = window.set_focus();
             }
         }))
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .setup(|app| {
+            let quit_i =
+                tauri::menu::MenuItem::with_id(app, "quit", "Quit SHINPO", true, None::<&str>)?;
+            let open_i =
+                tauri::menu::MenuItem::with_id(app, "open", "Open SHINPO", true, None::<&str>)?;
+            let menu = tauri::menu::Menu::with_items(app, &[&open_i, &quit_i])?;
+
+            let mut tray_builder = tauri::tray::TrayIconBuilder::new()
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "open" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                });
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+
+            let _tray = tray_builder.build(app)?;
+
             let vault_dir = app.path().app_data_dir()?.join("vaults");
             app.manage(native_vault::VaultManager::new(vault_dir));
             #[cfg(target_os = "linux")]
@@ -384,7 +435,7 @@ pub fn run() {
             thread::Builder::new()
                 .name("shinpo-focus-checkpoint".into())
                 .spawn(move || loop {
-                    thread::sleep(Duration::from_secs(5));
+                    thread::sleep(Duration::from_millis(750));
                     if let Some(state) = focus_worker.try_state::<native_vault::VaultManager>() {
                         if state.is_unlocked().unwrap_or(false) {
                             if native_vault::maintain_active_focus(state.inner()).is_err() {

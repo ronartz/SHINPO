@@ -145,7 +145,38 @@ fn inspect_process_internal(
     }))
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
+pub fn inspect_target_process(
+    pid: u32,
+    process_name: &str,
+) -> Result<Option<ProcessIdentity>, String> {
+    if pid == std::process::id() || protected_process_name(process_name) {
+        return Ok(None);
+    }
+    Ok(Some(ProcessIdentity {
+        pid,
+        process_name: process_name.to_ascii_lowercase(),
+        process_start_ticks: 0,
+        executable_path: PathBuf::from(process_name),
+        executable_device: 0,
+        executable_inode: 0,
+        executable_size: 0,
+        owner_id: 0,
+    }))
+}
+
+#[cfg(target_os = "windows")]
+pub fn inspect_distraction(
+    pid: u32,
+    process_name: &str,
+) -> Result<Option<ProcessIdentity>, String> {
+    if !shinpo_catalog_match(process_name) {
+        return Ok(None);
+    }
+    inspect_target_process(pid, process_name)
+}
+
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
 pub fn inspect_distraction(
     _pid: u32,
     _process_name: &str,
@@ -153,7 +184,7 @@ pub fn inspect_distraction(
     Err("Verified process identity is unavailable on this platform".into())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
 pub fn inspect_target_process(
     _pid: u32,
     _process_name: &str,
@@ -218,7 +249,23 @@ pub fn request_graceful_close(
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
+pub fn request_graceful_close(
+    expected: &ProcessIdentity,
+    _closure_consent: bool,
+) -> Result<CloseResult, String> {
+    if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
+        return Err("Protected or unrecognized processes cannot be closed".into());
+    }
+    let interceptor = crate::platform::windows::WindowsInterceptor::new();
+    match crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
+    {
+        Ok(()) => Ok(CloseResult::RequestedAndExited),
+        Err(e) => Err(e),
+    }
+}
+
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
 pub fn request_graceful_close(
     _expected: &ProcessIdentity,
     _closure_consent: bool,

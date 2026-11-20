@@ -2922,7 +2922,40 @@ fn apply_guardian_app_policy(
             } else if guardian_mode == "PROTECTED" && allowance < 600 {
                 format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
             } else if guardian_mode == "STRICT" {
-                "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
+                #[cfg(target_os = "windows")]
+                {
+                    if let Some(ref identity) = process.identity {
+                        match shinpo_shield::process_identity::request_graceful_close(
+                            identity, true,
+                        ) {
+                            Ok(
+                                shinpo_shield::process_identity::CloseResult::RequestedAndExited,
+                            ) => {
+                                log::info!(
+                                    "Guardian Strict terminated blocked process: {} (PID {})",
+                                    process.process_name,
+                                    process.pid
+                                );
+                                "CLOSED_GRACEFULLY_VERIFIED".to_string()
+                            }
+                            Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
+                            Err(err) => {
+                                log::warn!(
+                                    "Guardian Strict close failed for {}: {}",
+                                    process.process_name,
+                                    err
+                                );
+                                "LIMITED_CLOSE_UNAVAILABLE".to_string()
+                            }
+                        }
+                    } else {
+                        "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
+                }
             } else {
                 "WARNING_ALLOWANCE_ENFORCEMENT_DISABLED".to_string()
             };
@@ -3652,17 +3685,15 @@ pub fn local_set_browser_focus_mode(
         return Err("Focus mode is invalid".into());
     }
     with_db(&state, |db| {
-        let active: i64 = db.query_row(
-            "SELECT count(*) FROM calendar_sessions WHERE id=?1 AND status='ACTIVE'",
-            [session_id],
-            |row| row.get(0),
-        )?;
-        if active != 1 {
-            return Err(rusqlite::Error::InvalidQuery);
+        if session_id > 0 {
+            db.execute(
+                "UPDATE calendar_sessions SET guardian_mode=?1 WHERE id=?2 AND status IN ('ACTIVE', 'PAUSED')",
+                params![mode, session_id],
+            )?;
         }
         db.execute(
-            "UPDATE calendar_sessions SET guardian_mode=?1 WHERE id=?2 AND status='ACTIVE'",
-            params![mode, session_id],
+            "UPDATE guardian_preferences SET preferred_mode=?1 WHERE id=1",
+            params![mode],
         )?;
         Ok(())
     })?;

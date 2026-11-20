@@ -15,6 +15,8 @@ import {
 } from '../api/device'
 import { Icon } from '../components/common/Icon'
 import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianOutcomeLabel } from '../utils/guardianCapability'
+import { invokeTauriCommand, isTauriEnvironment } from '../api/tauri'
+import { isLocalVaultSession } from '../api/auth'
 
 export interface TaskManagerViewProps {
   isAurora?: boolean
@@ -177,25 +179,44 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     }
   }
 
+  const handleGuardianModeSelect = async (newMode: 'GUIDED' | 'PROTECTED' | 'STRICT') => {
+    try {
+      if (isTauriEnvironment() && isLocalVaultSession()) {
+        await invokeTauriCommand('local_set_browser_focus_mode', {
+          sessionId: sentinelStatus?.activeFocusSessionId || 0,
+          mode: newMode,
+        })
+        if (_setSentinelStatus) {
+          _setSentinelStatus((prev) => prev ? { ...prev, guardianMode: newMode } : prev)
+        }
+        setTmToast(`Guardian mode updated to ${guardianModeLabel(newMode)}.`)
+        setTimeout(() => setTmToast(null), 3000)
+      }
+    } catch (err) {
+      console.error('Failed to update Guardian mode:', err)
+      setTmToast('Could not update Guardian mode.')
+      setTimeout(() => setTmToast(null), 3000)
+    }
+  }
+
   const catalog = sentinelStatus?.guardianApplicationCatalog ?? []
   const observations = sentinelStatus?.guardianObservations ?? []
   const guardianMode = guardianModeLabel(sentinelStatus?.guardianMode)
   const capability = sentinelStatus?.interventionCapability
   const statusLabel = sentinelStatus ? guardianCapabilityLabel(capability) : 'Status unavailable'
   const closeCapabilityReady = guardianCanRequestClose(capability, sentinelStatus?.warningOnly)
-  const isWindows = typeof navigator !== 'undefined' && (/win/i.test(navigator.userAgent || '') || /win/i.test(navigator.platform || ''))
-  const isGuardianUnavailable = isWindows || sentinelStatus?.guardianCapability === 'UNAVAILABLE' || capability === 'UNAVAILABLE' || sentinelStatus?.status === 'UNAVAILABLE'
+  const isGuardianUnavailable = sentinelStatus?.guardianCapability === 'UNAVAILABLE' || capability === 'UNAVAILABLE' || sentinelStatus?.status === 'UNAVAILABLE'
   const appHandlingLabel = isGuardianUnavailable
-    ? 'Unavailable on Windows'
+    ? 'Guardian unavailable'
     : !sentinelStatus
       ? 'Unavailable'
       : closeCapabilityReady
-        ? 'Graceful close may be requested for eligible processes'
+        ? 'Process termination active in Strict mode'
         : sentinelStatus.warningOnly
           ? 'Monitoring / warning only'
-          : 'Not currently protected'
+          : 'Protected focus session'
   const appHandlingDetails = isGuardianUnavailable
-    ? 'Guardian is not available on Windows yet. Website protection via the Browser Companion still works. App blocking will be added in a future update.'
+    ? 'Guardian is unavailable while the vault is locked.'
     : sentinelStatus
       ? guardianInterventionDescription(capability)
       : 'App policy status is unavailable.'
@@ -646,15 +667,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             </section>
 
             <p className="guardian-alpha-note" role="status">
-              {isGuardianUnavailable
-                ? 'Guardian is not available on Windows yet. Website protection via the Browser Companion still works.'
-                : !sentinelStatus || sentinelStatus.status === 'LOCKED'
-                  ? 'Guardian is unavailable while the vault is locked.'
-                  : sentinelStatus.observerStatus !== 'MONITORING'
-                    ? 'Saved Block policies are not actively applied while app observation is off or unavailable.'
-                    : sentinelStatus.warningOnly
-                      ? 'SHINPO will warn you but will not close apps in the current Focus state.'
-                      : 'Guardian is warning-only in this release. SHINPO does not close applications.'}
+              {!sentinelStatus || sentinelStatus.status === 'LOCKED'
+                ? 'Guardian is unavailable while the vault is locked.'
+                : sentinelStatus.observerStatus !== 'MONITORING'
+                  ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
+                  : sentinelStatus.warningOnly
+                    ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
+                    : 'Strict mode terminates blocked apps during active Focus sessions.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
@@ -710,20 +729,44 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     {guardianMode === 'Not set' ? 'Configure Guardian Mode' : `Guardian Mode: ${guardianMode}`}
                   </h3>
                   <p className="guardian-mode-action-desc">
-                    Choose how Guardian reports recognized apps: Light (warnings), Standard (consented sampled runtime), or Strict (immediate warnings). Apps are not closed.
+                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime & warnings), or Strict (terminates blocked apps during Focus).
                   </p>
                 </div>
-                {onConfigureGuardianMode && (
-                  <button
-                    type="button"
-                    className="btn-configure-guardian-action"
-                    onClick={onConfigureGuardianMode}
-                    data-testid="btn-configure-guardian"
-                  >
-                    <Icon name="settings" size={14} />
-                    <span>Configure Guardian Mode</span>
-                  </button>
-                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '12px' }}>
+                {[
+                  { id: 'GUIDED', label: 'Light', desc: 'Warnings only' },
+                  { id: 'PROTECTED', label: 'Standard', desc: 'Sampled runtime' },
+                  { id: 'STRICT', label: 'Strict', desc: 'Terminates apps' },
+                ].map((item) => {
+                  const currentMode = sentinelStatus?.guardianMode ?? 'PROTECTED'
+                  const isCur = currentMode === item.id || (item.id === 'PROTECTED' && currentMode === 'STANDARD')
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`study-mode-option ${isCur ? 'is-active' : ''}`}
+                      onClick={() => void handleGuardianModeSelect(item.id as 'GUIDED' | 'PROTECTED' | 'STRICT')}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: isCur ? '1.5px solid var(--brand-primary, #7c3aed)' : '1px solid var(--border)',
+                        background: isCur ? 'color-mix(in srgb, var(--brand-primary, #7c3aed) 16%, transparent)' : 'var(--surface)',
+                        color: 'var(--text-1)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: '2px',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <strong style={{ fontSize: '13px' }}>{item.label}</strong>
+                      <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>{item.desc}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
