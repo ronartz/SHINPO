@@ -15,8 +15,8 @@ interface Particle {
   scale: number
 }
 
-const DESKTOP_QUANTITY = 90
-const MOBILE_QUANTITY = 40
+const DESKTOP_QUANTITY = 120
+const MOBILE_QUANTITY = 55
 const MAX_DPR = 1.5
 const TAU = Math.PI * 2
 const COLOR_TOKENS = ['--particle-color', '--particle-color-secondary', '--color-primary']
@@ -89,10 +89,10 @@ export function ShinpoParticles() {
         angle,
         radius: Math.random() * spread,
         y: (Math.random() - 0.5) * height * 1.8,
-        size: 2.0 + Math.random() * 2.6,
-        angularSpeed: (Math.random() - 0.5) * 0.0035,
-        driftSpeed: 0.65 + Math.random() * 0.55,
-        baseOpacity: 0.70 + Math.random() * 0.25,
+        size: 2.6 + Math.random() * 3.4,
+        angularSpeed: (Math.random() - 0.5) * 0.009,
+        driftSpeed: 1.35 + Math.random() * 1.25,
+        baseOpacity: 0.80 + Math.random() * 0.20,
         opacityPhase: Math.random() * TAU,
         colorIndex: Math.floor(Math.random() * palette.length),
         screenX: 0,
@@ -123,11 +123,11 @@ export function ShinpoParticles() {
       for (const particle of particles) project(particle, advance)
       if (advance) particles.sort((a, b) => a.scale - b.scale)
       for (const particle of particles) {
-        const renderRadius = Math.max(1.8, particle.size * particle.scale)
-        const pulse = Math.sin(particle.opacityPhase) * 0.12
-        const renderAlpha = Math.min(0.95, Math.max(0.45, (particle.baseOpacity + pulse) * particle.scale))
+        const renderRadius = Math.max(2.2, particle.size * particle.scale)
+        const pulse = Math.sin(particle.opacityPhase) * 0.15
+        const renderAlpha = Math.min(1.0, Math.max(0.55, (particle.baseOpacity + pulse) * particle.scale))
         context.globalAlpha = renderAlpha
-        context.shadowBlur = Math.min(12, 6 * particle.scale)
+        context.shadowBlur = Math.min(18, 9 * particle.scale)
         context.shadowColor = palette[particle.colorIndex]
         context.fillStyle = palette[particle.colorIndex]
         context.beginPath()

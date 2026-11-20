@@ -95,6 +95,36 @@ const DISTRACTION_APPS: &[AppCatalogEntry] = &[
         category: "MESSAGING",
         rationale: "Messaging platform",
     },
+    AppCatalogEntry {
+        process_name: "telegram-desktop",
+        category: "MESSAGING",
+        rationale: "Messaging platform",
+    },
+    AppCatalogEntry {
+        process_name: "spotify",
+        category: "ENTERTAINMENT",
+        rationale: "Music and audio streaming application",
+    },
+    AppCatalogEntry {
+        process_name: "vesktop",
+        category: "COMMUNICATION",
+        rationale: "Discord desktop client",
+    },
+    AppCatalogEntry {
+        process_name: "discord-canary",
+        category: "COMMUNICATION",
+        rationale: "Discord Canary client",
+    },
+    AppCatalogEntry {
+        process_name: "discord-ptb",
+        category: "COMMUNICATION",
+        rationale: "Discord PTB client",
+    },
+    AppCatalogEntry {
+        process_name: "slack",
+        category: "COMMUNICATION",
+        rationale: "Messaging and workspace chat",
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,7 +143,11 @@ pub fn classify_distraction(process_name: &str) -> Option<&'static AppCatalogEnt
     let normalized = normalized.strip_suffix(".exe").unwrap_or(&normalized);
     DISTRACTION_APPS
         .iter()
-        .find(|entry| entry.process_name == normalized)
+        .find(|entry| {
+            entry.process_name == normalized
+                || (entry.process_name.len() >= 4 && normalized.starts_with(entry.process_name))
+                || (normalized.len() >= 15 && entry.process_name.starts_with(normalized))
+        })
 }
 
 pub fn is_known_distraction(process_name: &str) -> bool {
@@ -205,6 +239,10 @@ mod tests {
         assert!(is_known_distraction("Discord"));
         assert!(is_known_distraction("Discord.EXE"));
         assert!(is_known_distraction("steam.exe"));
+        assert!(is_known_distraction("spotify"));
+        assert!(is_known_distraction("telegram-desktop"));
+        assert!(is_known_distraction("telegram-deskto"));
+        assert!(is_known_distraction("vesktop"));
         assert!(!is_known_distraction("systemsteam"));
         assert!(!is_known_distraction("chrome"));
         assert!(!is_known_distraction(""));

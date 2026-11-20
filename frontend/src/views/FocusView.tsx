@@ -148,11 +148,23 @@ export const FocusView: React.FC<FocusViewProps> = ({
   useEffect(() => {
     if (!guardianModeAvailable) return
     let active = true
+    const isStarting = !guardianStatus || guardianStatus.observerStatus === 'STARTING'
     const refresh = () => getGuardianStatus().then((status) => { if (active) setGuardianStatus(status) }).catch(() => { if (active) setGuardianStatus(null) })
     void refresh()
-    const timer = window.setInterval(() => void refresh(), 5000)
+    const timer = window.setInterval(() => void refresh(), isStarting ? 800 : 4000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [guardianModeAvailable, activeSession?.id, activeSession?.currentPhase, activeSession?.status])
+  }, [guardianModeAvailable, activeSession?.id, activeSession?.currentPhase, activeSession?.status, guardianStatus?.observerStatus])
+
+  useEffect(() => {
+    const maxBreak = Math.max(1, Math.min(60, Math.floor(selectedDuration / 2)))
+    if (pomodoroLongBreakMinutes > maxBreak) {
+      setPomodoroLongBreakMinutes(maxBreak)
+    }
+    const maxGrace = Math.max(1, Math.min(10, Math.floor(selectedDuration / 3)))
+    if (pomodoroGraceMinutes > maxGrace) {
+      setPomodoroGraceMinutes(maxGrace)
+    }
+  }, [selectedDuration, pomodoroLongBreakMinutes, pomodoroGraceMinutes, setPomodoroLongBreakMinutes, setPomodoroGraceMinutes])
 
   const saveGuardianPreference = async (applyToNewSessions: boolean) => {
     setSavingGuardianPreference(true)
@@ -295,7 +307,21 @@ export const FocusView: React.FC<FocusViewProps> = ({
                 <span className="focus-progress-accessible" role="progressbar" aria-label="Focus session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(focusProgress * 100)} />
                 <div className="focus-time-core">
                   <span className="focus-stage-state" aria-live="polite">
-                    {isReturnRequired ? 'Your break and grace period have ended' : isSequenceComplete ? 'Your cycle is complete' : isPaused ? 'Paused · resume when ready' : isBreak ? 'Step away and reset' : activeSession?.pomodoroEnabled && timerSeconds === 0 ? 'Moving to the next phase…' : activeSession?.status === 'ACTIVE' ? 'Deep work in progress' : 'Make room for focused work'}
+                    {isReturnRequired
+                      ? 'Your break and grace period have ended'
+                      : isSequenceComplete
+                        ? 'Your cycle is complete'
+                        : isPaused
+                          ? 'Paused · resume when ready'
+                          : isBreak
+                            ? currentPhase === 'GRACE'
+                              ? 'Grace period · return to focus soon'
+                              : 'Midpoint break in progress'
+                            : activeSession?.pomodoroEnabled && timerSeconds === 0
+                              ? 'Moving to the next phase…'
+                              : activeSession?.status === 'ACTIVE'
+                                ? 'Deep work in progress'
+                                : 'Make room for focused work'}
                   </span>
                   {isSequenceComplete ? (
                     <div className="timer-ended-banner"><Icon name="check" size={16} /><span className="timer-ended-text">Pomodoro complete · reflect</span></div>
@@ -314,7 +340,9 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     </div>
                   )}
                   <span className="focus-stage-task">
-                    {activeSession?.name || (sessionIntention.trim() ? `Target: ${sessionIntention.trim()}` : 'Choose one meaningful next step')}
+                    {isBreak
+                      ? `Midpoint Break · ${activeSession?.name || 'Focus Session'}`
+                      : activeSession?.name || (sessionIntention.trim() ? `Target: ${sessionIntention.trim()}` : 'Choose one meaningful next step')}
                   </span>
                 </div>
               </div>
@@ -348,7 +376,12 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     <Icon name="pause" size={16} />
                     <span>Pause Session</span>
                   </button>
-                  {(isBreak || isReturnRequired) && <button className="btn-timer primary" onClick={() => handleReturnToFocus(activeSession.id)}>Return to Focus</button>}
+                  {(isBreak || isReturnRequired) && (
+                    <button className="btn-timer primary microkit-finish-glow" onClick={() => handleReturnToFocus(activeSession.id)}>
+                      <Icon name="play" size={16} />
+                      <span>Return to Focus (Skip Break)</span>
+                    </button>
+                  )}
                   {!isReturnRequired && <button
                     className="btn-timer primary microkit-finish-glow"
                     onClick={() => setCompletingSessionId(activeSession.id)}
@@ -427,9 +460,15 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   {guardianStatus?.standardAllowanceSeconds !== null && guardianStatus?.standardAllowanceSeconds !== undefined && <span>Standard allowance used: {Math.floor(guardianStatus.standardAllowanceSeconds / 60)}:{String(guardianStatus.standardAllowanceSeconds % 60).padStart(2, '0')} of 10:00 · sampled app-running time</span>}
                   <div className="guardian-intervention-banner">
                     <span className="guardian-intervention-status">
-                      {!guardianStatus || guardianStatus.warningOnly ? 'App closure is not currently armed.' : 'Active protection armed.'}
+                      {activeSession.guardianMode === 'STRICT'
+                        ? (guardianStatus?.observerStatus === 'STARTING'
+                            ? 'Arming active Strict protection…'
+                            : 'Active Strict protection armed (distracting apps will be closed).')
+                        : (!guardianStatus || guardianStatus.warningOnly
+                            ? 'App closure is not currently armed.'
+                            : 'Active protection armed.')}
                     </span>
-                    {guardianStatus && guardianStatus.interventionCapability !== 'MONITORING_DISABLED' && guardianStatus.interventionCapability !== 'EMERGENCY_STOPPED' && (
+                    {activeSession.guardianMode === 'STRICT' && guardianStatus && guardianStatus.interventionCapability !== 'EMERGENCY_STOPPED' && (
                       <button
                         type="button"
                         className="btn-guardian-emergency-stop"
@@ -581,7 +620,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       <span style={{ marginBottom: 4, fontWeight: 600 }}>Long break</span>
                       <ShinpoNumberStepper
                         min={1}
-                        max={120}
+                        max={Math.max(1, Math.min(120, selectedDuration < 30 ? Math.floor(selectedDuration / 2) : 120))}
                         value={pomodoroLongBreakMinutes}
                         onChange={setPomodoroLongBreakMinutes}
                         unit="min"
@@ -592,7 +631,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       <span style={{ marginBottom: 4, fontWeight: 600 }}>Grace</span>
                       <ShinpoNumberStepper
                         min={1}
-                        max={10}
+                        max={Math.max(1, Math.min(10, selectedDuration < 15 ? Math.floor(selectedDuration / 3) : 10))}
                         value={pomodoroGraceMinutes}
                         onChange={setPomodoroGraceMinutes}
                         unit="min"

@@ -119,8 +119,8 @@ fn inspect_process_internal(
         .trim_end_matches(".exe")
         .to_string();
     let name_matches = executable_name == reported_name
-        || (reported_name.len() >= 15 && executable_name.starts_with(&reported_name))
-        || (executable_name.len() >= 15 && reported_name.starts_with(&executable_name));
+        || (reported_name.len() >= 3 && executable_name.starts_with(&reported_name))
+        || (executable_name.len() >= 3 && reported_name.starts_with(&executable_name));
     if !name_matches {
         return Ok(None);
     }
