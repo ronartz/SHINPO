@@ -208,6 +208,7 @@ pub fn scan_linux_desktop_entries() -> Vec<RawDesktopEntry> {
     result
 }
 
+#[cfg(target_os = "linux")]
 fn scan_directory_entries(
     dir: &Path,
     source: &str,
@@ -277,7 +278,7 @@ pub fn scan_windows_start_menu_entries() -> Vec<RawDesktopEntry> {
         scan_windows_directory(&dir, source, &mut seen, &mut entries);
     }
 
-    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    entries.sort_by_key(|entry| entry.name.to_lowercase());
     entries
 }
 
@@ -303,7 +304,7 @@ fn scan_windows_directory(
         let is_lnk = path
             .extension()
             .and_then(|e| e.to_str())
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("lnk"));
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("lnk"));
         if !is_lnk {
             continue;
         }
