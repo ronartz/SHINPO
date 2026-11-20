@@ -2496,10 +2496,12 @@ export function DesktopApp() {
     }
 
     try {
-      const effectiveLongBreak = pomodoroEnabled
+      const isShortSession = selectedDuration < 5
+      const effectivePomodoro = pomodoroEnabled && !isShortSession
+      const effectiveLongBreak = effectivePomodoro
         ? Math.max(1, Math.min(pomodoroLongBreakMinutes, selectedDuration < 30 ? Math.floor(selectedDuration / 2) : pomodoroLongBreakMinutes))
         : pomodoroLongBreakMinutes
-      const effectiveGrace = pomodoroEnabled
+      const effectiveGrace = effectivePomodoro
         ? Math.max(1, Math.min(pomodoroGraceMinutes, selectedDuration < 15 ? Math.floor(selectedDuration / 3) : pomodoroGraceMinutes))
         : pomodoroGraceMinutes
 
@@ -2508,12 +2510,12 @@ export function DesktopApp() {
         name: selectedPomodoroPlan ?? `${selectedDuration}m Focus Session`,
         intention: sessionIntention.trim() || undefined,
         durationMinutes: selectedDuration,
-        pomodoroEnabled,
+        pomodoroEnabled: effectivePomodoro,
         pomodoroFocusCycles,
         pomodoroShortBreakMinutes,
         pomodoroLongBreakMinutes: effectiveLongBreak,
         pomodoroGraceMinutes: effectiveGrace,
-        latePenaltyEnabled: pomodoroEnabled && latePenaltyEnabled,
+        latePenaltyEnabled: effectivePomodoro && latePenaltyEnabled,
         latePenaltyXp,
         latePenaltyDailyCapXp,
         guardianMode,

@@ -150,7 +150,7 @@ function AdapterBadge({ coverage, name }: { coverage: AdapterCoverage; name: str
   if (coverage === 'LIMITED') {
     return <span className="study-adapter-badge limited">Site adapter limited{name ? ` · ${name}` : ''}</span>
   }
-  return <span className="study-adapter-badge none">No site adapter coverage reported</span>
+  return <span className="study-adapter-badge none">Standard web guard</span>
 }
 
 function ResourceRow({

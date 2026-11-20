@@ -669,11 +669,13 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             <p className="guardian-alpha-note" role="status">
               {!sentinelStatus || sentinelStatus.status === 'LOCKED'
                 ? 'Guardian is unavailable while the vault is locked.'
-                : sentinelStatus.observerStatus !== 'MONITORING'
-                  ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
-                  : sentinelStatus.warningOnly
-                    ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
-                    : 'Strict mode terminates blocked apps during active Focus sessions.'}
+                : sentinelStatus.activeFocusSessionId && sentinelStatus.focusPhase && sentinelStatus.focusPhase !== 'FOCUS'
+                  ? 'Break phase active: Distracting apps are permitted. App termination will re-arm when you return to focus.'
+                  : sentinelStatus.observerStatus !== 'MONITORING'
+                    ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
+                    : sentinelStatus.warningOnly
+                      ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
+                      : 'Strict mode terminates blocked apps during active Focus sessions.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
