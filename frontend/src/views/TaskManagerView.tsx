@@ -183,11 +183,22 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   const capability = sentinelStatus?.interventionCapability
   const statusLabel = sentinelStatus ? guardianCapabilityLabel(capability) : 'Status unavailable'
   const closeCapabilityReady = guardianCanRequestClose(capability, sentinelStatus?.warningOnly)
-  const appHandlingLabel = !sentinelStatus ? 'Unavailable'
-    : closeCapabilityReady ? 'Graceful close may be requested for eligible processes' : sentinelStatus.warningOnly ? 'Monitoring / warning only' : 'Not currently protected'
-  const appHandlingDetails = sentinelStatus
-    ? guardianInterventionDescription(capability)
-    : 'App policy status is unavailable.'
+  const isWindows = typeof navigator !== 'undefined' && (/win/i.test(navigator.userAgent || '') || /win/i.test(navigator.platform || ''))
+  const isGuardianUnavailable = isWindows || sentinelStatus?.guardianCapability === 'UNAVAILABLE' || capability === 'UNAVAILABLE' || sentinelStatus?.status === 'UNAVAILABLE'
+  const appHandlingLabel = isGuardianUnavailable
+    ? 'Unavailable on Windows'
+    : !sentinelStatus
+      ? 'Unavailable'
+      : closeCapabilityReady
+        ? 'Graceful close may be requested for eligible processes'
+        : sentinelStatus.warningOnly
+          ? 'Monitoring / warning only'
+          : 'Not currently protected'
+  const appHandlingDetails = isGuardianUnavailable
+    ? 'Guardian is not available on Windows yet. Website protection via the Browser Companion still works. App blocking will be added in a future update.'
+    : sentinelStatus
+      ? guardianInterventionDescription(capability)
+      : 'App policy status is unavailable.'
 
   const query = appSearch.trim().toLowerCase()
   const appList = Array.isArray(discoveredApps) ? discoveredApps : []
@@ -635,13 +646,15 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             </section>
 
             <p className="guardian-alpha-note" role="status">
-              {!sentinelStatus || sentinelStatus.status === 'LOCKED'
-                ? 'Guardian is unavailable while the vault is locked.'
-                : sentinelStatus.observerStatus !== 'MONITORING'
-                  ? 'Saved Block policies are not actively applied while app observation is off or unavailable.'
-                  : sentinelStatus.warningOnly
-                    ? 'SHINPO will warn you but will not close apps in the current Focus state.'
-                    : 'Guardian is warning-only in this release. SHINPO does not close applications.'}
+              {isGuardianUnavailable
+                ? 'Guardian is not available on Windows yet. Website protection via the Browser Companion still works.'
+                : !sentinelStatus || sentinelStatus.status === 'LOCKED'
+                  ? 'Guardian is unavailable while the vault is locked.'
+                  : sentinelStatus.observerStatus !== 'MONITORING'
+                    ? 'Saved Block policies are not actively applied while app observation is off or unavailable.'
+                    : sentinelStatus.warningOnly
+                      ? 'SHINPO will warn you but will not close apps in the current Focus state.'
+                      : 'Guardian is warning-only in this release. SHINPO does not close applications.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
@@ -743,7 +756,69 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             </section>
           </div>
 
-          <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title">
+          {isGuardianUnavailable ? (
+            <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title" data-testid="guardian-windows-panel">
+              <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <h2 id="guardian-apps-title" style={{ margin: 0 }}>
+                    Focus Protection on Windows
+                  </h2>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-2)' }}>
+                    Platform Capability Notice
+                  </p>
+                </div>
+              </header>
+
+              <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ color: 'var(--color-warning, #f59e0b)', marginTop: '2px' }}>
+                    <Icon name="shield" size={24} />
+                  </span>
+                  <div>
+                    <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700 }}>
+                      Guardian is not available on Windows yet.
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-2)' }}>
+                      Website protection via the Browser Companion still works. App blocking will be added in a future update.
+                    </p>
+                  </div>
+                </div>
+
+                {onOpenCompanionSettings && (
+                  <div style={{ marginTop: '8px', padding: '14px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border)', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '4px' }}>Browser Companion Setup</strong>
+                        <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>Pair your browser to enforce Focus policies on websites and video platforms.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onOpenCompanionSettings}
+                        data-testid="btn-open-companion-from-guardian"
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          background: 'var(--brand-primary, #7c3aed)',
+                          color: '#fff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Icon name="globe" size={14} />
+                        <span>Setup Browser Companion</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title">
             <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -954,6 +1029,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               )}
             </div>
           </section>
+          )}
         </div>
       )}
 

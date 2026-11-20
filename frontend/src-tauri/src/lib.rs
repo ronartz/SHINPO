@@ -170,6 +170,8 @@ fn local_get_package_info(app: tauri::AppHandle) -> LocalPackageInfo {
 #[serde(rename_all = "camelCase")]
 struct LocalPlatformCapabilities {
     guardian: &'static str,
+    guardian_process_observation: bool,
+    guardian_process_close: bool,
     browser_companion_supported: bool,
 }
 
@@ -181,6 +183,8 @@ fn local_platform_capabilities() -> LocalPlatformCapabilities {
         } else {
             "UNAVAILABLE"
         },
+        guardian_process_observation: cfg!(target_os = "linux"),
+        guardian_process_close: false,
         browser_companion_supported: cfg!(any(target_os = "linux", target_os = "windows")),
     }
 }
