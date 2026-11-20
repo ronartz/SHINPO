@@ -381,10 +381,12 @@ export function StudyResourcesPanel({
                   state={status.nativeShield.state}
                   detail={status.nativeShield.detail}
                 />
-                <AdapterBadge
-                  coverage={status.browserCompanion.adapterCoverage}
-                  name={status.browserCompanion.adapterName}
-                />
+                {status.browserCompanion.state === 'CONNECTED' && (
+                  <AdapterBadge
+                    coverage={status.browserCompanion.adapterCoverage}
+                    name={status.browserCompanion.adapterName}
+                  />
+                )}
               </div>
               {status.browserCompanion.state !== 'CONNECTED' && (
                 <p className="study-degraded-note">
@@ -401,9 +403,6 @@ export function StudyResourcesPanel({
                   <span className="study-section-label">Study mode</span>
                   <span className="study-section-help">Separate from Native Shield process mode</span>
                 </div>
-                {status.policyRevision !== null && (
-                  <span className="study-policy-revision">Policy r{status.policyRevision}</span>
-                )}
               </div>
               <div className="study-mode-options">
                 {(Object.keys(MODE_DETAILS) as StudyFocusMode[]).map((option) => (

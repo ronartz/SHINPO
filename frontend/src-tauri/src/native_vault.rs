@@ -2842,7 +2842,7 @@ fn apply_guardian_app_policy(
     observed: &[shinpo_shield::observer::ObservedDistraction],
 ) -> Result<Vec<GuardianOutcome>, String> {
     let now = OffsetDateTime::now_utc().unix_timestamp();
-    with_db_background(state, |db| {
+    let (valid_session, runtime_consent, allowance, prior_outcomes) = with_db_background(state, |db| {
         let transaction = db.transaction()?;
         let session = transaction.query_row(
             "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
@@ -2890,109 +2890,120 @@ fn apply_guardian_app_policy(
                 .optional()?
                 .unwrap_or(0)
         };
-        let mut outcomes = Vec::with_capacity(observed.len());
+        let mut prior_map = std::collections::HashMap::new();
         for process in observed {
             let event_key = guardian_event_key(session_id, process, guardian_mode, focus_phase);
-            let prior_outcome = transaction
+            if let Ok(Some(outcome)) = transaction
                 .query_row(
                     "SELECT outcome FROM guardian_observations WHERE event_key=?1",
                     [&event_key],
                     |row| row.get::<_, String>(0),
                 )
-                .optional()?;
-            let already_intervened = prior_outcome
-                .as_deref()
-                .is_some_and(|outcome| matches!(outcome, "CLOSED_GRACEFULLY_VERIFIED"));
-            let outcome = if already_intervened {
-                prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
-            } else if !valid_session {
-                "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
-            } else if focus_phase != "FOCUS"
-                && (process.category != "USER_BLOCKED" || guardian_mode != "STRICT")
+                .optional()
             {
-                "ALLOWED_OUTSIDE_FOCUS".to_string()
-            } else if !verified_observed_identity(process) {
-                "LIMITED_IDENTITY_UNVERIFIED".to_string()
-            } else if guardian_mode == "GUIDED" {
-                "WARNING_LIGHT".to_string()
-            } else if guardian_mode == "PROTECTED" && !runtime_consent {
-                "LIMITED_NO_RUNTIME_CONSENT".to_string()
-            } else if guardian_mode == "PROTECTED" && allowance < 600 {
-                format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
-            } else if guardian_mode == "STRICT" {
-                #[cfg(any(target_os = "windows", target_os = "linux"))]
-                {
-                    let close_res = if let Some(ref identity) = process.identity {
-                        shinpo_shield::process_identity::request_graceful_close(identity, true)
-                    } else if !shinpo_shield::process_identity::protected_process_name(
-                        &process.process_name,
-                    ) {
-                        #[cfg(target_os = "windows")]
-                        {
-                            let interceptor =
-                                shinpo_shield::platform::windows::WindowsInterceptor::new();
-                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                                &interceptor,
-                                process.pid,
-                                true,
-                            )
-                            .map(|()| {
-                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                            })
-                        }
-                        #[cfg(target_os = "linux")]
-                        {
-                            let interceptor =
-                                shinpo_shield::platform::linux::LinuxInterceptor::new();
-                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                                &interceptor,
-                                process.pid,
-                                true,
-                            )
-                            .map(|()| {
-                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                            })
-                        }
-                        #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-                        {
-                            Err("Platform unsupported".to_string())
-                        }
-                    } else {
-                        Err("Protected process".to_string())
-                    };
-
-                    match close_res {
-                        Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
-                            log::info!(
-                                "Guardian Strict terminated blocked process: {} (PID {})",
-                                process.process_name,
-                                process.pid
-                            );
-                            "CLOSED_GRACEFULLY_VERIFIED".to_string()
-                        }
-                        Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
-                        Err(err) => {
-                            log::warn!(
-                                "Guardian Strict close failed for {}: {}",
-                                process.process_name,
-                                err
-                            );
-                            "LIMITED_CLOSE_UNAVAILABLE".to_string()
-                        }
-                    }
-                }
-                #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-                {
-                    "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
-                }
-            } else {
-                "WARNING_ALLOWANCE_ENFORCEMENT_DISABLED".to_string()
-            };
-            outcomes.push((process.pid, process.process_started_at, outcome));
+                prior_map.insert(event_key, outcome);
+            }
         }
         transaction.commit()?;
-        Ok(outcomes)
-    })
+        Ok((valid_session, runtime_consent, allowance, prior_map))
+    })?;
+
+    let mut outcomes = Vec::with_capacity(observed.len());
+    for process in observed {
+        let event_key = guardian_event_key(session_id, process, guardian_mode, focus_phase);
+        let prior_outcome = prior_outcomes.get(&event_key).cloned();
+        let already_intervened = prior_outcome
+            .as_deref()
+            .is_some_and(|outcome| matches!(outcome, "CLOSED_GRACEFULLY_VERIFIED"));
+
+        let outcome = if already_intervened {
+            prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
+        } else if !valid_session {
+            "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
+        } else if focus_phase != "FOCUS"
+            && (process.category != "USER_BLOCKED" || guardian_mode != "STRICT")
+        {
+            "ALLOWED_OUTSIDE_FOCUS".to_string()
+        } else if !verified_observed_identity(process) {
+            "LIMITED_IDENTITY_UNVERIFIED".to_string()
+        } else if guardian_mode == "GUIDED" {
+            "WARNING_LIGHT".to_string()
+        } else if guardian_mode == "PROTECTED" && !runtime_consent {
+            "LIMITED_NO_RUNTIME_CONSENT".to_string()
+        } else if guardian_mode == "PROTECTED" && allowance < 600 {
+            format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
+        } else if guardian_mode == "STRICT" {
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            {
+                let close_res = if let Some(ref identity) = process.identity {
+                    shinpo_shield::process_identity::request_graceful_close(identity, true)
+                } else if !shinpo_shield::process_identity::protected_process_name(
+                    &process.process_name,
+                ) {
+                    #[cfg(target_os = "windows")]
+                    {
+                        let interceptor =
+                            shinpo_shield::platform::windows::WindowsInterceptor::new();
+                        shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                            &interceptor,
+                            process.pid,
+                            true,
+                        )
+                        .map(|()| {
+                            shinpo_shield::process_identity::CloseResult::RequestedAndExited
+                        })
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        let interceptor =
+                            shinpo_shield::platform::linux::LinuxInterceptor::new();
+                        shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                            &interceptor,
+                            process.pid,
+                            true,
+                        )
+                        .map(|()| {
+                            shinpo_shield::process_identity::CloseResult::RequestedAndExited
+                        })
+                    }
+                    #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+                    {
+                        Err("Platform unsupported".to_string())
+                    }
+                } else {
+                    Err("Protected process".to_string())
+                };
+
+                match close_res {
+                    Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+                        log::info!(
+                            "Guardian Strict terminated blocked process: {} (PID {})",
+                            process.process_name,
+                            process.pid
+                        );
+                        "CLOSED_GRACEFULLY_VERIFIED".to_string()
+                    }
+                    Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
+                    Err(err) => {
+                        log::warn!(
+                            "Guardian Strict close failed for {}: {}",
+                            process.process_name,
+                            err
+                        );
+                        "LIMITED_CLOSE_UNAVAILABLE".to_string()
+                    }
+                }
+            }
+            #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+            {
+                "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
+            }
+        } else {
+            "WARNING_STANDARD".to_string()
+        };
+        outcomes.push((process.pid, process.process_started_at, outcome));
+    }
+    Ok(outcomes)
 }
 
 fn verified_observed_identity(process: &shinpo_shield::observer::ObservedDistraction) -> bool {
@@ -3074,7 +3085,12 @@ fn persist_guardian_observations(
     observed_at: &str,
 ) -> rusqlite::Result<()> {
     let transaction = db.transaction()?;
+    let mut seen_names = std::collections::HashSet::new();
     for process in observed {
+        let clean_name = process.process_name.trim().to_ascii_lowercase();
+        if !seen_names.insert(clean_name) {
+            continue;
+        }
         let process_started_at = i64::try_from(process.process_started_at)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let event_key = format!(
@@ -3510,14 +3526,14 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             "EMERGENCY_STOPPED"
         } else if status == "PAUSED" {
             "PAUSED"
-        } else if phase.as_deref() != Some("FOCUS") {
-            policy_status
         } else if !monitoring {
             "MONITORING_DISABLED"
         } else if observer_status == "DEGRADED" {
             "OBSERVER_UNAVAILABLE"
         } else if observer_status != "MONITORING" {
             "OBSERVER_STARTING"
+        } else if phase.as_deref() != Some("FOCUS") {
+            policy_status
         } else if !cfg!(any(target_os = "linux", target_os = "windows")) {
             "LIMITED_PLATFORM_UNSUPPORTED"
         } else if mode.as_deref() == Some("STRICT") {

@@ -2320,7 +2320,7 @@ export function DesktopApp() {
     setIsInteractiveTutorialOpen(false)
     setTutorialStorageItem('shinpo_interactive_tutorial_dismissed', 'true', currentUser)
     setTutorialStorageItem('shinpo_onboarding_dismissed', 'true', currentUser)
-    skipOnboarding().catch(() => {})
+    skipOnboarding().catch(() => { })
   }, [currentUser])
 
   const handleCompleteInteractiveTutorial = useCallback(
@@ -2349,14 +2349,14 @@ export function DesktopApp() {
         // ignore
       }
 
-      finishOnboarding().catch(() => {})
+      finishOnboarding().catch(() => { })
 
       if (!alreadyCompleted) {
         claimOnboardingReward()
           .then((prog) => {
             if (prog) setUserProgress(prog)
           })
-          .catch(() => {})
+          .catch(() => { })
       }
 
       if (data.saveToWorkspace && data.goalTitle.trim()) {
