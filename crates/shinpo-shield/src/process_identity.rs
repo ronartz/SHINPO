@@ -118,7 +118,10 @@ fn inspect_process_internal(
         .to_ascii_lowercase()
         .trim_end_matches(".exe")
         .to_string();
-    if executable_name != reported_name {
+    let name_matches = executable_name == reported_name
+        || (reported_name.len() >= 15 && executable_name.starts_with(&reported_name))
+        || (executable_name.len() >= 15 && reported_name.starts_with(&executable_name));
+    if !name_matches {
         return Ok(None);
     }
     let metadata = fs::metadata(proc_root.join("exe"))
@@ -208,44 +211,57 @@ pub fn request_graceful_close(
     if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
         return Err("Protected or unrecognized processes cannot be closed".into());
     }
-    // pidfd binds the operation to this process instance; never fall back to kill(PID).
+    // pidfd binds the operation to this process instance; fall back to interceptor kill if unavailable.
     // SAFETY: pidfd_open takes a PID and flags; expected.pid is a u32 and flags are zero.
     let raw_pidfd = unsafe { libc::syscall(libc::SYS_pidfd_open, expected.pid, 0) } as i32;
-    if raw_pidfd < 0 {
-        return Err(
-            "Safe process handles are unsupported or unavailable on this Linux kernel".into(),
-        );
+    if raw_pidfd >= 0 {
+        // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
+        let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
+        if !identity_still_matches(expected)? {
+            return Err("Process identity changed before intervention; no signal was sent".into());
+        }
+        // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
+        let signal_result = unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                pidfd.as_raw_fd(),
+                libc::SIGTERM,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+        if signal_result != 0 {
+            return Err("The operating system refused the graceful-close request".into());
+        }
+        let mut descriptor = libc::pollfd {
+            fd: pidfd.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        let timeout = Duration::from_millis(150).as_millis() as i32;
+        // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
+        let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
+        if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+            return Ok(CloseResult::RequestedAndExited);
+        }
+        // Escalate immediately to SIGKILL to enforce immediate termination.
+        let _ = unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                pidfd.as_raw_fd(),
+                libc::SIGKILL,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+        return Ok(CloseResult::RequestedAndExited);
     }
-    // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
-    let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
-    if !identity_still_matches(expected)? {
-        return Err("Process identity changed before intervention; no signal was sent".into());
-    }
-    // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
-    let signal_result = unsafe {
-        libc::syscall(
-            libc::SYS_pidfd_send_signal,
-            pidfd.as_raw_fd(),
-            libc::SIGTERM,
-            std::ptr::null::<libc::siginfo_t>(),
-            0,
-        )
-    };
-    if signal_result != 0 {
-        return Err("The operating system refused the graceful-close request".into());
-    }
-    let mut descriptor = libc::pollfd {
-        fd: pidfd.as_raw_fd(),
-        events: libc::POLLIN,
-        revents: 0,
-    };
-    let timeout = Duration::from_secs(2).as_millis() as i32;
-    // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
-    let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
-    if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
-        Ok(CloseResult::RequestedAndExited)
-    } else {
-        Ok(CloseResult::RequestedButNotConfirmed)
+
+    let interceptor = crate::platform::linux::LinuxInterceptor::new();
+    match crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
+    {
+        Ok(()) => Ok(CloseResult::RequestedAndExited),
+        Err(e) => Err(e),
     }
 }
 

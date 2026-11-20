@@ -435,7 +435,7 @@ pub fn run() {
             thread::Builder::new()
                 .name("shinpo-focus-checkpoint".into())
                 .spawn(move || loop {
-                    thread::sleep(Duration::from_millis(750));
+                    thread::sleep(Duration::from_millis(300));
                     if let Some(state) = focus_worker.try_state::<native_vault::VaultManager>() {
                         if state.is_unlocked().unwrap_or(false) {
                             if native_vault::maintain_active_focus(state.inner()).is_err() {
