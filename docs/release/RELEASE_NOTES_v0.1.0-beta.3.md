@@ -18,7 +18,9 @@
 * **Rock-Solid Flat Desktop Login:** Removed mouse-tracking 3D tilt transformations on authentication cards for a stable, distraction-free desktop aesthetic while preserving subtle border illumination and interactive ambient particles.
 * **Multi-Theme Palette Engine:** Seamless native rendering for all built-in themes: **Classic Dark**, **Tokyo Night**, **Catppuccin Mocha**, **Cyberpunk**, **Forest**, and **Monochrome**.
 
-### ⚡ Cross-Platform Execution Engine & Windows Critical Hardening
+### ⚡ Cross-Platform Execution Engine & Windows / Linux Critical Hardening
+* **Linux Launch Panic Fix:** Fixed Tauri single-instance Serde map deserialization error that prevented the native RPM / AppImage from launching on Linux distros (Fedora / Ubuntu).
+* **Safe Native Study Resource Links:** Configured approved study resource links to open cleanly in the user's default browser via `openExternalLink` without relying on insecure or blocked raw HTML targets, and added automatic scheme normalization so URLs without `https://` are validated seamlessly.
 * **Zero CMD Windows on Startup:** Replaced shell-based `reg.exe` native messaging registration with direct Windows registry manipulation via the Rust `winreg` crate and added `CREATE_NO_WINDOW` flags across all background process invocations. Completely eliminates error `0xc0000142` and flashing command prompt windows.
 * **Embedded WebView2 Bootstrapper:** Configured NSIS installer with embedded bootstrapper mode and bundled Visual C++ runtimes to guarantee instant, clean launches on fresh Windows systems without runtime dependency errors.
 * **Minimize to System Tray on Close:** Closing SHINPO via the window close button (`X`) now hides the window to the system tray (with full context menu and single-click restore) rather than terminating the process, maintaining background Focus sessions and Guardian monitoring seamlessly.
