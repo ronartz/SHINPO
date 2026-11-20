@@ -46,14 +46,15 @@ export function guardianInterventionDescription(capability?: string | null): str
     case 'LIMITED_OBSERVER_UNAVAILABLE':
       return 'Monitoring is unavailable; no app action is being taken.'
     case 'BREAK_OBSERVATION_ONLY':
-      return 'Break phase: apps are observed, and no close request is made.'
+      return 'Break phase active: Distracting apps are allowed; app closure resumes when focus restarts.'
     case 'GRACE_WARNING_ONLY':
+      return 'Grace period active: Please return to focus soon; app closure resumes on return.'
     case 'RETURN_REQUIRED_WARNING_ONLY':
-      return 'Warning only during this Focus phase; no app close request is made.'
+      return 'Return required: Break has ended; resume focus to re-arm app protection.'
     case 'SESSION_PAUSED':
-      return 'Focus is paused; app intervention is not active.'
+      return 'Focus is paused; app intervention is paused until you resume.'
     case 'EMERGENCY_STOPPED':
-      return 'Guardian is stopped for this session; no app intervention is active.'
+      return 'Guardian emergency stopped: App intervention is disarmed for this session.'
     case 'INACTIVE':
       return 'App observation and intervention begin only during an eligible Focus session.'
     case 'LOCKED':

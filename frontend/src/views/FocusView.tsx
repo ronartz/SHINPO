@@ -297,6 +297,59 @@ export const FocusView: React.FC<FocusViewProps> = ({
               </div>
             )}
 
+            {/* Live Break / Grace Notice Banner */}
+            {activeSession && (isBreak || isReturnRequired) && (
+              <div
+                className="focus-break-notice-banner"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  background: isReturnRequired
+                    ? 'color-mix(in srgb, var(--accent-terracotta) 14%, var(--surface-subtle))'
+                    : 'color-mix(in srgb, var(--brand-primary) 12%, var(--surface-subtle))',
+                  border: `1px solid ${
+                    isReturnRequired
+                      ? 'color-mix(in srgb, var(--accent-terracotta) 35%, transparent)'
+                      : 'color-mix(in srgb, var(--brand-primary) 30%, transparent)'
+                  }`,
+                  margin: '8px 0 16px',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon name={isReturnRequired ? 'bell' : 'clock'} size={18} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isReturnRequired ? 'var(--accent-terracotta)' : 'var(--text-1)' }}>
+                      {isReturnRequired
+                        ? 'Break Ended · Return Required'
+                        : currentPhase === 'GRACE'
+                          ? 'Grace Period Active'
+                          : 'Midpoint Break in Progress'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.35 }}>
+                      {isReturnRequired
+                        ? 'App termination will re-arm when you return to focus.'
+                        : 'Distracting apps are permitted during breaks. App blocking is paused.'}
+                    </div>
+                  </div>
+                </div>
+                {handleReturnToFocus && (
+                  <button
+                    type="button"
+                    className="btn-timer primary microkit-finish-glow"
+                    style={{ padding: '6px 14px', fontSize: 12, height: 'auto', whiteSpace: 'nowrap' }}
+                    onClick={() => handleReturnToFocus(activeSession.id)}
+                  >
+                    <Icon name="play" size={13} />
+                    <span>Return to Focus</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="timer-hud-center">
               <div className="focus-time-orbit">
                 <svg className="focus-orbit-art" viewBox="0 0 320 320" aria-hidden="true">
@@ -354,7 +407,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
             {!activeSession && (
               <p className="timer-plan-preview" style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--text-2)', textAlign: 'center', lineHeight: 1.45 }}>
-                <strong style={{ color: 'var(--text-1)' }}>Plan preview:</strong> {describeFocusPlan(selectedDuration, pomodoroEnabled, pomodoroLongBreakMinutes, pomodoroGraceMinutes)}
+                <strong style={{ color: 'var(--text-1)' }}>Plan preview:</strong> {describeFocusPlan(selectedDuration, pomodoroEnabled && selectedDuration >= 5, pomodoroLongBreakMinutes, pomodoroGraceMinutes)}
               </p>
             )}
 
@@ -460,13 +513,17 @@ export const FocusView: React.FC<FocusViewProps> = ({
                   {guardianStatus?.standardAllowanceSeconds !== null && guardianStatus?.standardAllowanceSeconds !== undefined && <span>Standard allowance used: {Math.floor(guardianStatus.standardAllowanceSeconds / 60)}:{String(guardianStatus.standardAllowanceSeconds % 60).padStart(2, '0')} of 10:00 · sampled app-running time</span>}
                   <div className="guardian-intervention-banner">
                     <span className="guardian-intervention-status">
-                      {activeSession.guardianMode === 'STRICT'
-                        ? (guardianStatus?.observerStatus === 'STARTING'
-                            ? 'Arming active Strict protection…'
-                            : 'Active Strict protection armed (distracting apps will be closed).')
-                        : (!guardianStatus || guardianStatus.warningOnly
-                            ? 'App closure is not currently armed.'
-                            : 'Active protection armed.')}
+                      {guardianStatus?.interventionCapability === 'EMERGENCY_STOPPED'
+                        ? 'Guardian emergency stopped — protection disarmed for this session.'
+                        : isBreak || isReturnRequired
+                          ? 'Break phase active — apps are permitted and not closed until you resume focus.'
+                          : activeSession.guardianMode === 'STRICT'
+                            ? (guardianStatus?.observerStatus === 'STARTING'
+                                ? 'Arming active Strict protection…'
+                                : 'Active Strict protection armed (distracting apps will be closed).')
+                            : (!guardianStatus || guardianStatus.warningOnly
+                                ? 'App closure is not currently armed.'
+                                : 'Active protection armed.')}
                     </span>
                     {activeSession.guardianMode === 'STRICT' && guardianStatus && guardianStatus.interventionCapability !== 'EMERGENCY_STOPPED' && (
                       <button
@@ -611,11 +668,24 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     {guardianPreferenceError && <p role="alert" className="guardian-observation-note">{guardianPreferenceError}</p>}
                   </div>
                   )}
-                  <label className="pomodoro-toggle">
-                    <input type="checkbox" checked={pomodoroEnabled} onChange={(event) => { setPomodoroEnabled(event.target.checked); setSelectedPomodoroPlan(null) }} />
+                  <label className={`pomodoro-toggle${selectedDuration < 5 ? ' is-disabled' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={pomodoroEnabled && selectedDuration >= 5}
+                      disabled={selectedDuration < 5}
+                      onChange={(event) => {
+                        setPomodoroEnabled(event.target.checked)
+                        setSelectedPomodoroPlan(null)
+                      }}
+                    />
                     <span>Include one midpoint break</span>
+                    {selectedDuration < 5 && (
+                      <span className="pomodoro-disabled-hint" style={{ fontSize: '11.5px', color: 'var(--text-3)', marginLeft: 8 }}>
+                        (Requires 5+ min session)
+                      </span>
+                    )}
                   </label>
-                  {pomodoroEnabled && <div className="pomodoro-config-fields">
+                  {pomodoroEnabled && selectedDuration >= 5 && <div className="pomodoro-config-fields">
                     <label>
                       <span style={{ marginBottom: 4, fontWeight: 600 }}>Long break</span>
                       <ShinpoNumberStepper
@@ -639,7 +709,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       />
                     </label>
                   </div>}
-                  {pomodoroEnabled && <div className="pomodoro-config-fields">
+                  {pomodoroEnabled && selectedDuration >= 5 && <div className="pomodoro-config-fields">
                     <label className="pomodoro-toggle"><input type="checkbox" checked={latePenaltyEnabled} onChange={(event) => setLatePenaltyEnabled(event.target.checked)} />Apply a progress adjustment only if I miss the return deadline</label>
                     {latePenaltyEnabled && <>
                       <label>
