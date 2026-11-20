@@ -1,6 +1,12 @@
 use crate::platform::PlatformInterceptor;
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 /// Windows implementation using Win32 / taskkill and PowerShell Windows Toast Notifications.
 /// Pre-configured with Windows Filtering Platform (WFP) architecture stubs.
 pub struct WindowsInterceptor;
@@ -24,6 +30,8 @@ impl PlatformInterceptor for WindowsInterceptor {
 
     fn terminate_process(&self, pid: u32, force: bool) -> Result<(), String> {
         let mut cmd = Command::new("taskkill");
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
         if force {
             cmd.arg("/F");
         }
@@ -59,14 +67,20 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($template);
             body.replace('\'', "''")
         );
 
-        let _ = Command::new("powershell")
+        let mut cmd = Command::new("powershell");
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        let _ = cmd
             .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
             .output();
     }
 
     fn is_privileged(&self) -> bool {
         // 'net session' exits with 0 only if running elevated as Administrator
-        if let Ok(output) = Command::new("net").arg("session").output() {
+        let mut cmd = Command::new("net");
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        if let Ok(output) = cmd.arg("session").output() {
             output.status.success()
         } else {
             false

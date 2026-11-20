@@ -529,31 +529,35 @@ pub fn register_host(explicit_bin: Option<&Path>) -> Result<HostDiscoveryReport,
 
 #[cfg(windows)]
 pub fn register_windows_registry(manifest_path: &Path, is_firefox: bool) {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
     let raw_path = manifest_path.to_string_lossy();
     let path_str = if let Some(stripped) = raw_path.strip_prefix(r"\\?\") {
         stripped.to_string()
     } else {
         raw_path.to_string()
     };
-    let keys = if is_firefox {
+    let subpaths = if is_firefox {
         vec![
-            r"HKCU\Software\Mozilla\NativeMessagingHosts\com.shinpo.browser_companion",
-            r"HKCU\Software\Mozilla\NativeMessagingHosts\com.shinpo.companion",
+            r"Software\Mozilla\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"Software\Mozilla\NativeMessagingHosts\com.shinpo.companion",
         ]
     } else {
         vec![
-            r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.shinpo.browser_companion",
-            r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.shinpo.companion",
-            r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.browser_companion",
-            r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.companion",
-            r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.browser_companion",
-            r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.companion",
+            r"Software\Google\Chrome\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"Software\Google\Chrome\NativeMessagingHosts\com.shinpo.companion",
+            r"Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"Software\Microsoft\Edge\NativeMessagingHosts\com.shinpo.companion",
+            r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.browser_companion",
+            r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.shinpo.companion",
         ]
     };
-    for key in keys {
-        let _ = std::process::Command::new("reg")
-            .args(["add", key, "/ve", "/t", "REG_SZ", "/d", &path_str, "/f"])
-            .output();
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    for subpath in subpaths {
+        if let Ok((key, _)) = hkcu.create_subkey(subpath) {
+            let _ = key.set_value("", &path_str);
+        }
     }
 }
 
