@@ -1388,14 +1388,13 @@ export const AuroraDashboardView: React.FC<AuroraDashboardViewProps> = ({
           4. FULL-WIDTH TASKS BOARD: 3 Kanban Lanes (In Progress, Ready, Completed)
           ========================================================================= */}
       <Box
-        className="flight-deck-board-panel aurora-glass"
         id="aurora-tasks-board"
         sx={{
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
           width: '100%',
-          mt: 1,
+          mt: 2,
         }}
         aria-label="Tasks Board"
       >

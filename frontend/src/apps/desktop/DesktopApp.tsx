@@ -269,7 +269,7 @@ export function DesktopApp() {
   const [pomodoroGraceMinutes, setPomodoroGraceMinutes] = useState(10)
   const [guardianMode, setGuardianMode] = useState<GuardianMode>('PROTECTED')
   const [guardianAppMonitoring, setGuardianAppMonitoring] = useState(false)
-  const [savedGuardianPreferences, setSavedGuardianPreferences] = useState<GuardianPreferences>({
+  const [_savedGuardianPreferences, setSavedGuardianPreferences] = useState<GuardianPreferences>({
     preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false,
     closureConsent: false, backgroundRuntimeConsent: false,
   })
@@ -2496,8 +2496,6 @@ export function DesktopApp() {
         guardianAppMonitoring: guardianMode === 'STRICT' ? true : guardianAppMonitoring,
       })
       const started = await startFocusSession(created.id, userId)
-      setGuardianMode(savedGuardianPreferences.applyToNewSessions ? savedGuardianPreferences.preferredMode : guardianMode)
-      setGuardianAppMonitoring(savedGuardianPreferences.applyToNewSessions && savedGuardianPreferences.appMonitoringConsent)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])
       advanceTutorialAfterAction('FOCUS')
       setSessionIntention('')

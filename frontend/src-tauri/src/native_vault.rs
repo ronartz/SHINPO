@@ -1973,6 +1973,7 @@ pub fn local_start_focus_session(
     let session = with_db(&state, |db| {
         start_focus_session(db, session_id, unix_now_seconds())
     })?;
+    let _ = observe_local_guardian_apps(&state);
     publish_local_browser_policy(&state)?;
     Ok(session)
 }
@@ -4213,10 +4214,26 @@ fn insert_focus_record(
                 "PROTECTED".to_string()
             }
         });
-    let app_monitoring = r
-        .guardian_app_monitoring
-        .unwrap_or(apply_to_new_sessions && saved_consent);
-    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at,reward_id) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17,lower(hex(randomblob(16))))",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,r.pomodoro_enabled.unwrap_or(false),r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),r.pomodoro_long_break_minutes.unwrap_or(15),r.pomodoro_grace_minutes.unwrap_or(10),r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
+    let app_monitoring = if mode == "STRICT" {
+        true
+    } else {
+        r.guardian_app_monitoring
+            .unwrap_or(apply_to_new_sessions && saved_consent)
+    };
+    let pomodoro = r.pomodoro_enabled.unwrap_or(false);
+    let raw_long_break = r.pomodoro_long_break_minutes.unwrap_or(15);
+    let long_break = if pomodoro && r.duration_minutes < 15 {
+        raw_long_break.min(r.duration_minutes).max(1)
+    } else {
+        raw_long_break
+    };
+    let raw_grace = r.pomodoro_grace_minutes.unwrap_or(10);
+    let grace = if pomodoro && r.duration_minutes < 10 {
+        raw_grace.min(r.duration_minutes).max(1)
+    } else {
+        raw_grace
+    };
+    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at,reward_id) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17,lower(hex(randomblob(16))))",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,pomodoro,r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),long_break,grace,r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
     focus_session_by_id(db, db.last_insert_rowid())
 }
 
