@@ -361,6 +361,13 @@ fn desktop_open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGS",
+            "--enable-gpu-rasterization --enable-zero-copy",
+        );
+    }
     tauri::Builder::default()
         .setup(|app| {
             let vault_dir = app.path().app_data_dir()?.join("vaults");
