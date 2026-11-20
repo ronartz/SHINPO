@@ -147,6 +147,20 @@ export function formatEnforcementMode(mode?: string | null): string {
  */
 export function deriveOverallProtectionStatus(sentinelStatus: SentinelStatus | null): ProtectionStatusInfo {
   if (sentinelStatus?.interventionCapability !== undefined) {
+    const isWindows = typeof navigator !== 'undefined' && (/win/i.test(navigator.userAgent || '') || /win/i.test(navigator.platform || ''))
+    if (isWindows || sentinelStatus.guardianCapability === 'UNAVAILABLE' || sentinelStatus.interventionCapability === 'UNAVAILABLE') {
+      return {
+        statusKey: 'READY',
+        badgeText: 'Browser only',
+        badgeVariant: 'standby',
+        headline: 'Focus Protection (Browser only)',
+        description: 'Guardian is not available on Windows yet. Website protection via the Browser Companion still works.',
+        shieldConnected: false,
+        mode: 'Browser only',
+        isPolicyLocked: false,
+        activeSessionName: sentinelStatus.activeFocusSessionName || null,
+      }
+    }
     const mode = guardianModeLabel(sentinelStatus.guardianMode)
     const capability = guardianCapabilityLabel(sentinelStatus.interventionCapability)
     const sessionName = sentinelStatus.activeFocusSessionName || null

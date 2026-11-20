@@ -128,7 +128,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [companionLoading, setCompanionLoading] = useState(false)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
-  const [pairTimeout, setPairTimeout] = useState(false)
   const [pairingError, setPairingError] = useState<string | null>(null)
 
   // EONPAI AI state
@@ -233,13 +232,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const createCompanionPairingCode = async () => {
     setCompanionLoading(true)
-    setPairTimeout(false)
     setPairingError(null)
 
     let timedOut = false
     const timer = setTimeout(() => {
       timedOut = true
-      setPairTimeout(true)
       setCompanionLoading(false)
       setPairingError('Could not connect to SHINPO native host. Is SHINPO running?')
     }, 5000)

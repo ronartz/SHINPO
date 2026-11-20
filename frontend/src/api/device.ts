@@ -295,6 +295,8 @@ export async function fetchSentinelStatus(): Promise<SentinelStatus> {
   if (isTauriEnvironment() && isLocalVaultSession()) {
     const capabilities = await invokeTauriCommand<{
       guardian: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
+      guardianProcessObservation?: boolean
+      guardianProcessClose?: boolean
       browserCompanionSupported: boolean
     }>('local_platform_capabilities')
     if (capabilities.guardian === 'UNAVAILABLE') {
