@@ -128,6 +128,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [companionLoading, setCompanionLoading] = useState(false)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
+  const [pairTimeout, setPairTimeout] = useState(false)
+  const [pairingError, setPairingError] = useState<string | null>(null)
 
   // EONPAI AI state
   const [aiStatus, setAiStatus] = useState<{
@@ -231,13 +233,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const createCompanionPairingCode = async () => {
     setCompanionLoading(true)
+    setPairTimeout(false)
+    setPairingError(null)
+
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      setPairTimeout(true)
+      setCompanionLoading(false)
+      setPairingError('Could not connect to SHINPO native host. Is SHINPO running?')
+    }, 5000)
+
     try {
-      setPairingCode(await invokeTauriCommand<string>('browser_companion_pairing_code'))
+      const code = await invokeTauriCommand<string>('browser_companion_pairing_code')
+      clearTimeout(timer)
+      if (timedOut) return
+      setPairingCode(code)
       await fetchCompanionInfo()
     } catch (error) {
-      setCompanionStatus({ state: 'UNAVAILABLE', coverage: 'NONE', detail: error instanceof Error ? error.message : 'Could not create a pairing code.' })
+      clearTimeout(timer)
+      if (timedOut) return
+      const msg = error instanceof Error ? error.message : 'Could not create a pairing code.'
+      setPairingError(msg)
+      setCompanionStatus({
+        state: 'UNAVAILABLE',
+        coverage: 'NONE',
+        detail: msg,
+      })
     } finally {
-      setCompanionLoading(false)
+      clearTimeout(timer)
+      if (!timedOut) {
+        setCompanionLoading(false)
+      }
     }
   }
 
@@ -1470,6 +1497,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             Revoke pairing
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {pairingError && (
+                      <div
+                        className="companion-pairing-error"
+                        role="alert"
+                        style={{
+                          marginTop: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          color: 'var(--status-danger, #ef4444)',
+                          fontSize: '13px',
+                        }}
+                      >
+                        <span>{pairingError}</span>
+                        <button
+                          type="button"
+                          className="btn-timer secondary"
+                          style={{ padding: '3px 10px', fontSize: '12px', height: '26px' }}
+                          onClick={() => void createCompanionPairingCode()}
+                        >
+                          Try again
+                        </button>
                       </div>
                     )}
 
