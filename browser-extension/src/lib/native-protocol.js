@@ -6,7 +6,7 @@
   const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 
   function createRequest(type, payload = {}, authenticationToken = null) {
-    if (typeof type !== 'string' || !/^[a-z_]{2,40}$/.test(type)) {
+    if (typeof type !== 'string' || !/^[a-zA-Z_]{2,40}$/.test(type)) {
       throw new TypeError('Invalid native message type')
     }
     const request = {

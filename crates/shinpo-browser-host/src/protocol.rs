@@ -28,7 +28,7 @@ impl NativeRequest {
         if !self
             .message_type
             .chars()
-            .all(|c| c.is_ascii_lowercase() || c == '_')
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
         {
             return Err(HostError::InvalidRequest(
                 "Invalid message type format".into(),

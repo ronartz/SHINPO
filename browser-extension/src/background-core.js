@@ -40,6 +40,11 @@
     evaluatingByTab: new Map(),
   }
 
+  let lastHeartbeat = Date.now()
+  let heartbeatTimer = null
+  const setIntervalFn = typeof setInterval === 'function' ? setInterval : (global.setInterval || globalThis.setInterval)
+  const clearIntervalFn = typeof clearInterval === 'function' ? clearInterval : (global.clearInterval || globalThis.clearInterval)
+
   initialize().catch((error) => {
     console.error('[SHINPO] Browser Companion initialization failed', error)
   })
@@ -67,6 +72,7 @@
 
     await configureAlarms()
     await updateAction()
+    startHeartbeat()
     if (state.pairingToken) {
       await synchronizePolicy()
     } else {
@@ -408,6 +414,7 @@
         error: null,
         source: payload.connection?.source || null,
       }
+      lastHeartbeat = Date.now()
       if (safeReviewUrl(payload.reviewUrl)) state.reviewUrl = safeReviewUrl(payload.reviewUrl)
       await persistPolicy()
       await scheduleLeaseAlarm()
@@ -615,19 +622,62 @@
     await storageSet('local', { [STORAGE_KEYS.CACHED_POLICY]: state.policy })
   }
 
+  function startHeartbeat() {
+    if (heartbeatTimer || typeof setIntervalFn !== 'function') return
+    heartbeatTimer = setIntervalFn(async () => {
+      if (!state.pairingToken) return
+      try {
+        await nativeRequest('PING')
+        lastHeartbeat = Date.now()
+        if (state.connection.state !== 'CONNECTED') {
+          state.connection.state = 'CONNECTED'
+          state.connection.paired = true
+          state.connection.error = null
+          await synchronizePolicy().catch(() => undefined)
+        }
+      } catch (err) {
+        if (Date.now() - lastHeartbeat > 12000) {
+          if (state.connection.state !== 'DISCONNECTED') {
+            await markDisconnected(err)
+          }
+        }
+      }
+    }, 3000)
+    if (heartbeatTimer && typeof heartbeatTimer.unref === 'function') {
+      heartbeatTimer.unref()
+    }
+  }
+
+  async function clearDeclarativeNetRules() {
+    if (!api.declarativeNetRequest) return
+    try {
+      let rules = []
+      if (typeof api.declarativeNetRequest.getDynamicRules === 'function') {
+        rules = await new Promise((resolve) => {
+          api.declarativeNetRequest.getDynamicRules(resolve)
+        })
+      }
+      if (Array.isArray(rules) && rules.length > 0) {
+        const removeRuleIds = rules.map((r) => r.id)
+        await apiCall('declarativeNetRequest', 'updateDynamicRules', { removeRuleIds })
+      }
+    } catch (err) {
+      console.warn('[SHINPO] clearDeclarativeNetRules failed', err)
+    }
+  }
+
+  async function failOpen() {
+    await clearDeclarativeNetRules()
+    state.policy = policyEngine.inactivePolicy('SHINPO disconnected')
+    await persistPolicy()
+    await releaseInterventionTabs()
+    await updateAction()
+  }
+
   async function markDisconnected(error) {
     state.connection.state = 'DISCONNECTED'
     state.connection.error = safeErrorMessage(error)
-    if (state.policy.active) {
-      state.policy = policyEngine.degradedPolicy(
-        state.policy,
-        'Native connection lost; only explicit restrictions remain enforced',
-      )
-      await persistPolicy()
-      await scheduleLeaseAlarm()
-      await enforceOpenTabs()
-    }
-    await updateAction()
+    await failOpen()
   }
 
   function publicStatus() {
@@ -665,25 +715,27 @@
   async function updateAction() {
     if (!api.action) return
     let text = ''
-    let color = '#D94B52'
-    let title = 'SHINPO Browser Companion: disconnected'
+    let color = '#6B7280'
+    let title = 'SHINPO disconnected'
     if (!state.monitoringEnabled) {
       text = 'OFF'
       title = 'SHINPO Browser Companion: monitoring disabled'
     } else if (state.connection.state === 'CONNECTED' && state.policy.active) {
       text = 'ON'
-      color = '#20A36A'
+      color = '#10B981'
       title = `SHINPO ${state.policy.mode}: ${state.policy.taskTitle}`
     } else if (state.connection.state === 'CONNECTED') {
-      color = '#5899E2'
+      text = ''
+      color = '#F59E0B'
       title = 'SHINPO Browser Companion: connected, no active Focus session'
     } else if (state.connection.state === 'UNPAIRED') {
       text = '!'
       color = '#D99A24'
       title = 'SHINPO Browser Companion: pairing required'
     } else {
-      text = '!'
-      color = '#D94B52'
+      text = ''
+      color = '#6B7280'
+      title = 'SHINPO disconnected'
     }
     await apiCall('action', 'setBadgeText', { text }).catch(() => undefined)
     await apiCall('action', 'setBadgeBackgroundColor', { color }).catch(() => undefined)
