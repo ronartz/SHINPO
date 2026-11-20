@@ -247,6 +247,7 @@ pub fn request_graceful_close(
             // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
             let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
             if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+                terminate_flatpak_if_applicable(expected.pid);
                 return Ok(CloseResult::RequestedAndExited);
             }
             // Escalate immediately to SIGKILL to enforce immediate termination.
@@ -259,15 +260,34 @@ pub fn request_graceful_close(
                     0,
                 )
             };
+            terminate_flatpak_if_applicable(expected.pid);
             return Ok(CloseResult::RequestedAndExited);
         }
     }
 
+    terminate_flatpak_if_applicable(expected.pid);
     let interceptor = crate::platform::linux::LinuxInterceptor::new();
     match crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
     {
         Ok(()) => Ok(CloseResult::RequestedAndExited),
         Err(e) => Err(e),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn terminate_flatpak_if_applicable(pid: u32) {
+    if let Ok(flatpak_info) = std::fs::read_to_string(format!("/proc/{}/root/.flatpak-info", pid)) {
+        for line in flatpak_info.lines() {
+            if let Some(app_id) = line.strip_prefix("name=") {
+                let app_id = app_id.trim();
+                if !app_id.is_empty() {
+                    let _ = std::process::Command::new("flatpak")
+                        .args(["kill", app_id])
+                        .output();
+                    break;
+                }
+            }
+        }
     }
 }
 
