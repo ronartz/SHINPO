@@ -2907,7 +2907,9 @@ fn apply_guardian_app_policy(
                 prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
             } else if !valid_session {
                 "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
-            } else if focus_phase != "FOCUS" {
+            } else if focus_phase != "FOCUS"
+                && (process.category != "USER_BLOCKED" || guardian_mode != "STRICT")
+            {
                 "ALLOWED_OUTSIDE_FOCUS".to_string()
             } else if !verified_observed_identity(process) {
                 "LIMITED_IDENTITY_UNVERIFIED".to_string()
@@ -4222,14 +4224,14 @@ fn insert_focus_record(
     };
     let pomodoro = r.pomodoro_enabled.unwrap_or(false);
     let raw_long_break = r.pomodoro_long_break_minutes.unwrap_or(15);
-    let long_break = if pomodoro && r.duration_minutes < 15 {
-        raw_long_break.min(r.duration_minutes).max(1)
+    let long_break = if pomodoro && r.duration_minutes < 30 {
+        raw_long_break.min(std::cmp::max(1, r.duration_minutes / 2))
     } else {
         raw_long_break
     };
     let raw_grace = r.pomodoro_grace_minutes.unwrap_or(10);
-    let grace = if pomodoro && r.duration_minutes < 10 {
-        raw_grace.min(r.duration_minutes).max(1)
+    let grace = if pomodoro && r.duration_minutes < 15 {
+        raw_grace.min(std::cmp::max(1, r.duration_minutes / 3))
     } else {
         raw_grace
     };

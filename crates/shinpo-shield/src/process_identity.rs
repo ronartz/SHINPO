@@ -217,7 +217,7 @@ pub fn request_graceful_close(
     if raw_pidfd >= 0 {
         // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
         let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
-        if !identity_still_matches(expected)? {
+        if !identity_still_matches(expected).unwrap_or(true) {
             return Err("Process identity changed before intervention; no signal was sent".into());
         }
         // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
@@ -230,31 +230,30 @@ pub fn request_graceful_close(
                 0,
             )
         };
-        if signal_result != 0 {
-            return Err("The operating system refused the graceful-close request".into());
-        }
-        let mut descriptor = libc::pollfd {
-            fd: pidfd.as_raw_fd(),
-            events: libc::POLLIN,
-            revents: 0,
-        };
-        let timeout = Duration::from_millis(150).as_millis() as i32;
-        // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
-        let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
-        if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+        if signal_result == 0 {
+            let mut descriptor = libc::pollfd {
+                fd: pidfd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            let timeout = Duration::from_millis(150).as_millis() as i32;
+            // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
+            let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
+            if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+                return Ok(CloseResult::RequestedAndExited);
+            }
+            // Escalate immediately to SIGKILL to enforce immediate termination.
+            let _ = unsafe {
+                libc::syscall(
+                    libc::SYS_pidfd_send_signal,
+                    pidfd.as_raw_fd(),
+                    libc::SIGKILL,
+                    std::ptr::null::<libc::siginfo_t>(),
+                    0,
+                )
+            };
             return Ok(CloseResult::RequestedAndExited);
         }
-        // Escalate immediately to SIGKILL to enforce immediate termination.
-        let _ = unsafe {
-            libc::syscall(
-                libc::SYS_pidfd_send_signal,
-                pidfd.as_raw_fd(),
-                libc::SIGKILL,
-                std::ptr::null::<libc::siginfo_t>(),
-                0,
-            )
-        };
-        return Ok(CloseResult::RequestedAndExited);
     }
 
     let interceptor = crate::platform::linux::LinuxInterceptor::new();
