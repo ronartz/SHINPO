@@ -2920,71 +2920,9 @@ fn apply_guardian_app_policy(
             } else if guardian_mode == "PROTECTED" && allowance < 600 {
                 format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
             } else if guardian_mode == "STRICT" {
-                #[cfg(any(target_os = "windows", target_os = "linux"))]
-                {
-                    let close_res = if let Some(ref identity) = process.identity {
-                        shinpo_shield::process_identity::request_graceful_close(identity, true)
-                    } else if !shinpo_shield::process_identity::protected_process_name(
-                        &process.process_name,
-                    ) {
-                        #[cfg(target_os = "windows")]
-                        {
-                            let interceptor =
-                                shinpo_shield::platform::windows::WindowsInterceptor::new();
-                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                                &interceptor,
-                                process.pid,
-                                true,
-                            )
-                            .map(|()| {
-                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                            })
-                        }
-                        #[cfg(target_os = "linux")]
-                        {
-                            let interceptor =
-                                shinpo_shield::platform::linux::LinuxInterceptor::new();
-                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                                &interceptor,
-                                process.pid,
-                                true,
-                            )
-                            .map(|()| {
-                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                            })
-                        }
-                        #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-                        {
-                            Err("Platform unsupported".to_string())
-                        }
-                    } else {
-                        Err("Protected process".to_string())
-                    };
-
-                    match close_res {
-                        Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
-                            log::info!(
-                                "Guardian Strict terminated blocked process: {} (PID {})",
-                                process.process_name,
-                                process.pid
-                            );
-                            "CLOSED_GRACEFULLY_VERIFIED".to_string()
-                        }
-                        Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
-                        Err(err) => {
-                            log::warn!(
-                                "Guardian Strict close failed for {}: {}",
-                                process.process_name,
-                                err
-                            );
-                            "LIMITED_CLOSE_UNAVAILABLE".to_string()
-                        }
-                    }
-                }
-                #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-                {
-                    "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
-                }
+                // Friends beta: enforcement remains warning-only until closure
+                // consent and per-platform process verification are qualified.
+                "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
             } else {
                 "WARNING_ALLOWANCE_ENFORCEMENT_DISABLED".to_string()
             };
