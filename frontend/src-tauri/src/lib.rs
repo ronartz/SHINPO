@@ -369,6 +369,12 @@ pub fn run() {
         );
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .setup(|app| {
             let vault_dir = app.path().app_data_dir()?.join("vaults");
             app.manage(native_vault::VaultManager::new(vault_dir));
