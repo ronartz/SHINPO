@@ -263,4 +263,15 @@ mod tests {
             .any(|o| o.process_name.to_lowercase() == "discord"
                 || o.process_name.to_lowercase() == "steam"));
     }
+
+    #[test]
+    fn blocked_target_takes_user_blocked_category_for_catalog_app() {
+        let blocked = vec!["discord".to_string()];
+        let observed = super::observe_processes_with_targets(&blocked, &[]);
+        for o in &observed {
+            if o.process_name.to_lowercase() == "discord" {
+                assert_eq!(o.category, "USER_BLOCKED");
+            }
+        }
+    }
 }
