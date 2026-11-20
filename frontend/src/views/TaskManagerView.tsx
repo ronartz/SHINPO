@@ -871,216 +871,216 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
             </section>
           ) : (
             <section className="guardian-alpha-panel guardian-installed-panel" aria-labelledby="guardian-apps-title">
-            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 id="guardian-apps-title" style={{ margin: 0 }}>
-                    Installed Applications
-                  </h2>
-                  <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
-                    {discoveredApps.length}
-                  </span>
+              <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h2 id="guardian-apps-title" style={{ margin: 0 }}>
+                      Installed Applications
+                    </h2>
+                    <span className="guardian-alpha-count" title={`${discoveredApps.length} installed applications`}>
+                      {discoveredApps.length}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0' }}>
+                    {discoveredApps.length ? `${discoveredApps.length} installed apps discovered on this system` : 'Native app discovery'}
+                    {blockedCount > 0 && ` · ${blockedCount} blocked`}
+                    {allowedCount > 0 && ` · ${allowedCount} allowed`}
+                  </p>
                 </div>
-                <p style={{ margin: '4px 0 0' }}>
-                  {discoveredApps.length ? `${discoveredApps.length} installed apps discovered on this system` : 'Native app discovery'}
-                  {blockedCount > 0 && ` · ${blockedCount} blocked`}
-                  {allowedCount > 0 && ` · ${allowedCount} allowed`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="guardian-refresh-apps-btn"
-                onClick={() => void loadDiscoveredApps()}
-                disabled={appsLoading}
-                title="Rescan installed applications and running status"
-              >
-                <Icon name="refresh" size={13} />
-                <span>{appsLoading ? 'Scanning...' : 'Rescan'}</span>
-              </button>
-            </header>
+                <button
+                  type="button"
+                  className="guardian-refresh-apps-btn"
+                  onClick={() => void loadDiscoveredApps()}
+                  disabled={appsLoading}
+                  title="Rescan installed applications and running status"
+                >
+                  <Icon name="refresh" size={13} />
+                  <span>{appsLoading ? 'Scanning...' : 'Rescan'}</span>
+                </button>
+              </header>
 
-            <div className="guardian-app-toolbar">
-              <div className="guardian-app-search-row">
-                <div className="guardian-app-search-box" style={{ flex: 1, maxWidth: 'none' }}>
-                  <Icon name="search" size={14} />
-                  <input
-                    type="text"
-                    value={appSearch}
-                    onChange={(e) => setAppSearch(e.target.value)}
-                    placeholder="Search installed applications..."
-                    aria-label="Search installed applications"
-                  />
-                  {appSearch && (
-                    <button
-                      type="button"
-                      style={{ background: 'transparent', border: 0, color: 'var(--text-3)', cursor: 'pointer', padding: 0 }}
-                      onClick={() => setAppSearch('')}
-                      aria-label="Clear search"
-                    >
-                      ×
-                    </button>
-                  )}
+              <div className="guardian-app-toolbar">
+                <div className="guardian-app-search-row">
+                  <div className="guardian-app-search-box" style={{ flex: 1, maxWidth: 'none' }}>
+                    <Icon name="search" size={14} />
+                    <input
+                      type="text"
+                      value={appSearch}
+                      onChange={(e) => setAppSearch(e.target.value)}
+                      placeholder="Search installed applications..."
+                      aria-label="Search installed applications"
+                    />
+                    {appSearch && (
+                      <button
+                        type="button"
+                        style={{ background: 'transparent', border: 0, color: 'var(--text-3)', cursor: 'pointer', padding: 0 }}
+                        onClick={() => setAppSearch('')}
+                        aria-label="Clear search"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="guardian-app-filter-tabs" role="tablist" aria-label="Filter applications">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appFilter === 'ALL'}
+                    className={`guardian-filter-tab ${appFilter === 'ALL' ? 'is-active' : ''}`}
+                    onClick={() => setAppFilter('ALL')}
+                  >
+                    All ({discoveredApps.length})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appFilter === 'BLOCKED'}
+                    className={`guardian-filter-tab ${appFilter === 'BLOCKED' ? 'is-active' : ''}`}
+                    onClick={() => setAppFilter('BLOCKED')}
+                  >
+                    Blocked ({blockedCount})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appFilter === 'ALLOWED'}
+                    className={`guardian-filter-tab ${appFilter === 'ALLOWED' ? 'is-active' : ''}`}
+                    onClick={() => setAppFilter('ALLOWED')}
+                  >
+                    Allowed ({allowedCount})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appFilter === 'RUNNING'}
+                    className={`guardian-filter-tab ${appFilter === 'RUNNING' ? 'is-active' : ''}`}
+                    onClick={() => setAppFilter('RUNNING')}
+                  >
+                    Running ({runningCount})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appFilter === 'UNCONFIGURED'}
+                    className={`guardian-filter-tab ${appFilter === 'UNCONFIGURED' ? 'is-active' : ''}`}
+                    onClick={() => setAppFilter('UNCONFIGURED')}
+                  >
+                    Unconfigured ({unconfiguredCount})
+                  </button>
                 </div>
               </div>
 
-              <div className="guardian-app-filter-tabs" role="tablist" aria-label="Filter applications">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={appFilter === 'ALL'}
-                  className={`guardian-filter-tab ${appFilter === 'ALL' ? 'is-active' : ''}`}
-                  onClick={() => setAppFilter('ALL')}
-                >
-                  All ({discoveredApps.length})
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={appFilter === 'BLOCKED'}
-                  className={`guardian-filter-tab ${appFilter === 'BLOCKED' ? 'is-active' : ''}`}
-                  onClick={() => setAppFilter('BLOCKED')}
-                >
-                  Blocked ({blockedCount})
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={appFilter === 'ALLOWED'}
-                  className={`guardian-filter-tab ${appFilter === 'ALLOWED' ? 'is-active' : ''}`}
-                  onClick={() => setAppFilter('ALLOWED')}
-                >
-                  Allowed ({allowedCount})
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={appFilter === 'RUNNING'}
-                  className={`guardian-filter-tab ${appFilter === 'RUNNING' ? 'is-active' : ''}`}
-                  onClick={() => setAppFilter('RUNNING')}
-                >
-                  Running ({runningCount})
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={appFilter === 'UNCONFIGURED'}
-                  className={`guardian-filter-tab ${appFilter === 'UNCONFIGURED' ? 'is-active' : ''}`}
-                  onClick={() => setAppFilter('UNCONFIGURED')}
-                >
-                  Unconfigured ({unconfiguredCount})
-                </button>
-              </div>
-            </div>
-
-            {appsLoading && discoveredApps.length === 0 ? (
-              <p className="guardian-alpha-empty">Scanning installed applications...</p>
-            ) : visibleApps.length > 0 ? (
-              <ul className="guardian-app-list">
-                {visibleApps.map((app) => (
-                  <li key={app.id} className="guardian-app-item">
-                    <div className="guardian-app-item-main">
-                      <span className="guardian-alpha-app-icon">
-                        <Icon name={app.isRunning ? 'play' : 'apps'} size={16} />
-                      </span>
-                      <div className="guardian-app-item-info">
-                        <div className="guardian-app-item-title">
-                          <strong>{app.name}</strong>
-                          <div className="guardian-app-badges">
-                            <span className={`guardian-app-badge ${app.isRunning ? 'badge-running' : 'badge-idle'}`}>
-                              {app.isRunning ? '● Running' : 'Idle'}
-                            </span>
-                            <span className={`guardian-app-badge ${app.enforcementCapability === 'TERMINATE' || app.enforcementCapability === 'MONITOR_ONLY' ? 'badge-idle' : 'badge-unsupported'}`} title={app.unsupportedReason || undefined}>
-                              {app.enforcementCapability === 'TERMINATE' ? 'Eligible — warning only' : app.enforcementCapability === 'MONITOR_ONLY' ? 'Observation only' : app.unsupportedReason?.includes('Protected') ? 'Protected system app' : 'Unsupported'}
-                            </span>
+              {appsLoading && discoveredApps.length === 0 ? (
+                <p className="guardian-alpha-empty">Scanning installed applications...</p>
+              ) : visibleApps.length > 0 ? (
+                <ul className="guardian-app-list">
+                  {visibleApps.map((app) => (
+                    <li key={app.id} className="guardian-app-item">
+                      <div className="guardian-app-item-main">
+                        <span className="guardian-alpha-app-icon">
+                          <Icon name={app.isRunning ? 'play' : 'apps'} size={16} />
+                        </span>
+                        <div className="guardian-app-item-info">
+                          <div className="guardian-app-item-title">
+                            <strong>{app.name}</strong>
+                            <div className="guardian-app-badges">
+                              <span className={`guardian-app-badge ${app.isRunning ? 'badge-running' : 'badge-idle'}`}>
+                                {app.isRunning ? '● Running' : 'Idle'}
+                              </span>
+                              <span className={`guardian-app-badge ${app.enforcementCapability === 'TERMINATE' || app.enforcementCapability === 'MONITOR_ONLY' ? 'badge-idle' : 'badge-unsupported'}`} title={app.unsupportedReason || undefined}>
+                                {app.enforcementCapability === 'TERMINATE' ? 'Eligible — warning only' : app.enforcementCapability === 'MONITOR_ONLY' ? 'Observation only' : app.unsupportedReason?.includes('Protected') ? 'Protected system app' : 'Unsupported'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="guardian-app-meta">
+                            <code>{app.execName || 'unresolved'}</code>
+                            <span>·</span>
+                            <span>{app.source}</span>
                           </div>
                         </div>
-                        <div className="guardian-app-meta">
-                          <code>{app.execName || 'unresolved'}</code>
-                          <span>·</span>
-                          <span>{app.source}</span>
+                      </div>
+
+                      {app.enforcementCapability === 'UNSUPPORTED' ? (
+                        <span className="guardian-app-protected-label">Protected system</span>
+                      ) : (
+                        <div className="guardian-policy-segmented" role="group" aria-label={`Focus policy for ${app.name}`}>
+                          <button
+                            type="button"
+                            className={`segmented-btn btn-block ${app.policy === 'BLOCKED' ? 'is-active' : ''}`}
+                            onClick={() => handleSetAppPolicy(app, app.policy === 'BLOCKED' ? 'NONE' : 'BLOCKED')}
+                            title={app.policy === 'BLOCKED' ? 'Remove saved block policy' : 'Save a block policy for Focus; it applies only while observation is enabled'}
+                          >
+                            Block
+                          </button>
+                          <button
+                            type="button"
+                            className={`segmented-btn btn-allow ${app.policy === 'ALLOWED' ? 'is-active' : ''}`}
+                            onClick={() => handleSetAppPolicy(app, app.policy === 'ALLOWED' ? 'NONE' : 'ALLOWED')}
+                            title={app.policy === 'ALLOWED' ? 'Click to remove allow' : 'Explicitly allow this application during Focus'}
+                          >
+                            Allow
+                          </button>
+                          <button
+                            type="button"
+                            className={`segmented-btn btn-none ${app.policy === 'NONE' ? 'is-active' : ''}`}
+                            onClick={() => handleSetAppPolicy(app, 'NONE')}
+                            title="No policy (default)"
+                          >
+                            Off
+                          </button>
                         </div>
-                      </div>
-                    </div>
-
-                    {app.enforcementCapability === 'UNSUPPORTED' ? (
-                      <span className="guardian-app-protected-label">Protected system</span>
-                    ) : (
-                      <div className="guardian-policy-segmented" role="group" aria-label={`Focus policy for ${app.name}`}>
-                        <button
-                          type="button"
-                          className={`segmented-btn btn-block ${app.policy === 'BLOCKED' ? 'is-active' : ''}`}
-                          onClick={() => handleSetAppPolicy(app, app.policy === 'BLOCKED' ? 'NONE' : 'BLOCKED')}
-                          title={app.policy === 'BLOCKED' ? 'Remove saved block policy' : 'Save a block policy for Focus; it applies only while observation is enabled'}
-                        >
-                          Block
-                        </button>
-                        <button
-                          type="button"
-                          className={`segmented-btn btn-allow ${app.policy === 'ALLOWED' ? 'is-active' : ''}`}
-                          onClick={() => handleSetAppPolicy(app, app.policy === 'ALLOWED' ? 'NONE' : 'ALLOWED')}
-                          title={app.policy === 'ALLOWED' ? 'Click to remove allow' : 'Explicitly allow this application during Focus'}
-                        >
-                          Allow
-                        </button>
-                        <button
-                          type="button"
-                          className={`segmented-btn btn-none ${app.policy === 'NONE' ? 'is-active' : ''}`}
-                          onClick={() => handleSetAppPolicy(app, 'NONE')}
-                          title="No policy (default)"
-                        >
-                          Off
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="guardian-alpha-empty-banner">
-                <p className="guardian-alpha-empty">
-                  {appSearch
-                    ? 'No installed applications match the search query.'
-                    : discoveredApps.length === 0
-                      ? 'No local desktop shortcuts discovered. Distraction policies can be referenced from the catalog below.'
-                      : 'No applications found in this filter category.'}
-                </p>
-              </div>
-            )}
-
-            <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-              <button
-                type="button"
-                style={{
-                  background: 'transparent',
-                  border: 0,
-                  color: 'var(--text-2)',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: 0,
-                }}
-                onClick={() => setShowBuiltinCatalog((prev) => !prev)}
-              >
-                <span style={{ transform: showBuiltinCatalog ? 'rotate(180deg)' : 'none', display: 'inline-flex', transition: 'transform 0.15s ease' }}>
-                  <Icon name="chevron" size={12} />
-                </span>
-                <span>{showBuiltinCatalog ? 'Hide default distraction catalog' : `View default distraction catalog (${catalog.length} apps)`}</span>
-              </button>
-              {showBuiltinCatalog && (
-                <ul className="guardian-alpha-catalog" style={{ marginTop: 10 }}>
-                  {catalog.map((entry) => (
-                    <li key={entry.processName}>
-                      <span className="guardian-alpha-app-icon"><Icon name="apps" size={16} /></span>
-                      <span><strong>{entry.processName}</strong><small>{entry.rationale}</small></span>
-                      <span className="guardian-alpha-category">{entry.category}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <div className="guardian-alpha-empty-banner">
+                  <p className="guardian-alpha-empty">
+                    {appSearch
+                      ? 'No installed applications match the search query.'
+                      : discoveredApps.length === 0
+                        ? 'No local desktop shortcuts discovered. Distraction policies can be referenced from the catalog below.'
+                        : 'No applications found in this filter category.'}
+                  </p>
+                </div>
               )}
-            </div>
-          </section>
+
+              <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <button
+                  type="button"
+                  style={{
+                    background: 'transparent',
+                    border: 0,
+                    color: 'var(--text-2)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: 0,
+                  }}
+                  onClick={() => setShowBuiltinCatalog((prev) => !prev)}
+                >
+                  <span style={{ transform: showBuiltinCatalog ? 'rotate(180deg)' : 'none', display: 'inline-flex', transition: 'transform 0.15s ease' }}>
+                    <Icon name="chevron" size={12} />
+                  </span>
+                  <span>{showBuiltinCatalog ? 'Hide default distraction catalog' : `View default distraction catalog (${catalog.length} apps)`}</span>
+                </button>
+                {showBuiltinCatalog && (
+                  <ul className="guardian-alpha-catalog" style={{ marginTop: 10 }}>
+                    {catalog.map((entry) => (
+                      <li key={entry.processName}>
+                        <span className="guardian-alpha-app-icon"><Icon name="apps" size={16} /></span>
+                        <span><strong>{entry.processName}</strong><small>{entry.rationale}</small></span>
+                        <span className="guardian-alpha-category">{entry.category}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
           )}
         </div>
       )}
