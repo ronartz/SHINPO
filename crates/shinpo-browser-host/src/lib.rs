@@ -200,6 +200,10 @@ impl NativeHostService {
                 "pairingRequired": true,
                 "protocolVersion": PROTOCOL_VERSION,
             })),
+            "ping" | "PING" => Ok(json!({
+                "type": "PONG",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
             "pair" => {
                 let pairing_code = request.auth.as_deref().ok_or(HostError::Authentication)?;
                 let browser_token = self.config.consume_pairing(pairing_code, now_ms())?;
@@ -500,5 +504,29 @@ mod integration_tests {
                 .handle(request("status", Some(token)))
                 .ok
         );
+    }
+
+    #[test]
+    fn ping_and_uppercase_ping_returns_pong_with_timestamp() {
+        let dir = tempdir().unwrap();
+        let paths = HostPaths {
+            config: dir.path().join("config.json"),
+            policy: dir.path().join("policy.json"),
+            state_dir: dir.path().to_path_buf(),
+        };
+        let _ = initialize_installation(&paths).unwrap();
+        let mut host = NativeHostService::load(paths).unwrap();
+
+        let ping_res = host.handle(request("ping", None));
+        assert!(ping_res.ok);
+        let payload = ping_res.payload.unwrap();
+        assert_eq!(payload["type"], "PONG");
+        assert!(payload["timestamp"].as_str().is_some());
+
+        let ping_upper_res = host.handle(request("PING", None));
+        assert!(ping_upper_res.ok);
+        let payload_upper = ping_upper_res.payload.unwrap();
+        assert_eq!(payload_upper["type"], "PONG");
+        assert!(payload_upper["timestamp"].as_str().is_some());
     }
 }

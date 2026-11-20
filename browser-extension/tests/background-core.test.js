@@ -68,6 +68,8 @@ test('reevaluates the same break URL after grace expires under an unchanged poli
     URL,
     crypto: webcrypto,
     console,
+    setInterval,
+    clearInterval,
   }
   context.globalThis = context
   let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
@@ -114,6 +116,8 @@ test('initializes with UNPAIRED state when no pairing token is stored', async ()
     URL,
     crypto: webcrypto,
     console,
+    setInterval,
+    clearInterval,
   }
   context.globalThis = context
   let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
@@ -138,6 +142,8 @@ test('test_message_from_unknown_sender_rejected', async () => {
     URL,
     crypto: webcrypto,
     console,
+    setInterval,
+    clearInterval,
   }
   context.globalThis = context
   let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
@@ -165,6 +171,8 @@ test('test_message_from_spoofed_origin_rejected', async () => {
     URL,
     crypto: webcrypto,
     console,
+    setInterval,
+    clearInterval,
   }
   context.globalThis = context
   let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
@@ -181,4 +189,72 @@ test('test_message_from_spoofed_origin_rejected', async () => {
     async () => routeMessage({ type: 'GET_STATUS' }, spoofedSender),
     /Message from spoofed origin rejected/
   )
+})
+
+test('fail-open on disconnect clears policy, dynamic rules, and sets grey action state', async () => {
+  const { api } = apiStub()
+  let actionTitle = ''
+  let actionColor = ''
+  let actionText = 'INITIAL'
+  api.action = {
+    setBadgeText: async ({ text }) => { actionText = text },
+    setBadgeBackgroundColor: async ({ color }) => { actionColor = color },
+    setTitle: async ({ title }) => { actionTitle = title },
+  }
+  let removedRules = null
+  api.declarativeNetRequest = {
+    getDynamicRules: (cb) => cb([{ id: 101 }, { id: 102 }]),
+    updateDynamicRules: async ({ removeRuleIds }) => { removedRules = removeRuleIds },
+  }
+
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+    setInterval,
+    clearInterval,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { state, failOpen, markDisconnected, updateAction };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  const { state, markDisconnected } = context.__testHooks
+  state.ready = true
+  state.monitoringEnabled = true
+  state.connection = { state: 'CONNECTED', paired: true }
+  state.policy = globalThis.ShinpoPolicy.normalizePolicy({
+    sessionId: 'qa-active-focus',
+    status: 'ACTIVE',
+    mode: 'STRICT',
+    currentPhase: 'FOCUS',
+    policyVersion: 2,
+    phaseDeadlineAt: Date.now() + 60_000,
+    leaseExpiresAt: Date.now() + 120_000,
+    resources: [{
+      id: 'blocked-site',
+      resourceType: 'WEBSITE',
+      matchType: 'DOMAIN',
+      disposition: 'RESTRICTED',
+      destination: 'distraction.com',
+    }],
+  })
+
+  // Disconnect triggered (e.g. heartbeat timeout or native host crash)
+  await markDisconnected(new Error('Connection terminated'))
+
+  // Verify fail-open guarantees:
+  assert.equal(state.connection.state, 'DISCONNECTED')
+  assert.equal(state.policy.active, false)
+  assert.equal(state.policy.inactiveReason, 'SHINPO disconnected')
+  assert.deepEqual(removedRules, [101, 102], 'Must remove all dynamic blocking rules')
+  assert.equal(actionText, '', 'Disconnected badge text must be empty')
+  assert.equal(actionColor, '#6B7280', 'Disconnected badge color must be grey')
+  assert.equal(actionTitle, 'SHINPO disconnected')
 })
