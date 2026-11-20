@@ -19,6 +19,7 @@ import { useStudyResources } from '../../hooks/useStudyResources'
 import { Icon } from '../common/Icon'
 import { ShinpoButton, ShinpoSelect, ShinpoTextField } from '../ui'
 import type { SelectOption } from '../ui/Select/types'
+import { openExternalLink } from '../../api/tauri'
 
 export interface StudyResourcesPanelProps {
   missionId?: number
@@ -190,16 +191,18 @@ function ResourceRow({
       </div>
       <div className="study-resource-actions">
         {openUrl && (
-          <a
+          <button
+            type="button"
             className="study-resource-open"
-            href={openUrl}
-            target="_blank"
-            rel="noreferrer noopener"
+            onClick={(e) => {
+              e.preventDefault()
+              void openExternalLink(openUrl)
+            }}
             title="Open approved resource"
           >
             <Icon name="arrow-up-right" size={13} />
             <span>Open</span>
-          </a>
+          </button>
         )}
         <button
           type="button"

@@ -2572,7 +2572,7 @@ pub fn local_create_study_resource(
         "WEBSITE" | "TEMPORARY_SITE" | "DISCORD_CHANNEL" | "YOUTUBE_VIDEO" | "YOUTUBE_PLAYLIST"
     ) {
         let raw = destination.trim();
-        let candidate = if match_type == "DOMAIN" && !raw.contains("://") {
+        let candidate = if !raw.contains("://") {
             format!("https://{}", raw)
         } else {
             raw.to_string()
