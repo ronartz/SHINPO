@@ -2842,71 +2842,74 @@ fn apply_guardian_app_policy(
     observed: &[shinpo_shield::observer::ObservedDistraction],
 ) -> Result<Vec<GuardianOutcome>, String> {
     let now = OffsetDateTime::now_utc().unix_timestamp();
-    let (valid_session, runtime_consent, allowance, prior_outcomes) = with_db_background(state, |db| {
-        let transaction = db.transaction()?;
-        let session = transaction.query_row(
+    let (valid_session, runtime_consent, allowance, prior_outcomes) = with_db_background(
+        state,
+        |db| {
+            let transaction = db.transaction()?;
+            let session = transaction.query_row(
             "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
              FROM calendar_sessions WHERE id=?1",
             [session_id],
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, bool>(3)?, row.get::<_, String>(4)?)),
         ).optional()?;
-        let runtime_consent: bool = transaction.query_row(
-            "SELECT background_runtime_consent FROM guardian_preferences WHERE id=1",
-            [],
-            |row| row.get(0),
-        )?;
-        let valid_session =
-            session
-                .as_ref()
-                .is_some_and(|(status, phase, monitoring, stopped, mode)| {
-                    status == "ACTIVE"
-                        && phase == focus_phase
-                        && mode == guardian_mode
-                        && *monitoring
-                        && !stopped
-                });
-        let verified_count = observed
-            .iter()
-            .filter(|process| verified_observed_identity(process))
-            .count();
-        let allowance = if valid_session
-            && focus_phase == "FOCUS"
-            && guardian_mode == "PROTECTED"
-            && runtime_consent
-            && verified_count > 0
-        {
-            advance_guardian_runtime_allowance(&transaction, session_id, now)?
-        } else {
-            transaction.execute(
+            let runtime_consent: bool = transaction.query_row(
+                "SELECT background_runtime_consent FROM guardian_preferences WHERE id=1",
+                [],
+                |row| row.get(0),
+            )?;
+            let valid_session =
+                session
+                    .as_ref()
+                    .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                        status == "ACTIVE"
+                            && phase == focus_phase
+                            && mode == guardian_mode
+                            && *monitoring
+                            && !stopped
+                    });
+            let verified_count = observed
+                .iter()
+                .filter(|process| verified_observed_identity(process))
+                .count();
+            let allowance = if valid_session
+                && focus_phase == "FOCUS"
+                && guardian_mode == "PROTECTED"
+                && runtime_consent
+                && verified_count > 0
+            {
+                advance_guardian_runtime_allowance(&transaction, session_id, now)?
+            } else {
+                transaction.execute(
                 "UPDATE guardian_session_usage SET last_verified_epoch=NULL WHERE session_id=?1",
                 [session_id],
             )?;
-            transaction
-                .query_row(
-                    "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
-                    [session_id],
-                    |row| row.get::<_, i64>(0),
-                )
-                .optional()?
-                .unwrap_or(0)
-        };
-        let mut prior_map = std::collections::HashMap::new();
-        for process in observed {
-            let event_key = guardian_event_key(session_id, process, guardian_mode, focus_phase);
-            if let Ok(Some(outcome)) = transaction
-                .query_row(
-                    "SELECT outcome FROM guardian_observations WHERE event_key=?1",
-                    [&event_key],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()
-            {
-                prior_map.insert(event_key, outcome);
+                transaction
+                    .query_row(
+                        "SELECT consumed_seconds FROM guardian_session_usage WHERE session_id=?1",
+                        [session_id],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .optional()?
+                    .unwrap_or(0)
+            };
+            let mut prior_map = std::collections::HashMap::new();
+            for process in observed {
+                let event_key = guardian_event_key(session_id, process, guardian_mode, focus_phase);
+                if let Ok(Some(outcome)) = transaction
+                    .query_row(
+                        "SELECT outcome FROM guardian_observations WHERE event_key=?1",
+                        [&event_key],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                {
+                    prior_map.insert(event_key, outcome);
+                }
             }
-        }
-        transaction.commit()?;
-        Ok((valid_session, runtime_consent, allowance, prior_map))
-    })?;
+            transaction.commit()?;
+            Ok((valid_session, runtime_consent, allowance, prior_map))
+        },
+    )?;
 
     let mut outcomes = Vec::with_capacity(observed.len());
     for process in observed {
@@ -2949,22 +2952,17 @@ fn apply_guardian_app_policy(
                             process.pid,
                             true,
                         )
-                        .map(|()| {
-                            shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                        })
+                        .map(|()| shinpo_shield::process_identity::CloseResult::RequestedAndExited)
                     }
                     #[cfg(target_os = "linux")]
                     {
-                        let interceptor =
-                            shinpo_shield::platform::linux::LinuxInterceptor::new();
+                        let interceptor = shinpo_shield::platform::linux::LinuxInterceptor::new();
                         shinpo_shield::platform::PlatformInterceptor::terminate_process(
                             &interceptor,
                             process.pid,
                             true,
                         )
-                        .map(|()| {
-                            shinpo_shield::process_identity::CloseResult::RequestedAndExited
-                        })
+                        .map(|()| shinpo_shield::process_identity::CloseResult::RequestedAndExited)
                     }
                     #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
                     {
