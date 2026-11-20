@@ -1,5 +1,6 @@
 export function guardianCapabilityLabel(capability?: string | null): string {
   switch (capability) {
+    case 'STRICT_COOPERATIVE_CLOSE': return 'Strict · Active termination armed'
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
     case 'STRICT_WARNING_ONLY': return 'Strict · warning-only; app closure disabled'
     case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
@@ -24,6 +25,8 @@ export function guardianCapabilityLabel(capability?: string | null): string {
 
 export function guardianInterventionDescription(capability?: string | null): string {
   switch (capability) {
+    case 'STRICT_COOPERATIVE_CLOSE':
+      return 'Strict actively terminates recognized distraction applications immediately upon launch.'
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
     case 'STRICT_WARNING_ONLY':
       return 'Strict reports recognized app observations immediately. This release does not close applications.'
@@ -60,12 +63,15 @@ export function guardianInterventionDescription(capability?: string | null): str
   }
 }
 
-export function guardianCanRequestClose(_capability?: string | null, _warningOnly?: boolean): boolean {
+export function guardianCanRequestClose(capability?: string | null, warningOnly?: boolean): boolean {
+  if (capability === 'STRICT_COOPERATIVE_CLOSE') return true
+  if (warningOnly === false && capability?.startsWith('STRICT') && capability !== 'STRICT_LINUX_COOPERATIVE_CLOSE') return true
   return false
 }
 
 export function guardianOutcomeLabel(outcome?: string | null): string {
   switch (outcome) {
+    case 'CLOSED_GRACEFULLY_VERIFIED': return 'Blocked process terminated'
     case 'ALLOWED_BREAK': return 'Allowed during break'
     case 'WARNING_GRACE': return 'Warning during grace period'
     case 'WARNING_RETURN_REQUIRED': return 'Warning · return required'

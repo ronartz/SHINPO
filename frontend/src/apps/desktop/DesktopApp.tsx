@@ -2493,7 +2493,7 @@ export function DesktopApp() {
         latePenaltyXp,
         latePenaltyDailyCapXp,
         guardianMode,
-        guardianAppMonitoring,
+        guardianAppMonitoring: guardianMode === 'STRICT' ? true : guardianAppMonitoring,
       })
       const started = await startFocusSession(created.id, userId)
       setGuardianMode(savedGuardianPreferences.applyToNewSessions ? savedGuardianPreferences.preferredMode : guardianMode)

@@ -16,6 +16,16 @@ const DISTRACTION_APPS: &[AppCatalogEntry] = &[
         rationale: "Game and social chat platform",
     },
     AppCatalogEntry {
+        process_name: "overwolf",
+        category: "GAMING",
+        rationale: "Gaming overlay and companion platform",
+    },
+    AppCatalogEntry {
+        process_name: "overwolflauncher",
+        category: "GAMING",
+        rationale: "Overwolf platform launcher",
+    },
+    AppCatalogEntry {
         process_name: "steam",
         category: "GAMING",
         rationale: "Game launcher and store",

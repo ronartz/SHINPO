@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianObserverLabel, guardianOutcomeLabel } from './guardianCapability.ts'
 
 test('Guardian capability labels stay understandable and honest', () => {
+  assert.equal(guardianCapabilityLabel('STRICT_COOPERATIVE_CLOSE'), 'Strict · Active termination armed')
   assert.equal(guardianCapabilityLabel('STRICT_LINUX_COOPERATIVE_CLOSE'), 'Strict · warning-only; app closure disabled')
   assert.equal(guardianCapabilityLabel('STRICT_WARNING_ONLY'), 'Strict · warning-only; app closure disabled')
   assert.equal(guardianCapabilityLabel('STANDARD_SAMPLED_RUNTIME_ALLOWANCE'), 'Standard · warning-only')

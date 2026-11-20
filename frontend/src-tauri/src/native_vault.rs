@@ -2899,14 +2899,9 @@ fn apply_guardian_app_policy(
                     |row| row.get::<_, String>(0),
                 )
                 .optional()?;
-            let already_intervened = prior_outcome.as_deref().is_some_and(|outcome| {
-                matches!(
-                    outcome,
-                    "CLOSED_GRACEFULLY_VERIFIED"
-                        | "CLOSE_REQUESTED_UNCONFIRMED"
-                        | "LIMITED_CLOSE_UNAVAILABLE"
-                )
-            });
+            let already_intervened = prior_outcome
+                .as_deref()
+                .is_some_and(|outcome| matches!(outcome, "CLOSED_GRACEFULLY_VERIFIED"));
             let outcome = if already_intervened {
                 prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
             } else if !valid_session {
@@ -2922,37 +2917,68 @@ fn apply_guardian_app_policy(
             } else if guardian_mode == "PROTECTED" && allowance < 600 {
                 format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
             } else if guardian_mode == "STRICT" {
-                #[cfg(target_os = "windows")]
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
                 {
-                    if let Some(ref identity) = process.identity {
-                        match shinpo_shield::process_identity::request_graceful_close(
-                            identity, true,
-                        ) {
-                            Ok(
-                                shinpo_shield::process_identity::CloseResult::RequestedAndExited,
-                            ) => {
-                                log::info!(
-                                    "Guardian Strict terminated blocked process: {} (PID {})",
-                                    process.process_name,
-                                    process.pid
-                                );
-                                "CLOSED_GRACEFULLY_VERIFIED".to_string()
-                            }
-                            Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
-                            Err(err) => {
-                                log::warn!(
-                                    "Guardian Strict close failed for {}: {}",
-                                    process.process_name,
-                                    err
-                                );
-                                "LIMITED_CLOSE_UNAVAILABLE".to_string()
-                            }
+                    let close_res = if let Some(ref identity) = process.identity {
+                        shinpo_shield::process_identity::request_graceful_close(identity, true)
+                    } else if !shinpo_shield::process_identity::protected_process_name(
+                        &process.process_name,
+                    ) {
+                        #[cfg(target_os = "windows")]
+                        {
+                            let interceptor =
+                                shinpo_shield::platform::windows::WindowsInterceptor::new();
+                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                                &interceptor,
+                                process.pid,
+                                true,
+                            )
+                            .map(|()| {
+                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
+                            })
+                        }
+                        #[cfg(target_os = "linux")]
+                        {
+                            let interceptor =
+                                shinpo_shield::platform::linux::LinuxInterceptor::new();
+                            shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                                &interceptor,
+                                process.pid,
+                                true,
+                            )
+                            .map(|()| {
+                                shinpo_shield::process_identity::CloseResult::RequestedAndExited
+                            })
+                        }
+                        #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+                        {
+                            Err("Platform unsupported".to_string())
                         }
                     } else {
-                        "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
+                        Err("Protected process".to_string())
+                    };
+
+                    match close_res {
+                        Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+                            log::info!(
+                                "Guardian Strict terminated blocked process: {} (PID {})",
+                                process.process_name,
+                                process.pid
+                            );
+                            "CLOSED_GRACEFULLY_VERIFIED".to_string()
+                        }
+                        Ok(_) => "CLOSE_REQUESTED_UNCONFIRMED".to_string(),
+                        Err(err) => {
+                            log::warn!(
+                                "Guardian Strict close failed for {}: {}",
+                                process.process_name,
+                                err
+                            );
+                            "LIMITED_CLOSE_UNAVAILABLE".to_string()
+                        }
                     }
                 }
-                #[cfg(not(target_os = "windows"))]
+                #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
                 {
                     "WARNING_STRICT_ENFORCEMENT_DISABLED".to_string()
                 }
@@ -3489,10 +3515,10 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             "OBSERVER_UNAVAILABLE"
         } else if observer_status != "MONITORING" {
             "OBSERVER_STARTING"
-        } else if !cfg!(target_os = "linux") {
+        } else if !cfg!(any(target_os = "linux", target_os = "windows")) {
             "LIMITED_PLATFORM_UNSUPPORTED"
         } else if mode.as_deref() == Some("STRICT") {
-            "STRICT_WARNING_ONLY"
+            "STRICT_COOPERATIVE_CLOSE"
         } else if mode.as_deref() == Some("PROTECTED") && !runtime_consent {
             "LIMITED_NO_RUNTIME_CONSENT"
         } else if mode.as_deref() == Some("PROTECTED") && allowance.unwrap_or(0) < 600 {
@@ -3502,6 +3528,12 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         } else {
             "WARNING_ONLY"
         };
+        let is_strict_active = mode.as_deref() == Some("STRICT")
+            && phase.as_deref() == Some("FOCUS")
+            && status == "ACTIVE"
+            && !intervention_disabled
+            && monitoring
+            && observer_status == "MONITORING";
         Ok(LocalGuardianStatus {
             status,
             active_focus_session_id: id,
@@ -3512,8 +3544,9 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             last_observation_at,
             app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             domain_catalog_version: DOMAIN_CATALOG_VERSION,
-            warning_only: true,
+            warning_only: !is_strict_active,
             intervention_capability: match application_policy_status {
+                "STRICT_COOPERATIVE_CLOSE" => "STRICT_COOPERATIVE_CLOSE",
                 "STRICT_WARNING_ONLY" => "STRICT_WARNING_ONLY",
                 "STANDARD_ALLOWANCE_ACTIVE" => "STANDARD_SAMPLED_RUNTIME_ALLOWANCE",
                 "STANDARD_WARNING_ONLY" => "STANDARD_WARNING_ONLY",
@@ -7918,7 +7951,10 @@ mod tests {
             std::slice::from_ref(&process),
         )
         .unwrap();
-        assert_eq!(armed[0].2, "WARNING_STRICT_ENFORCEMENT_DISABLED");
+        assert!(
+            armed[0].2 == "LIMITED_CLOSE_UNAVAILABLE"
+                || armed[0].2 == "WARNING_STRICT_ENFORCEMENT_DISABLED"
+        );
 
         local_update_guardian_preferences_from(
             &manager,
@@ -7939,7 +7975,10 @@ mod tests {
             std::slice::from_ref(&process),
         )
         .unwrap();
-        assert_eq!(revoked[0].2, "WARNING_STRICT_ENFORCEMENT_DISABLED");
+        assert!(
+            revoked[0].2 == "LIMITED_CLOSE_UNAVAILABLE"
+                || revoked[0].2 == "WARNING_STRICT_ENFORCEMENT_DISABLED"
+        );
         with_db(&manager, |db| {
             db.execute(
                 "UPDATE calendar_sessions SET current_phase='BREAK' WHERE id=?1",

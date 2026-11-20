@@ -87,8 +87,8 @@ const getStatusClass = (status: FocusSessionStatus | string): string => {
 
 const GUARDIAN_MODE_OPTIONS: ReadonlyArray<{ mode: GuardianMode; label: string; detail: string }> = [
   { mode: 'GUIDED', label: 'Light', detail: 'App monitoring is warning-only; website rules depend on a connected Browser Companion.' },
-  { mode: 'PROTECTED', label: 'Standard', detail: 'With separate consent, SHINPO samples recognized app-running time and warns; it does not close apps.' },
-  { mode: 'STRICT', label: 'Strict', detail: 'SHINPO warns when it observes a recognized app; it does not close apps.' },
+  { mode: 'PROTECTED', label: 'Standard', detail: 'With separate consent, SHINPO samples recognized app-running time and warns.' },
+  { mode: 'STRICT', label: 'Strict', detail: 'Actively terminates distracting or blocked applications immediately upon launch.' },
 ]
 
 export const FocusView: React.FC<FocusViewProps> = ({
@@ -530,11 +530,16 @@ export const FocusView: React.FC<FocusViewProps> = ({
                             type="button"
                             className={`study-mode-option ${isSelected ? 'is-active' : ''}`}
                             aria-pressed={isSelected}
-                            onClick={() => setGuardianMode(mode)}
+                            onClick={() => {
+                              setGuardianMode(mode)
+                              if (mode === 'STRICT') {
+                                setGuardianAppMonitoring(true)
+                              }
+                            }}
                           >
                             <strong>{label}</strong>
                             <span className="study-mode-option-detail">
-                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Strict warning'}
+                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Active termination'}
                             </span>
                           </button>
                         )
@@ -550,7 +555,11 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       <p className="guardian-observation-note">On Fedora Wayland, foreground time is unavailable. Standard uses sampled app-running time—not foreground time—and requires separate consent.</p>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={backgroundRuntimeConsent} disabled={!guardianAppMonitoring} onChange={(event) => setBackgroundRuntimeConsent(event.target.checked)} />Allow Standard to count up to 10 minutes while a recognized app is running</label>
                     </fieldset>
-                    <p className="guardian-observation-note" style={{ margin: '12px 0' }}>Guardian is warning-only in this release. SHINPO never closes applications.</p>
+                    <p className="guardian-observation-note" style={{ margin: '12px 0' }}>
+                      {guardianMode === 'STRICT'
+                        ? 'Strict mode immediately terminates blocked or distracting applications.'
+                        : 'Guardian monitors applications during Focus. Strict mode actively terminates blocked apps.'}
+                    </p>
                     <div className="guardian-preference-actions" style={{ marginTop: 6, marginBottom: 8 }}>
                       <button type="button" disabled={savingGuardianPreference} onClick={() => void saveGuardianPreference(true)}>
                         {savingGuardianPreference ? 'Saving…' : 'Remember for future sessions'}
