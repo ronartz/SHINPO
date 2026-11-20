@@ -2636,6 +2636,53 @@ pub fn local_sync_browser_policy(
     publish_local_browser_policy(&state)
 }
 
+pub fn get_browser_companion_is_paired(manager: &VaultManager) -> Result<bool, String> {
+    with_db(manager, |db| {
+        let _ = db.execute(
+            "ALTER TABLE browser_companion_meta ADD COLUMN is_paired INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = db.execute(
+            "ALTER TABLE browser_companion_meta ADD COLUMN paired_at TEXT",
+            [],
+        );
+        let is_paired: i64 = db
+            .query_row(
+                "SELECT is_paired FROM browser_companion_meta WHERE id=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        Ok(is_paired == 1)
+    })
+}
+
+pub fn set_browser_companion_is_paired(manager: &VaultManager, paired: bool) -> Result<(), String> {
+    with_db(manager, |db| {
+        let _ = db.execute(
+            "ALTER TABLE browser_companion_meta ADD COLUMN is_paired INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = db.execute(
+            "ALTER TABLE browser_companion_meta ADD COLUMN paired_at TEXT",
+            [],
+        );
+        let val = if paired { 1 } else { 0 };
+        let now = if paired {
+            OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        } else {
+            None
+        };
+        db.execute(
+            "UPDATE browser_companion_meta SET is_paired = ?, paired_at = ? WHERE id=1",
+            rusqlite::params![val, now],
+        )?;
+        Ok(())
+    })
+}
+
 pub fn maintain_active_focus(state: &VaultManager) -> Result<(), String> {
     maintain_active_focus_at(state, &state.browser_host_paths, unix_now_seconds())
 }

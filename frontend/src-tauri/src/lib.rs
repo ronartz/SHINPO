@@ -205,11 +205,20 @@ fn browser_companion_pairing_code(
 }
 
 #[tauri::command]
-fn browser_companion_local_status() -> BrowserCompanionLocalStatus {
+fn browser_companion_local_status(
+    state: tauri::State<'_, native_vault::VaultManager>,
+) -> BrowserCompanionLocalStatus {
     let paths = shinpo_browser_host::config::HostPaths::default();
-    let paired = shinpo_browser_host::config::HostConfig::load(&paths)
+    let host_paired = shinpo_browser_host::config::HostConfig::load(&paths)
         .ok()
         .is_some_and(|config| config.browser_token_hash.is_some());
+    let vault_paired = state.is_unlocked().unwrap_or(false)
+        && native_vault::get_browser_companion_is_paired(state.inner()).unwrap_or(false);
+
+    if host_paired && state.is_unlocked().unwrap_or(false) && !vault_paired {
+        let _ = native_vault::set_browser_companion_is_paired(state.inner(), true);
+    }
+    let paired = host_paired || vault_paired;
     let report = shinpo_browser_host::registration::check_registration(None);
     BrowserCompanionLocalStatus {
         paired,
@@ -234,7 +243,12 @@ fn browser_companion_register_host(
 }
 
 #[tauri::command]
-fn browser_companion_revoke() -> Result<(), String> {
+fn browser_companion_revoke(
+    state: tauri::State<'_, native_vault::VaultManager>,
+) -> Result<(), String> {
+    if state.is_unlocked().unwrap_or(false) {
+        let _ = native_vault::set_browser_companion_is_paired(state.inner(), false);
+    }
     shinpo_browser_host::disconnect_installation(&shinpo_browser_host::config::HostPaths::default())
         .map_err(|_| "Could not revoke the Browser Companion pairing".to_string())
 }
