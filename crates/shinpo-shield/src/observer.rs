@@ -141,13 +141,11 @@ pub struct ObservedDistraction {
 pub fn classify_distraction(process_name: &str) -> Option<&'static AppCatalogEntry> {
     let normalized = process_name.trim().to_ascii_lowercase();
     let normalized = normalized.strip_suffix(".exe").unwrap_or(&normalized);
-    DISTRACTION_APPS
-        .iter()
-        .find(|entry| {
-            entry.process_name == normalized
-                || (entry.process_name.len() >= 4 && normalized.starts_with(entry.process_name))
-                || (normalized.len() >= 15 && entry.process_name.starts_with(normalized))
-        })
+    DISTRACTION_APPS.iter().find(|entry| {
+        entry.process_name == normalized
+            || (entry.process_name.len() >= 4 && normalized.starts_with(entry.process_name))
+            || (normalized.len() >= 15 && entry.process_name.starts_with(normalized))
+    })
 }
 
 pub fn is_known_distraction(process_name: &str) -> bool {
