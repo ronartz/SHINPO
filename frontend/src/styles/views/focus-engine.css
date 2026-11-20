@@ -1566,10 +1566,12 @@ html[data-theme='light'] .status-indicator-pill.failed {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.6);
     outline: 2px solid var(--color-primary);
   }
+
   40% {
     box-shadow: 0 0 0 8px rgba(124, 58, 237, 0.25);
     outline: 2px solid var(--color-primary);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
     outline: 2px solid transparent;
