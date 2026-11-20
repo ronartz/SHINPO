@@ -15,7 +15,8 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.shinpo-particles {
+.shinpo-particles,
+.particle-canvas {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -23,6 +24,8 @@
   z-index: 0;
   display: block;
   pointer-events: none;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* ==========================================================================
