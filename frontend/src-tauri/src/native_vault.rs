@@ -3459,7 +3459,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         } else if !cfg!(any(target_os = "linux", target_os = "windows")) {
             "LIMITED_PLATFORM_UNSUPPORTED"
         } else if mode.as_deref() == Some("STRICT") {
-            "STRICT_COOPERATIVE_CLOSE"
+            "STRICT_WARNING_ONLY"
         } else if mode.as_deref() == Some("PROTECTED") && !runtime_consent {
             "LIMITED_NO_RUNTIME_CONSENT"
         } else if mode.as_deref() == Some("PROTECTED") && allowance.unwrap_or(0) < 600 {
@@ -3469,12 +3469,6 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         } else {
             "WARNING_ONLY"
         };
-        let is_strict_active = mode.as_deref() == Some("STRICT")
-            && phase.as_deref() == Some("FOCUS")
-            && status == "ACTIVE"
-            && !intervention_disabled
-            && monitoring
-            && observer_status == "MONITORING";
         Ok(LocalGuardianStatus {
             status,
             active_focus_session_id: id,
@@ -3485,7 +3479,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             last_observation_at,
             app_catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
             domain_catalog_version: DOMAIN_CATALOG_VERSION,
-            warning_only: !is_strict_active,
+            warning_only: true,
             intervention_capability: match application_policy_status {
                 "STRICT_COOPERATIVE_CLOSE" => "STRICT_COOPERATIVE_CLOSE",
                 "STRICT_WARNING_ONLY" => "STRICT_WARNING_ONLY",
