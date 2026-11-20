@@ -411,7 +411,8 @@ export function StudyResourcesPanel({
                     type="button"
                     className={`study-mode-option ${mode === option ? 'is-active' : ''}`}
                     aria-pressed={mode === option}
-                    disabled={!sessionId || mutating}
+                    disabled={Boolean(sessionId) || mutating}
+                    title={sessionId ? 'Study mode is locked during an active Focus session' : undefined}
                     onClick={() => void handleModeChange(option)}
                   >
                     <strong>{MODE_DETAILS[option].label}</strong>
@@ -419,8 +420,12 @@ export function StudyResourcesPanel({
                   </button>
                 ))}
               </div>
-              {!sessionId && (
-                <p className="study-mode-disabled-note">Study mode becomes available for an active or paused Focus session.</p>
+              {sessionId ? (
+                <p className="study-mode-disabled-note" style={{ color: 'var(--text-3)', fontSize: '11.5px', marginTop: '6px' }}>
+                  Study mode is locked during an ongoing session to protect your focus.
+                </p>
+              ) : (
+                <p className="study-mode-disabled-note">Study mode becomes locked during an active or paused Focus session.</p>
               )}
               {sessionId && mode === null && (
                 <p className="study-mode-disabled-note">Study mode status is unavailable; no active mode is being claimed.</p>

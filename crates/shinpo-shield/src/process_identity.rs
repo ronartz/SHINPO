@@ -126,6 +126,12 @@ fn inspect_process_internal(
         return Ok(None);
     }
     let metadata = fs::metadata(proc_root.join("exe"))
+        .or_else(|_| {
+            let rel = executable_path
+                .strip_prefix("/")
+                .unwrap_or(&executable_path);
+            fs::metadata(proc_root.join("root").join(rel))
+        })
         .map_err(|_| "Process executable metadata is unavailable".to_string())?;
     if !metadata.is_file() {
         return Err("Process executable is not a regular file".into());
@@ -297,6 +303,13 @@ fn identity_still_matches(expected: &ProcessIdentity) -> Result<bool, String> {
         return Ok(false);
     };
     let metadata = fs::metadata(format!("/proc/{}/exe", expected.pid))
+        .or_else(|_| {
+            let rel = expected
+                .executable_path
+                .strip_prefix("/")
+                .unwrap_or(&expected.executable_path);
+            fs::metadata(format!("/proc/{}/root/{}", expected.pid, rel.display()))
+        })
         .map_err(|_| "Process executable identity disappeared".to_string())?;
     Ok(current.process_start_ticks == expected.process_start_ticks
         && current.owner_id == expected.owner_id

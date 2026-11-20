@@ -182,9 +182,9 @@ html[data-theme='light'] .analytics-view,
 .focus-contribution-skyline > p { color: var(--text-2); }
 .focus-contribution-skyline > button { min-height: 36px; padding: 0 12px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; cursor: pointer; }
 
-.analytics-main-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .85fr); gap: 14px; align-items: start; }
-.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; }
-.analytics-activity-panel { display: flex; flex-direction: column; }
+.analytics-main-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .85fr); gap: 14px; align-items: stretch; }
+.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; height: 100%; }
+.analytics-activity-panel { display: flex; flex-direction: column; height: 100%; }
 .analytics-panel-heading { align-items: flex-start; margin-bottom: 12px; }
 .analytics-panel-heading h2 { margin: 0; color: var(--text-1); font-size: 17px; font-weight: 720; line-height: 1.3; letter-spacing: -.015em; }
 .analytics-panel-heading p { margin-top: 5px; }
@@ -228,6 +228,7 @@ html:not([data-brand='aurora']) .analytics-zero-btn {
 }
 
 .analytics-chart-canvas-container.focus-activity-empty {
+  flex: 1;
   min-height: 160px;
   height: auto;
   display: flex;

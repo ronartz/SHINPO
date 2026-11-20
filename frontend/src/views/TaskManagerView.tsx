@@ -741,11 +741,14 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 ].map((item) => {
                   const currentMode = sentinelStatus?.guardianMode ?? 'PROTECTED'
                   const isCur = currentMode === item.id || (item.id === 'PROTECTED' && currentMode === 'STANDARD')
+                  const isSessionActive = Boolean(sentinelStatus?.activeFocusSessionId)
                   return (
                     <button
                       key={item.id}
                       type="button"
                       className={`study-mode-option ${isCur ? 'is-active' : ''}`}
+                      disabled={isSessionActive}
+                      title={isSessionActive ? 'Guardian mode cannot be changed during an ongoing Focus session' : undefined}
                       onClick={() => void handleGuardianModeSelect(item.id as 'GUIDED' | 'PROTECTED' | 'STRICT')}
                       style={{
                         padding: '10px 12px',
@@ -753,7 +756,8 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                         border: isCur ? '1.5px solid var(--brand-primary, #7c3aed)' : '1px solid var(--border)',
                         background: isCur ? 'color-mix(in srgb, var(--brand-primary, #7c3aed) 16%, transparent)' : 'var(--surface)',
                         color: 'var(--text-1)',
-                        cursor: 'pointer',
+                        cursor: isSessionActive ? 'not-allowed' : 'pointer',
+                        opacity: isSessionActive && !isCur ? 0.6 : 1,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'flex-start',
@@ -768,6 +772,11 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   )
                 })}
               </div>
+              {sentinelStatus?.activeFocusSessionId && (
+                <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-3)' }}>
+                  Guardian mode is locked during an active Focus session to ensure focus integrity.
+                </p>
+              )}
             </div>
 
             <section className="guardian-alpha-panel guardian-policy-explainer" aria-label="Understanding Focus Protection">

@@ -99,6 +99,7 @@ import type {
 import { fetchAnalyticsDashboard } from '../../api/analytics'
 import type { AnalyticsDashboardResponse } from '../../api/analytics'
 import { takeRecentGuardianObservation } from '../../utils/guardianAlerts'
+import { guardianOutcomeLabel } from '../../utils/guardianCapability'
 import { getBackendBaseUrl, getCustomServerUrl, isValidServerUrl } from '../../api/config'
 import { CinematicStartup } from '../../components/startup/CinematicStartup'
 import { OnboardingWelcome, TutorialOverlay } from '../../components/TutorialOverlay'
@@ -792,6 +793,8 @@ export function DesktopApp() {
       id: crypto.randomUUID(),
       timestamp: safeTimestamp,
     }
+    setLiveAlerts((prev) => [item, ...prev].slice(0, 50))
+    setUnreadAlertCount((prev) => prev + 1)
     setToastAlerts((prev) => [item, ...prev].slice(0, 2))
     window.setTimeout(() => {
       setToastAlerts((prev) => prev.filter((current) => current.id !== item.id))
@@ -1446,10 +1449,24 @@ export function DesktopApp() {
           seenGuardianObservationIds.current,
         )
         if (observation) {
+          const isTerminated = observation.outcome === 'CLOSED_GRACEFULLY_VERIFIED'
+          const isAllowedBreak = observation.outcome === 'ALLOWED_BREAK' || observation.outcome === 'ALLOWED_OUTSIDE_FOCUS'
+          const title = isTerminated
+            ? `Guardian closed ${observation.processName}`
+            : isAllowedBreak
+              ? `Guardian observed ${observation.processName}`
+              : `Guardian noticed ${observation.processName}`
+          const description = isTerminated
+            ? 'Terminated under Strict mode to protect your focus.'
+            : isAllowedBreak
+              ? 'Allowed outside focus during break.'
+              : observation.outcome === 'WARNING_GRACE'
+                ? 'Grace period active. Return to focus soon.'
+                : guardianOutcomeLabel(observation.outcome)
           pushToast({
-            type: 'focus',
-            title: `Guardian noticed ${observation.processName}`,
-            description: 'This app matches the distraction catalog. It was recorded locally and remains open.',
+            type: isTerminated ? 'quarantine' : 'focus',
+            title,
+            description,
             timestamp: observation.observedAt,
           })
         }
