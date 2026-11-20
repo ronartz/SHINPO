@@ -2479,6 +2479,13 @@ export function DesktopApp() {
     }
 
     try {
+      const effectiveLongBreak = pomodoroEnabled
+        ? Math.max(1, Math.min(pomodoroLongBreakMinutes, selectedDuration < 30 ? Math.floor(selectedDuration / 2) : pomodoroLongBreakMinutes))
+        : pomodoroLongBreakMinutes
+      const effectiveGrace = pomodoroEnabled
+        ? Math.max(1, Math.min(pomodoroGraceMinutes, selectedDuration < 15 ? Math.floor(selectedDuration / 3) : pomodoroGraceMinutes))
+        : pomodoroGraceMinutes
+
       const created = await createFocusSession({
         userId,
         name: selectedPomodoroPlan ?? `${selectedDuration}m Focus Session`,
@@ -2487,8 +2494,8 @@ export function DesktopApp() {
         pomodoroEnabled,
         pomodoroFocusCycles,
         pomodoroShortBreakMinutes,
-        pomodoroLongBreakMinutes,
-        pomodoroGraceMinutes,
+        pomodoroLongBreakMinutes: effectiveLongBreak,
+        pomodoroGraceMinutes: effectiveGrace,
         latePenaltyEnabled: pomodoroEnabled && latePenaltyEnabled,
         latePenaltyXp,
         latePenaltyDailyCapXp,

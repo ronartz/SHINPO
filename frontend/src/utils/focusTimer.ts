@@ -107,6 +107,13 @@ export function describeFocusPlan(
     return `${totalFocusMinutes} min continuous focus · ${totalFocusMinutes} min total focus · no break`
   }
 
+  const effectiveBreak = totalFocusMinutes < 30
+    ? Math.min(breakMinutes, Math.max(1, Math.floor(totalFocusMinutes / 2)))
+    : breakMinutes
+  const effectiveGrace = totalFocusMinutes < 15
+    ? Math.min(graceMinutes, Math.max(1, Math.floor(totalFocusMinutes / 3)))
+    : graceMinutes
+
   const totalSeconds = totalFocusMinutes * 60
   const firstBlockSeconds = Math.floor(totalSeconds / 2)
   const secondBlockSeconds = totalSeconds - firstBlockSeconds
@@ -117,7 +124,7 @@ export function describeFocusPlan(
     return remainingSeconds ? `${minutes} min ${remainingSeconds} sec` : `${minutes} min`
   }
 
-  return `${formatBlock(firstBlockSeconds)} focus → ${breakMinutes} min midpoint break → ${formatBlock(secondBlockSeconds)} focus · ${totalFocusMinutes} min total focus · up to ${graceMinutes} min grace`
+  return `${formatBlock(firstBlockSeconds)} focus → ${effectiveBreak} min midpoint break → ${formatBlock(secondBlockSeconds)} focus · ${totalFocusMinutes} min total focus · up to ${effectiveGrace} min grace`
 }
 
 export const durationPresets = [15, 30, 60, 90]
