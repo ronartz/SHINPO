@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { emergencyStopGuardianInterventions, getGuardianObservations, getGuardianStatus, updateGuardianPreferences } from '../api/focusSessions'
 import type { FocusSession, FocusSessionStatus, GuardianMode, GuardianObservation, GuardianPreferences, GuardianStatus } from '../api/focusSessions'
-import { guardianCapabilityLabel } from '../utils/guardianCapability'
+import { guardianCapabilityLabel, guardianInterventionDescription } from '../utils/guardianCapability'
 import { getLiveFocusElapsedSeconds } from '../utils/liveFocusElapsed'
 import type { SentinelWarningItem } from '../api/device'
 import { Icon } from '../components/common/Icon'
@@ -56,6 +56,8 @@ export interface FocusViewProps {
   setGuardianMode: (mode: GuardianMode) => void
   guardianAppMonitoring: boolean
   setGuardianAppMonitoring: (enabled: boolean) => void
+  guardianClosureConsent: boolean
+  setGuardianClosureConsent: (enabled: boolean) => void
   onGuardianPreferencesSaved: (preferences: GuardianPreferences) => void
   backgroundRuntimeConsent: boolean
   setBackgroundRuntimeConsent: (enabled: boolean) => void
@@ -88,7 +90,7 @@ const getStatusClass = (status: FocusSessionStatus | string): string => {
 const GUARDIAN_MODE_OPTIONS: ReadonlyArray<{ mode: GuardianMode; label: string; detail: string }> = [
   { mode: 'GUIDED', label: 'Light', detail: 'App monitoring is warning-only; website rules depend on a connected Browser Companion.' },
   { mode: 'PROTECTED', label: 'Standard', detail: 'With separate consent, SHINPO samples recognized app-running time and warns.' },
-  { mode: 'STRICT', label: 'Strict', detail: 'Actively terminates distracting or blocked applications immediately upon launch.' },
+  { mode: 'STRICT', label: 'Strict', detail: 'During Focus, recognized blocked apps receive one consent-based graceful close request when observed; non-exiting apps remain open.' },
 ]
 
 export const FocusView: React.FC<FocusViewProps> = ({
@@ -131,6 +133,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
   setGuardianMode,
   guardianAppMonitoring,
   setGuardianAppMonitoring,
+  guardianClosureConsent,
+  setGuardianClosureConsent,
   onGuardianPreferencesSaved,
   backgroundRuntimeConsent,
   setBackgroundRuntimeConsent,
@@ -175,13 +179,15 @@ export const FocusView: React.FC<FocusViewProps> = ({
         preferredMode: guardianMode,
         appMonitoringConsent: applyToNewSessions && guardianAppMonitoring,
         applyToNewSessions,
-        closureConsent: false,
+        closureConsent: applyToNewSessions && guardianAppMonitoring && guardianClosureConsent,
         backgroundRuntimeConsent: applyToNewSessions && guardianAppMonitoring && backgroundRuntimeConsent,
       })
       onGuardianPreferencesSaved(saved)
       if (!saved.appMonitoringConsent) setGuardianAppMonitoring(false)
+      setGuardianClosureConsent(saved.closureConsent)
       if (!applyToNewSessions || !saved.appMonitoringConsent) {
         setBackgroundRuntimeConsent(false)
+        setGuardianClosureConsent(false)
       }
       setGuardianPreferenceMessage(applyToNewSessions
         ? 'Guardian choice saved in this encrypted vault.'
@@ -519,8 +525,10 @@ export const FocusView: React.FC<FocusViewProps> = ({
                           ? 'Break phase active — apps are permitted and not closed until you resume focus.'
                           : activeSession.guardianMode === 'STRICT'
                             ? (guardianStatus?.observerStatus === 'STARTING'
-                                ? 'Arming active Strict protection…'
-                                : 'Active Strict protection armed (distracting apps will be closed).')
+                                ? 'Starting Strict app observation…'
+                                : guardianStatus?.interventionCapability === 'STRICT_COOPERATIVE_CLOSE' && !guardianStatus.warningOnly
+                                  ? guardianInterventionDescription(guardianStatus.interventionCapability)
+                                  : guardianInterventionDescription(guardianStatus?.interventionCapability))
                             : (!guardianStatus || guardianStatus.warningOnly
                                 ? 'App closure is not currently armed.'
                                 : 'Active protection armed.')}
@@ -635,7 +643,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                           >
                             <strong>{label}</strong>
                             <span className="study-mode-option-detail">
-                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Active termination'}
+                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Consent-based graceful close'}
                             </span>
                           </button>
                         )
@@ -650,11 +658,22 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       <label className="pomodoro-toggle"><input type="checkbox" checked={guardianAppMonitoring} onChange={(event) => setGuardianAppMonitoring(event.target.checked)} />Allow SHINPO to observe matching process names during this Focus session</label>
                       <p className="guardian-observation-note">On Fedora Wayland, foreground time is unavailable. Standard uses sampled app-running time—not foreground time—and requires separate consent.</p>
                       <label className="pomodoro-toggle"><input type="checkbox" checked={backgroundRuntimeConsent} disabled={!guardianAppMonitoring} onChange={(event) => setBackgroundRuntimeConsent(event.target.checked)} />Allow Standard to count up to 10 minutes while a recognized app is running</label>
+                      {guardianMode === 'STRICT' && (
+                        <label className="pomodoro-toggle">
+                          <input
+                            type="checkbox"
+                            checked={guardianClosureConsent}
+                            disabled={!guardianAppMonitoring || savingGuardianPreference}
+                            onChange={(event) => setGuardianClosureConsent(event.target.checked)}
+                          />
+                          I consent to SHINPO sending a graceful close request to recognized blocked apps during Strict Focus sessions. Apps that do not exit will remain open; SHINPO will not force-kill them.
+                        </label>
+                      )}
                     </fieldset>
                     <p className="guardian-observation-note" style={{ margin: '12px 0' }}>
                       {guardianMode === 'STRICT'
-                        ? 'Strict mode immediately terminates blocked or distracting applications.'
-                        : 'Guardian monitors applications during Focus. Strict mode actively terminates blocked apps.'}
+                        ? 'On Linux, Strict can request graceful closure of a recognized blocked app after it is observed during Focus, when you have saved separate closure consent. Detection follows the app observer polling interval. Windows currently supports observation only.'
+                        : 'Guardian observes recognized applications during Focus. Strict closure is Linux-only, requires separate saved consent and never escalates to force-killing.'}
                     </p>
                     <div className="guardian-preference-actions" style={{ marginTop: 6, marginBottom: 8 }}>
                       <button type="button" disabled={savingGuardianPreference} onClick={() => void saveGuardianPreference(true)}>

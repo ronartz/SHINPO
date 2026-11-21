@@ -211,7 +211,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     : !sentinelStatus
       ? 'Unavailable'
       : closeCapabilityReady
-        ? 'Process termination active in Strict mode'
+        ? 'Consented graceful close requests available'
         : sentinelStatus.warningOnly
           ? 'Monitoring / warning only'
           : 'Protected focus session'
@@ -687,12 +687,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               {!sentinelStatus || sentinelStatus.status === 'LOCKED'
                 ? 'Guardian is unavailable while the vault is locked.'
                 : sentinelStatus.activeFocusSessionId && sentinelStatus.focusPhase && sentinelStatus.focusPhase !== 'FOCUS'
-                  ? 'Break phase active: Distracting apps are permitted. App termination will re-arm when you return to focus.'
+                  ? 'Break phase active: app closure requests are paused and resume when you return to Focus.'
                   : sentinelStatus.observerStatus !== 'MONITORING'
-                    ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
+                    ? 'Guardian observer is not ready; no app intervention is confirmed.'
                     : sentinelStatus.warningOnly
                       ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
-                      : 'Strict mode terminates blocked apps during active Focus sessions.'}
+                      : 'Strict mode can request graceful closure of recognized blocked apps on Linux when separate consent is saved. Apps that do not exit remain open; force-kill is disabled.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
@@ -748,7 +748,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     {guardianMode === 'Not set' ? 'Configure Guardian Mode' : `Guardian Mode: ${guardianMode}`}
                   </h3>
                   <p className="guardian-mode-action-desc">
-                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime & warnings), or Strict (terminates blocked apps during Focus).
+                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime and warnings), or Strict (consent-based graceful close requests on Linux during Focus).
                   </p>
                 </div>
               </div>
@@ -813,15 +813,15 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Guardian Mode</strong>
-                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict shows immediate warnings. All modes are warning-only.</p>
+                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict can send one graceful close request to an identity-verified blocked app on Linux after separate saved consent.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Session Consent</strong>
-                  <p>Explicit user opt-in required before each session. SHINPO never closes applications without your explicit session consent.</p>
+                  <p>Strict app closure requires saved explicit consent. On Linux, SHINPO sends a graceful close request to a verified process and confirms only after exit; it never force-kills. Windows remains observation-only.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Runtime Status</strong>
-                  <p>Current behavior: warning-only. App closure is disabled; protected OS processes are not touched.</p>
+                  <p>Protected processes are excluded. Closure is limited to consented, verified Linux Strict sessions; unsupported or unverified cases remain warning-only.</p>
                 </div>
               </div>
             </section>

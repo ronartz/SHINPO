@@ -1,9 +1,9 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-17T08:49:27Z
-**Evaluated Commit:** `068b8f358358037b3b7fad56e7a2d86e7dc30f06` (`fix/visual-perfection-beta`)
-**Worktree Status:** CLEAN
-**Release Decision:** **GO (LINUX ONLY) / NO-GO (WINDOWS UNTESTED)**
+**Execution Timestamp:** 2026-11-21T09:51:15Z
+**Evaluated Commit:** `0a6b8f6c25cc28a584be245abb50474b09d23526` (`main`)
+**Worktree Status:** DIRTY (15 modified/untracked files strictly preserved)
+**Release Decision:** **PARTIAL_RUN (Executed mode 'quick')**
 
 ---
 
@@ -11,15 +11,15 @@
 
 | Artifact | Local Filepath | SHA-256 Digest |
 |---|---|---|
-| **Git Head** | `.git` | `068b8f358358037b3b7fad56e7a2d86e7dc30f06` |
-| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `fe0a2e0f3b50760a52caa7a32e92a9ccdcde1376ecc3a2fcb137d7a454e71c21` |
-| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm` | `c50eb8f996c9f0de763f8e90e1c26d2c93702c5c479300bd872abaf203f07ac2` |
+| **Git Head** | `.git` | `0a6b8f6c25cc28a584be245abb50474b09d23526` |
+| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `fbd9e675c62c8067936c4484a349904fa506c9da4c69bf32a49f56cc0256e0ae` |
+| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.3-1.x86_64.rpm` | `UNKNOWN` |
 
 ---
 
 ## Platform Release Verdicts
 
-- **Fedora Linux:** **GO FOR RELEASE (LINUX ONLY)**
+- **Fedora Linux:** **PARTIAL_RUN (Executed mode 'quick')**
 - **Microsoft Windows:** **NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)** *(Distribution Unauthorized)*
 
 ---
@@ -29,10 +29,10 @@
 | Gate | Scope | Status | Notes |
 |---|---|---|---|
 | **1. Quick** | Node.js unit tests + TypeScript compile + Vite production bundle | **PASS** | Pass criteria: 0 test failures, 0 TS build errors |
-| **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **PASS** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
-| **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **PASS** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
-| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **PASS** | Package extraction checks do not substitute for a clean-VM install/upgrade test |
-| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **PASS** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
+| **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **NOT_RUN** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
+| **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **NOT_RUN** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
+| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **NOT_RUN** | Package extraction checks do not substitute for a clean-VM install/upgrade test |
+| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **NOT_RUN** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
 | **6. Windows Desktop** | Windows NSIS installer and WebView2 execution | **NOT_TESTED** | Linux host cannot execute Windows native tests; must remain blocked |
 
 ---
@@ -51,5 +51,5 @@
 
 ## Final Recommendation
 
-- **Verdict:** **GO (LINUX ONLY) / NO-GO (WINDOWS UNTESTED)**
+- **Verdict:** **PARTIAL_RUN (Executed mode 'quick')**
 - Machine-readable results saved to `docs/qa/latest-release-gate.json`.

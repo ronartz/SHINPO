@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useEffectEvent, useMemo, useRef
 import type { FormEvent } from 'react'
 import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 import { DesktopLoginView } from './components'
+import { ClassicMeshDrift } from '../../components/background/ClassicMeshDrift'
 import { ShinpoParticles } from '../../components/background/ShinpoParticles'
 
 
@@ -270,6 +271,7 @@ export function DesktopApp() {
   const [pomodoroGraceMinutes, setPomodoroGraceMinutes] = useState(10)
   const [guardianMode, setGuardianMode] = useState<GuardianMode>('PROTECTED')
   const [guardianAppMonitoring, setGuardianAppMonitoring] = useState(false)
+  const [guardianClosureConsent, setGuardianClosureConsent] = useState(false)
   const [_savedGuardianPreferences, setSavedGuardianPreferences] = useState<GuardianPreferences>({
     preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false,
     closureConsent: false, backgroundRuntimeConsent: false,
@@ -943,12 +945,14 @@ export function DesktopApp() {
       if (!active) return
       setSavedGuardianPreferences(preferences)
       setGuardianBackgroundRuntimeConsent(preferences.backgroundRuntimeConsent)
+      setGuardianClosureConsent(preferences.applyToNewSessions && preferences.appMonitoringConsent && preferences.closureConsent)
       if (preferences.applyToNewSessions) {
         setGuardianMode(preferences.preferredMode)
         setGuardianAppMonitoring(preferences.appMonitoringConsent)
       } else {
         setGuardianMode('PROTECTED')
         setGuardianAppMonitoring(false)
+        setGuardianClosureConsent(false)
       }
     }).catch(() => {
       if (active) {
@@ -956,6 +960,7 @@ export function DesktopApp() {
         setGuardianAppMonitoring(false)
         setSavedGuardianPreferences({ preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false })
         setGuardianBackgroundRuntimeConsent(false)
+        setGuardianClosureConsent(false)
       }
     })
     return () => { active = false }
@@ -1398,6 +1403,7 @@ export function DesktopApp() {
     setMissions([])
     setGuardianMode('PROTECTED')
     setGuardianAppMonitoring(false)
+    setGuardianClosureConsent(false)
     setSavedGuardianPreferences({ preferredMode: 'PROTECTED', appMonitoringConsent: false, applyToNewSessions: false, closureConsent: false, backgroundRuntimeConsent: false })
     setGuardianBackgroundRuntimeConsent(false)
   }
@@ -3301,9 +3307,12 @@ export function DesktopApp() {
           setGuardianMode={setGuardianMode}
           guardianAppMonitoring={guardianAppMonitoring}
           setGuardianAppMonitoring={setGuardianAppMonitoring}
+          guardianClosureConsent={guardianClosureConsent}
+          setGuardianClosureConsent={setGuardianClosureConsent}
           onGuardianPreferencesSaved={(preferences) => {
             setSavedGuardianPreferences(preferences)
             setGuardianBackgroundRuntimeConsent(preferences.backgroundRuntimeConsent)
+            setGuardianClosureConsent(preferences.closureConsent)
           }}
           backgroundRuntimeConsent={guardianBackgroundRuntimeConsent}
           setBackgroundRuntimeConsent={setGuardianBackgroundRuntimeConsent}
@@ -3489,6 +3498,7 @@ export function DesktopApp() {
   return (
     <>
       <div className={`shinpo-desktop-app app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''} ${activeTab === 'Focus Engine' && (activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED') ? 'focus-immersed' : ''}`}>
+        <ClassicMeshDrift enabled={!isV2Preview} isDark={isDarkMode} />
         <ShinpoParticles />
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />

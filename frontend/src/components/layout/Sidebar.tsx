@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       const isMonitoringOnly = enforcementMode?.toUpperCase() === 'AUDIT_ONLY' || (nativeStatusAvailable && !localCloseAvailable)
       statusTitle = sentinelStatus?.warningOnly || (nativeStatusAvailable && !localCloseAvailable) ? 'Guardian monitoring' : isMonitoringOnly ? 'Protection monitoring' : 'Focus protection active'
       statusSub = nativeStatusAvailable
-        ? localCloseAvailable ? 'Active termination armed' : 'Monitoring only · no close request is armed'
+        ? localCloseAvailable ? 'Graceful close consent enabled' : 'Monitoring only · no close request is armed'
         : sentinelStatus?.warningOnly ? `${sentinelStatus.guardianMode ?? 'Standard'} · warning-only` : isMonitoringOnly ? 'Apps are not blocked' : 'Distracting apps are blocked'
       dotClass = 'focus-engaged'
       shieldStateClass = nativeStatusAvailable && !localCloseAvailable ? 'shield-ready' : 'shield-active'
