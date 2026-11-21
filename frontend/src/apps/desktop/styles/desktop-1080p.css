@@ -511,11 +511,13 @@
   .analytics-panel {
     padding: 14px 18px !important;
     border-radius: var(--radius-lg, 16px) !important;
-    height: 100% !important;
+    min-height: 100% !important;
+    height: auto !important;
   }
 
   .analytics-activity-panel {
-    height: 100% !important;
+    min-height: 100% !important;
+    height: auto !important;
   }
 
   .analytics-activity-chart {
@@ -524,6 +526,7 @@
 
   .analytics-lower-grid {
     gap: 14px !important;
+    align-items: stretch !important;
   }
 }
 

@@ -1444,8 +1444,42 @@ export function DesktopApp() {
       let active = true
       const refresh = () => fetchSentinelStatus().then((status) => {
         if (!active) return
+        const observations = status.guardianObservations ?? []
+        if (observations.length > 0) {
+          setLiveAlerts((prev) => {
+            const existingIds = new Set(prev.map((a) => a.id))
+            const newFromObs: LiveAlertItem[] = []
+            for (const obs of observations) {
+              const obsId = `obs-${obs.id}`
+              if (!existingIds.has(obsId)) {
+                const isTerminated = obs.outcome === 'CLOSED_GRACEFULLY_VERIFIED'
+                const isAllowedBreak = obs.outcome === 'ALLOWED_BREAK' || obs.outcome === 'ALLOWED_OUTSIDE_FOCUS'
+                newFromObs.push({
+                  id: obsId,
+                  type: isTerminated ? 'quarantine' : 'focus',
+                  title: isTerminated
+                    ? `Guardian closed ${obs.processName}`
+                    : isAllowedBreak
+                      ? `Guardian observed ${obs.processName}`
+                      : `Guardian noticed ${obs.processName}`,
+                  description: isTerminated
+                    ? 'Terminated under Strict mode to protect your focus.'
+                    : isAllowedBreak
+                      ? 'Allowed outside focus during break.'
+                      : obs.outcome === 'WARNING_GRACE'
+                        ? 'Grace period active. Return to focus soon.'
+                        : guardianOutcomeLabel(obs.outcome),
+                  timestamp: obs.observedAt,
+                })
+              }
+            }
+            if (newFromObs.length === 0) return prev
+            return [...newFromObs, ...prev].slice(0, 50)
+          })
+        }
+
         const observation = takeRecentGuardianObservation(
-          status.guardianObservations ?? [],
+          observations,
           seenGuardianObservationIds.current,
         )
         if (observation) {

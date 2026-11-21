@@ -183,8 +183,8 @@ html[data-theme='light'] .analytics-view,
 .focus-contribution-skyline > button { min-height: 36px; padding: 0 12px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; cursor: pointer; }
 
 .analytics-main-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .85fr); gap: 14px; align-items: stretch; }
-.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; height: 100%; }
-.analytics-activity-panel { display: flex; flex-direction: column; height: 100%; }
+.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.analytics-activity-panel { display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
 .analytics-panel-heading { align-items: flex-start; margin-bottom: 12px; }
 .analytics-panel-heading h2 { margin: 0; color: var(--text-1); font-size: 17px; font-weight: 720; line-height: 1.3; letter-spacing: -.015em; }
 .analytics-panel-heading p { margin-top: 5px; }
@@ -229,18 +229,29 @@ html:not([data-brand='aurora']) .analytics-zero-btn {
 
 .analytics-chart-canvas-container.focus-activity-empty {
   flex: 1;
-  min-height: 160px;
-  height: auto;
+  min-height: 220px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-4);
+  padding: var(--space-4, 16px);
   box-sizing: border-box;
 }
 
-.analytics-chart-canvas-container.focus-activity-empty .analytics-activity-zero-state {
+.analytics-activity-zero-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 24px 20px;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 12px);
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
+  box-sizing: border-box;
 }
 
 .analytics-activity-chart { display: block; width: 100%; height: auto; overflow: hidden; }
@@ -411,7 +422,7 @@ html[data-brand='classic'] .theme-light .analytics-bar-current {
 .analytics-progress-track span { display: block; width: 100%; height: 100%; background: var(--analytics-blue); border-radius: inherit; transform-origin: left; transition: transform .35s ease; }
 .analytics-week-note { margin: 14px 0 0; padding-top: 12px; color: var(--text-3); font-size: 12.5px; line-height: 1.5; border-top: 1px solid var(--border); }
 
-.analytics-lower-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.6fr); gap: 14px; align-items: start; }
+.analytics-lower-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.6fr); gap: 14px; align-items: stretch; }
 .analytics-focused-days, .analytics-recent-panel { display: flex; flex-direction: column; min-height: 140px; }
 .analytics-focused-empty, .analytics-debrief-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 .analytics-focused-days-list { display: grid; gap: 16px; margin: 0; padding: 4px 0; list-style: none; }
