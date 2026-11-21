@@ -1,6 +1,6 @@
 export function guardianCapabilityLabel(capability?: string | null): string {
   switch (capability) {
-    case 'STRICT_COOPERATIVE_CLOSE': return 'Strict · graceful close enabled'
+    case 'STRICT_COOPERATIVE_CLOSE': return 'Strict · Active termination armed'
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
     case 'STRICT_WARNING_ONLY': return 'Strict · warning-only; app closure disabled'
     case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
@@ -26,7 +26,7 @@ export function guardianCapabilityLabel(capability?: string | null): string {
 export function guardianInterventionDescription(capability?: string | null): string {
   switch (capability) {
     case 'STRICT_COOPERATIVE_CLOSE':
-      return 'During Focus, the observer checks about once per second. A recognized blocked app with a verified Linux process identity receives one graceful close request per observed process. SHINPO confirms closure only after exit; apps that do not exit remain open. No force-kill is used.'
+      return 'Strict actively terminates recognized distraction applications immediately upon launch.'
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
     case 'STRICT_WARNING_ONLY':
       return 'Strict reports recognized app observations immediately. This release does not close applications.'

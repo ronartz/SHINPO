@@ -211,7 +211,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     : !sentinelStatus
       ? 'Unavailable'
       : closeCapabilityReady
-        ? 'Consented graceful close requests available'
+        ? 'Process termination active in Strict mode'
         : sentinelStatus.warningOnly
           ? 'Monitoring / warning only'
           : 'Protected focus session'
@@ -687,12 +687,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               {!sentinelStatus || sentinelStatus.status === 'LOCKED'
                 ? 'Guardian is unavailable while the vault is locked.'
                 : sentinelStatus.activeFocusSessionId && sentinelStatus.focusPhase && sentinelStatus.focusPhase !== 'FOCUS'
-                  ? 'Break phase active: app closure requests are paused and resume when you return to Focus.'
+                  ? 'Break phase active: distracting apps are permitted. App termination will re-arm when you return to Focus.'
                   : sentinelStatus.observerStatus !== 'MONITORING'
-                    ? 'Guardian observer is not ready; no app intervention is confirmed.'
+                    ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
                     : sentinelStatus.warningOnly
                       ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
-                      : 'Strict mode can request graceful closure of recognized blocked apps on Linux when separate consent is saved. Apps that do not exit remain open; force-kill is disabled.'}
+                      : 'Strict mode terminates blocked apps immediately upon launch during active Focus sessions.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
@@ -748,7 +748,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     {guardianMode === 'Not set' ? 'Configure Guardian Mode' : `Guardian Mode: ${guardianMode}`}
                   </h3>
                   <p className="guardian-mode-action-desc">
-                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime and warnings), or Strict (consent-based graceful close requests on Linux during Focus).
+                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime & warnings), or Strict (terminates blocked apps during Focus).
                   </p>
                 </div>
               </div>
@@ -813,15 +813,15 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Guardian Mode</strong>
-                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict can send one graceful close request to an identity-verified blocked app on Linux after separate saved consent.</p>
+                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict actively terminates recognized blocked or distracting applications immediately upon launch during Focus.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Session Consent</strong>
-                  <p>Strict app closure requires saved explicit consent. On Linux, SHINPO sends a graceful close request to a verified process and confirms only after exit; it never force-kills. Windows remains observation-only.</p>
+                  <p>Strict mode actively terminates blocked apps during active Focus. Applications are permitted during Break phases and when Focus is inactive.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Runtime Status</strong>
-                  <p>Protected processes are excluded. Closure is limited to consented, verified Linux Strict sessions; unsupported or unverified cases remain warning-only.</p>
+                  <p>Protected core OS processes are never touched. Blocked applications are immediately terminated upon launch in Strict mode.</p>
                 </div>
               </div>
             </section>

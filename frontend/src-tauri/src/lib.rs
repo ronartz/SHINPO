@@ -434,17 +434,29 @@ pub fn run() {
             let focus_worker = app.handle().clone();
             thread::Builder::new()
                 .name("shinpo-focus-checkpoint".into())
-                .spawn(move || loop {
-                    thread::sleep(Duration::from_millis(1000));
-                    if let Some(state) = focus_worker.try_state::<native_vault::VaultManager>() {
-                        if state.is_unlocked().unwrap_or(false) {
-                            if native_vault::maintain_active_focus(state.inner()).is_err() {
-                                log::debug!("Local Focus checkpoint was unavailable.");
-                            }
-                            if native_vault::observe_local_guardian_apps(state.inner()).is_err() {
-                                log::debug!("Local Guardian observation was unavailable.");
+                .spawn(move || {
+                    let mut tick_counter: u32 = 0;
+                    loop {
+                        let mut sleep_ms = 1000;
+                        if let Some(state) = focus_worker.try_state::<native_vault::VaultManager>()
+                        {
+                            if state.is_unlocked().unwrap_or(false) {
+                                tick_counter = tick_counter.wrapping_add(1);
+                                if (tick_counter.is_multiple_of(4) || sleep_ms == 1000)
+                                    && native_vault::maintain_active_focus(state.inner()).is_err()
+                                {
+                                    log::debug!("Local Focus checkpoint was unavailable.");
+                                }
+                                if native_vault::observe_local_guardian_apps(state.inner()).is_err()
+                                {
+                                    log::debug!("Local Guardian observation was unavailable.");
+                                }
+                                if native_vault::is_fast_guardian_poll_needed(state.inner()) {
+                                    sleep_ms = 250;
+                                }
                             }
                         }
+                        thread::sleep(Duration::from_millis(sleep_ms));
                     }
                 })?;
             if cfg!(debug_assertions) {
