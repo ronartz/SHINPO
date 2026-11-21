@@ -1,29 +1,29 @@
 {
-  "timestamp": "2026-11-17T08:49:27Z",
-  "commit": "068b8f358358037b3b7fad56e7a2d86e7dc30f06",
-  "branch": "fix/visual-perfection-beta",
-  "worktree": "CLEAN",
-  "mode": "release",
+  "timestamp": "2026-11-21T09:51:15Z",
+  "commit": "0a6b8f6c25cc28a584be245abb50474b09d23526",
+  "branch": "main",
+  "worktree": "DIRTY (15 modified/untracked files strictly preserved)",
+  "mode": "quick",
   "binary": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
-    "sha256": "fe0a2e0f3b50760a52caa7a32e92a9ccdcde1376ecc3a2fcb137d7a454e71c21"
+    "sha256": "fbd9e675c62c8067936c4484a349904fa506c9da4c69bf32a49f56cc0256e0ae"
   },
   "packageRpm": {
-    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.1-1.x86_64.rpm",
-    "sha256": "c50eb8f996c9f0de763f8e90e1c26d2c93702c5c479300bd872abaf203f07ac2"
+    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.3-1.x86_64.rpm",
+    "sha256": "UNKNOWN"
   },
   "verdicts": {
-    "overall": "GO (LINUX ONLY) / NO-GO (WINDOWS UNTESTED)",
-    "linux": "GO FOR RELEASE (LINUX ONLY)",
+    "overall": "PARTIAL_RUN (Executed mode 'quick')",
+    "linux": "PARTIAL_RUN (Executed mode 'quick')",
     "windows": "NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
   },
   "failedGatesCount": 0,
   "gates": {
     "quick": "PASS",
-    "security": "PASS",
-    "visualAndThemes": "PASS",
-    "linuxPackageRpm": "PASS",
-    "nativeDesktop": "PASS",
+    "security": "NOT_RUN",
+    "visualAndThemes": "NOT_RUN",
+    "linuxPackageRpm": "NOT_RUN",
+    "nativeDesktop": "NOT_RUN",
     "windowsDesktop": "NOT_TESTED"
   }
 }
