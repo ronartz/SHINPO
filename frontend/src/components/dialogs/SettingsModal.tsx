@@ -1762,7 +1762,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </label>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                       <li><strong>No Keystroke or Screen Logging:</strong> SHINPO checks application names against your focus rules.</li>
-                      <li><strong>Guardian:</strong> App observations run locally. Strict may request graceful closure for recognized blocked apps on Linux only after saved consent and process identity verification; unconfirmed exits are never force-killed. Windows remains observation-only.</li>
+                      <li><strong>Guardian:</strong> App observations run locally. Strict actively terminates recognized blocked or distracting apps during active Focus sessions. Outside of Focus and during Break phases, apps are not terminated.</li>
                       <li><strong>Local vault:</strong> Account data is stored in the encrypted local workspace.</li>
                     </ul>
                   </div>

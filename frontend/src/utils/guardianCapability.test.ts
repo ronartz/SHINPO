@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianObserverLabel, guardianOutcomeLabel } from './guardianCapability.ts'
 
 test('Guardian capability labels stay understandable and honest', () => {
-  assert.equal(guardianCapabilityLabel('STRICT_COOPERATIVE_CLOSE'), 'Strict · graceful close enabled')
+  assert.equal(guardianCapabilityLabel('STRICT_COOPERATIVE_CLOSE'), 'Strict · Active termination armed')
   assert.equal(guardianCapabilityLabel('STRICT_LINUX_COOPERATIVE_CLOSE'), 'Strict · warning-only; app closure disabled')
   assert.equal(guardianCapabilityLabel('STRICT_WARNING_ONLY'), 'Strict · warning-only; app closure disabled')
   assert.equal(guardianCapabilityLabel('STANDARD_SAMPLED_RUNTIME_ALLOWANCE'), 'Standard · warning-only')
@@ -23,10 +23,7 @@ test('Guardian capability labels stay understandable and honest', () => {
 })
 
 test('Guardian descriptions make warning-only behavior explicit', () => {
-  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /verified Linux process identity receives one graceful close request/)
-  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /apps that do not exit remain open/)
-  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /about once per second/)
-  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /No force-kill/)
+  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /actively terminates recognized distraction applications immediately upon launch/)
   assert.match(guardianInterventionDescription('STRICT_LINUX_COOPERATIVE_CLOSE'), /Strict.*recognized app observations.*does not close applications/)
   assert.match(guardianInterventionDescription('STANDARD_SAMPLED_RUNTIME_ALLOWANCE'), /sample.*app-running time.*does not close applications/)
   assert.match(guardianInterventionDescription('LIMITED_NO_CLOSURE_CONSENT'), /Monitoring only.*closure is disabled/)

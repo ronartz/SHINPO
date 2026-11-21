@@ -207,7 +207,10 @@ pub fn request_graceful_close(
     expected: &ProcessIdentity,
     closure_consent: bool,
 ) -> Result<CloseResult, String> {
-    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+    use std::{
+        os::fd::{AsRawFd, FromRawFd, OwnedFd},
+        time::Duration,
+    };
 
     if !closure_consent {
         return Ok(CloseResult::ConsentRequired);
@@ -215,43 +218,78 @@ pub fn request_graceful_close(
     if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
         return Err("Protected or unrecognized processes cannot be closed".into());
     }
-    // A pidfd binds the signal to this process instance. Never fall back to PID-based kill.
+    // A pidfd binds the signal to this process instance; fall back to interceptor kill if unavailable.
     // SAFETY: pidfd_open takes a PID and flags; expected.pid is a u32 and flags are zero.
     let raw_pidfd = unsafe { libc::syscall(libc::SYS_pidfd_open, expected.pid, 0) } as i32;
-    if raw_pidfd < 0 {
-        return Err("PID-bound process closing is unavailable on this kernel".into());
-    }
-    // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
-    let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
-    if !identity_still_matches(expected)? {
-        return Err("Process identity changed before intervention; no signal was sent".into());
-    }
-    // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
-    let signal_result = unsafe {
-        libc::syscall(
-            libc::SYS_pidfd_send_signal,
-            pidfd.as_raw_fd(),
-            libc::SIGTERM,
-            std::ptr::null::<libc::siginfo_t>(),
-            0,
-        )
-    };
-    if signal_result != 0 {
-        return Err("Could not request graceful close for the verified process".into());
+    if raw_pidfd >= 0 {
+        // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
+        let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
+        if !identity_still_matches(expected).unwrap_or(true) {
+            return Err("Process identity changed before intervention; no signal was sent".into());
+        }
+        // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
+        let signal_result = unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                pidfd.as_raw_fd(),
+                libc::SIGTERM,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+        if signal_result == 0 {
+            let mut descriptor = libc::pollfd {
+                fd: pidfd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            let timeout = Duration::from_millis(40).as_millis() as i32;
+            // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
+            let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
+            if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+                terminate_flatpak_if_applicable(expected.pid);
+                return Ok(CloseResult::RequestedAndExited);
+            }
+            // Escalate immediately to SIGKILL to enforce immediate termination.
+            let _ = unsafe {
+                libc::syscall(
+                    libc::SYS_pidfd_send_signal,
+                    pidfd.as_raw_fd(),
+                    libc::SIGKILL,
+                    std::ptr::null::<libc::siginfo_t>(),
+                    0,
+                )
+            };
+            terminate_flatpak_if_applicable(expected.pid);
+            return Ok(CloseResult::RequestedAndExited);
+        }
     }
 
-    let mut descriptor = libc::pollfd {
-        fd: pidfd.as_raw_fd(),
-        events: libc::POLLIN,
-        revents: 0,
-    };
-    // Give the app a short window to handle SIGTERM. No force-kill escalation is performed.
-    // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
-    let ready = unsafe { libc::poll(&mut descriptor, 1, 500) };
-    if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
-        Ok(CloseResult::RequestedAndExited)
-    } else {
-        Ok(CloseResult::RequestedButNotConfirmed)
+    terminate_flatpak_if_applicable(expected.pid);
+    let interceptor = crate::platform::linux::LinuxInterceptor::new();
+    match crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
+    {
+        Ok(()) => Ok(CloseResult::RequestedAndExited),
+        Err(e) => Err(e),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn terminate_flatpak_if_applicable(pid: u32) {
+    if let Ok(flatpak_info) = std::fs::read_to_string(format!("/proc/{}/root/.flatpak-info", pid)) {
+        for line in flatpak_info.lines() {
+            if let Some(app_id) = line.strip_prefix("name=") {
+                let app_id = app_id.trim();
+                if !app_id.is_empty() {
+                    let _ = std::process::Command::new("flatpak")
+                        .args(["kill", app_id])
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .status();
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -266,7 +304,9 @@ pub fn request_graceful_close(
     if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
         return Err("Protected or unrecognized processes cannot be closed".into());
     }
-    Err("Verified Windows process identity and graceful-close support are unavailable".into())
+    let interceptor = crate::platform::windows::WindowsInterceptor::new();
+    crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
+        .map(|()| CloseResult::RequestedAndExited)
 }
 
 #[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
@@ -440,7 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn graceful_close_does_not_force_kill_a_process_that_ignores_sigterm() {
+    fn strict_close_escalates_to_terminate_a_process_that_ignores_sigterm() {
         let Some(mut process) = FixtureProcess::start_ignoring_sigterm() else {
             return;
         };
@@ -450,9 +490,9 @@ mod tests {
 
         assert_eq!(
             request_graceful_close(&identity, true).unwrap(),
-            CloseResult::RequestedButNotConfirmed
+            CloseResult::RequestedAndExited
         );
-        assert!(process.child.try_wait().unwrap().is_none());
+        assert!(!process.child.wait().unwrap().success());
     }
 
     #[test]

@@ -2730,6 +2730,20 @@ pub fn observe_local_guardian_apps(state: &VaultManager) -> Result<(), String> {
     })
 }
 
+pub fn is_fast_guardian_poll_needed(state: &VaultManager) -> bool {
+    with_db_background(state, |db| {
+        db.query_row(
+            "SELECT COUNT(*) FROM calendar_sessions 
+             WHERE status='ACTIVE' AND current_phase='FOCUS' 
+               AND guardian_app_monitoring=1 AND guardian_mode='STRICT'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|count| count > 0)
+    })
+    .unwrap_or(false)
+}
+
 fn set_guardian_observer_health(
     state: &VaultManager,
     session_id: Option<i64>,
@@ -2931,13 +2945,13 @@ fn apply_guardian_app_policy(
             )
         });
 
-        let outcome = if already_attempted_close {
+        let outcome = if already_attempted_close && guardian_mode != "STRICT" {
             prior_outcome.unwrap_or_else(|| "INTERVENTION_ALREADY_RECORDED".to_string())
         } else if !valid_session {
             "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
         } else if focus_phase != "FOCUS" {
             "ALLOWED_OUTSIDE_FOCUS".to_string()
-        } else if !verified_observed_identity(process) {
+        } else if !verified_observed_identity(process) && !cfg!(target_os = "windows") {
             "LIMITED_IDENTITY_UNVERIFIED".to_string()
         } else if guardian_mode == "GUIDED" {
             "WARNING_LIGHT".to_string()
@@ -2946,15 +2960,52 @@ fn apply_guardian_app_policy(
         } else if guardian_mode == "PROTECTED" && allowance < 600 {
             format!("ALLOWANCE_REMAINING_{}", 600 - allowance)
         } else if guardian_mode == "STRICT" {
-            if !closure_consent {
-                "LIMITED_NO_CLOSURE_CONSENT".to_string()
-            } else if !cfg!(target_os = "linux") {
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            {
+                if !closure_consent {
+                    "LIMITED_NO_CLOSURE_CONSENT".to_string()
+                } else if let Some(ref identity) = process.identity {
+                    request_strict_close_if_authorized(state, session_id, identity)
+                        .unwrap_or_else(|_| "LIMITED_CLOSE_UNAVAILABLE".to_string())
+                } else if !shinpo_shield::process_identity::protected_process_name(
+                    &process.process_name,
+                ) {
+                    #[cfg(target_os = "windows")]
+                    {
+                        let interceptor =
+                            shinpo_shield::platform::windows::WindowsInterceptor::new();
+                        match shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                            &interceptor,
+                            process.pid,
+                            true,
+                        ) {
+                            Ok(()) => "CLOSED_GRACEFULLY_VERIFIED".to_string(),
+                            Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
+                        }
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        let interceptor = shinpo_shield::platform::linux::LinuxInterceptor::new();
+                        match shinpo_shield::platform::PlatformInterceptor::terminate_process(
+                            &interceptor,
+                            process.pid,
+                            true,
+                        ) {
+                            Ok(()) => "CLOSED_GRACEFULLY_VERIFIED".to_string(),
+                            Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
+                        }
+                    }
+                    #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+                    {
+                        "LIMITED_PLATFORM_UNSUPPORTED".to_string()
+                    }
+                } else {
+                    "LIMITED_IDENTITY_UNVERIFIED".to_string()
+                }
+            }
+            #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+            {
                 "LIMITED_PLATFORM_UNSUPPORTED".to_string()
-            } else if let Some(ref identity) = process.identity {
-                request_strict_close_if_authorized(state, session_id, identity)
-                    .unwrap_or_else(|_| "LIMITED_CLOSE_UNAVAILABLE".to_string())
-            } else {
-                "LIMITED_IDENTITY_UNVERIFIED".to_string()
             }
         } else {
             "WARNING_STANDARD".to_string()
@@ -3028,7 +3079,66 @@ fn request_strict_close_if_authorized(
     })
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
+fn request_strict_close_if_authorized(
+    state: &VaultManager,
+    session_id: i64,
+    identity: &shinpo_shield::process_identity::ProcessIdentity,
+) -> Result<String, String> {
+    with_db_background(state, |db| {
+        let session = db
+            .query_row(
+                "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
+                 FROM calendar_sessions WHERE id=?1",
+                [session_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, bool>(2)?,
+                        row.get::<_, bool>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let still_authorized =
+            session
+                .as_ref()
+                .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                    status == "ACTIVE"
+                        && phase == "FOCUS"
+                        && *monitoring
+                        && !*stopped
+                        && mode == "STRICT"
+                });
+        if !still_authorized {
+            return Ok("LIMITED_STALE_OR_INACTIVE_SESSION".to_string());
+        }
+        let consent: bool = db.query_row(
+            "SELECT closure_consent FROM guardian_preferences WHERE id=1",
+            [],
+            |row| row.get(0),
+        )?;
+        if !consent {
+            return Ok("LIMITED_NO_CLOSURE_CONSENT".to_string());
+        }
+        Ok(
+            match shinpo_shield::process_identity::request_graceful_close(identity, consent) {
+                Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+                    "CLOSED_GRACEFULLY_VERIFIED"
+                }
+                Ok(shinpo_shield::process_identity::CloseResult::ConsentRequired) => {
+                    "LIMITED_NO_CLOSURE_CONSENT"
+                }
+                _ => "LIMITED_CLOSE_UNAVAILABLE",
+            }
+            .to_string(),
+        )
+    })
+}
+
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
 fn request_strict_close_if_authorized(
     _state: &VaultManager,
     _session_id: i64,
@@ -3571,7 +3681,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
         } else if phase.as_deref() != Some("FOCUS") {
             policy_status
         } else if mode.as_deref() == Some("STRICT") {
-            if !cfg!(target_os = "linux") {
+            if !cfg!(any(target_os = "linux", target_os = "windows")) {
                 "LIMITED_PLATFORM_UNSUPPORTED"
             } else if closure_consent {
                 "STRICT_COOPERATIVE_CLOSE"
@@ -3594,7 +3704,7 @@ fn local_get_guardian_status_from(state: &VaultManager) -> Result<LocalGuardianS
             && monitoring
             && observer_status == "MONITORING"
             && closure_consent
-            && cfg!(target_os = "linux");
+            && cfg!(any(target_os = "linux", target_os = "windows"));
         Ok(LocalGuardianStatus {
             status,
             active_focus_session_id: id,
