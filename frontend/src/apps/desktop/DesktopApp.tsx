@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 import { DesktopLoginView } from './components'
 import { ShinpoParticles } from '../../components/background/ShinpoParticles'
+import { ClassicMeshDriftBackground } from '../../components/background/ClassicMeshDriftBackground'
 
 
 import {
@@ -3489,7 +3490,7 @@ export function DesktopApp() {
   return (
     <>
       <div className={`shinpo-desktop-app app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''} ${activeTab === 'Focus Engine' && (activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED') ? 'focus-immersed' : ''}`}>
-        <ShinpoParticles />
+        {isV2Preview ? <ShinpoParticles /> : <ClassicMeshDriftBackground isDarkMode={isDarkMode} />}
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />
         )}
