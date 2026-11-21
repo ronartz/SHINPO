@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { classicMeshUniformColours } from './classicMeshPalette'
+import { classicMeshUniformColours } from './classicMeshPalette.ts'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const style = (values: Record<string, string> = {}) => ({
