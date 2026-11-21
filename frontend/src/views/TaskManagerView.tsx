@@ -647,7 +647,24 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               <div className="guardian-mode-summary-cell">
                 <div className="guardian-cell-header">
                   <span>Guardian mode</span>
-                  {onConfigureGuardianMode && (
+                  {sentinelStatus?.activeFocusSessionId ? (
+                    <span
+                      className="guardian-mode-locked-badge"
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'var(--surface-subtle)',
+                        color: 'var(--text-3)',
+                        border: '1px solid var(--border)',
+                      }}
+                      title="Guardian mode is locked while a Focus session is active"
+                      data-testid="badge-guardian-locked"
+                    >
+                      Locked during Focus
+                    </span>
+                  ) : onConfigureGuardianMode ? (
                     <button
                       type="button"
                       className="guardian-mode-quick-link"
@@ -657,7 +674,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     >
                       Configure
                     </button>
-                  )}
+                  ) : null}
                 </div>
                 <strong>{guardianMode}</strong>
                 <small>{guardianCapabilityLabel(capability)}. Website rules require a connected Browser Companion.</small>
