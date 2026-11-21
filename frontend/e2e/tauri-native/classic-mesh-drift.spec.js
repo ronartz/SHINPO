@@ -8,6 +8,8 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     assert.ok(process.env.SHINPO_TAURI_QA_PROFILE, 'requires the isolated Tauri QA profile')
     const evidence = process.env.SHINPO_TAURI_EVIDENCE_DIR
     mkdirSync(evidence, { recursive: true })
+    const handles = await browser.getWindowHandles()
+    if (handles.length) await browser.switchToWindow(handles[0])
     await $('#auth-identifier').waitForDisplayed({ timeout: 120000 })
 
     const username = `qa_mesh_${Date.now()}`
@@ -23,10 +25,32 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     try { await $('button[aria-label="Skip and close tutorial"], .btn-tutorial-skip').click() } catch {}
 
     const selectAppearance = async (theme, brand) => {
-      await $('[aria-label="Settings"]').click()
+      const directSettings = await $('[aria-label="Settings"]')
+      if (await directSettings.isExisting() && await directSettings.isDisplayed()) {
+        await directSettings.click()
+      } else {
+        const accountMenu = await $('button[aria-label*="Account"]')
+        if (await accountMenu.isExisting()) {
+          await accountMenu.click()
+          await browser.pause(300)
+          const allSettings = await $('button*=All settings')
+          if (await allSettings.isExisting()) {
+            await allSettings.click()
+          } else {
+            const menuitem = await $('[role="menuitem"]*=All settings')
+            if (await menuitem.isExisting()) {
+              await menuitem.click()
+            } else {
+              await browser.keys(['Control', ','])
+            }
+          }
+        } else {
+          await browser.keys(['Control', ','])
+        }
+      }
       await $('[aria-label="Close Settings"]').waitForDisplayed({ timeout: 15000 })
       await $(`button*=${theme === 'dark' ? 'Dark Theme' : 'Light Theme'}`).click()
-      await $(`button*=${brand === 'aurora' ? 'Aurora View (V2 Cinematic)' : 'Classic View'}`).click()
+      await $(`button*=${brand === 'aurora' ? 'Aurora' : 'Classic'}`).click()
       await browser.waitUntil(async () => await browser.execute((expectedTheme, expectedBrand) =>
         document.documentElement.dataset.theme === expectedTheme && document.documentElement.dataset.brand === expectedBrand
       , theme, brand), { timeout: 15000 })
