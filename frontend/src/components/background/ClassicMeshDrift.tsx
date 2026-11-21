@@ -23,6 +23,7 @@ interface Renderer {
   stop: () => void
   resize: () => void
   drawStatic: () => void
+  syncMotion: () => void
 }
 
 const MAX_DPR = 2
@@ -236,7 +237,7 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
     canvas.addEventListener('webglcontextrestored', onContextRestored)
     motion.addEventListener('change', syncMotion)
 
-    const renderer: Renderer = { start, stop, resize, drawStatic }
+    const renderer: Renderer = { start, stop, resize, drawStatic, syncMotion }
     rendererRef.current = renderer
     if (optionsRef.current.enabled) syncMotion()
 
@@ -261,9 +262,7 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
       renderer?.stop()
       return
     }
-    renderer?.resize()
-    renderer?.drawStatic()
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) renderer?.start()
+    renderer?.syncMotion()
   }, [enabled, isDark])
 
   return (
