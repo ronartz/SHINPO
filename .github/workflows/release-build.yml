@@ -44,7 +44,9 @@ jobs:
   linux-installers:
     name: Linux installers and checksums
     needs: qa-release-gate
-    if: github.ref_type == 'tag'
+    # Manual runs build traceable candidate artifacts from the selected branch;
+    # publication remains restricted to a tagged push in publish-release.
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -62,13 +64,15 @@ jobs:
             import fs from "node:fs";
             const tag = process.env.GITHUB_REF_NAME ?? "";
             const { version } = JSON.parse(fs.readFileSync("frontend/src-tauri/tauri.conf.json", "utf8"));
-            if (!/^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(tag) || tag !== `v${version}`) {
+            if (process.env.GITHUB_REF_TYPE === "tag" &&
+                (!/^v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(tag) || tag !== `v${version}`)) {
               throw new Error(`Tag ${tag} must be v${version}`);
             }
-            console.log(`Building SHINPO ${version}`);
+            console.log(`Building SHINPO ${version} from ${process.env.GITHUB_REF_TYPE} ref ${tag}`);
           '
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
       - name: Install Tauri Linux bundler dependencies
         run: |
           sudo apt-get update
