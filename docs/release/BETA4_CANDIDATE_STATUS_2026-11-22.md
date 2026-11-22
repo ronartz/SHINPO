@@ -2,7 +2,7 @@
 
 ## Decision
 
-**CONDITIONAL GO for a Linux-only supervised private-beta prerelease after the tagged GitHub workflow succeeds.** The current RPM payload launched in Fedora's native Tauri/WebKitGTK environment and passed the authenticated screen smoke using a disposable profile. The RPM was extracted and executed, not installed through the system package manager. This is not a general release-readiness claim.
+**PUBLISHED: Linux-only supervised private-beta prerelease.** The current RPM payload launched in Fedora's native Tauri/WebKitGTK environment and passed the authenticated screen smoke using a disposable profile. The RPM was extracted and executed, not installed through the system package manager. This is not a general release-readiness claim.
 
 The remaining known limitations are material and are disclosed in the release notes: live Browser Companion pairing/policy enforcement has not passed acceptance; the GLib unsoundness and unmaintained RustSec advisories remain; Windows runtime is untested; and signed updater artifacts are unavailable without the CI signing secret. Beta 4 must be offered as a supervised preview, not as reliable app/site enforcement or a signed auto-update.
 
@@ -10,10 +10,10 @@ The remaining known limitations are material and are disclosed in the release no
 
 - Repository: `ronartz/SHINPO`, branch `main`.
 - Reviewed Beta 4 application source commit: `5b7a0ea` (`feat(release): prepare supervised Linux beta 4`).
-- The tested application source is committed locally. The release workflow must rebuild from the final tag before any hosted artifacts are accepted.
+- The tested application source is committed locally. The tagged workflow rebuilt and published Linux assets from the release tag.
 - The release workflow was adjusted so tagged releases do not run or attach the Windows installer. Windows branch/manual CI remains available.
 - Portable Linux README now takes the package version from Tauri configuration instead of hard-coding Beta 1.
-- GitHub SSH authentication succeeded as `ronartz`; no Beta 4 tag exists on `origin` yet. No push or release has been made in this qualification step.
+- Tag `v0.1.0-beta.4` points to `2160e30d668413bb94a3f4530f83524315bb6e48`; GitHub published the Linux prerelease at <https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.4>.
 
 ## Verification performed
 
@@ -29,7 +29,7 @@ The remaining known limitations are material and are disclosed in the release no
 
 ## Current local Linux package artifacts
 
-These are unsigned manual Beta 4 candidates built from the current dirty worktree. The hosted tag workflow must rebuild them from the final committed tag before they are release artifacts.
+These local candidate packages are superseded by the hosted release artifacts, rebuilt from the tagged source. Use the release-attached `SHA256SUMS` for downloads.
 
 | Artifact | Size | SHA-256 |
 | --- | ---: | --- |
@@ -46,12 +46,12 @@ These are unsigned manual Beta 4 candidates built from the current dirty worktre
 - **Installed RPM: NOT TESTED.** Payload launch was tested after extraction, but clean package-manager installation, uninstall, and upgrade were not.
 - **Strict Guardian: use only with disposable targets.** Do not test against personal apps. Verify supported Linux behavior and review the disclosed safety limitations before enabling.
 
-## Release sequence
+## Hosted release result
 
-1. Push the reviewed source and final release-documentation commits on `main`, then push `v0.1.0-beta.4` to trigger the authorized Linux-only prerelease workflow.
-2. Require hosted QA and Linux installer jobs to succeed. The Windows installer job is skipped for tags.
-3. Inspect the resulting prerelease assets and SHA-256 manifest before sharing the link with testers.
-4. If hosted CI fails, do not describe Beta 4 as released; fix the actual failure and use a new version if a tag was already created.
+- Release workflow run `45020356630`: overall success. Required QA passed, Linux installer/checksum job passed, Windows installer job skipped, and GitHub prerelease publication succeeded.
+- Main CI run `45020356320`: security aggregation failed on unresolved RustSec advisories; Linux and Windows build jobs remained in progress at 2026-11-22 12:17 UTC; see the linked run for current status.
+- Published assets include RPM, DEB, AppImage, portable Linux tarball, Chromium and Firefox companion ZIPs, and `SHA256SUMS`. No Windows installer is attached.
+- The release remains a supervised Linux private beta. Browser live pairing/site intervention and clean system package-manager installation are not verified. GLib RustSec advisory remains unresolved.
 
 
 ## Final source review
@@ -59,4 +59,14 @@ These are unsigned manual Beta 4 candidates built from the current dirty worktre
 - Reviewed source commit: `5b7a0ea`; release evidence documentation is being committed separately.
 - `git diff --check`: PASS.
 - `gitleaks dir --redact --no-banner .`: PASS, no leaks found.
-- Hosted tagged QA/build and published asset verification remain pending.
+- Hosted tagged release and published assets verified; regular CI security job remains failed on known RustSec findings, and Windows native runtime remains unverified.
+
+
+## Published artifact SHA-256
+
+See the release-attached manifest for every file. Key Linux package hashes:
+
+- RPM: `fd8e7ced202e4354429676be061dca34927c86892c769ee97b0dcb76586b898a`
+- DEB: `f04b9fec37dd481fc5db5833f3bed342e6fc624e2f7926d9eb17d1b36f5c5541`
+- AppImage: `16df84253b3b157434ff3debab8f8475674ff4399bdb86296de3440dbf0b139a`
+- Portable tarball: `f15111d423721f7bcfe002349088cd42ec24928396164931dfe8a6b1e4d6dcb6`

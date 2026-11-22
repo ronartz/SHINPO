@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-22T12:02:30Z",
+  "timestamp": "2026-11-22T12:17:49Z",
   "commit": "5b7a0ea",
   "branch": "main",
   "worktree": "Tracked source at 5b7a0ea; QA execution used identical application sources before the release-documentation follow-up commit",
@@ -13,17 +13,19 @@
     "sha256": "f57e1c42e29bdfd404b087525ab0c574fde00c9e31c2cf77406b7e73dab3c7f8"
   },
   "verdicts": {
-    "overall": "CONDITIONAL_GO (Linux supervised private-beta prerelease; hosted tagged workflow pending)",
-    "linux": "CONDITIONAL_GO (extracted RPM native smoke + RPM payload gate passed; package-manager installation not tested)",
+    "overall": "PUBLISHED PRERELEASE (supervised Linux private beta; unresolved security findings disclosed)",
+    "linux": "PASS (tagged GitHub Linux build and prerelease publication succeeded; Fedora package-manager installation remains untested)",
     "windows": "NO-GO (NOT TESTED \u2014 Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
   },
-  "failedGatesCount": 0,
+  "failedGatesCount": 1,
   "gates": {
     "quick": "PASS",
     "security": "NOT_RUN",
     "visualAndThemes": "NOT_RUN",
     "linuxPackageRpm": "PASS (RPM payload, dependencies, desktop entry, icon, browser-host resources; extraction did not modify mock user data)",
     "nativeDesktop": "PASS (one Fedora WebKitGTK smoke spec against extracted RPM payload; disposable profile; Java/PostgreSQL stopped)",
-    "windowsDesktop": "NOT_TESTED"
+    "windowsDesktop": "NOT_TESTED",
+    "hostedTaggedRelease": "PASS (run 45020356630; Linux installers/checksums and prerelease publication succeeded; Windows installer skipped)",
+    "hostedSecurityCI": "FAIL (run 45020356320 security aggregation; known RustSec advisories remain open)"
   }
 }

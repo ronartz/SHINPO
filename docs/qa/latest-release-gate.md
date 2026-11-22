@@ -1,9 +1,9 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-22T12:02:30Z
+**Execution Timestamp:** 2026-11-22T12:17:49Z
 **Evaluated Commit:** `5b7a0ea` (`main`; application source content matched tested worktree)
 **Worktree Status:** Application source committed as `5b7a0ea`; report was reconciled after the tested source was committed
-**Release Decision:** **CONDITIONAL GO for supervised Linux private beta; tagged hosted release workflow pending**
+**Release Decision:** **Published Linux supervised private-beta prerelease; known security findings remain open**
 
 ---
 
@@ -51,7 +51,7 @@
 
 ## Final Recommendation
 
-- **Verdict:** **CONDITIONAL GO for supervised Linux private beta; hosted tagged release workflow pending**
+- **Verdict:** **Published Linux supervised private-beta prerelease; known security findings remain open**
 - Machine-readable results saved to `docs/qa/latest-release-gate.json`.
 
 
@@ -62,3 +62,11 @@
 - Browser Companion live pairing/site intervention: NOT TESTED.
 - Windows native installation/runtime: NOT TESTED.
 - GLib `RUSTSEC-2024-0429` and listed unmaintained dependencies remain unresolved.
+
+
+## Hosted Beta 4 release
+
+- Release: <https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.4> (published as prerelease; Linux assets only).
+- Tagged workflow run `45020356630`: QA PASS, Linux installers/checksums PASS, publication PASS, Windows installer SKIPPED.
+- Main CI run `45020356320`: security aggregation FAILED on unresolved RustSec findings; Linux and Windows build jobs remained in progress at 2026-11-22 12:17 UTC. See run: <https://github.com/ronartz/SHINPO/actions/runs/45020356320>.
+- Verify downloads with the attached `SHA256SUMS`; hosted artifact hashes differ from local candidates because CI rebuilt them.
