@@ -1,70 +1,42 @@
-# 🌌 SHINPO v0.1.0-beta.4 — Supervised Desktop Beta
+# SHINPO v0.1.0-beta.4
 
-> **Private beta:** Back up your recovery key before upgrading. SHINPO stores workspace data in a local encrypted vault. If both your password and recovery key are lost, the data may be unrecoverable.
+SHINPO is a local-first focus and productivity desktop application. This build refreshes the Beta 4 Linux, Windows and Browser Companion downloads from the reviewed source revision below.
 
----
+## Highlights
 
-## ✨ What's New in Beta 4
+- Focus sessions, Goals & Tasks, analytics and encrypted local workspace support.
+- Guardian can observe recognized applications. On supported Linux systems, Strict mode can request closure only for an explicitly blocked, verified same-user process when session consent is enabled. Use only disposable targets with no unsaved work.
+- Browser Companion packages are provided for manual installation.
+- The bundled Rust dependency locks include `url 2.5.9`, addressing the prior Beta 4 `url 2.5.8` advisory.
 
-### 🛡️ Guardian and Focus Protection
+## Downloads
 
-- Strict Guardian on supported Linux systems can close an explicitly blocked, same-user process only while Focus is active and session-level closure consent is enabled.
-- Guardian verifies the executable identity, asks the app to close gracefully, and may force-terminate that same verified process if it remains alive. Use only with disposable targets whose unsaved work can be discarded. Protected and unverified processes are excluded.
-- Windows process identity checks and app closure are not implemented in this build.
-- A vault migration adds session-scoped Guardian closure consent; existing sessions do not gain consent retroactively.
+| Platform | File | Qualification |
+| --- | --- | --- |
+| Fedora / compatible Linux x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.rpm` | Built in CI; clean package-manager installation is not verified. |
+| Debian / Ubuntu x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.deb` | Built in CI; clean installation is not verified. |
+| Portable Linux x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.AppImage` | Built in CI; runtime qualification is not verified. |
+| Windows x64 | `SHINPO_0.1.0-beta.4_windows_x64_setup.exe` | CI-built NSIS installer; Windows installation and runtime are not tested. |
+| Chromium | `shinpo-browser-companion-chromium.zip` | Live pairing and website-policy enforcement are not accepted. |
+| Firefox | `shinpo-browser-companion-firefox.zip` | Live pairing and website-policy enforcement are not accepted. |
 
-### 🎯 Focus and Productivity
+The portable Linux archive `SHINPO_0.1.0-beta.4_linux_x86_64.tar.gz` is also available. Verify downloaded files with [`SHA256SUMS`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.4/SHA256SUMS). Build provenance and qualification details are in [`BUILD_INFO.json`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.4/BUILD_INFO.json).
 
-- Includes Focus, task, analytics, background-rendering and desktop interaction fixes.
-- Focus records, task state and progress remain stored in the local encrypted vault.
+## Build and verification
 
-### 🌐 Browser Companion
+- **Artifact source revision:** [`1d8f81626860fe551c467df517217213c7d8f228`](https://github.com/ronartz/SHINPO/commit/1d8f81626860fe551c467df517217213c7d8f228)
+- **GitHub Actions:** [run 45040341006](https://github.com/ronartz/SHINPO/actions/runs/45040341006) — mandatory QA, Linux package build and Windows NSIS build passed.
+- Linux and Windows artifacts were produced by hosted CI. This does not establish clean-machine installation or runtime acceptance.
+- The existing `v0.1.0-beta.4` Git tag remains at `2160e30d668413bb94a3f4530f83524315bb6e48`, while these refreshed assets were built from `1d8f81626860fe551c467df517217213c7d8f228`. The tag was not moved; use the artifact source revision above when tracing these binaries.
 
-- Pairing now validates native-host registration before displaying a one-time code.
-- Invalid, expired or previously used codes are reported as pairing failures. A failed first policy sync is shown as a sync error rather than a successful connection.
-- Install the companion separately and pair it with SHINPO. Store publication is not included.
+## Known limitations
 
----
+- Browser Companion live pairing and Focus policy enforcement have not passed acceptance. A previous pairing authentication failure remains unresolved. Do not rely on website restrictions as the only protection.
+- Windows installation, native runtime and process handling are not tested. Native app closure is unavailable on Windows.
+- Fedora package-manager installation and fresh Linux installation/upgrade are not verified; prior evidence was limited to extracted-payload smoke testing.
+- Guardian behavior is platform- and consent-dependent. Do not use it on important applications or unsaved work. Protected and unverified processes must remain untouched.
+- `RUSTSEC-2024-0429` for the transitive GLib 0.18.5 `VariantStrIter` API remains an explicitly documented exception, not a fix. Unmaintained transitive Rust dependencies also remain documented.
+- Signed automatic updates are not configured for this build. The Windows installer is not Authenticode-signed.
+- SHINPO remains a beta build; the GitHub release listing is marked as a regular release at the owner's request, but that status does not imply production readiness.
 
-## 📦 Downloads
-
-| Platform | Package | Recommended for | Status |
-| --- | --- | --- | --- |
-| Fedora / compatible Linux x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.rpm` | Fedora users | Extracted-payload smoke only; package-manager install not verified |
-| Debian / Ubuntu x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.deb` | Debian-family users | Clean installation not verified |
-| Linux x86_64 | `SHINPO_0.1.0-beta.4_linux_x86_64.AppImage` | Portable testing | Runtime qualification not verified |
-| Windows x64 | `SHINPO_0.1.0-beta.4_windows_x64_setup.exe` | Experimental manual testing | CI-built; installation and runtime not tested |
-| Chromium | `shinpo-browser-companion-chromium.zip` | Manual extension installation | Live pairing and policy enforcement not accepted |
-| Firefox | `shinpo-browser-companion-firefox.zip` | Manual extension installation | Live pairing and policy enforcement not accepted |
-
----
-
-## 🛡️ Verification and SHA-256
-
-- **Version:** `0.1.0-beta.4`
-- **Source revision used for the desktop artifacts:** `728f117e2866bce3a8668b40159412364e022d6b`
-- **Checksums:** [Download `SHA256SUMS`](https://github.com/ronartz/SHINPO/releases/download/v0.1.0-beta.4/SHA256SUMS)
-
-```text
-fd8e7ced202e4354429676be061dca34927c86892c769ee97b0dcb76586b898a  SHINPO-0.1.0-beta.4-1.x86_64.rpm
-f04b9fec37dd481fc5db5833f3bed342e6fc624e2f7926d9eb17d1b36f5c5541  SHINPO_0.1.0-beta.4_linux_x86_64.deb
-16df84253b3b157434ff3debab8f8475674ff4399bdb86296de3440dbf0b139a  SHINPO_0.1.0-beta.4_linux_x86_64.AppImage
-49118e61821f0505195e3e1015cd9b12cecbbf25e6de05b167fa251bbdcee82c  SHINPO_0.1.0-beta.4_windows_x64_setup.exe
-0f992eada7754af5c3514b3acc725f637682789672567dd63b048d28c210f8b5  shinpo-browser-companion-chromium.zip
-a6ae31cf1218fd1502c889c274b171da0338c5091e4e53ec46b5df960940cec1  shinpo-browser-companion-firefox.zip
-```
-
----
-
-## ⚠️ Known Beta Limitations
-
-- **Browser Companion:** Live extension pairing and Focus-to-browser policy enforcement have not passed acceptance. A prior pairing authentication failure remains unresolved. Do not rely on website restrictions as your only enforcement mechanism.
-- **Windows:** The NSIS installer was built by GitHub Actions, but installation and native runtime have not been tested on Windows. Native app closure is unavailable on Windows. The updater signature is not Authenticode signing.
-- **Linux installation:** Fedora payload smoke testing was performed after extraction; clean package-manager installation and upgrade were not verified.
-- **Rust dependency advisory:** Beta 4's Shield and Browser Host binaries use locked `url 2.5.8`, affected by `RUSTSEC-2026-0592` (stack overflow in `Url::origin()` with nested `blob:` URLs). Source lockfiles have since been updated to `url 2.5.9`, but that fix is **not present in these Beta 4 artifacts**; a rebuilt release is required.
-- **Other Rust advisories:** The transitive GLib 0.18.5 `VariantStrIter` unsoundness (`RUSTSEC-2024-0429`) remains under a documented exception. `chrono`, `proc-macro-error`, `zbus_names`, `zvariant` and `zvariant_derive` remain reported as unmaintained; these are not fixed in Beta 4.
-- **Automatic updates:** Updater artifacts work only when the release signing secret is configured in CI. Manual package downloads do not imply updater signing.
-
-Report defects at <https://github.com/ronartz/SHINPO/issues>.
-
-**Full Changelog:** https://github.com/ronartz/SHINPO/compare/v0.1.0-beta.3...v0.1.0-beta.4
+Report issues at <https://github.com/ronartz/SHINPO/issues>.
