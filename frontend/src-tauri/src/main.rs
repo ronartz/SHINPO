@@ -6,7 +6,7 @@ fn main() {
     {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGS",
-            "--enable-gpu-rasterization --enable-zero-copy",
+            "--enable-gpu-rasterization --enable-zero-copy --disable-pinch --disable-features=msWebviewPinchToZoom",
         );
     }
 

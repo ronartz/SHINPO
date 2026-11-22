@@ -77,9 +77,13 @@ export function ShinpoParticles() {
     const fov = 450
     const depthRange = 180
 
+    const isMotionAllowed = () => {
+      return typeof document !== 'undefined' && document.body.classList.contains('allow-animations')
+    }
+
     const refreshPalette = () => {
       palette = resolveThemePalette(shell)
-      if (motion.matches) drawStatic()
+      if (!isMotionAllowed() && motion.matches) drawStatic()
     }
 
     const spawn = (): Particle => {
@@ -151,7 +155,7 @@ export function ShinpoParticles() {
 
     const tick = (now: number) => {
       frame = null
-      if (document.hidden || motion.matches) return
+      if (document.hidden || (!isMotionAllowed() && motion.matches)) return
       if (now - lastFrame >= 1000 / 50) {
         paint(true)
         lastFrame = now
@@ -160,7 +164,7 @@ export function ShinpoParticles() {
     }
 
     const start = () => {
-      if (document.hidden || motion.matches || frame !== null) return
+      if (document.hidden || (!isMotionAllowed() && motion.matches) || frame !== null) return
       frame = requestAnimationFrame(tick)
     }
 
@@ -180,19 +184,19 @@ export function ShinpoParticles() {
         const count = window.innerWidth < 768 ? MOBILE_QUANTITY : DESKTOP_QUANTITY
         particles = Array.from({ length: count }, spawn)
       }
-      if (motion.matches) drawStatic()
+      if (!isMotionAllowed() && motion.matches) drawStatic()
       else start()
     }
 
     const onVisibilityChange = () => {
       if (document.hidden) stop()
-      else if (motion.matches) drawStatic()
+      else if (!isMotionAllowed() && motion.matches) drawStatic()
       else start()
     }
 
     const onMotionChange = () => {
       stop()
-      if (motion.matches) drawStatic()
+      if (!isMotionAllowed() && motion.matches) drawStatic()
       else start()
     }
 

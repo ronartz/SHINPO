@@ -157,22 +157,10 @@ fn inspect_process_internal(
 
 #[cfg(target_os = "windows")]
 pub fn inspect_target_process(
-    pid: u32,
-    process_name: &str,
+    _pid: u32,
+    _process_name: &str,
 ) -> Result<Option<ProcessIdentity>, String> {
-    if pid == std::process::id() || protected_process_name(process_name) {
-        return Ok(None);
-    }
-    Ok(Some(ProcessIdentity {
-        pid,
-        process_name: process_name.to_ascii_lowercase(),
-        process_start_ticks: 0,
-        executable_path: PathBuf::from(process_name),
-        executable_device: 0,
-        executable_inode: 0,
-        executable_size: 0,
-        owner_id: 0,
-    }))
+    Err("Verified Windows process identity is not implemented; intervention is disabled".into())
 }
 
 #[cfg(target_os = "windows")]
@@ -218,95 +206,98 @@ pub fn request_graceful_close(
     if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
         return Err("Protected or unrecognized processes cannot be closed".into());
     }
-    // A pidfd binds the signal to this process instance; fall back to interceptor kill if unavailable.
+    // A pidfd binds every signal to this process instance. If pidfd support is
+    // unavailable, fail closed instead of falling back to a reusable raw PID.
     // SAFETY: pidfd_open takes a PID and flags; expected.pid is a u32 and flags are zero.
     let raw_pidfd = unsafe { libc::syscall(libc::SYS_pidfd_open, expected.pid, 0) } as i32;
-    if raw_pidfd >= 0 {
-        // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
-        let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
-        if !identity_still_matches(expected).unwrap_or(true) {
-            return Err("Process identity changed before intervention; no signal was sent".into());
+    if raw_pidfd < 0 {
+        return Err(format!(
+            "Could not bind intervention to a process handle: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    // SAFETY: successful pidfd_open returned a new owned descriptor not managed elsewhere.
+    let pidfd = unsafe { OwnedFd::from_raw_fd(raw_pidfd) };
+    match identity_still_matches(expected) {
+        Ok(true) => {}
+        Ok(false) => {
+            return Err("Process identity changed before intervention; no signal was sent".into())
         }
-        // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
-        let signal_result = unsafe {
-            libc::syscall(
-                libc::SYS_pidfd_send_signal,
-                pidfd.as_raw_fd(),
-                libc::SIGTERM,
-                std::ptr::null::<libc::siginfo_t>(),
-                0,
-            )
-        };
-        if signal_result == 0 {
-            let mut descriptor = libc::pollfd {
-                fd: pidfd.as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            };
-            let timeout = Duration::from_millis(40).as_millis() as i32;
-            // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
-            let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
-            if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
-                terminate_flatpak_if_applicable(expected.pid);
-                return Ok(CloseResult::RequestedAndExited);
-            }
-            // Escalate immediately to SIGKILL to enforce immediate termination.
-            let _ = unsafe {
-                libc::syscall(
-                    libc::SYS_pidfd_send_signal,
-                    pidfd.as_raw_fd(),
-                    libc::SIGKILL,
-                    std::ptr::null::<libc::siginfo_t>(),
-                    0,
-                )
-            };
-            terminate_flatpak_if_applicable(expected.pid);
-            return Ok(CloseResult::RequestedAndExited);
+        Err(error) => {
+            return Err(format!(
+                "Process identity could not be revalidated; no signal was sent: {error}"
+            ))
         }
     }
 
-    terminate_flatpak_if_applicable(expected.pid);
-    let interceptor = crate::platform::linux::LinuxInterceptor::new();
-    match crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
-    {
-        Ok(()) => Ok(CloseResult::RequestedAndExited),
-        Err(e) => Err(e),
+    // SAFETY: pidfd is live, the signal is SIGTERM, and the optional siginfo pointer is null.
+    let signal_result = unsafe {
+        libc::syscall(
+            libc::SYS_pidfd_send_signal,
+            pidfd.as_raw_fd(),
+            libc::SIGTERM,
+            std::ptr::null::<libc::siginfo_t>(),
+            0,
+        )
+    };
+    if signal_result != 0 {
+        return Err(format!(
+            "Could not request process close through its verified handle: {}",
+            std::io::Error::last_os_error()
+        ));
     }
-}
 
-#[cfg(target_os = "linux")]
-fn terminate_flatpak_if_applicable(pid: u32) {
-    if let Ok(flatpak_info) = std::fs::read_to_string(format!("/proc/{}/root/.flatpak-info", pid)) {
-        for line in flatpak_info.lines() {
-            if let Some(app_id) = line.strip_prefix("name=") {
-                let app_id = app_id.trim();
-                if !app_id.is_empty() {
-                    let _ = std::process::Command::new("flatpak")
-                        .args(["kill", app_id])
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::process::Stdio::null())
-                        .status();
-                }
-                break;
-            }
-        }
+    let mut descriptor = libc::pollfd {
+        fd: pidfd.as_raw_fd(),
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    // SAFETY: descriptor points to one initialized pollfd for the duration of the call.
+    let ready = unsafe {
+        libc::poll(
+            &mut descriptor,
+            1,
+            Duration::from_millis(40).as_millis() as i32,
+        )
+    };
+    if ready > 0 && descriptor.revents & libc::POLLIN != 0 {
+        return Ok(CloseResult::RequestedAndExited);
+    }
+
+    // Closure consent authorizes escalation for this verified target. Confirm exit
+    // through the same pidfd before reporting success.
+    // SAFETY: pidfd remains owned and live; SIGKILL is directed to the bound process only.
+    let kill_result = unsafe {
+        libc::syscall(
+            libc::SYS_pidfd_send_signal,
+            pidfd.as_raw_fd(),
+            libc::SIGKILL,
+            std::ptr::null::<libc::siginfo_t>(),
+            0,
+        )
+    };
+    if kill_result != 0 {
+        return Err(format!(
+            "Could not complete the consented process intervention: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    descriptor.revents = 0;
+    // SAFETY: descriptor still points to the initialized pollfd and pidfd is live.
+    let exited = unsafe { libc::poll(&mut descriptor, 1, 1_000) };
+    if exited > 0 && descriptor.revents & libc::POLLIN != 0 {
+        Ok(CloseResult::RequestedAndExited)
+    } else {
+        Ok(CloseResult::RequestedButNotConfirmed)
     }
 }
 
 #[cfg(target_os = "windows")]
 pub fn request_graceful_close(
-    expected: &ProcessIdentity,
-    closure_consent: bool,
+    _expected: &ProcessIdentity,
+    _closure_consent: bool,
 ) -> Result<CloseResult, String> {
-    if !closure_consent {
-        return Ok(CloseResult::ConsentRequired);
-    }
-    if expected.pid == std::process::id() || protected_process_name(&expected.process_name) {
-        return Err("Protected or unrecognized processes cannot be closed".into());
-    }
-    let interceptor = crate::platform::windows::WindowsInterceptor::new();
-    crate::platform::PlatformInterceptor::terminate_process(&interceptor, expected.pid, true)
-        .map(|()| CloseResult::RequestedAndExited)
+    Err("Verified Windows identity and graceful-close confirmation are unavailable".into())
 }
 
 #[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]

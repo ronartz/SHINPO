@@ -207,8 +207,11 @@ pub fn local_get_process_snapshot(
 
             // Safe classifications: system vs user processes
             let pid_u32 = pid.as_u32();
-            let is_protected_os =
-                pid_u32 <= 100 || name == "systemd" || name == "init" || name == "kthreadd";
+            let is_protected_os = pid_u32 <= 100
+                || name == "systemd"
+                || name == "init"
+                || name == "kthreadd"
+                || shinpo_shield::process_identity::protected_process_name(&name);
             let state = if is_protected_os {
                 "PROTECTED".to_string()
             } else {

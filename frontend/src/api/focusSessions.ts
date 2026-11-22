@@ -60,6 +60,7 @@ export type FocusSession = {
   latePenaltyDailyCapXp?: number
   guardianMode?: GuardianMode
   guardianAppMonitoring?: boolean
+  guardianClosureConsent?: boolean
   currentPhase?: 'FOCUS' | 'BREAK' | 'SHORT_BREAK' | 'LONG_BREAK' | 'GRACE' | 'RETURN_REQUIRED' | 'COMPLETE'
   phaseDeadlineAt?: number | null
   phaseRevision?: number
@@ -119,6 +120,7 @@ export type CreateFocusSessionRequest = {
   latePenaltyDailyCapXp?: number
   guardianMode?: GuardianMode
   guardianAppMonitoring?: boolean
+  guardianClosureConsent?: boolean
 }
 
 export async function getGuardianPreferences(): Promise<GuardianPreferences> {
@@ -180,6 +182,7 @@ export async function createFocusSession(
     latePenaltyEnabled: request.latePenaltyEnabled ?? false, latePenaltyXp: request.latePenaltyXp ?? 5,
     latePenaltyDailyCapXp: request.latePenaltyDailyCapXp ?? 20,
     guardianMode: request.guardianMode, guardianAppMonitoring: request.guardianAppMonitoring,
+    guardianClosureConsent: request.guardianClosureConsent,
   } })
   const effectiveUserId = request.userId ?? getAuthenticatedUserId() ?? undefined
   const payload = effectiveUserId !== undefined ? { ...request, userId: effectiveUserId } : request

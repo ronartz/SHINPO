@@ -23,7 +23,7 @@ const SALT_BYTES: usize = 16;
 const NONCE_BYTES: usize = 24;
 const ARGON_MEMORY_KIB: u32 = 65_536;
 const ARGON_ITERATIONS: u32 = 3;
-const LATEST_SCHEMA_VERSION: i64 = 17;
+const LATEST_SCHEMA_VERSION: i64 = 18;
 const LOCAL_VAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 #[cfg(feature = "qa-clock")]
@@ -126,6 +126,7 @@ fn run_smoke_test_in(root: &Path) -> Result<(), String> {
             late_penalty_daily_cap_xp: Some(20),
             guardian_mode: Some("PROTECTED".into()),
             guardian_app_monitoring: Some(false),
+            guardian_closure_consent: None,
         };
         let session = insert_focus_record(db, &request)?;
         complete_task(db, task.id, Some(1)).map_err(|_| rusqlite::Error::InvalidQuery)?;
@@ -346,6 +347,7 @@ pub struct CreateFocusSessionRequest {
     late_penalty_daily_cap_xp: Option<i64>,
     guardian_mode: Option<String>,
     guardian_app_monitoring: Option<bool>,
+    guardian_closure_consent: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -380,7 +382,7 @@ pub struct UpdateFocusSessionRequest {
     scheduled_at: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateStudyResourceRequest {
     mission_id: Option<i64>,
@@ -1813,6 +1815,7 @@ pub fn local_create_focus_session(
         late_penalty_daily_cap_xp,
         guardian_mode,
         guardian_app_monitoring: _,
+        guardian_closure_consent: _,
     } = request.clone();
     validate_title(&name)?;
     validate_optional_text(intention.as_deref(), 4000)?;
@@ -2511,7 +2514,15 @@ pub fn local_get_study_resources(
     mission_id: Option<i64>,
     session_id: Option<i64>,
 ) -> Result<Vec<LocalStudyResource>, String> {
-    with_db(&state, |db| {
+    local_get_study_resources_from(&state, mission_id, session_id)
+}
+
+fn local_get_study_resources_from(
+    state: &VaultManager,
+    mission_id: Option<i64>,
+    session_id: Option<i64>,
+) -> Result<Vec<LocalStudyResource>, String> {
+    with_db(state, |db| {
         let mut statement = db.prepare("SELECT id,mission_id,focus_session_id,resource_type,match_type,disposition,break_only,destination,canonical_destination,display_name,expires_at,created_at,updated_at FROM browser_resources WHERE (?1 IS NULL OR mission_id=?1 OR mission_id IS NULL) AND (?2 IS NULL OR focus_session_id=?2 OR focus_session_id IS NULL) ORDER BY id DESC")?;
         let rows = statement.query_map(params![mission_id, session_id], |row| {
             Ok(LocalStudyResource {
@@ -2538,6 +2549,13 @@ pub fn local_get_study_resources(
 #[tauri::command]
 pub fn local_create_study_resource(
     state: tauri::State<'_, VaultManager>,
+    request: CreateStudyResourceRequest,
+) -> Result<LocalStudyResource, String> {
+    local_create_study_resource_in(&state, request)
+}
+
+fn local_create_study_resource_in(
+    state: &VaultManager,
     request: CreateStudyResourceRequest,
 ) -> Result<LocalStudyResource, String> {
     let CreateStudyResourceRequest {
@@ -2610,7 +2628,8 @@ pub fn local_create_study_resource(
     if break_only && focus_session_id.is_none() {
         return Err("Break-only resources must be linked to a Focus session".into());
     }
-    with_db(&state, |db| {
+    with_db(state, |db| {
+        ensure_guardian_policy_mutable(db)?;
         db.execute("INSERT INTO browser_resources(mission_id,focus_session_id,resource_type,match_type,disposition,break_only,destination,canonical_destination,display_name,expires_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?7,?8,?9)", params![mission_id,focus_session_id,resource_type,match_type,disposition,break_only as i64,destination.trim(),display_name,expires_at])?;
         let id = db.last_insert_rowid();
         db.query_row("SELECT id,mission_id,focus_session_id,resource_type,match_type,disposition,break_only,destination,canonical_destination,display_name,expires_at,created_at,updated_at FROM browser_resources WHERE id=?1", [id], |row| Ok(LocalStudyResource {
@@ -2624,7 +2643,12 @@ pub fn local_delete_study_resource(
     state: tauri::State<'_, VaultManager>,
     resource_id: i64,
 ) -> Result<(), String> {
-    with_db(&state, |db| {
+    local_delete_study_resource_in(&state, resource_id)
+}
+
+fn local_delete_study_resource_in(state: &VaultManager, resource_id: i64) -> Result<(), String> {
+    with_db(state, |db| {
+        ensure_guardian_policy_mutable(db)?;
         db.execute("DELETE FROM browser_resources WHERE id=?1", [resource_id])?;
         Ok(())
     })
@@ -2860,25 +2884,20 @@ fn apply_guardian_app_policy(
         with_db_background(state, |db| {
             let transaction = db.transaction()?;
             let session = transaction.query_row(
-            "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
+            "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode,guardian_closure_consent
              FROM calendar_sessions WHERE id=?1",
             [session_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, bool>(3)?, row.get::<_, String>(4)?)),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?, row.get::<_, bool>(3)?, row.get::<_, String>(4)?, row.get::<_, bool>(5)?)),
         ).optional()?;
             let runtime_consent: bool = transaction.query_row(
                 "SELECT background_runtime_consent FROM guardian_preferences WHERE id=1",
                 [],
                 |row| row.get(0),
             )?;
-            let closure_consent: bool = transaction.query_row(
-                "SELECT closure_consent FROM guardian_preferences WHERE id=1",
-                [],
-                |row| row.get(0),
-            )?;
             let valid_session =
                 session
                     .as_ref()
-                    .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                    .is_some_and(|(status, phase, monitoring, stopped, mode, _)| {
                         status == "ACTIVE"
                             && phase == focus_phase
                             && mode == guardian_mode
@@ -2928,7 +2947,9 @@ fn apply_guardian_app_policy(
             Ok((
                 valid_session,
                 runtime_consent,
-                closure_consent,
+                session
+                    .as_ref()
+                    .is_some_and(|(_, _, _, _, _, consent)| *consent),
                 allowance,
                 prior_map,
             ))
@@ -2951,7 +2972,7 @@ fn apply_guardian_app_policy(
             "LIMITED_STALE_OR_INACTIVE_SESSION".to_string()
         } else if focus_phase != "FOCUS" {
             "ALLOWED_OUTSIDE_FOCUS".to_string()
-        } else if !verified_observed_identity(process) && !cfg!(target_os = "windows") {
+        } else if !verified_observed_identity(process) {
             "LIMITED_IDENTITY_UNVERIFIED".to_string()
         } else if guardian_mode == "GUIDED" {
             "WARNING_LIGHT".to_string()
@@ -2962,43 +2983,13 @@ fn apply_guardian_app_policy(
         } else if guardian_mode == "STRICT" {
             #[cfg(any(target_os = "windows", target_os = "linux"))]
             {
-                if !closure_consent {
+                if process.category != "USER_BLOCKED" {
+                    "WARNING_STRICT_APP_NOT_USER_BLOCKED".to_string()
+                } else if !closure_consent {
                     "LIMITED_NO_CLOSURE_CONSENT".to_string()
                 } else if let Some(ref identity) = process.identity {
                     request_strict_close_if_authorized(state, session_id, identity)
                         .unwrap_or_else(|_| "LIMITED_CLOSE_UNAVAILABLE".to_string())
-                } else if !shinpo_shield::process_identity::protected_process_name(
-                    &process.process_name,
-                ) {
-                    #[cfg(target_os = "windows")]
-                    {
-                        let interceptor =
-                            shinpo_shield::platform::windows::WindowsInterceptor::new();
-                        match shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                            &interceptor,
-                            process.pid,
-                            true,
-                        ) {
-                            Ok(()) => "CLOSED_GRACEFULLY_VERIFIED".to_string(),
-                            Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
-                        }
-                    }
-                    #[cfg(target_os = "linux")]
-                    {
-                        let interceptor = shinpo_shield::platform::linux::LinuxInterceptor::new();
-                        match shinpo_shield::platform::PlatformInterceptor::terminate_process(
-                            &interceptor,
-                            process.pid,
-                            true,
-                        ) {
-                            Ok(()) => "CLOSED_GRACEFULLY_VERIFIED".to_string(),
-                            Err(_) => "LIMITED_CLOSE_UNAVAILABLE".to_string(),
-                        }
-                    }
-                    #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-                    {
-                        "LIMITED_PLATFORM_UNSUPPORTED".to_string()
-                    }
                 } else {
                     "LIMITED_IDENTITY_UNVERIFIED".to_string()
                 }
@@ -3026,7 +3017,7 @@ fn request_strict_close_if_authorized(
     with_db_background(state, |db| {
         let session = db
             .query_row(
-                "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
+                "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode,guardian_closure_consent
                  FROM calendar_sessions WHERE id=?1",
                 [session_id],
                 |row| {
@@ -3036,6 +3027,7 @@ fn request_strict_close_if_authorized(
                         row.get::<_, bool>(2)?,
                         row.get::<_, bool>(3)?,
                         row.get::<_, String>(4)?,
+                        row.get::<_, bool>(5)?,
                     ))
                 },
             )
@@ -3043,7 +3035,7 @@ fn request_strict_close_if_authorized(
         let still_authorized =
             session
                 .as_ref()
-                .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                .is_some_and(|(status, phase, monitoring, stopped, mode, _)| {
                     status == "ACTIVE"
                         && phase == "FOCUS"
                         && *monitoring
@@ -3053,11 +3045,12 @@ fn request_strict_close_if_authorized(
         if !still_authorized {
             return Ok("LIMITED_STALE_OR_INACTIVE_SESSION".to_string());
         }
-        let consent: bool = db.query_row(
-            "SELECT closure_consent FROM guardian_preferences WHERE id=1",
-            [],
-            |row| row.get(0),
-        )?;
+        if !has_effective_explicit_app_block(db, &identity.process_name)? {
+            return Ok("LIMITED_APP_NOT_EXPLICITLY_BLOCKED".to_string());
+        }
+        let consent = session
+            .as_ref()
+            .is_some_and(|(_, _, _, _, _, consent)| *consent);
         if !consent {
             return Ok("LIMITED_NO_CLOSURE_CONSENT".to_string());
         }
@@ -3088,7 +3081,7 @@ fn request_strict_close_if_authorized(
     with_db_background(state, |db| {
         let session = db
             .query_row(
-                "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode
+                "SELECT status,current_phase,guardian_app_monitoring,guardian_intervention_disabled,guardian_mode,guardian_closure_consent
                  FROM calendar_sessions WHERE id=?1",
                 [session_id],
                 |row| {
@@ -3098,6 +3091,7 @@ fn request_strict_close_if_authorized(
                         row.get::<_, bool>(2)?,
                         row.get::<_, bool>(3)?,
                         row.get::<_, String>(4)?,
+                        row.get::<_, bool>(5)?,
                     ))
                 },
             )
@@ -3105,7 +3099,7 @@ fn request_strict_close_if_authorized(
         let still_authorized =
             session
                 .as_ref()
-                .is_some_and(|(status, phase, monitoring, stopped, mode)| {
+                .is_some_and(|(status, phase, monitoring, stopped, mode, _)| {
                     status == "ACTIVE"
                         && phase == "FOCUS"
                         && *monitoring
@@ -3115,11 +3109,12 @@ fn request_strict_close_if_authorized(
         if !still_authorized {
             return Ok("LIMITED_STALE_OR_INACTIVE_SESSION".to_string());
         }
-        let consent: bool = db.query_row(
-            "SELECT closure_consent FROM guardian_preferences WHERE id=1",
-            [],
-            |row| row.get(0),
-        )?;
+        if !has_effective_explicit_app_block(db, &identity.process_name)? {
+            return Ok("LIMITED_APP_NOT_EXPLICITLY_BLOCKED".to_string());
+        }
+        let consent = session
+            .as_ref()
+            .is_some_and(|(_, _, _, _, _, consent)| *consent);
         if !consent {
             return Ok("LIMITED_NO_CLOSURE_CONSENT".to_string());
         }
@@ -3127,6 +3122,9 @@ fn request_strict_close_if_authorized(
             match shinpo_shield::process_identity::request_graceful_close(identity, consent) {
                 Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
                     "CLOSED_GRACEFULLY_VERIFIED"
+                }
+                Ok(shinpo_shield::process_identity::CloseResult::RequestedButNotConfirmed) => {
+                    "CLOSE_REQUESTED_UNCONFIRMED"
                 }
                 Ok(shinpo_shield::process_identity::CloseResult::ConsentRequired) => {
                     "LIMITED_NO_CLOSURE_CONSENT"
@@ -3136,6 +3134,33 @@ fn request_strict_close_if_authorized(
             .to_string(),
         )
     })
+}
+
+fn has_effective_explicit_app_block(db: &Connection, process_name: &str) -> rusqlite::Result<bool> {
+    let normalized = process_name
+        .trim()
+        .to_ascii_lowercase()
+        .trim_end_matches(".exe")
+        .to_string();
+    let mut statement = db.prepare("SELECT exec_name, policy_type FROM guardian_app_policies")?;
+    let rows = statement.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut blocked = false;
+    let mut allowed = false;
+    for row in rows {
+        let (name, policy) = row?;
+        let candidate = name
+            .trim()
+            .to_ascii_lowercase()
+            .trim_end_matches(".exe")
+            .to_string();
+        if candidate == normalized {
+            blocked |= policy == "BLOCKED";
+            allowed |= policy == "ALLOWED";
+        }
+    }
+    Ok(blocked && !allowed)
 }
 
 #[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
@@ -3150,9 +3175,13 @@ fn request_strict_close_if_authorized(
 fn verified_observed_identity(process: &shinpo_shield::observer::ObservedDistraction) -> bool {
     process.identity.as_ref().is_some_and(|identity| {
         identity.pid == process.pid
-            && identity
+            && (identity
                 .process_name
                 .eq_ignore_ascii_case(&process.process_name)
+                || identity
+                    .process_name
+                    .trim_end_matches(".exe")
+                    .eq_ignore_ascii_case(process.process_name.trim_end_matches(".exe")))
             && !shinpo_shield::process_identity::protected_process_name(&identity.process_name)
     })
 }
@@ -3443,7 +3472,9 @@ fn local_save_app_policy_in(
     let now = chrono_now();
 
     with_db(state, |db| {
-        db.execute(
+        let transaction = db.transaction()?;
+        ensure_guardian_policy_mutable(&transaction)?;
+        transaction.execute(
             "INSERT INTO guardian_app_policies(app_id, app_name, exec_name, policy_type, source, created_at, updated_at)
              VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?6)
              ON CONFLICT(app_id) DO UPDATE SET
@@ -3454,7 +3485,7 @@ fn local_save_app_policy_in(
                 updated_at=excluded.updated_at",
             params![app_id, app_name, exec_name, p_type, source, now],
         )?;
-        let row = db.query_row(
+        let row = transaction.query_row(
             "SELECT id, app_id, app_name, exec_name, policy_type, source, created_at, updated_at
              FROM guardian_app_policies WHERE app_id=?1",
             [app_id],
@@ -3471,6 +3502,7 @@ fn local_save_app_policy_in(
                 })
             },
         )?;
+        transaction.commit()?;
         Ok(row)
     })
 }
@@ -3485,12 +3517,32 @@ pub fn local_remove_app_policy(
 
 fn local_remove_app_policy_in(state: &VaultManager, app_id: &str) -> Result<(), String> {
     with_db(state, |db| {
-        db.execute(
+        let transaction = db.transaction()?;
+        ensure_guardian_policy_mutable(&transaction)?;
+        transaction.execute(
             "DELETE FROM guardian_app_policies WHERE app_id=?1 OR exec_name=?1",
             [app_id],
         )?;
+        transaction.commit()?;
         Ok(())
     })
+}
+
+/// App and website restrictions are snapshotted by the active Focus policy.
+/// Keep that choice immutable from Focus start through pause/break/resume until
+/// the session has been completed or cancelled.
+fn ensure_guardian_policy_mutable(db: &Connection) -> rusqlite::Result<()> {
+    let locked: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM calendar_sessions WHERE status IN ('ACTIVE','PAUSED'))",
+        [],
+        |row| row.get(0),
+    )?;
+    if locked {
+        return Err(rusqlite::Error::InvalidParameterName(
+            "Guardian app and website policies cannot change during an active Focus session".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn local_update_guardian_preferences_from(
@@ -3524,6 +3576,13 @@ fn local_update_guardian_preferences_from(
             transaction.execute(
                 "UPDATE calendar_sessions SET guardian_app_monitoring=0
                  WHERE status IN ('SCHEDULED','ACTIVE','PAUSED') AND guardian_app_monitoring<>0",
+                [],
+            )?;
+        }
+        if !request.app_monitoring_consent || !request.closure_consent {
+            transaction.execute(
+                "UPDATE calendar_sessions SET guardian_closure_consent=0
+                 WHERE status IN ('SCHEDULED','ACTIVE','PAUSED') AND guardian_closure_consent<>0",
                 [],
             )?;
         }
@@ -3890,6 +3949,7 @@ pub fn local_set_browser_focus_mode(
         return Err("Focus mode is invalid".into());
     }
     with_db(&state, |db| {
+        ensure_guardian_policy_mutable(db)?;
         if session_id > 0 {
             db.execute(
                 "UPDATE calendar_sessions SET guardian_mode=?1 WHERE id=?2 AND status IN ('ACTIVE', 'PAUSED')",
@@ -4291,6 +4351,11 @@ fn with_db_mode<T>(
         rusqlite::Error::QueryReturnedNoRows => {
             "Record not found or belongs to another account".into()
         }
+        rusqlite::Error::InvalidParameterName(message)
+            if message.starts_with("Guardian app and website policies cannot change") =>
+        {
+            message
+        }
         rusqlite::Error::InvalidQuery => {
             "This action is not valid for the record's current state".into()
         }
@@ -4368,11 +4433,16 @@ fn insert_focus_record(
     db: &Connection,
     r: &CreateFocusSessionRequest,
 ) -> rusqlite::Result<LocalFocusSession> {
-    let (saved_mode, saved_consent, apply_to_new_sessions): (String, bool, bool) = db.query_row(
-        "SELECT preferred_mode,app_monitoring_consent,apply_to_new_sessions
+    let (saved_mode, saved_consent, apply_to_new_sessions, saved_closure_consent): (
+        String,
+        bool,
+        bool,
+        bool,
+    ) = db.query_row(
+        "SELECT preferred_mode,app_monitoring_consent,apply_to_new_sessions,closure_consent
          FROM guardian_preferences WHERE id=1",
         [],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
     )?;
     let mode = r
         .guardian_mode
@@ -4385,12 +4455,18 @@ fn insert_focus_record(
                 "PROTECTED".to_string()
             }
         });
-    let app_monitoring = if mode == "STRICT" {
-        true
-    } else {
-        r.guardian_app_monitoring
-            .unwrap_or(apply_to_new_sessions && saved_consent)
-    };
+    // Strict mode must never imply permission to observe applications. A true
+    // request reflects the explicit per-session checkbox; otherwise only an
+    // explicitly saved account preference can opt the session in.
+    let app_monitoring = r
+        .guardian_app_monitoring
+        .unwrap_or(apply_to_new_sessions && saved_consent);
+    // Capture the user's explicit consent on this session. Per-session consent is
+    // independent from the saved preference and cannot be granted by mode choice.
+    let closure_consent = mode == "STRICT"
+        && app_monitoring
+        && r.guardian_closure_consent
+            .unwrap_or(apply_to_new_sessions && saved_closure_consent);
     let pomodoro = r.pomodoro_enabled.unwrap_or(false);
     let raw_long_break = r.pomodoro_long_break_minutes.unwrap_or(15);
     let long_break = if pomodoro && r.duration_minutes < 30 {
@@ -4404,7 +4480,7 @@ fn insert_focus_record(
     } else {
         raw_grace
     };
-    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,updated_at,reward_id) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17,lower(hex(randomblob(16))))",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,pomodoro,r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),long_break,grace,r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,chrono_now()])?;
+    db.execute("INSERT INTO calendar_sessions(goal_id,task_id,name,intention,duration_minutes,scheduled_at,status,pomodoro_enabled,pomodoro_focus_cycles,pomodoro_short_break_minutes,pomodoro_long_break_minutes,pomodoro_grace_minutes,current_phase,late_penalty_enabled,late_penalty_xp,late_penalty_daily_cap_xp,guardian_mode,guardian_app_monitoring,guardian_closure_consent,updated_at,reward_id) VALUES(?1,?2,?3,?4,?5,?6,'SCHEDULED',?7,?8,?9,?10,?11,'FOCUS',?12,?13,?14,?15,?16,?17,?18,lower(hex(randomblob(16))))",params![r.goal_id,r.mission_id,r.name.trim(),r.intention,r.duration_minutes,r.scheduled_at,pomodoro,r.pomodoro_focus_cycles.unwrap_or(2),r.pomodoro_short_break_minutes.unwrap_or(5),long_break,grace,r.late_penalty_enabled.unwrap_or(false),r.late_penalty_xp.unwrap_or(5),r.late_penalty_daily_cap_xp.unwrap_or(20),mode,app_monitoring,closure_consent,chrono_now()])?;
     focus_session_by_id(db, db.last_insert_rowid())
 }
 
@@ -4783,6 +4859,7 @@ fn apply_schema_migrations(connection: &mut Connection) -> Result<(), String> {
             15 => migrate_v15(&transaction)?,
             16 => migrate_v16(&transaction)?,
             17 => migrate_v17(&transaction)?,
+            18 => migrate_v18(&transaction)?,
             _ => return Err("Local database migration is unavailable".to_string()),
         }
         validate_schema(&transaction, next_version)?;
@@ -5018,6 +5095,16 @@ fn migrate_v17(transaction: &Transaction<'_>) -> Result<(), String> {
                   AND EXISTS(SELECT 1 FROM calendar_sessions WHERE id=progress_events.session_id);",
         )
         .map_err(|_| "Could not migrate existing reward identities".to_string())
+}
+
+fn migrate_v18(transaction: &Transaction<'_>) -> Result<(), String> {
+    ensure_column(
+        transaction,
+        "calendar_sessions",
+        "guardian_closure_consent",
+        "INTEGER NOT NULL DEFAULT 0 CHECK(guardian_closure_consent IN (0,1))",
+    )
+    .map_err(|_| "Could not add session-scoped Guardian closure consent".to_string())
 }
 
 fn migrate_v10(transaction: &Transaction<'_>) -> Result<(), String> {
@@ -5320,6 +5407,7 @@ fn validate_schema(connection: &Connection, version: i64) -> Result<(), String> 
             ("tasks", &["reward_id"]),
             ("calendar_sessions", &["reward_id"]),
         ],
+        18 => &[("calendar_sessions", &["guardian_closure_consent"])],
         _ => return Err("Unsupported local database schema version".to_string()),
     };
     for (table, columns) in required {
@@ -7948,6 +8036,7 @@ mod tests {
                     late_penalty_daily_cap_xp: None,
                     guardian_mode: None,
                     guardian_app_monitoring: None,
+                    guardian_closure_consent: None,
                 },
             )
         })
@@ -7995,6 +8084,144 @@ mod tests {
         })
         .unwrap());
 
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn strict_mode_does_not_imply_app_observation_consent() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "strict_without_consent", "a-long-qa-password").unwrap();
+        local_update_guardian_preferences_from(
+            &manager,
+            UpdateGuardianPreferencesRequest {
+                preferred_mode: "STRICT".into(),
+                app_monitoring_consent: false,
+                apply_to_new_sessions: true,
+                closure_consent: false,
+                background_runtime_consent: false,
+            },
+        )
+        .unwrap();
+
+        let without_session_consent = with_db(&manager, |db| {
+            insert_focus_record(
+                db,
+                &CreateFocusSessionRequest {
+                    goal_id: None,
+                    mission_id: None,
+                    name: "Strict without observation consent".into(),
+                    intention: None,
+                    duration_minutes: 25,
+                    scheduled_at: None,
+                    pomodoro_enabled: None,
+                    pomodoro_focus_cycles: None,
+                    pomodoro_short_break_minutes: None,
+                    pomodoro_long_break_minutes: None,
+                    pomodoro_grace_minutes: None,
+                    late_penalty_enabled: None,
+                    late_penalty_xp: None,
+                    late_penalty_daily_cap_xp: None,
+                    guardian_mode: None,
+                    guardian_app_monitoring: None,
+                    guardian_closure_consent: None,
+                },
+            )
+        })
+        .unwrap();
+        assert_eq!(
+            with_db(&manager, |db| {
+                db.query_row(
+                    "SELECT guardian_mode FROM calendar_sessions WHERE id=?1",
+                    [without_session_consent.id],
+                    |row| row.get::<_, String>(0),
+                )
+            })
+            .unwrap(),
+            "STRICT"
+        );
+        assert!(!without_session_consent.guardian_app_monitoring);
+        assert!(!with_db(&manager, |db| db.query_row(
+            "SELECT guardian_closure_consent FROM calendar_sessions WHERE id=?1",
+            [without_session_consent.id],
+            |row| row.get::<_, bool>(0),
+        ))
+        .unwrap());
+
+        let explicit_session_consent = with_db(&manager, |db| {
+            insert_focus_record(
+                db,
+                &CreateFocusSessionRequest {
+                    goal_id: None,
+                    mission_id: None,
+                    name: "Strict with explicit observation consent".into(),
+                    intention: None,
+                    duration_minutes: 25,
+                    scheduled_at: None,
+                    pomodoro_enabled: None,
+                    pomodoro_focus_cycles: None,
+                    pomodoro_short_break_minutes: None,
+                    pomodoro_long_break_minutes: None,
+                    pomodoro_grace_minutes: None,
+                    late_penalty_enabled: None,
+                    late_penalty_xp: None,
+                    late_penalty_daily_cap_xp: None,
+                    guardian_mode: Some("STRICT".into()),
+                    guardian_app_monitoring: Some(true),
+                    guardian_closure_consent: Some(true),
+                },
+            )
+        })
+        .unwrap();
+        assert!(explicit_session_consent.guardian_app_monitoring);
+        assert!(with_db(&manager, |db| db.query_row(
+            "SELECT guardian_closure_consent FROM calendar_sessions WHERE id=?1",
+            [explicit_session_consent.id],
+            |row| row.get::<_, bool>(0),
+        ))
+        .unwrap());
+        assert!(
+            !local_get_guardian_preferences_from(&manager)
+                .unwrap()
+                .closure_consent
+        );
+
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn schema_v18_adds_session_closure_consent_without_changing_existing_sessions() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_v18", "a-long-qa-password").unwrap();
+        let historical_id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,status,guardian_mode,guardian_app_monitoring) VALUES('Historical strict session',25,'COMPLETED','STRICT',1)",
+                [],
+            )?;
+            let id = db.last_insert_rowid();
+            db.execute("ALTER TABLE calendar_sessions DROP COLUMN guardian_closure_consent", [])?;
+            db.pragma_update(None, "user_version", 17)?;
+            apply_schema_migrations(db).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            Ok(id)
+        })
+        .unwrap();
+        let (consent, status, mode): (bool, String, String) = with_db(&manager, |db| {
+            db.query_row(
+                "SELECT guardian_closure_consent,status,guardian_mode FROM calendar_sessions WHERE id=?1",
+                [historical_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+        })
+        .unwrap();
+        assert!(
+            !consent,
+            "historical sessions must not gain retroactive closure consent"
+        );
+        assert_eq!(status, "COMPLETED");
+        assert_eq!(mode, "STRICT");
         drop(manager);
         fs::remove_dir_all(root).unwrap();
     }
@@ -8098,8 +8325,19 @@ mod tests {
         let root = scratch_path();
         let manager = VaultManager::new(root.clone());
         create_account(&manager, "guardian_policy", "a-long-qa-password").unwrap();
+        local_save_app_policy_in(
+            &manager,
+            SaveAppPolicyRequest {
+                app_id: "steam.desktop".into(),
+                app_name: "Steam".into(),
+                exec_name: "steam".into(),
+                policy_type: "BLOCKED".into(),
+                source: Some("user".into()),
+            },
+        )
+        .unwrap();
         let session_id = with_db(&manager, |db| {
-            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring) VALUES('Policy',25,'ACTIVE','FOCUS','STRICT',1)", [])?;
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring,guardian_closure_consent) VALUES('Policy',25,'ACTIVE','FOCUS','STRICT',1,1)", [])?;
             Ok(db.last_insert_rowid())
         }).unwrap();
         local_update_guardian_preferences_from(
@@ -8139,10 +8377,19 @@ mod tests {
             std::slice::from_ref(&process),
         )
         .unwrap();
-        assert!(
-            armed[0].2 == "LIMITED_CLOSE_UNAVAILABLE"
-                || armed[0].2 == "WARNING_STRICT_ENFORCEMENT_DISABLED"
-        );
+        assert_eq!(armed[0].2, "WARNING_STRICT_APP_NOT_USER_BLOCKED");
+
+        let mut explicitly_blocked = process.clone();
+        explicitly_blocked.category = "USER_BLOCKED";
+        let armed = apply_guardian_app_policy(
+            &manager,
+            session_id,
+            "STRICT",
+            "FOCUS",
+            std::slice::from_ref(&explicitly_blocked),
+        )
+        .unwrap();
+        assert_eq!(armed[0].2, "LIMITED_CLOSE_UNAVAILABLE");
 
         local_update_guardian_preferences_from(
             &manager,
@@ -8160,7 +8407,7 @@ mod tests {
             session_id,
             "STRICT",
             "FOCUS",
-            std::slice::from_ref(&process),
+            std::slice::from_ref(&explicitly_blocked),
         )
         .unwrap();
         assert_eq!(revoked[0].2, "LIMITED_NO_CLOSURE_CONSENT");
@@ -8561,6 +8808,7 @@ mod tests {
                 late_penalty_daily_cap_xp: None,
                 guardian_mode: None,
                 guardian_app_monitoring: None,
+                guardian_closure_consent: None,
             };
             let session = insert_focus_record(db, &request)?;
             assert!(!session.guardian_app_monitoring);
@@ -9228,6 +9476,209 @@ mod tests {
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].app_id, "discord.desktop");
 
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn guardian_app_policy_cannot_be_changed_during_active_or_paused_focus() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_policy_lock", "a-long-qa-password").unwrap();
+        let policy = SaveAppPolicyRequest {
+            app_id: "discord.desktop".into(),
+            app_name: "Discord".into(),
+            exec_name: "discord".into(),
+            policy_type: "BLOCKED".into(),
+            source: Some("system".into()),
+        };
+        local_save_app_policy_in(&manager, policy).unwrap();
+        with_db(&manager, |db| {
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring) VALUES('Locked policy',25,'ACTIVE','FOCUS','STRICT',1)", [])?;
+            Ok(())
+        }).unwrap();
+
+        let change = SaveAppPolicyRequest {
+            app_id: "discord.desktop".into(),
+            app_name: "Discord".into(),
+            exec_name: "discord".into(),
+            policy_type: "ALLOWED".into(),
+            source: Some("system".into()),
+        };
+        assert!(local_save_app_policy_in(&manager, change).is_err());
+        assert!(local_remove_app_policy_in(&manager, "discord.desktop").is_err());
+        assert_eq!(
+            local_get_app_policies_from(&manager).unwrap()[0].policy_type,
+            "BLOCKED"
+        );
+
+        with_db(&manager, |db| {
+            db.execute(
+                "UPDATE calendar_sessions SET status='PAUSED' WHERE status='ACTIVE'",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        assert!(local_remove_app_policy_in(&manager, "discord.desktop").is_err());
+        assert_eq!(local_get_app_policies_from(&manager).unwrap().len(), 1);
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn strict_session_closes_only_an_explicitly_blocked_disposable_process() {
+        use std::process::{Child, Command, Stdio};
+
+        struct ChildGuard(Child);
+        impl Drop for ChildGuard {
+            fn drop(&mut self) {
+                if self.0.try_wait().ok().flatten().is_none() {
+                    let _ = self.0.kill();
+                    let _ = self.0.wait();
+                }
+            }
+        }
+
+        let root = scratch_path();
+        let fixture_dir = root.join("fixture-bin");
+        fs::create_dir_all(&fixture_dir).unwrap();
+        let fixture_name = "shinpo-disposable-strict-fixture";
+        let fixture_exe = fixture_dir.join(fixture_name);
+        fs::copy("/usr/bin/sleep", &fixture_exe).expect("Linux sleep fixture is available");
+
+        let mut child = ChildGuard(
+            Command::new(&fixture_exe)
+                .arg("60")
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("start disposable fixture process"),
+        );
+        let pid = child.0.id();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "strict_fixture_user", "a-long-qa-password").unwrap();
+        local_save_app_policy_in(
+            &manager,
+            SaveAppPolicyRequest {
+                app_id: fixture_name.into(),
+                app_name: "Disposable Strict Fixture".into(),
+                exec_name: fixture_name.into(),
+                policy_type: "BLOCKED".into(),
+                source: Some("user".into()),
+            },
+        )
+        .unwrap();
+        let session_id = with_db(&manager, |db| {
+            db.execute(
+                "INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode,guardian_app_monitoring,guardian_closure_consent) VALUES('Disposable strict test',25,'ACTIVE','FOCUS','STRICT',1,1)",
+                [],
+            )?;
+            Ok(db.last_insert_rowid())
+        })
+        .unwrap();
+        let identity = shinpo_shield::process_identity::inspect_target_process(pid, fixture_name)
+            .unwrap()
+            .expect("fixture process identity is verified");
+        let observed = shinpo_shield::observer::ObservedDistraction {
+            pid,
+            process_name: fixture_name.into(),
+            process_started_at: identity.process_start_ticks,
+            catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
+            category: "USER_BLOCKED",
+            rationale: "User explicitly blocked this disposable test fixture",
+            identity: Some(identity),
+        };
+
+        let outcomes = apply_guardian_app_policy(
+            &manager,
+            session_id,
+            "STRICT",
+            "FOCUS",
+            std::slice::from_ref(&observed),
+        )
+        .unwrap();
+
+        assert_eq!(
+            outcomes,
+            vec![(
+                pid,
+                observed.process_started_at,
+                "CLOSED_GRACEFULLY_VERIFIED".into()
+            )]
+        );
+        assert!(
+            child.0.try_wait().unwrap().is_some(),
+            "the disposable process must actually exit"
+        );
+
+        // A blocked app launched again during the same Focus session is observed
+        // with a new PID/start identity and must be handled by the next worker
+        // pass as well.
+        let mut reopened = ChildGuard(
+            Command::new(&fixture_exe)
+                .arg("60")
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("reopen disposable fixture process"),
+        );
+        let reopened_pid = reopened.0.id();
+        let reopened_identity =
+            shinpo_shield::process_identity::inspect_target_process(reopened_pid, fixture_name)
+                .unwrap()
+                .expect("reopened fixture process identity is verified");
+        let reopened_observation = shinpo_shield::observer::ObservedDistraction {
+            pid: reopened_pid,
+            process_name: fixture_name.into(),
+            process_started_at: reopened_identity.process_start_ticks,
+            catalog_version: shinpo_shield::observer::APP_CATALOG_VERSION,
+            category: "USER_BLOCKED",
+            rationale: "User explicitly blocked this disposable test fixture",
+            identity: Some(reopened_identity),
+        };
+        observe_local_guardian_apps_with(&manager, || Ok(vec![reopened_observation.clone()]))
+            .unwrap();
+        assert!(
+            reopened.0.try_wait().unwrap().is_some(),
+            "a relaunched blocked fixture must exit on the next observation"
+        );
+        drop(manager);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn browser_resource_rules_cannot_be_changed_during_active_focus() {
+        let root = scratch_path();
+        let manager = VaultManager::new(root.clone());
+        create_account(&manager, "guardian_site_policy_lock", "a-long-qa-password").unwrap();
+        let resource = CreateStudyResourceRequest {
+            mission_id: None,
+            focus_session_id: None,
+            resource_type: "WEBSITE".into(),
+            match_type: "DOMAIN".into(),
+            disposition: "BLOCKED".into(),
+            break_only: false,
+            destination: "example.test".into(),
+            display_name: Some("Example".into()),
+            expires_at: None,
+        };
+        let saved = local_create_study_resource_in(&manager, resource.clone()).unwrap();
+        with_db(&manager, |db| {
+            db.execute("INSERT INTO calendar_sessions(name,duration_minutes,status,current_phase,guardian_mode) VALUES('Locked site policy',25,'ACTIVE','FOCUS','STRICT')", [])?;
+            Ok(())
+        }).unwrap();
+        assert!(local_create_study_resource_in(&manager, resource).is_err());
+        assert!(local_delete_study_resource_in(&manager, saved.id).is_err());
+        assert_eq!(
+            local_get_study_resources_from(&manager, None, None)
+                .unwrap()
+                .len(),
+            1
+        );
         drop(manager);
         fs::remove_dir_all(root).unwrap();
     }

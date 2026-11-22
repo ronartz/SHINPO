@@ -93,7 +93,8 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
     const context = canvas?.getContext('2d')
     if (!canvas || !stage || !context || size.width <= 0) return
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let reduced = reducedMotion.matches
+    const allowMotion = typeof document !== 'undefined' && document.body.classList.contains('allow-animations')
+    let reduced = !allowMotion && reducedMotion.matches
     const ratio = Math.min(window.devicePixelRatio || 1, 2)
     const width = size.width
     const height = size.height
@@ -262,7 +263,7 @@ export function FocusContributionSkyline({ data }: { data: FocusContributionDay[
       })
     }
     const onThemeChange = () => { updatePalette(); scheduleDraw() }
-    const onMotionChange = () => { reduced = reducedMotion.matches; scheduleDraw() }
+    const onMotionChange = () => { reduced = !allowMotion && reducedMotion.matches; scheduleDraw() }
     const observer = new MutationObserver(onThemeChange)
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-brand'] })
     const onPointerLeave = () => setActiveIndex(-1)

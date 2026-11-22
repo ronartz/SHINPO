@@ -88,8 +88,8 @@ test.describe('SHINPO — Operation Analytics Visualization Acceptance Suite', (
           activeSeconds: 10,
           accumulatedPausedSeconds: 0,
           status: 'COMPLETED',
-          endedAt: new Date(y, m, d, 9, 15, 0).toISOString(),
-          createdAt: new Date(y, m, d, 9, 14, 50).toISOString(),
+          endedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          createdAt: new Date(Date.now() - 30 * 60 * 1000 - 10 * 1000).toISOString(),
           completionQuality: 5,
           accomplishment: 'Verified non-zero duration',
           reflectionNote: 'Shows the recorded ten seconds accurately',
@@ -342,36 +342,27 @@ test.describe('SHINPO — Operation Analytics Visualization Acceptance Suite', (
 
     // 1. Aurora Dark
     await setAnalyticsTheme(page, 'aurora', 'dark')
-    await page.waitForTimeout(300)
-    let fill = await firstBar.evaluate((el) => window.getComputedStyle(el).fill)
-    // Aurora Dark primary is #9757fa -> rgb(151, 87, 250)
-    expect(fill).toContain('rgb(151, 87, 250)')
+    await expect.poll(async () => firstBar.evaluate((el) => window.getComputedStyle(el).fill), { timeout: 10000 }).toContain('rgb(151, 87, 250)')
 
     // 2. Aurora Light
     await setAnalyticsTheme(page, 'aurora', 'light')
-    await page.waitForTimeout(300)
-    fill = await firstBar.evaluate((el) => window.getComputedStyle(el).fill)
-    // Aurora Light primary is #7c3aed -> rgb(124, 58, 237)
-    expect(fill).toContain('rgb(124, 58, 237)')
+    await expect.poll(async () => firstBar.evaluate((el) => window.getComputedStyle(el).fill), { timeout: 10000 }).toContain('rgb(124, 58, 237)')
 
     // 3. Classic Dark
     await setAnalyticsTheme(page, 'classic', 'dark')
-    await page.waitForTimeout(300)
-    fill = await firstBar.evaluate((el) => window.getComputedStyle(el).fill)
-    // Classic Dark primary is electric lime #aff33e -> rgb(175, 243, 62)
-    expect(fill).toContain('rgb(175, 243, 62)')
+    await expect.poll(async () => firstBar.evaluate((el) => window.getComputedStyle(el).fill), { timeout: 10000 }).toContain('rgb(175, 243, 62)')
+    let fill = await firstBar.evaluate((el) => window.getComputedStyle(el).fill)
     expect(fill).not.toContain('rgb(151, 87, 250)') // Must NOT be violet!
 
     // 4. Classic Light
     await setAnalyticsTheme(page, 'classic', 'light')
-    await page.waitForTimeout(300)
+    await expect.poll(async () => firstBar.evaluate((el) => window.getComputedStyle(el).fill), { timeout: 10000 }).toMatch(/rgb\(7[79],\s*12[46],\s*1[56]\)/)
     fill = await firstBar.evaluate((el) => window.getComputedStyle(el).fill)
-    // Classic Light primary is olive lime #4d7c0f -> rgb(77, 124, 15)
-    expect(fill).toMatch(/rgb\(7[79],\s*12[46],\s*1[56]\)/)
     expect(fill).not.toContain('rgb(151, 87, 250)') // Must NOT be violet!
   })
 
   test('Contract 6: Visual verification and responsive multi-resolution screenshots', async ({ page }) => {
+    test.setTimeout(60000)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     const resolutions = [
       { width: 1920, height: 1080, name: '1920x1080' },

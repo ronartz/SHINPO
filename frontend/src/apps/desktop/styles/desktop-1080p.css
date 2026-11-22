@@ -511,13 +511,23 @@
   .analytics-panel {
     padding: 14px 18px !important;
     border-radius: var(--radius-lg, 16px) !important;
-    min-height: 100% !important;
+    min-height: auto !important;
     height: auto !important;
   }
 
-  .analytics-activity-panel {
-    min-height: 100% !important;
+  .focus-contribution-skyline {
+    min-height: auto !important;
     height: auto !important;
+  }
+
+  .analytics-main-grid .analytics-panel,
+  .analytics-lower-grid .analytics-panel {
+    height: 100% !important;
+  }
+
+  .analytics-activity-panel {
+    min-height: auto !important;
+    height: 100% !important;
   }
 
   .analytics-activity-chart {

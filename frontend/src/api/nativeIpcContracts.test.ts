@@ -68,9 +68,10 @@ test('native mutations send typed request payloads through Tauri IPC', async () 
     })
     assert.deepEqual(request('local_create_focus_session').pomodoroFocusCycles, 2)
     assert.equal(request('local_create_focus_session').guardianAppMonitoring, undefined)
-    await createFocusSession({ userId: 1, name: 'Consented Focus', durationMinutes: 25, guardianAppMonitoring: true })
+    await createFocusSession({ userId: 1, name: 'Consented Focus', durationMinutes: 25, guardianMode: 'STRICT', guardianAppMonitoring: true, guardianClosureConsent: true })
     const createSessionRequests = calls.filter((call) => call.command === 'local_create_focus_session')
     assert.equal((createSessionRequests.at(-1)?.args?.request as Record<string, unknown>).guardianAppMonitoring, true)
+    assert.equal((createSessionRequests.at(-1)?.args?.request as Record<string, unknown>).guardianClosureConsent, true)
     assert.deepEqual(request('local_update_focus_session').sessionId, 12)
     assert.deepEqual(request('local_update_guardian_preferences'), {
       preferredMode: 'STRICT', appMonitoringConsent: true, applyToNewSessions: true,

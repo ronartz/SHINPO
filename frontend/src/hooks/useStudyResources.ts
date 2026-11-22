@@ -73,7 +73,7 @@ export function useStudyResources({
           state: localStatus.status === 'LOCKED' ? 'DISCONNECTED' : 'CONNECTED',
           detail: localStatus.status === 'LOCKED'
             ? 'Guardian monitoring is paused while the encrypted vault is locked.'
-            : `Automatic ${localStatus.guardianMode ?? 'Standard'} Guardian · ${localStatus.focusPhase ?? 'idle'} · warning only; apps are never closed.`,
+            : `Automatic ${localStatus.guardianMode ?? 'Standard'} Guardian · ${localStatus.focusPhase ?? 'idle'} · app handling depends on session consent and platform capability.`,
         },
       }
     },

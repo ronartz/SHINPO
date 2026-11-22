@@ -19,7 +19,8 @@ export function trackMicrokitPointer(event: React.PointerEvent<HTMLElement>) {
   }
   dampener.tx = tx
   dampener.ty = ty
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const allowMotion = typeof document !== 'undefined' && document.body.classList.contains('allow-animations')
+  if (!allowMotion && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     target.style.setProperty('--microkit-x', `${tx}px`)
     target.style.setProperty('--microkit-y', `${ty}px`)
     return

@@ -719,7 +719,6 @@ export function DesktopApp() {
       // ignore
     }
     document.body.classList.add('shinpo-glass-ui')
-    document.body.classList.add('allow-animations')
     if (isDarkMode) {
       document.body.classList.remove('theme-light')
       document.body.classList.add('theme-dark')
@@ -2559,7 +2558,8 @@ export function DesktopApp() {
         latePenaltyXp,
         latePenaltyDailyCapXp,
         guardianMode,
-        guardianAppMonitoring: guardianMode === 'STRICT' ? true : guardianAppMonitoring,
+        guardianAppMonitoring,
+        guardianClosureConsent: guardianMode === 'STRICT' && guardianAppMonitoring && guardianClosureConsent,
       })
       const started = await startFocusSession(created.id, userId)
       setSessions((prev) => [started, ...prev.filter((s) => s.id !== started.id)])

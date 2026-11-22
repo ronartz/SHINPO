@@ -108,6 +108,10 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
       render(elapsedSeconds)
     }
 
+    const isMotionAllowed = () => {
+      return typeof document !== 'undefined' && document.body.classList.contains('allow-animations')
+    }
+
     const drawStatic = () => {
       if (document.hidden || !optionsRef.current.enabled || !gl || contextLost) return
       resize()
@@ -116,7 +120,7 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
 
     const tick = (now: number) => {
       frame = null
-      if (document.hidden || motion.matches || !optionsRef.current.enabled || contextLost) return
+      if (document.hidden || (!isMotionAllowed() && motion.matches) || !optionsRef.current.enabled || contextLost) return
       if (lastFrameAt === 0) lastFrameAt = now
       if (now - lastFrameAt >= FRAME_INTERVAL_MS) {
         elapsedSeconds += (now - lastFrameAt) / 1000
@@ -127,7 +131,7 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
     }
 
     const start = () => {
-      if (!optionsRef.current.enabled || document.hidden || motion.matches || contextLost || frame !== null) return
+      if (!optionsRef.current.enabled || document.hidden || (!isMotionAllowed() && motion.matches) || contextLost || frame !== null) return
       resize()
       lastFrameAt = 0
       frame = window.requestAnimationFrame(tick)
@@ -202,7 +206,7 @@ export function ClassicMeshDrift({ enabled, isDark }: ClassicMeshDriftProps) {
       stop()
       if (!optionsRef.current.enabled || document.hidden) return
       initialize()
-      if (motion.matches) drawStatic()
+      if (!isMotionAllowed() && motion.matches) drawStatic()
       else start()
     }
 

@@ -568,10 +568,9 @@ URL=https://example.com
         assert_eq!(cap, "TERMINATE");
         assert!(reason.is_none());
 
-        // 4. Valid non-protected executable on Windows lacks verified close -> MONITOR_ONLY
+        // 4. Windows process identity and safe close are not implemented yet.
         let (cap, reason) = determine_enforcement_capability(Some("discord.exe"), false, "windows");
         assert_eq!(cap, "MONITOR_ONLY");
-        assert!(reason.is_some());
         assert!(reason.as_ref().unwrap().contains("windows"));
 
         // 5. Valid non-protected executable on macOS lacks verified close -> MONITOR_ONLY

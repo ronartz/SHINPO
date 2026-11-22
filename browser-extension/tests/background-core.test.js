@@ -130,6 +130,80 @@ test('initializes with UNPAIRED state when no pairing token is stored', async ()
   assert.equal(state.connection.paired, false)
 })
 
+test('reports rejected one-time pairing codes as expired, invalid, or already used', async () => {
+  const { api } = apiStub()
+  api.runtime.sendNativeMessage = async (_host, request) => ({
+    protocolVersion: 1,
+    requestId: request.requestId,
+    ok: false,
+    error: { code: 'AUTHENTICATION_FAILED', message: 'authentication failed' },
+  })
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+    setInterval,
+    clearInterval,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { pair };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  await assert.rejects(
+    context.__testHooks.pair('not-a-code'),
+    (error) => error.code === 'INVALID_PAIRING_CODE' && /Settings → Browser Companion/.test(error.message),
+  )
+  await assert.rejects(
+    context.__testHooks.pair('a'.repeat(64)),
+    (error) => error.code === 'PAIRING_CODE_REJECTED' && /invalid, expired, or already used/i.test(error.message),
+  )
+})
+
+test('keeps a successful pairing when the first policy sync fails authentication', async () => {
+  const stored = {}
+  const { api } = apiStub()
+  api.storage.local = {
+    get: async (keys) => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map((key) => [key, stored[key]])),
+    set: async (values) => Object.assign(stored, values),
+    remove: async (keys) => { for (const key of keys) delete stored[key] },
+  }
+  const browserToken = 'b'.repeat(64)
+  api.runtime.sendNativeMessage = async (_host, request) => request.type === 'pair'
+    ? { protocolVersion: 1, requestId: request.requestId, ok: true, payload: { paired: true, sessionToken: browserToken } }
+    : { protocolVersion: 1, requestId: request.requestId, ok: false, error: { code: 'AUTHENTICATION_FAILED', message: 'authentication failed' } }
+  const context = {
+    browser: api,
+    ShinpoCanonical: globalThis.ShinpoCanonical,
+    ShinpoPolicy: globalThis.ShinpoPolicy,
+    ShinpoNativeProtocol: globalThis.ShinpoNativeProtocol,
+    Date,
+    URL,
+    crypto: webcrypto,
+    console,
+    setInterval,
+    clearInterval,
+  }
+  context.globalThis = context
+  let source = await readFile(new URL('../src/background-core.js', import.meta.url), 'utf8')
+  source = source.replace('})(globalThis)', 'globalThis.__testHooks = { pair, state };})(globalThis)')
+  vm.runInNewContext(source, context)
+  await new Promise(setImmediate)
+
+  await assert.rejects(
+    context.__testHooks.pair('a'.repeat(64)),
+    (error) => error.code === 'PAIRED_SYNC_FAILED' && /pairing succeeded/i.test(error.message),
+  )
+  assert.equal(context.__testHooks.state.pairingToken, browserToken)
+  assert.equal(stored.pairingToken, browserToken)
+})
+
 test('test_message_from_unknown_sender_rejected', async () => {
   const { api } = apiStub()
   api.runtime.id = 'ndknhgihhogcfkliohfjcllglpjdgjpj'

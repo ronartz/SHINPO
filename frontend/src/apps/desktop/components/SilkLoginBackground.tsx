@@ -207,6 +207,10 @@ export function SilkLoginBackground({
     }
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const isMotionReduced = () => {
+      const allowMotion = typeof document !== 'undefined' && document.body.classList.contains('allow-animations')
+      return !allowMotion && reduce.matches
+    }
     const size = { w: 1, h: 1, left: 0, top: 0 }
     const pointer = { x: 0, y: 0, tx: 0, ty: 0, hover: 0, thover: 0 }
     const click = { x: 9, y: 9, at: -100 }
@@ -318,8 +322,9 @@ export function SilkLoginBackground({
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       const L = live.current
-      if (!reduce.matches) t += dt * L.speed
-      intro = reduce.matches ? 1 : Math.min(1, (now - start) / 1600)
+      const motionReduced = isMotionReduced()
+      if (!motionReduced) t += dt * L.speed
+      intro = motionReduced ? 1 : Math.min(1, (now - start) / 1600)
       pointer.x += (pointer.tx - pointer.x) * 0.06
       pointer.y += (pointer.ty - pointer.y) * 0.06
       pointer.hover += (pointer.thover - pointer.hover) * 0.05
@@ -328,14 +333,14 @@ export function SilkLoginBackground({
       gl.uniform2f(U.res, cv.width, cv.height)
       gl.uniform1f(U.time, t + 11)
       gl.uniform2f(U.mouse, pointer.x, pointer.y)
-      gl.uniform1f(U.hover, reduce.matches ? 0 : pointer.hover)
+      gl.uniform1f(U.hover, motionReduced ? 0 : pointer.hover)
       gl.uniform1f(U.intro, 1 - Math.pow(1 - intro, 3))
       gl.uniform3f(U.c0, c[0][0], c[0][1], c[0][2])
       gl.uniform3f(U.c1, c[1][0], c[1][1], c[1][2])
       gl.uniform3f(U.c2, c[2][0], c[2][1], c[2][2])
       gl.uniform3f(U.c3, c[3][0], c[3][1], c[3][2])
       gl.uniform1f(U.mesh, L.mesh)
-      gl.uniform1f(U.rings, L.rings && !reduce.matches ? 1 : 0)
+      gl.uniform1f(U.rings, L.rings && !motionReduced ? 1 : 0)
       gl.uniform2f(U.click, click.x, click.y)
       gl.uniform1f(U.clickAge, (now - click.at) / 1000)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
@@ -347,7 +352,7 @@ export function SilkLoginBackground({
     }
 
     const sync = () => {
-      const want = onScreen && !document.hidden && !reduce.matches
+      const want = onScreen && !document.hidden && !isMotionReduced()
       if (want && !running) {
         running = true
         last = performance.now()

@@ -90,7 +90,6 @@ fn start_linux_lock_monitor(app: tauri::AppHandle) -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
 fn lock_vault_on_os_event(app: &tauri::AppHandle, reason: &str) {
     if let Some(state) = app.try_state::<native_vault::VaultManager>() {
         if let Err(error) = native_vault::lock_vault_for_system_event(state.inner()) {
@@ -178,13 +177,13 @@ struct LocalPlatformCapabilities {
 #[tauri::command]
 fn local_platform_capabilities() -> LocalPlatformCapabilities {
     LocalPlatformCapabilities {
-        guardian: if cfg!(any(target_os = "linux", target_os = "windows")) {
+        guardian: if cfg!(target_os = "linux") {
             "OBSERVE_AND_WARN"
         } else {
             "UNAVAILABLE"
         },
-        guardian_process_observation: cfg!(any(target_os = "linux", target_os = "windows")),
-        guardian_process_close: cfg!(any(target_os = "linux", target_os = "windows")),
+        guardian_process_observation: cfg!(target_os = "linux"),
+        guardian_process_close: cfg!(target_os = "linux"),
         browser_companion_supported: cfg!(any(target_os = "linux", target_os = "windows")),
     }
 }
@@ -198,12 +197,21 @@ fn browser_companion_pairing_code(
         .map_err(|_| "Could not initialize the Browser Companion host".to_string())?;
     shinpo_browser_host::clear_credentials(&paths)
         .map_err(|_| "Could not switch Browser Companion to local-only credentials".to_string())?;
+    // Do not return a pairing code when the browser cannot launch the host that
+    // will consume it. Register first, then finish synchronization and rotate the
+    // one-time challenge only after every prerequisite has succeeded.
+    let registration = shinpo_browser_host::registration::register_host(None).map_err(|_| {
+        "Could not register the Browser Companion native messaging host".to_string()
+    })?;
+    if registration.total_registered == 0
+        || !registration.host_binary_exists
+        || !registration.is_executable
+    {
+        return Err("No usable executable Browser Companion host registration was found. Check the host installation and browser profile permissions, then try again.".to_string());
+    }
     let code = shinpo_browser_host::rotate_pairing(&paths)
         .map_err(|_| "Could not create a pairing challenge".to_string())?;
     native_vault::local_sync_browser_policy(state)?;
-
-    // Ensure native messaging host manifests are automatically written for all supported browsers
-    let _ = shinpo_browser_host::registration::register_host(None);
 
     Ok(code)
 }
@@ -351,6 +359,43 @@ pub fn validate_open_url(url: &str) -> Result<url::Url, String> {
     Ok(parsed)
 }
 
+/// Disable WebKitGTK's native page zoom, which can be triggered by trackpad
+/// pinch gestures before the DOM-level accidental-zoom guards receive events.
+#[cfg(target_os = "linux")]
+fn disable_linux_webview_zoom(app: &tauri::App) -> tauri::Result<()> {
+    use gtk::prelude::*;
+    use webkit2gtk::WebViewExt;
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| tauri::Error::WindowNotFound)?;
+
+    window.with_webview(|platform_webview| {
+        let webview = platform_webview.inner();
+        webview.set_zoom_level(1.0);
+
+        // Clamp any native zoom request as a backstop for non-gesture inputs.
+        webview.connect_notify_local(Some("zoom-level"), |view, _| {
+            if (view.zoom_level() - 1.0).abs() > f64::EPSILON {
+                view.set_zoom_level(1.0);
+            }
+        });
+
+        // Claim two-finger pinch sequences during GTK capture so WebKit never
+        // applies its default page-scale behavior on Linux.
+        let gesture = gtk::GestureZoom::new(&webview);
+        gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
+        gesture.connect_begin(|gesture, _| {
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+        });
+        gesture.connect_scale_changed(|gesture, _| {
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+        });
+    })?;
+
+    Ok(())
+}
+
 #[tauri::command]
 fn desktop_open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
     let parsed = validate_open_url(&url)?;
@@ -365,7 +410,7 @@ pub fn run() {
     {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGS",
-            "--enable-gpu-rasterization --enable-zero-copy",
+            "--enable-gpu-rasterization --enable-zero-copy --disable-pinch --disable-features=msWebviewPinchToZoom",
         );
     }
     tauri::Builder::default()
@@ -383,6 +428,9 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            disable_linux_webview_zoom(app)?;
+
             let quit_i =
                 tauri::menu::MenuItem::with_id(app, "quit", "Quit SHINPO", true, None::<&str>)?;
             let open_i =

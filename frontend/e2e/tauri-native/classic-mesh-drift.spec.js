@@ -55,6 +55,10 @@ describe('Classic Mesh Drift native WebKit integration', function () {
         document.documentElement.dataset.theme === expectedTheme && document.documentElement.dataset.brand === expectedBrand
       , theme, brand), { timeout: 15000 })
       await $('[aria-label="Close Settings"]').click()
+      await browser.waitUntil(async () => !(await $('[aria-label="Close Settings"]').isDisplayed()), {
+        timeout: 15000,
+        timeoutMsg: 'Settings transition must finish before capturing the themed screen',
+      })
     }
 
     await $('[data-tab="Dashboard"]').waitForDisplayed({ timeout: 30000 })
@@ -73,6 +77,7 @@ describe('Classic Mesh Drift native WebKit integration', function () {
         ready: canvas.dataset.ready,
         error: canvas.dataset.error,
         visibility: getComputedStyle(canvas).visibility,
+        opacity: getComputedStyle(canvas).opacity,
         pointerEvents: getComputedStyle(canvas).pointerEvents,
         canvasSize: [canvas.width, canvas.height],
         cssSize: [rect.width, rect.height],
@@ -92,6 +97,7 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     assert.equal(classicDark.canvasCount, 1)
     assert.equal(classicDark.active, 'true')
     assert.equal(classicDark.visibility, 'visible')
+    assert.equal(classicDark.opacity, '0.12')
     assert.equal(classicDark.pointerEvents, 'none')
     assert.equal(classicDark.canvasZ, '0')
     assert.ok(Number(classicDark.mainZ) > Number(classicDark.canvasZ))
@@ -104,6 +110,7 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await selectAppearance('light', 'classic')
     const classicLight = await getCanvasState()
     assert.equal(classicLight.ready, 'true')
+    assert.equal(classicLight.opacity, '0.07')
     assert.equal(classicLight.contextStable, true, 'theme switch should retain the WebGL context')
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-classic-light-1400x900.png'))
 
@@ -114,6 +121,10 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-aurora-dark-1400x900.png'))
 
     await selectAppearance('light', 'aurora')
+    const auroraLight = await getCanvasState()
+    assert.equal(auroraLight.active, 'false')
+    assert.equal(auroraLight.visibility, 'hidden', 'Aurora Light must not show the Classic shader')
+    await browser.saveScreenshot(path.join(evidence, 'mesh-drift-aurora-light-1400x900.png'))
     await selectAppearance('dark', 'classic')
     await browser.setWindowSize(1280, 720)
     await browser.waitUntil(async () => (await getCanvasState()).ready === 'true', { timeout: 15000 })
@@ -121,6 +132,6 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     assert.equal(compact.canvasCount, 1)
     assert.equal(compact.active, 'true')
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-classic-dark-1280x720.png'))
-    console.log(`Native Mesh Drift: ${JSON.stringify({ classicDark, classicLight, aurora, compact })}`)
+    console.log(`Native Mesh Drift: ${JSON.stringify({ classicDark, classicLight, aurora, auroraLight, compact })}`)
   })
 })

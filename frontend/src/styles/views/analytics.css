@@ -157,7 +157,7 @@ html[data-theme='light'] .analytics-view,
 .analytics-task-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; overflow: hidden; background: color-mix(in srgb, var(--border) 50%, transparent); }
 .analytics-task-progress span { display: block; width: 100%; height: 100%; background: var(--analytics-blue); transform-origin: left; transition: transform .35s ease; }
 
-.focus-contribution-skyline { padding: 18px 20px 14px; }
+.focus-contribution-skyline { padding: 18px 20px 14px; min-height: auto; height: auto; }
 .focus-skyline-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .focus-skyline-heading h2 { margin: 3px 0 0; color: var(--text-1); font-size: 19px; line-height: 1.25; }
 .focus-skyline-heading p { margin: 5px 0 0; color: var(--text-3); font-size: 13px; }
@@ -183,8 +183,10 @@ html[data-theme='light'] .analytics-view,
 .focus-contribution-skyline > button { min-height: 36px; padding: 0 12px; border: 1px solid var(--analytics-action); border-radius: 9px; background: var(--analytics-action); color: var(--analytics-action-text); font: inherit; cursor: pointer; }
 
 .analytics-main-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .85fr); gap: 14px; align-items: stretch; }
-.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
-.analytics-activity-panel { display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.analytics-panel { padding: 14px 16px; display: flex; flex-direction: column; min-height: auto; box-sizing: border-box; }
+.analytics-main-grid .analytics-panel,
+.analytics-lower-grid .analytics-panel { height: 100%; }
+.analytics-activity-panel { display: flex; flex-direction: column; min-height: auto; height: 100%; box-sizing: border-box; }
 .analytics-panel-heading { align-items: flex-start; margin-bottom: 12px; }
 .analytics-panel-heading h2 { margin: 0; color: var(--text-1); font-size: 17px; font-weight: 720; line-height: 1.3; letter-spacing: -.015em; }
 .analytics-panel-heading p { margin-top: 5px; }

@@ -464,6 +464,7 @@ fn execute(tx: &Transaction<'_>, action: &Action) -> rusqlite::Result<Value> {
                     late_penalty_daily_cap_xp: None,
                     guardian_mode: None,
                     guardian_app_monitoring: None,
+                    guardian_closure_consent: None,
                 };
                 ids.push(insert_focus_record(tx, &request)?.id);
             }
@@ -1095,6 +1096,7 @@ mod tests {
                 late_penalty_daily_cap_xp: None,
                 guardian_mode: None,
                 guardian_app_monitoring: None,
+                guardian_closure_consent: None,
             },
         )
         .unwrap();

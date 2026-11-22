@@ -75,10 +75,10 @@
 /* Reduced Motion Override */
 @media (prefers-reduced-motion: reduce) {
 
-  .aurora-card-interactive,
-  .aurora-tilt-right:hover,
-  .aurora-tilt-left:hover,
-  .aurora-tilt-lift:hover {
+  body:not(.allow-animations) .aurora-card-interactive,
+  body:not(.allow-animations) .aurora-tilt-right:hover,
+  body:not(.allow-animations) .aurora-tilt-left:hover,
+  body:not(.allow-animations) .aurora-tilt-lift:hover {
     transform: none !important;
     transition: none !important;
   }

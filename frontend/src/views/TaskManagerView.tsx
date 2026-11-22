@@ -151,6 +151,11 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
   }, [localVaultMode])
 
   const handleSetAppPolicy = async (app: DiscoveredApp, nextPolicy: 'BLOCKED' | 'ALLOWED' | 'NONE') => {
+    if (sentinelStatus?.activeFocusSessionId) {
+      setTmToast('App policies are locked until the current Focus session ends.')
+      setTimeout(() => setTmToast(null), 3000)
+      return
+    }
     try {
       if (nextPolicy === 'NONE') {
         await removeGuardianAppPolicy(app.id)
@@ -211,7 +216,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
     : !sentinelStatus
       ? 'Unavailable'
       : closeCapabilityReady
-        ? 'Process termination active in Strict mode'
+        ? 'Strict can close explicitly blocked apps'
         : sentinelStatus.warningOnly
           ? 'Monitoring / warning only'
           : 'Protected focus session'
@@ -689,10 +694,10 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 : sentinelStatus.activeFocusSessionId && sentinelStatus.focusPhase && sentinelStatus.focusPhase !== 'FOCUS'
                   ? 'Break phase active: distracting apps are permitted. App termination will re-arm when you return to Focus.'
                   : sentinelStatus.observerStatus !== 'MONITORING'
-                    ? 'Saved Block policies are actively enforced during Focus sessions in Strict mode.'
+                    ? 'The app observer is unavailable; saved app policies are not being checked right now.'
                     : sentinelStatus.warningOnly
                       ? 'SHINPO will warn you for observed distractions in Light/Standard mode.'
-                      : 'Strict mode terminates blocked apps immediately upon launch during active Focus sessions.'}
+                      : 'Strict attempts to close only apps marked Block before Focus, after checking consent and process identity.'}
             </p>
 
             <section className="guardian-alpha-panel" aria-labelledby="guardian-observations-title">
@@ -722,7 +727,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                   <span style={{ color: 'var(--text-3)' }}>Safety guarantee:</span>
-                  <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>Warning-only · no apps are closed</span>
+                  <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{closeCapabilityReady ? 'Browser rules restrict sites; app closure requires an explicit Block rule and consent' : 'Warning-only · no apps are closed'}</span>
                   <span style={{ color: 'var(--text-3)' }}>System processes:</span>
                   <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>Protected OS daemons never touched</span>
                 </div>
@@ -748,7 +753,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                     {guardianMode === 'Not set' ? 'Configure Guardian Mode' : `Guardian Mode: ${guardianMode}`}
                   </h3>
                   <p className="guardian-mode-action-desc">
-                    Choose how Guardian handles recognized distracting apps: Light (warnings only), Standard (sampled runtime & warnings), or Strict (terminates blocked apps during Focus).
+                    Choose how Guardian handles recognized apps: Light (warnings), Standard (sampled app-running time), or Strict (close only apps marked Block before Focus).
                   </p>
                 </div>
               </div>
@@ -756,7 +761,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 {[
                   { id: 'GUIDED', label: 'Light', desc: 'Warnings only' },
                   { id: 'PROTECTED', label: 'Standard', desc: 'Sampled runtime' },
-                  { id: 'STRICT', label: 'Strict', desc: 'Terminates apps' },
+                  { id: 'STRICT', label: 'Strict', desc: 'Closes apps marked Block' },
                 ].map((item) => {
                   const currentMode = sentinelStatus?.guardianMode ?? 'PROTECTED'
                   const isCur = currentMode === item.id || (item.id === 'PROTECTED' && currentMode === 'STANDARD')
@@ -813,15 +818,15 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Guardian Mode</strong>
-                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict actively terminates recognized blocked or distracting applications immediately upon launch during Focus.</p>
+                  <p>Light shows warnings. Standard may sample app-running time with consent. Strict attempts to close only apps explicitly marked Block before Focus, with closure consent and verified process identity.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Session Consent</strong>
-                  <p>Strict mode actively terminates blocked apps during active Focus. Applications are permitted during Break phases and when Focus is inactive.</p>
+                  <p>Strict attempts to close only apps marked Block before the session, with closure consent and verified identity. Applications are permitted during Break phases and when Focus is inactive.</p>
                 </div>
                 <div className="guardian-explainer-item">
                   <strong>Runtime Status</strong>
-                  <p>Protected core OS processes are never touched. Blocked applications are immediately terminated upon launch in Strict mode.</p>
+                  <p>Protected core OS processes and unknown identities are never touched. Allow rules take precedence over Block.</p>
                 </div>
               </div>
             </section>
@@ -832,7 +837,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
               <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
                   <h2 id="guardian-apps-title" style={{ margin: 0 }}>
-                    Focus Protection on Windows
+                    Focus Protection Status
                   </h2>
                   <p style={{ margin: '4px 0 0', color: 'var(--text-2)' }}>
                     Platform Capability Notice
@@ -847,10 +852,10 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                   </span>
                   <div>
                     <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700 }}>
-                      Guardian is not available on Windows yet.
+                      Guardian is currently unavailable.
                     </h3>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-2)' }}>
-                      Website protection via the Browser Companion still works. App blocking will be added in a future update.
+                      Website protection via the Browser Companion still works. Unlock the vault or activate Focus to begin monitoring.
                     </p>
                   </div>
                 </div>
@@ -991,6 +996,12 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                 </div>
               </div>
 
+              {sentinelStatus?.activeFocusSessionId && (
+                <p className="guardian-alpha-note" role="status" data-testid="guardian-policies-locked">
+                  App policies are locked until this Focus session ends. Strict handles only apps marked Block before Focus; Allow rules take precedence.
+                </p>
+              )}
+
               {appsLoading && discoveredApps.length === 0 ? (
                 <p className="guardian-alpha-empty">Scanning installed applications...</p>
               ) : visibleApps.length > 0 ? (
@@ -1028,6 +1039,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                           <button
                             type="button"
                             className={`segmented-btn btn-block ${app.policy === 'BLOCKED' ? 'is-active' : ''}`}
+                            disabled={Boolean(sentinelStatus?.activeFocusSessionId)}
                             onClick={() => handleSetAppPolicy(app, app.policy === 'BLOCKED' ? 'NONE' : 'BLOCKED')}
                             title={app.policy === 'BLOCKED' ? 'Remove saved block policy' : 'Save a block policy for Focus; it applies only while observation is enabled'}
                           >
@@ -1036,6 +1048,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                           <button
                             type="button"
                             className={`segmented-btn btn-allow ${app.policy === 'ALLOWED' ? 'is-active' : ''}`}
+                            disabled={Boolean(sentinelStatus?.activeFocusSessionId)}
                             onClick={() => handleSetAppPolicy(app, app.policy === 'ALLOWED' ? 'NONE' : 'ALLOWED')}
                             title={app.policy === 'ALLOWED' ? 'Click to remove allow' : 'Explicitly allow this application during Focus'}
                           >
@@ -1044,6 +1057,7 @@ export const TaskManagerView: React.FC<TaskManagerViewProps> = ({
                           <button
                             type="button"
                             className={`segmented-btn btn-none ${app.policy === 'NONE' ? 'is-active' : ''}`}
+                            disabled={Boolean(sentinelStatus?.activeFocusSessionId)}
                             onClick={() => handleSetAppPolicy(app, 'NONE')}
                             title="No policy (default)"
                           >

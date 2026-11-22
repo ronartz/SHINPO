@@ -90,7 +90,7 @@ const getStatusClass = (status: FocusSessionStatus | string): string => {
 const GUARDIAN_MODE_OPTIONS: ReadonlyArray<{ mode: GuardianMode; label: string; detail: string }> = [
   { mode: 'GUIDED', label: 'Light', detail: 'App monitoring is warning-only; website rules depend on a connected Browser Companion.' },
   { mode: 'PROTECTED', label: 'Standard', detail: 'With separate consent, SHINPO samples recognized app-running time and warns.' },
-  { mode: 'STRICT', label: 'Strict', detail: 'Actively terminates distracting or blocked applications immediately upon launch.' },
+  { mode: 'STRICT', label: 'Strict', detail: 'Closes only apps you marked Block before Focus, when consent and verified identity allow it.' },
 ]
 
 export const FocusView: React.FC<FocusViewProps> = ({
@@ -179,7 +179,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
         preferredMode: guardianMode,
         appMonitoringConsent: applyToNewSessions && guardianAppMonitoring,
         applyToNewSessions,
-        closureConsent: applyToNewSessions && guardianAppMonitoring && (guardianMode === 'STRICT' ? true : guardianClosureConsent),
+        closureConsent: applyToNewSessions && guardianAppMonitoring && guardianClosureConsent,
         backgroundRuntimeConsent: applyToNewSessions && guardianAppMonitoring && backgroundRuntimeConsent,
       })
       onGuardianPreferencesSaved(saved)
@@ -636,15 +636,11 @@ export const FocusView: React.FC<FocusViewProps> = ({
                             aria-pressed={isSelected}
                             onClick={() => {
                               setGuardianMode(mode)
-                              if (mode === 'STRICT') {
-                                setGuardianAppMonitoring(true)
-                                setGuardianClosureConsent(true)
-                              }
                             }}
                           >
                             <strong>{label}</strong>
                             <span className="study-mode-option-detail">
-                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Active termination'}
+                              {mode === 'GUIDED' ? 'Warning-only' : mode === 'PROTECTED' ? 'Sampled runtime' : 'Explicit blocks · Linux only'}
                             </span>
                           </button>
                         )
@@ -667,14 +663,14 @@ export const FocusView: React.FC<FocusViewProps> = ({
                             disabled={!guardianAppMonitoring || savingGuardianPreference}
                             onChange={(event) => setGuardianClosureConsent(event.target.checked)}
                           />
-                          Strict mode terminates recognized blocked or distracting applications immediately upon launch during Focus. Applications are permitted during Break phases.
+                          Strict handles only apps explicitly marked Block before Focus. Allow rules take precedence; apps are permitted during Break phases.
                         </label>
                       )}
                     </fieldset>
                     <p className="guardian-observation-note" style={{ margin: '12px 0' }}>
                       {guardianMode === 'STRICT'
-                        ? 'Strict mode immediately terminates blocked or distracting applications upon launch during active Focus. Applications are permitted during Break phases.'
-                        : 'Guardian observes recognized applications during Focus. Strict mode actively terminates blocked apps.'}
+                        ? 'Strict attempts to close only explicitly blocked apps during active Focus after checking consent and process identity. Apps are permitted during Break phases.'
+                        : 'Guardian observes recognized applications during Focus. Strict handles only apps explicitly marked Block before the session.'}
                     </p>
                     <div className="guardian-preference-actions" style={{ marginTop: 6, marginBottom: 8 }}>
                       <button type="button" disabled={savingGuardianPreference} onClick={() => void saveGuardianPreference(true)}>

@@ -369,23 +369,45 @@
   async function pair(pairingCode) {
     const normalizedCode = typeof pairingCode === 'string' ? pairingCode.trim() : ''
     if (!nativeProtocol.isPairingToken(normalizedCode)) {
-      throw codedError('INVALID_PAIRING_CODE', 'Enter the pairing code printed by the SHINPO host installer')
+      throw codedError(
+        'INVALID_PAIRING_CODE',
+        'Generate a one-time code in SHINPO Desktop under Settings → Browser Companion, then paste it here.',
+      )
     }
+
+    let pairing
     try {
-      const pairing = await nativeRequest('pair', {}, normalizedCode)
-      if (!nativeProtocol.isPairingToken(pairing.sessionToken)) {
-        throw codedError('INVALID_PAIRING_RESPONSE', 'SHINPO returned an invalid browser credential')
-      }
-      state.pairingToken = pairing.sessionToken
-      state.connection.paired = true
-      state.connection.error = null
-      await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: pairing.sessionToken })
-      await synchronizePolicy()
-      return publicStatus()
+      pairing = await nativeRequest('pair', {}, normalizedCode)
     } catch (err) {
+      if (err.code === 'AUTHENTICATION_FAILED') {
+        const rejected = codedError(
+          'PAIRING_CODE_REJECTED',
+          'This pairing code is invalid, expired, or already used. Generate a fresh code in SHINPO and enter it once within 10 minutes.',
+        )
+        state.connection.error = rejected.message
+        throw rejected
+      }
       state.connection.error = safeErrorMessage(err)
       throw err
     }
+
+    if (!nativeProtocol.isPairingToken(pairing.sessionToken)) {
+      throw codedError('INVALID_PAIRING_RESPONSE', 'SHINPO returned an invalid browser credential')
+    }
+
+    state.pairingToken = pairing.sessionToken
+    state.connection.paired = true
+    state.connection.error = null
+    await storageSet('local', { [STORAGE_KEYS.PAIRING_TOKEN]: pairing.sessionToken })
+    try {
+      await synchronizePolicy()
+    } catch (err) {
+      throw codedError(
+        'PAIRED_SYNC_FAILED',
+        `Pairing succeeded, but initial policy synchronization failed: ${safeErrorMessage(err)}`,
+      )
+    }
+    return publicStatus()
   }
 
   async function synchronizePolicy() {
