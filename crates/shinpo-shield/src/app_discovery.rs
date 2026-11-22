@@ -208,6 +208,7 @@ pub fn scan_linux_desktop_entries() -> Vec<RawDesktopEntry> {
     result
 }
 
+#[cfg(target_os = "linux")]
 fn scan_directory_entries(
     dir: &Path,
     source: &str,

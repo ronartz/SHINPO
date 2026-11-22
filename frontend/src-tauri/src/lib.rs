@@ -90,6 +90,7 @@ fn start_linux_lock_monitor(app: tauri::AppHandle) -> std::io::Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
 fn lock_vault_on_os_event(app: &tauri::AppHandle, reason: &str) {
     if let Some(state) = app.try_state::<native_vault::VaultManager>() {
         if let Err(error) = native_vault::lock_vault_for_system_event(state.inner()) {
