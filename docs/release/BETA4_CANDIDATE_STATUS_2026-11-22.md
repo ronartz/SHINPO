@@ -9,8 +9,8 @@ The remaining known limitations are material and are disclosed in the release no
 ## Source and workflow
 
 - Repository: `ronartz/SHINPO`, branch `main`.
-- Base revision before final review: `dcf291d3984a703a1ec76399e2404a321c994bde`.
-- Beta 4 source changes were in the working tree while qualification ran. A reviewed local source commit and matching tag still need to be created before hosted release CI can establish final provenance.
+- Reviewed Beta 4 application source commit: `5b7a0ea` (`feat(release): prepare supervised Linux beta 4`).
+- The tested application source is committed locally. The release workflow must rebuild from the final tag before any hosted artifacts are accepted.
 - The release workflow was adjusted so tagged releases do not run or attach the Windows installer. Windows branch/manual CI remains available.
 - Portable Linux README now takes the package version from Tauri configuration instead of hard-coding Beta 1.
 - GitHub SSH authentication succeeded as `ronartz`; no Beta 4 tag exists on `origin` yet. No push or release has been made in this qualification step.
@@ -20,7 +20,7 @@ The remaining known limitations are material and are disclosed in the release no
 - Frontend quick gate: 256 tests passed; production TypeScript/Vite build passed; ESLint 0 errors and 65 warnings.
 - Browser extension: 38 tests passed.
 - Rust: Tauri 108 passed / 1 ignored, Shield 93 passed, Browser Host 15 passed; strict Clippy and formatting passed for all three crates.
-- Secret scan: `gitleaks dir --redact --no-banner .` reported no leaks. `git diff --check` passed before the final workflow adjustment.
+- Secret scan: `gitleaks dir --redact --no-banner .` reported no leaks. `git diff --check` passed after workflow and release-document changes; staged secret scan reported no leaks.
 - Native packaged-payload smoke: **1 spec passed** in Fedora WebKitGTK using the current Beta 4 RPM payload and disposable profile `/tmp/shinpo-native-wdio-mkTS2c`; Spring Boot/PostgreSQL ports 8080/5432 were stopped. The run visited Dashboard, Calendar (including internal scroll and page-scroll handoff), Analytics, Focus Protection, EONPAI, Rewards, Settings, theme variants and responsive Guardian widths. Result: 1 passed, 0 failed, about 26 seconds.
 - Native screenshots: `/tmp/shinpo-native-wdio-mkTS2c/evidence/`. `dashboard-native.png` was visually inspected. This evidence is machine-local, not bundled into source or release assets.
 - Package payload check: RPM contains `/usr/bin/shinpo-desktop`, Browser Host, Chromium/Firefox manifests, registration scripts and install guide. `ldd` on the packaged executable found no missing libraries. Required Fedora libraries include WebKitGTK 4.1, GTK 3, libappindicator and OpenSSL.
@@ -48,8 +48,15 @@ These are unsigned manual Beta 4 candidates built from the current dirty worktre
 
 ## Release sequence
 
-1. Commit the reviewed source and release documentation, excluding generated build outputs and secrets.
-2. Push the source branch and `v0.1.0-beta.4` tag only after confirming the commit's content and hashes.
-3. Require the hosted QA and Linux installer jobs to succeed. The Windows installer job is skipped for tags.
-4. Inspect the resulting prerelease assets and SHA-256 manifest before sharing the link with testers.
-5. If hosted CI fails, do not publish or describe Beta 4 as released; fix the actual failure and use a new version if a tag was already created.
+1. Push the reviewed source and final release-documentation commits on `main`, then push `v0.1.0-beta.4` to trigger the authorized Linux-only prerelease workflow.
+2. Require hosted QA and Linux installer jobs to succeed. The Windows installer job is skipped for tags.
+3. Inspect the resulting prerelease assets and SHA-256 manifest before sharing the link with testers.
+4. If hosted CI fails, do not describe Beta 4 as released; fix the actual failure and use a new version if a tag was already created.
+
+
+## Final source review
+
+- Reviewed source commit: `5b7a0ea`; release evidence documentation is being committed separately.
+- `git diff --check`: PASS.
+- `gitleaks dir --redact --no-banner .`: PASS, no leaks found.
+- Hosted tagged QA/build and published asset verification remain pending.

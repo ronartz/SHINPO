@@ -1,8 +1,8 @@
 # SHINPO Automated Release Gate Report
 
 **Execution Timestamp:** 2026-11-22T12:02:30Z
-**Evaluated Commit:** `dcf291d3984a703a1ec76399e2404a321c994bde` (`main`)
-**Worktree Status:** DIRTY during qualification; release changes subsequently reviewed and committed
+**Evaluated Commit:** `5b7a0ea` (`main`; application source content matched tested worktree)
+**Worktree Status:** Application source committed as `5b7a0ea`; report was reconciled after the tested source was committed
 **Release Decision:** **CONDITIONAL GO for supervised Linux private beta; tagged hosted release workflow pending**
 
 ---

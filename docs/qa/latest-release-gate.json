@@ -1,8 +1,8 @@
 {
   "timestamp": "2026-11-22T12:02:30Z",
-  "commit": "dcf291d3984a703a1ec76399e2404a321c994bde",
+  "commit": "5b7a0ea",
   "branch": "main",
-  "worktree": "DIRTY during qualification; intended release changes are being committed",
+  "worktree": "Tracked source at 5b7a0ea; QA execution used identical application sources before the release-documentation follow-up commit",
   "mode": "quick",
   "binary": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
