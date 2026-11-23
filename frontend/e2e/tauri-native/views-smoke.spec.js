@@ -218,13 +218,7 @@ describe('SHINPO native authenticated screen smoke', function () {
       }
       if (tab === 'Schedule') {
         const calendar = await $('.schedule-calendar-scroll')
-        const parent = await browser.execute((element) => {
-          for (let node = element.parentElement; node; node = node.parentElement) {
-            if (['auto', 'scroll'].includes(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1) return node
-          }
-          return document.scrollingElement
-        }, calendar)
-        const parentScrollBefore = await browser.execute((element) => element.scrollTop, parent)
+        const pageScrollBefore = await browser.execute(() => document.scrollingElement.scrollTop)
         const before = await browser.execute((element) => {
           const lastDay = element.querySelector('.schedule-grid-day-heading:last-of-type')
           return {
@@ -238,17 +232,22 @@ describe('SHINPO native authenticated screen smoke', function () {
         }, calendar)
         assert.ok(before.scrollHeight > before.clientHeight, 'calendar grid must scroll internally')
         assert.ok(before.lastDayRight <= before.viewportRight + 1, 'full week should fit in the 1400px desktop calendar')
+        await browser.execute((element) => { element.scrollTop = 0 }, calendar)
+        await browser.execute(() => { document.scrollingElement.scrollTop = 0 })
         await browser.action('wheel').scroll({ deltaX: 0, deltaY: 420, duration: 180, origin: calendar }).perform()
         await browser.waitUntil(async () => await browser.execute((element) => element.scrollTop > 0, calendar), { timeout: 5000, timeoutMsg: 'wheel did not scroll the calendar internally' })
         await browser.saveScreenshot(path.join(evidence, 'calendar-internal-scroll-native.png'))
-        await browser.execute((element) => { element.scrollTop = element.scrollHeight }, calendar)
+        await browser.execute((element, pageTop) => {
+          element.scrollTop = element.scrollHeight
+          document.scrollingElement.scrollTop = pageTop
+        }, calendar, pageScrollBefore)
         await browser.action('wheel').scroll({ deltaX: 0, deltaY: 360, duration: 180, origin: calendar }).perform()
-        await browser.waitUntil(async () => await browser.execute((element, initial) => element.scrollTop > initial, parent, parentScrollBefore), { timeout: 5000, timeoutMsg: 'wheel at the calendar boundary did not scroll the page' })
+        await browser.waitUntil(async () => await browser.execute((initial) => document.scrollingElement.scrollTop > initial, pageScrollBefore), { timeout: 5000, timeoutMsg: 'wheel at the calendar boundary did not scroll the page' })
         await browser.saveScreenshot(path.join(evidence, 'calendar-page-scroll-handoff-native.png'))
-        await browser.execute((calendarElement, parentElement, initialParentScroll) => {
+        await browser.execute((calendarElement, initialPageScroll) => {
           calendarElement.scrollTop = 0
-          parentElement.scrollTop = initialParentScroll
-        }, calendar, parent, parentScrollBefore)
+          document.scrollingElement.scrollTop = initialPageScroll
+        }, calendar, pageScrollBefore)
         console.log(`Native Calendar scroll: vertical ${before.scrollHeight}/${before.clientHeight}; page wheel handoff passed; horizontal ${before.scrollWidth}/${before.clientWidth}`)
 
         await browser.setWindowSize(960, 650)
@@ -318,10 +317,10 @@ describe('SHINPO native authenticated screen smoke', function () {
     await browser.saveScreenshot(path.join(evidence, 'settings-native.png'))
     await $('button*=Classic').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.dataset.brand === 'classic'), { timeout: 10000 })
-    assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Classic switch must preserve the mounted canvas')
+    await browser.waitUntil(async () => await browser.execute(() => Boolean(document.querySelector('canvas.shinpo-mesh-drift')) && !document.querySelector('[data-testid="shinpo-particles"]')), { timeout: 10000 })
     await $('button*=Light Theme').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.getAttribute('data-theme') === 'light'), { timeout: 10000 })
-    assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Classic Light switch must preserve the mounted canvas')
+    assert.equal(await browser.execute(() => Boolean(document.querySelector('canvas.shinpo-mesh-drift')) && !document.querySelector('[data-testid="shinpo-particles"]')), true, 'Classic Light must use Mesh Drift without the particle canvas')
     await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
@@ -364,7 +363,7 @@ describe('SHINPO native authenticated screen smoke', function () {
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Aurora').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.dataset.brand === 'aurora'), { timeout: 10000 })
-    assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Aurora switch must preserve the mounted canvas')
+    await browser.waitUntil(async () => await browser.execute(() => Boolean(document.querySelector('[data-testid="shinpo-particles"]')) && !document.querySelector('canvas.shinpo-mesh-drift')), { timeout: 10000 })
     await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
@@ -375,14 +374,14 @@ describe('SHINPO native authenticated screen smoke', function () {
     await $('[role="dialog"]').waitForDisplayed({ timeout: 10000 })
     await $('button*=Light Theme').click()
     await browser.waitUntil(async () => await browser.execute(() => document.documentElement.getAttribute('data-theme') === 'light'), { timeout: 10000 })
-    assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'Aurora Light switch must preserve the mounted canvas')
+    assert.equal(await browser.execute(() => Boolean(document.querySelector('[data-testid="shinpo-particles"]')) && !document.querySelector('canvas.shinpo-mesh-drift')), true, 'Aurora Light must use particles without the Mesh Drift canvas')
     await closeSettingsModal(settings)
     await $('[data-tab="Dashboard"]').click()
     await browser.waitUntil(async () => await $('[data-tab="Dashboard"]').getAttribute('aria-current') === 'page', { timeout: 10000 })
     await $('.shinpo-dashboard').waitForDisplayed({ timeout: 30000 })
     await browser.waitUntil(async () => await browser.execute(() => !document.querySelector('.app-content-stage [role="status"][aria-busy="true"]')), { timeout: 30000 })
     await browser.saveScreenshot(path.join(evidence, 'dashboard-aurora-light-particles-native.png'))
-    assert.equal(await browser.execute(() => document.querySelector('[data-testid="shinpo-particles"]') === window.__shinpoParticleCanvas), true, 'theme changes must not replace the particle canvas')
+    assert.equal(await browser.execute(() => document.querySelectorAll('[data-testid="shinpo-particles"]').length === 1 && !document.querySelector('canvas.shinpo-mesh-drift')), true, 'Aurora must keep exactly one particle canvas and no Mesh Drift canvas')
     console.log('Native Settings dialog opened and closed')
   })
 })

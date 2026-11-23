@@ -217,7 +217,7 @@ export interface SentinelStatus {
   guardianAppCatalogVersion?: string
   guardianDomainCatalogVersion?: string
   warningOnly?: boolean
-  guardianCapability?: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
+  guardianCapability?: 'OBSERVE_AND_ENFORCE' | 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
   browserCompanionSupported?: boolean
   interventionCapability?: string
   standardAllowanceSeconds?: number | null
@@ -294,7 +294,7 @@ const SENTINEL_BASE = `${API_BASE}/sentinel`
 export async function fetchSentinelStatus(): Promise<SentinelStatus> {
   if (isTauriEnvironment() && isLocalVaultSession()) {
     const capabilities = await invokeTauriCommand<{
-      guardian: 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
+      guardian: 'OBSERVE_AND_ENFORCE' | 'OBSERVE_AND_WARN' | 'UNAVAILABLE'
       guardianProcessObservation?: boolean
       guardianProcessClose?: boolean
       browserCompanionSupported: boolean

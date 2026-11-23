@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateRemainingSeconds, describeFocusPlan, formatTimerDigits, pomodoroPlans } from './focusTimer.ts'
+import { calculateRemainingSeconds, describeFocusPlan, formatTimerDigits, isFocusCompletionPending, pomodoroPlans, shouldShowFocusPauseOrCancel } from './focusTimer.ts'
 import type { FocusSession } from '../api/focusSessions.ts'
 
 function createMockSession(overrides: Partial<FocusSession> = {}): FocusSession {
@@ -33,6 +33,18 @@ test('formatTimerDigits formats minutes and seconds correctly', () => {
   assert.equal(formatTimerDigits(5), '00:05')
   assert.equal(formatTimerDigits(0), '00:00')
   assert.equal(formatTimerDigits(-10), '00:00')
+})
+
+test('completed Focus phase leaves debrief available and hides pause/cancel actions', () => {
+  assert.equal(isFocusCompletionPending('ACTIVE', false, false, true), true)
+  assert.equal(isFocusCompletionPending('ACTIVE', false, true, false), true)
+  assert.equal(isFocusCompletionPending('ACTIVE', true, true, true), false)
+  assert.equal(isFocusCompletionPending('PAUSED', false, true, true), false)
+  assert.equal(isFocusCompletionPending('COMPLETED', false, true, true), false)
+  assert.equal(shouldShowFocusPauseOrCancel('ACTIVE', true), false)
+  assert.equal(shouldShowFocusPauseOrCancel('ACTIVE', false), true)
+  assert.equal(shouldShowFocusPauseOrCancel('COMPLETED', false), false)
+  assert.equal(shouldShowFocusPauseOrCancel('PAUSED', false), false)
 })
 
 test('focus presets describe the actual single-session behavior without promising breaks', () => {

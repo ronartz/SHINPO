@@ -138,7 +138,10 @@ impl HostConfig {
         {
             return false;
         }
-        self.verify_hash(&self.pairing_secret_hash, candidate)
+        let Some(candidate) = normalize_pairing_code(candidate) else {
+            return false;
+        };
+        self.verify_hash(&self.pairing_secret_hash, &candidate)
     }
 
     pub fn verify_browser_token(&self, candidate: &str) -> bool {
@@ -211,6 +214,23 @@ impl HostConfig {
         paths.secure_directories()?;
         atomic_write_json(&paths.config, self)
     }
+}
+
+/// Pairing codes are human-entered hexadecimal secrets. Ignore ASCII spacing
+/// and hyphen grouping and normalize letter case without changing the entropy.
+fn normalize_pairing_code(candidate: &str) -> Option<String> {
+    if candidate.len() > 128 {
+        return None;
+    }
+    let normalized: String = candidate
+        .chars()
+        .filter(|character| !character.is_ascii_whitespace() && *character != '-')
+        .map(|character| character.to_ascii_lowercase())
+        .collect();
+    if normalized.len() != 64 || !normalized.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(normalized)
 }
 
 fn validate_backend_url(raw: &str) -> Result<String, &'static str> {
@@ -318,6 +338,26 @@ mod tests {
 
         config.browser_token_hash = None;
         assert!(!config.verify_browser_token(&browser_token));
+    }
+
+    #[test]
+    fn pairing_code_accepts_case_and_common_paste_formatting() {
+        let (mut config, pairing_code) = HostConfig::new_installation();
+        let formatted = pairing_code
+            .to_ascii_uppercase()
+            .chars()
+            .collect::<Vec<_>>()
+            .chunks(8)
+            .map(|chunk| chunk.iter().collect::<String>())
+            .collect::<Vec<_>>()
+            .join("-\n");
+
+        assert!(config.verify_pairing(&formatted, now_ms()));
+        let token = config.consume_pairing(&formatted, now_ms()).unwrap();
+        assert!(config.verify_browser_token(&token));
+        assert!(!config.verify_pairing(&pairing_code, now_ms()));
+        assert!(!config.verify_pairing(&format!("{pairing_code}x"), now_ms()));
+        assert!(!config.verify_pairing(&format!("{pairing_code}{}", " ".repeat(65)), now_ms()));
     }
 
     #[test]

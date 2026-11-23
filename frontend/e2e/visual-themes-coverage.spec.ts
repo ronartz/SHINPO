@@ -129,24 +129,17 @@ test.describe('SHINPO Comprehensive Visual Themes & Particle Coverage', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForSelector('.icon-sidebar', { timeout: 10000 })
 
-      // 1. Verify Floating 3D Particle Canvas
+      // Classic uses the Mesh Drift shader; Aurora uses the floating particle canvas.
       const particles = page.locator('[data-testid="shinpo-particles"]')
-      await expect(particles).toBeAttached()
-      const particleProps = await page.evaluate(() => {
-        const c = document.querySelector('[data-testid="shinpo-particles"]') as HTMLCanvasElement
-        if (!c) return null
-        const style = window.getComputedStyle(c)
-        return {
-          position: style.position,
-          zIndex: style.zIndex,
-          pointerEvents: style.pointerEvents,
-          width: c.width,
-          height: c.height,
-        }
-      })
-      expect(particleProps?.position).toBe('fixed')
-      expect(particleProps?.pointerEvents).toBe('none')
-      expect(Number(particleProps?.zIndex)).toBeLessThanOrEqual(1)
+      const meshDrift = page.locator('canvas.shinpo-mesh-drift')
+      if (v2 === 'true') {
+        await expect(particles).toHaveCount(1)
+        await expect(particles).toHaveCSS('pointer-events', 'none')
+        await expect(meshDrift).toHaveAttribute('data-active', 'false')
+      } else {
+        await expect(particles).toHaveCount(0)
+        await expect(meshDrift).toHaveAttribute('data-active', 'true')
+      }
 
       // 2. Focus Engine Screen Verification
       await page.click('button[data-tab="Focus Engine"]')

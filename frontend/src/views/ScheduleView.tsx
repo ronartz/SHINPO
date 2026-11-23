@@ -68,6 +68,36 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   }, [])
 
+  const handOffCalendarWheelAtBoundary = (event: React.WheelEvent<HTMLDivElement>) => {
+    // WebKitGTK does not consistently chain a wheel gesture from a nested
+    // scroll container to the document when that container reaches an edge.
+    // Preserve normal calendar scrolling and explicitly hand only the excess
+    // vertical gesture to the page.
+    if (event.ctrlKey || event.deltaY === 0) return
+
+    const calendar = event.currentTarget
+    const atTop = calendar.scrollTop <= 0
+    const atBottom = calendar.scrollTop + calendar.clientHeight >= calendar.scrollHeight - 1
+    if (!(event.deltaY < 0 && atTop) && !(event.deltaY > 0 && atBottom)) return
+
+    const page = document.scrollingElement
+    if (!page) return
+
+    const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? 16
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? window.innerHeight
+        : 1
+    const nextScrollTop = Math.max(0, Math.min(
+      page.scrollHeight - page.clientHeight,
+      page.scrollTop + event.deltaY * deltaScale,
+    ))
+    if (nextScrollTop === page.scrollTop) return
+
+    event.preventDefault()
+    page.scrollTop = nextScrollTop
+  }
+
   const weekDays = useMemo(() => {
     const monday = dayStart(new Date(`${selectedScheduleDate}T00:00:00`))
     return Array.from({ length: 7 }, (_, index) => {
@@ -257,7 +287,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {flexibleSessions.length > 0 && <div className="schedule-flexible-row"><span>FLEXIBLE</span><div>{flexibleSessions.map(session => renderSession(session, true))}</div></div>}
 
-      <div className="schedule-calendar-scroll" ref={calendarScrollRef}>
+      <div className="schedule-calendar-scroll" ref={calendarScrollRef} onWheel={handOffCalendarWheelAtBoundary}>
         <div className="schedule-week-grid" style={{
           '--schedule-hours': hours.length,
           '--schedule-grid-height': `${hours.length * 62}px`,

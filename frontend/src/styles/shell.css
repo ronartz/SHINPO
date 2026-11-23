@@ -49,6 +49,17 @@ html[data-brand='classic'][data-theme='light'] .shinpo-mesh-drift[data-active='t
   transform: translateZ(0);
 }
 
+/* Keep the two authenticated backgrounds mutually exclusive even if an old
+   component tree briefly survives a theme switch. */
+.app-shell[data-brand='classic'] .shinpo-particles,
+.app-shell[data-brand='classic'] .particle-canvas {
+  display: none !important;
+}
+
+.app-shell[data-brand='aurora'] .shinpo-mesh-drift {
+  display: none !important;
+}
+
 /* ==========================================================================
    COLLAPSIBLE SIDEBAR
    ========================================================================== */

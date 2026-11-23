@@ -106,6 +106,7 @@ const REFRESH_TOKEN_ACCOUNT: &str = "refresh_token";
 #[serde(rename_all = "camelCase")]
 struct BrowserCompanionLocalStatus {
     paired: bool,
+    connected: bool,
     state: &'static str,
     detail: &'static str,
     host_registered: bool,
@@ -178,13 +179,13 @@ struct LocalPlatformCapabilities {
 #[tauri::command]
 fn local_platform_capabilities() -> LocalPlatformCapabilities {
     LocalPlatformCapabilities {
-        guardian: if cfg!(target_os = "linux") {
-            "OBSERVE_AND_WARN"
+        guardian: if cfg!(any(target_os = "linux", target_os = "windows")) {
+            "OBSERVE_AND_ENFORCE"
         } else {
             "UNAVAILABLE"
         },
-        guardian_process_observation: cfg!(target_os = "linux"),
-        guardian_process_close: cfg!(target_os = "linux"),
+        guardian_process_observation: cfg!(any(target_os = "linux", target_os = "windows")),
+        guardian_process_close: cfg!(any(target_os = "linux", target_os = "windows")),
         browser_companion_supported: cfg!(any(target_os = "linux", target_os = "windows")),
     }
 }
@@ -235,9 +236,13 @@ fn browser_companion_local_status(
     let report = shinpo_browser_host::registration::check_registration(None);
     BrowserCompanionLocalStatus {
         paired,
-        state: if paired { "PAIRED" } else { "UNPAIRED" },
+        // The native messaging host is launched on demand by the browser. The
+        // desktop has no live heartbeat source, so saved credentials must not
+        // be presented as a connected or actively enforcing extension.
+        connected: false,
+        state: if paired { "PAIRING_SAVED" } else { "UNPAIRED" },
         detail: if paired {
-            "Pairing is saved locally. Open the extension to verify its live connection."
+            "Pairing credentials are saved locally. Live browser connection and policy enforcement are not verified by the desktop status."
         } else {
             "Pair the installed extension using a short-lived code from SHINPO."
         },
@@ -382,6 +387,21 @@ fn disable_linux_webview_zoom(app: &tauri::App) -> tauri::Result<()> {
             }
         });
 
+        // WebKitGTK can consume touchpad gestures before they become DOM
+        // `gesture*` events. Stop those native events at the GTK widget too;
+        // ordinary scrolling remains unaffected, including unmodified wheel
+        // events.
+        webview.add_events(
+            gtk::gdk::EventMask::SCROLL_MASK | gtk::gdk::EventMask::TOUCHPAD_GESTURE_MASK,
+        );
+        webview.connect_event(|_, event| {
+            if blocks_linux_webview_zoom_event(event.event_type(), event.state()) {
+                gtk::glib::Propagation::Stop
+            } else {
+                gtk::glib::Propagation::Proceed
+            }
+        });
+
         // Claim two-finger pinch sequences during GTK capture so WebKit never
         // applies its default page-scale behavior on Linux.
         let gesture = gtk::GestureZoom::new(&webview);
@@ -395,6 +415,16 @@ fn disable_linux_webview_zoom(app: &tauri::App) -> tauri::Result<()> {
     })?;
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn blocks_linux_webview_zoom_event(
+    event_type: gtk::gdk::EventType,
+    modifiers: Option<gtk::gdk::ModifierType>,
+) -> bool {
+    event_type == gtk::gdk::EventType::TouchpadPinch
+        || (event_type == gtk::gdk::EventType::Scroll
+            && modifiers.is_some_and(|state| state.contains(gtk::gdk::ModifierType::CONTROL_MASK)))
 }
 
 #[tauri::command]
@@ -683,6 +713,29 @@ fn setup_linux_desktop_integration() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn native_webview_zoom_guard_blocks_pinch_and_control_scroll_only() {
+        use gtk::gdk::{EventType, ModifierType};
+
+        assert!(blocks_linux_webview_zoom_event(
+            EventType::TouchpadPinch,
+            Some(ModifierType::empty())
+        ));
+        assert!(blocks_linux_webview_zoom_event(
+            EventType::Scroll,
+            Some(ModifierType::CONTROL_MASK)
+        ));
+        assert!(!blocks_linux_webview_zoom_event(
+            EventType::Scroll,
+            Some(ModifierType::empty())
+        ));
+        assert!(!blocks_linux_webview_zoom_event(
+            EventType::TouchpadSwipe,
+            Some(ModifierType::empty())
+        ));
+    }
 
     #[test]
     fn test_open_url_http_accepted() {

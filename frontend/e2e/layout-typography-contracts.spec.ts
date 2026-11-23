@@ -21,6 +21,25 @@ const injectMocks = async (page: any) => {
       value: {
         invoke: async (cmd: string, _args: any) => {
           if (cmd === 'local_vault_status') return { unlocked: true, username: 'eonx_dev' }
+          if (cmd === 'local_get_package_info') return {
+            os: 'linux', arch: 'x86_64', packageType: 'dev',
+            supportsInAppUpdate: false, version: '0.1.0-beta.4', channel: 'beta',
+          }
+          if (cmd === 'local_platform_capabilities') return {
+            guardian: 'OBSERVE_AND_WARN', guardianProcessObservation: true,
+            guardianProcessClose: false, browserCompanionSupported: true,
+          }
+          if (cmd === 'local_get_guardian_status') return {
+            status: 'READY', activeFocusSessionId: null, activeFocusSessionName: null,
+            guardianMode: null, focusPhase: null, observationsToday: 0,
+            lastObservationAt: null, appCatalogVersion: 'test', domainCatalogVersion: 'test',
+            warningOnly: true, interventionCapability: 'WARNING_ONLY',
+            standardAllowanceSeconds: null, observerStatus: 'READY',
+            applicationPolicyStatus: 'READY', applicationCatalog: [],
+          }
+          if (cmd === 'local_get_guardian_observations') return []
+          if (cmd === 'local_get_focus_sessions') return []
+          if (cmd === 'local_get_goals' || cmd === 'local_get_tasks') return []
           if (cmd === 'local_get_onboarding_state') return { status: 'COMPLETED', currentStep: 6 }
           if (cmd === 'get_guardian_status') return {
             status: 'idle',

@@ -213,10 +213,13 @@ test.describe('Phase 3 Priority Inspection Suite', () => {
     console.log('Right installed panel box:', panelBox)
   })
 
-  test('Dashboard Classic Light: Measure translucent glass and background particles visibility', async ({ page }) => {
+  test('Dashboard Classic Light: Measure translucent surfaces and Mesh Drift background selection', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/?v2=false&theme=light')
     await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('canvas.shinpo-particles')).toHaveCount(0)
+    await expect(page.locator('canvas.shinpo-mesh-drift')).toHaveAttribute('data-active', 'true')
 
     await page.screenshot({ path: path.join(SNAPSHOTS_DIR, '03_classic_light_dashboard_1440x900.png') })
 

@@ -4074,7 +4074,7 @@ dependencies = [
 
 [[package]]
 name = "shinpo-desktop"
-version = "0.1.0-beta.4"
+version = "0.1.0-beta.5"
 dependencies = [
  "argon2",
  "chacha20poly1305",
@@ -4115,6 +4115,7 @@ dependencies = [
  "sysinfo",
  "ureq",
  "url",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

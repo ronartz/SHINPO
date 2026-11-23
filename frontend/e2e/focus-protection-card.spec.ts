@@ -67,7 +67,7 @@ test.describe('Focus Protection Card Click & Browser Companion Indicator Suite',
               }
             }
             if (command === 'browser_companion_local_status') {
-              return { paired: true, state: 'PAIRED', detail: 'Extension is paired with SHINPO.' }
+              return { paired: true, connected: false, state: 'PAIRING_SAVED', detail: 'Pairing credentials are saved locally; live connection is unverified.' }
             }
             return null
           },
@@ -97,7 +97,7 @@ test.describe('Focus Protection Card Click & Browser Companion Indicator Suite',
       // 1. Verify companion row
       const companionRow = page.locator('.protection-companion-row')
       await expect(companionRow).toBeVisible()
-      await expect(companionRow).toContainText('Companion Paired')
+      await expect(companionRow).toContainText('Pairing Saved')
 
       // Capture screenshot of sidebar card
       const panel = page.locator('.sidebar-protection-panel')

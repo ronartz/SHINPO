@@ -4,7 +4,7 @@ import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionD
 
 test('Guardian capability labels stay understandable and honest', () => {
   assert.equal(guardianCapabilityLabel('STRICT_COOPERATIVE_CLOSE'), 'Strict · Active termination armed')
-  assert.equal(guardianCapabilityLabel('STRICT_LINUX_COOPERATIVE_CLOSE'), 'Strict · warning-only; app closure disabled')
+  assert.equal(guardianCapabilityLabel('STRICT_LINUX_COOPERATIVE_CLOSE'), 'Strict · Active termination armed')
   assert.equal(guardianCapabilityLabel('STRICT_WARNING_ONLY'), 'Strict · warning-only; app closure disabled')
   assert.equal(guardianCapabilityLabel('STANDARD_SAMPLED_RUNTIME_ALLOWANCE'), 'Standard · warning-only')
   assert.equal(guardianCapabilityLabel('BREAK_OBSERVATION_ONLY'), 'Break · observation only')
@@ -13,7 +13,9 @@ test('Guardian capability labels stay understandable and honest', () => {
   assert.equal(guardianCapabilityLabel('new_future_status'), 'Monitoring · no app action confirmed')
   assert.equal(guardianCapabilityLabel(null), 'Monitoring · no app action confirmed')
   assert.equal(guardianCapabilityLabel('LOCKED'), 'Vault locked')
-  assert.equal(guardianOutcomeLabel('CLOSE_REQUESTED_UNCONFIRMED'), 'Graceful close requested · exit unconfirmed')
+  assert.equal(guardianOutcomeLabel('CLOSE_REQUESTED_UNCONFIRMED'), 'Close requested · exit unconfirmed')
+  assert.equal(guardianOutcomeLabel('CLOSED_GRACEFULLY_VERIFIED'), 'Blocked app closed')
+  assert.equal(guardianOutcomeLabel('CLOSED_AFTER_FORCED_TERMINATION_VERIFIED'), 'Blocked app terminated after close request')
   assert.equal(guardianOutcomeLabel('ALLOWED_BREAK'), 'Allowed during break')
   assert.equal(guardianOutcomeLabel('new_future_outcome'), 'new future outcome')
   assert.equal(guardianObserverLabel('MONITORING'), 'Monitoring')
@@ -23,8 +25,9 @@ test('Guardian capability labels stay understandable and honest', () => {
 })
 
 test('Guardian descriptions make warning-only behavior explicit', () => {
-  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /actively terminates recognized distraction applications immediately upon launch/)
-  assert.match(guardianInterventionDescription('STRICT_LINUX_COOPERATIVE_CLOSE'), /Strict.*recognized app observations.*does not close applications/)
+  assert.match(guardianInterventionDescription('STRICT_COOPERATIVE_CLOSE'), /explicitly blocked, verified apps.*terminates that verified process/)
+  assert.match(guardianInterventionDescription('STRICT_LINUX_COOPERATIVE_CLOSE'), /explicitly blocked, verified apps.*terminates that verified process/)
+  assert.match(guardianInterventionDescription('STRICT_WARNING_ONLY'), /Strict.*recognized app observations.*does not close applications/)
   assert.match(guardianInterventionDescription('STANDARD_SAMPLED_RUNTIME_ALLOWANCE'), /sample.*app-running time.*does not close applications/)
   assert.match(guardianInterventionDescription('LIMITED_NO_CLOSURE_CONSENT'), /Monitoring only.*closure is disabled/)
   assert.match(guardianInterventionDescription('LIMITED_PLATFORM_UNSUPPORTED'), /observation only.*unavailable/)
@@ -35,7 +38,7 @@ test('Guardian close availability requires the active Strict capability', () => 
   assert.equal(guardianCanRequestClose('STRICT_COOPERATIVE_CLOSE', false), true)
   assert.equal(guardianCanRequestClose('STRICT_COOPERATIVE_CLOSE', true), false)
   assert.equal(guardianCanRequestClose('STRICT_COOPERATIVE_CLOSE'), false)
-  assert.equal(guardianCanRequestClose('STRICT_LINUX_COOPERATIVE_CLOSE', false), false)
+  assert.equal(guardianCanRequestClose('STRICT_LINUX_COOPERATIVE_CLOSE', false), true)
   assert.equal(guardianCanRequestClose('STANDARD_SAMPLED_RUNTIME_ALLOWANCE', false), false)
   assert.equal(guardianCanRequestClose('STANDARD_SAMPLED_RUNTIME_ALLOWANCE', true), false)
   assert.equal(guardianCanRequestClose('WARNING_ONLY', false), false)

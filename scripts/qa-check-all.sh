@@ -90,6 +90,7 @@ run "Frontend TypeScript" "$TMP/frontend-typecheck.log" bash -c 'cd frontend && 
 run "Frontend ESLint" "$TMP/frontend-lint.log" npm --prefix frontend run lint
 require_node_tests "Frontend tests" "$TMP/frontend-test.log" npm --prefix frontend test
 run "Frontend production build" "$TMP/frontend-build.log" npm --prefix frontend run build
+run "Prepare Tauri embedded resources" "$TMP/tauri-resources.log" node scripts/prepare-desktop-bundle.mjs
 
 require_rust_tests "Tauri Rust tests" "$TMP/tauri-test.log" cargo test --locked --manifest-path frontend/src-tauri/Cargo.toml --lib -- --test-threads=1
 run "Tauri strict Clippy" "$TMP/tauri-clippy.log" cargo clippy --locked --manifest-path frontend/src-tauri/Cargo.toml --all-targets -- -D warnings
@@ -148,7 +149,9 @@ else
 fi
 
 if command -v cargo-deny >/dev/null 2>&1; then
-  run "Cargo Deny (advisories & licenses)" "$TMP/cargo-deny.log" cargo deny check
+  run "Cargo Deny (Tauri crate)" "$TMP/cargo-deny-tauri.log" cargo deny --manifest-path frontend/src-tauri/Cargo.toml check --config "$ROOT/deny.toml" bans licenses sources
+  run "Cargo Deny (Shield crate)" "$TMP/cargo-deny-shield.log" cargo deny --manifest-path crates/shinpo-shield/Cargo.toml check --config "$ROOT/deny.toml" bans licenses sources
+  run "Cargo Deny (Browser Host crate)" "$TMP/cargo-deny-browser-host.log" cargo deny --manifest-path crates/shinpo-browser-host/Cargo.toml check --config "$ROOT/deny.toml" bans licenses sources
 elif [ -n "${CI:-}" ]; then
   echo "FAIL: cargo-deny required in CI environment"
   FAILURES=$((FAILURES + 1))

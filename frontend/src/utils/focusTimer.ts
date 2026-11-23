@@ -91,6 +91,24 @@ export function formatTimerDigits(totalSeconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+/** Once a final Focus phase ends, debrief is the only valid active-session action. */
+export function isFocusCompletionPending(
+  sessionStatus: string | null | undefined,
+  isBreak: boolean,
+  isTimerExpired: boolean,
+  isSequenceComplete: boolean,
+): boolean {
+  return sessionStatus === 'ACTIVE' && !isBreak && (isTimerExpired || isSequenceComplete)
+}
+
+/** Pause/cancel are invalid after the final focus phase expires; debrief remains valid. */
+export function shouldShowFocusPauseOrCancel(
+  sessionStatus: string | null | undefined,
+  completionPending: boolean,
+): boolean {
+  return sessionStatus === 'ACTIVE' && !completionPending
+}
+
 export interface PomodoroPlan {
   name: string
   totalMinutes: number

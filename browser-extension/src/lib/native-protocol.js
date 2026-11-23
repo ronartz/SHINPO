@@ -42,11 +42,18 @@
     return typeof value === 'string' && TOKEN_PATTERN.test(value)
   }
 
+  function normalizePairingCode(value) {
+    if (typeof value !== 'string' || value.length > 128) return ''
+    const normalized = value.replace(/[\t\n\v\f\r -]/g, '').toLowerCase()
+    return /^[0-9a-f]{64}$/.test(normalized) ? normalized : ''
+  }
+
   global.ShinpoNativeProtocol = Object.freeze({
     PROTOCOL_VERSION,
     HOST_NAME,
     createRequest,
     validateResponse,
     isPairingToken,
+    normalizePairingCode,
   })
 })(globalThis)

@@ -13,6 +13,7 @@ import type { FocusSession } from '../../api/focusSessions'
 import { getAiProviderStatus, getNativeAiProviderConfig, configureNativeAiProvider } from '../../api/ai'
 import type { NativeAiProviderConfig } from '../../api/ai'
 import { guardianCanRequestClose, guardianCapabilityLabel, guardianInterventionDescription, guardianModeLabel, guardianObserverLabel } from '../../utils/guardianCapability'
+import { isBrowserCompanionConnected, isBrowserCompanionPairingSaved } from '../../utils/browserCompanionStatus'
 import { useUpdater, updaterService } from '../../services/updater/index.ts'
 
 export type SettingsSection =
@@ -117,6 +118,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [companionStatus, setCompanionStatus] = useState<{
     state: string
     coverage: string
+    paired?: boolean
+    connected?: boolean
     adapterName?: string
     lastSeenAt?: string
     detail?: string
@@ -129,6 +132,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [pairingError, setPairingError] = useState<string | null>(null)
+  const companionConnected = isBrowserCompanionConnected(companionStatus)
+  const companionPairingSaved = isBrowserCompanionPairingSaved(companionStatus)
 
   // EONPAI AI state
   const [aiStatus, setAiStatus] = useState<{
@@ -173,6 +178,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (isTauriEnvironment() || isLocalVaultSession()) {
         const data = await invokeTauriCommand<{
           paired: boolean
+          connected?: boolean
           state: string
           detail: string
           hostRegistered?: boolean
@@ -185,10 +191,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           registered_browsers?: string[]
         }>('browser_companion_local_status')
         const isRegistered = data.hostRegistered ?? data.host_registered ?? false
-        const isPaired = data.paired || data.state === 'PAIRED' || data.state === 'CONNECTED'
+        const isConnected = data.connected === true || data.state === 'CONNECTED'
         setCompanionStatus({
           state: data.state,
-          coverage: isPaired && isRegistered ? 'FULL' : isPaired ? 'ACTIVE' : 'LIMITED',
+          paired: data.paired,
+          connected: isConnected,
+          coverage: isConnected && isRegistered ? 'FULL' : 'LIMITED',
           adapterName: 'Native messaging',
           detail: data.detail,
           hostRegistered: isRegistered,
@@ -1407,9 +1415,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Connect your browser to SHINPO's local Focus protection.
                       </p>
                     </div>
-                    <div className={`companion-header-pill ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'connected' : companionLoading ? 'checking' : companionStatus?.state === 'UNREACHABLE' ? 'danger' : 'standby'}`}>
+                    <div className={`companion-header-pill ${companionConnected ? 'connected' : companionLoading ? 'checking' : companionStatus?.state === 'UNREACHABLE' ? 'danger' : 'standby'}`}>
                       <span className="companion-status-dot" />
-                      <span>{companionLoading ? 'Checking...' : companionStatus?.state === 'PAIRED' ? 'Paired' : companionStatus?.state === 'CONNECTED' ? 'Connected' : companionStatus?.state === 'UNREACHABLE' ? 'Host Unreachable' : 'Not Paired'}</span>
+                      <span>{companionLoading ? 'Checking...' : companionConnected ? 'Connected' : companionStatus?.state === 'UNREACHABLE' ? 'Host Unreachable' : companionPairingSaved ? 'Pairing saved' : 'Not Paired'}</span>
                     </div>
                   </div>
 
@@ -1418,10 +1426,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="companion-status-row">
                       <div className="companion-status-info">
                         <span className="companion-status-title">
-                          Status: {companionLoading ? 'Checking connection...' : companionStatus?.state === 'PAIRED' ? 'Paired with browser' : companionStatus?.state === 'CONNECTED' ? 'Active connection established' : companionStatus?.state === 'UNREACHABLE' ? 'Native host unavailable' : 'Standby · Ready to pair'}
+                          Status: {companionLoading ? 'Checking connection...' : companionConnected ? 'Active connection established' : companionStatus?.state === 'UNREACHABLE' ? 'Native host unavailable' : companionPairingSaved ? 'Pairing saved · live connection unverified' : 'Standby · Ready to pair'}
                         </span>
                         <p className="companion-status-detail">
-                          {companionStatus?.detail || (companionStatus?.state === 'PAIRED' ? 'Extension is paired with SHINPO local vault. Focus session rules will synchronize automatically.' : 'Extension is not yet paired. Generate a 10-minute code below to link your browser.')}
+                          {companionStatus?.detail || (companionConnected ? 'The browser has an active native connection.' : companionPairingSaved ? 'Pairing credentials are saved. Live connection and policy enforcement are not verified.' : 'Extension is not yet paired. Generate a 10-minute code below to link your browser.')}
                         </p>
                       </div>
                       <button
@@ -1441,7 +1449,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <p className="companion-card-subheading">Follow these steps to connect your browser to SHINPO desktop:</p>
 
                     <div className="companion-steps-list">
-                      <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : 'step-active'}`}>
+                      <div className={`companion-step ${companionPairingSaved ? 'step-completed' : 'step-active'}`}>
                         <div className="companion-step-header">
                           <div className="companion-step-num">1</div>
                           <strong>Install Extension</strong>
@@ -1449,7 +1457,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="companion-step-desc">Chromium or Firefox</span>
                       </div>
 
-                      <div className={`companion-step ${pairingCode ? 'step-active' : companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
+                      <div className={`companion-step ${pairingCode ? 'step-active' : companionPairingSaved ? 'step-completed' : ''}`}>
                         <div className="companion-step-header">
                           <div className="companion-step-num">2</div>
                           <strong>Generate Code</strong>
@@ -1465,7 +1473,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="companion-step-desc">Paste 10m token</span>
                       </div>
 
-                      <div className={`companion-step ${companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'step-completed' : ''}`}>
+                      <div className={`companion-step ${companionConnected ? 'step-completed' : ''}`}>
                         <div className="companion-step-header">
                           <div className="companion-step-num">4</div>
                           <strong>Active Sync</strong>
@@ -1484,7 +1492,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         >
                           {companionLoading ? 'Generating...' : 'Generate 10-minute pairing code'}
                         </button>
-                        {(companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED') && (
+                        {companionPairingSaved && (
                           <button
                             type="button"
                             className="btn-timer secondary companion-revoke-btn"
@@ -1581,7 +1589,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                       <div className="companion-grid-item">
                         <span className="companion-grid-label">Pairing State:</span>
-                        <span className="companion-grid-val">{companionStatus?.state === 'PAIRED' || companionStatus?.state === 'CONNECTED' ? 'Paired' : 'Unpaired'}</span>
+                        <span className="companion-grid-val">{companionConnected ? 'Connected' : companionPairingSaved ? 'Pairing saved · unverified' : 'Unpaired'}</span>
                       </div>
                       <div className="companion-grid-item">
                         <span className="companion-grid-label">Policy Coverage:</span>

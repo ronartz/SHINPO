@@ -367,8 +367,8 @@
   }
 
   async function pair(pairingCode) {
-    const normalizedCode = typeof pairingCode === 'string' ? pairingCode.trim() : ''
-    if (!nativeProtocol.isPairingToken(normalizedCode)) {
+    const normalizedCode = nativeProtocol.normalizePairingCode(pairingCode)
+    if (!normalizedCode) {
       throw codedError(
         'INVALID_PAIRING_CODE',
         'Generate a one-time code in SHINPO Desktop under Settings → Browser Companion, then paste it here.',

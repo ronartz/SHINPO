@@ -1,7 +1,7 @@
 export function guardianCapabilityLabel(capability?: string | null): string {
   switch (capability) {
     case 'STRICT_COOPERATIVE_CLOSE': return 'Strict · Active termination armed'
-    case 'STRICT_LINUX_COOPERATIVE_CLOSE':
+    case 'STRICT_LINUX_COOPERATIVE_CLOSE': return 'Strict · Active termination armed'
     case 'STRICT_WARNING_ONLY': return 'Strict · warning-only; app closure disabled'
     case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
     case 'STANDARD_WARNING_ONLY': return 'Standard · warning-only'
@@ -26,8 +26,9 @@ export function guardianCapabilityLabel(capability?: string | null): string {
 export function guardianInterventionDescription(capability?: string | null): string {
   switch (capability) {
     case 'STRICT_COOPERATIVE_CLOSE':
-      return 'Strict actively terminates recognized distraction applications immediately upon launch.'
+      return 'Strict closes explicitly blocked, verified apps during Focus. If an app ignores the close request, SHINPO terminates that verified process after a brief grace period.'
     case 'STRICT_LINUX_COOPERATIVE_CLOSE':
+      return 'Strict closes explicitly blocked, verified apps during Focus. If an app ignores the close request, SHINPO terminates that verified process after a brief grace period.'
     case 'STRICT_WARNING_ONLY':
       return 'Strict reports recognized app observations immediately. This release does not close applications.'
     case 'STANDARD_SAMPLED_RUNTIME_ALLOWANCE':
@@ -66,12 +67,13 @@ export function guardianInterventionDescription(capability?: string | null): str
 
 export function guardianCanRequestClose(capability?: string | null, warningOnly?: boolean): boolean {
   if (warningOnly !== false) return false
-  return capability === 'STRICT_COOPERATIVE_CLOSE'
+  return capability === 'STRICT_COOPERATIVE_CLOSE' || capability === 'STRICT_LINUX_COOPERATIVE_CLOSE'
 }
 
 export function guardianOutcomeLabel(outcome?: string | null): string {
   switch (outcome) {
-    case 'CLOSED_GRACEFULLY_VERIFIED': return 'Blocked process terminated'
+    case 'CLOSED_GRACEFULLY_VERIFIED': return 'Blocked app closed'
+    case 'CLOSED_AFTER_FORCED_TERMINATION_VERIFIED': return 'Blocked app terminated after close request'
     case 'ALLOWED_BREAK': return 'Allowed during break'
     case 'WARNING_GRACE': return 'Warning during grace period'
     case 'WARNING_RETURN_REQUIRED': return 'Warning · return required'
@@ -80,7 +82,7 @@ export function guardianOutcomeLabel(outcome?: string | null): string {
     case 'WARNING_STRICT': return 'Observed · Strict mode'
     case 'WARNING_STRICT_ENFORCEMENT_DISABLED': return 'Strict · warning only; no app closed'
     case 'WARNING_ALLOWANCE_ENFORCEMENT_DISABLED': return 'Standard · warning only; no app closed'
-    case 'CLOSE_REQUESTED_UNCONFIRMED': return 'Graceful close requested · exit unconfirmed'
+    case 'CLOSE_REQUESTED_UNCONFIRMED': return 'Close requested · exit unconfirmed'
     case 'LIMITED_IDENTITY_UNVERIFIED': return 'Limited · process identity unverified'
     case 'LIMITED_NO_CLOSURE_CONSENT': return 'Limited · close consent is off'
     case 'LIMITED_CLOSE_UNAVAILABLE': return 'Limited · graceful close unavailable'

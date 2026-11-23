@@ -1152,7 +1152,7 @@ export function DesktopApp() {
     wsClient.connect(currentUser.id)
 
     const unsubQuarantine = wsClient.onQuarantine((event: SentinelQuarantineEvent) => {
-      const closureConfirmed = ['TERMINATED', 'CLOSED_GRACEFULLY_VERIFIED']
+      const closureConfirmed = ['TERMINATED', 'CLOSED_GRACEFULLY_VERIFIED', 'CLOSED_AFTER_FORCED_TERMINATION_VERIFIED']
         .includes(event.enforcementAction.toUpperCase())
       addLiveAlert({
         id: `quarantine-${event.id}-${Date.now()}`,
@@ -1457,7 +1457,7 @@ export function DesktopApp() {
             for (const obs of observations) {
               const obsId = `obs-${obs.id}`
               if (!existingIds.has(obsId)) {
-                const isTerminated = obs.outcome === 'CLOSED_GRACEFULLY_VERIFIED'
+                const isTerminated = ['CLOSED_GRACEFULLY_VERIFIED', 'CLOSED_AFTER_FORCED_TERMINATION_VERIFIED'].includes(obs.outcome)
                 const isAllowedBreak = obs.outcome === 'ALLOWED_BREAK' || obs.outcome === 'ALLOWED_OUTSIDE_FOCUS'
                 newFromObs.push({
                   id: obsId,
@@ -1488,7 +1488,7 @@ export function DesktopApp() {
           seenGuardianObservationIds.current,
         )
         if (observation) {
-          const isTerminated = observation.outcome === 'CLOSED_GRACEFULLY_VERIFIED'
+          const isTerminated = ['CLOSED_GRACEFULLY_VERIFIED', 'CLOSED_AFTER_FORCED_TERMINATION_VERIFIED'].includes(observation.outcome)
           const isAllowedBreak = observation.outcome === 'ALLOWED_BREAK' || observation.outcome === 'ALLOWED_OUTSIDE_FOCUS'
           const title = isTerminated
             ? `Guardian closed ${observation.processName}`
@@ -3497,9 +3497,12 @@ export function DesktopApp() {
 
   return (
     <>
-      <div className={`shinpo-desktop-app app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''} ${activeTab === 'Focus Engine' && (activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED') ? 'focus-immersed' : ''}`}>
-        <ClassicMeshDrift enabled={!isV2Preview} isDark={isDarkMode} />
-        <ShinpoParticles />
+      <div className={`shinpo-desktop-app app-shell shinpo-glass-ui ${isDarkMode ? '' : 'theme-light'} ${isV2Preview ? 'theme-aurora aurora-viewport' : ''} ${activeTab === 'Focus Engine' && (activeSession?.status === 'ACTIVE' || activeSession?.status === 'PAUSED') ? 'focus-immersed' : ''}`} data-brand={isV2Preview ? 'aurora' : 'classic'}>
+        {isV2Preview ? (
+          <ShinpoParticles />
+        ) : (
+          <ClassicMeshDrift enabled isDark={isDarkMode} />
+        )}
         {isV2Preview && (
           <div className="aurora-ambient-glow" aria-hidden="true" />
         )}

@@ -169,15 +169,19 @@ test('reports rejected one-time pairing codes as expired, invalid, or already us
 test('keeps a successful pairing when the first policy sync fails authentication', async () => {
   const stored = {}
   const { api } = apiStub()
+  const requests = []
   api.storage.local = {
     get: async (keys) => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map((key) => [key, stored[key]])),
     set: async (values) => Object.assign(stored, values),
     remove: async (keys) => { for (const key of keys) delete stored[key] },
   }
   const browserToken = 'b'.repeat(64)
-  api.runtime.sendNativeMessage = async (_host, request) => request.type === 'pair'
-    ? { protocolVersion: 1, requestId: request.requestId, ok: true, payload: { paired: true, sessionToken: browserToken } }
-    : { protocolVersion: 1, requestId: request.requestId, ok: false, error: { code: 'AUTHENTICATION_FAILED', message: 'authentication failed' } }
+  api.runtime.sendNativeMessage = async (_host, request) => {
+    requests.push(request)
+    return request.type === 'pair'
+      ? { protocolVersion: 1, requestId: request.requestId, ok: true, payload: { paired: true, sessionToken: browserToken } }
+      : { protocolVersion: 1, requestId: request.requestId, ok: false, error: { code: 'AUTHENTICATION_FAILED', message: 'authentication failed' } }
+  }
   const context = {
     browser: api,
     ShinpoCanonical: globalThis.ShinpoCanonical,
@@ -197,9 +201,10 @@ test('keeps a successful pairing when the first policy sync fails authentication
   await new Promise(setImmediate)
 
   await assert.rejects(
-    context.__testHooks.pair('a'.repeat(64)),
+    context.__testHooks.pair('AAAAAAAA\nAAAAAAAA-AAAAAAAA AAAAAAAA-AAAAAAAA\nAAAAAAAA-AAAAAAAA AAAAAAAA'),
     (error) => error.code === 'PAIRED_SYNC_FAILED' && /pairing succeeded/i.test(error.message),
   )
+  assert.equal(requests[0].auth, 'a'.repeat(64))
   assert.equal(context.__testHooks.state.pairingToken, browserToken)
   assert.equal(stored.pairingToken, browserToken)
 })

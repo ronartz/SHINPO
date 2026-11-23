@@ -183,13 +183,10 @@ jobs:
   windows-installer:
     name: Windows NSIS installer and checksum
     needs: qa-release-gate
-    # Beta 4 is being qualified as Linux-only. Keep Windows installer builds
-    # available to branch CI/manual runs, but do not attach an unverified
-    # Windows installer to a tagged release.
-    if: github.ref_type != 'tag'
+    # Build Windows alongside Linux for tagged releases and manual candidates.
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: windows-2025
     timeout-minutes: 90
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -330,7 +327,7 @@ jobs:
   publish-release:
     name: Publish GitHub Release & Auto-Updater Manifest
     needs: [qa-release-gate, linux-installers, windows-installer]
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.qa-release-gate.result == 'success' && needs.linux-installers.result == 'success'
+    if: startsWith(github.ref, 'refs/tags/v') && needs.qa-release-gate.result == 'success' && needs.linux-installers.result == 'success' && needs.windows-installer.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -349,7 +346,6 @@ jobs:
           path: staged-release/linux
       - name: Download Windows release artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: windows-release-artifacts
           path: staged-release/windows

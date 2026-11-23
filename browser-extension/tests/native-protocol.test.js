@@ -7,6 +7,7 @@ const {
   createRequest,
   validateResponse,
   isPairingToken,
+  normalizePairingCode,
 } = globalThis.ShinpoNativeProtocol
 
 test('createRequest produces valid protocol payload', () => {
@@ -55,5 +56,14 @@ test('isPairingToken verifies token format', () => {
   assert.equal(isPairingToken('0123456789abcdef0123456789abcdef'), true)
   assert.equal(isPairingToken('short'), false)
   assert.equal(isPairingToken(''), false)
+})
+
+test('normalizePairingCode accepts case and pasted separators but preserves strict code length', () => {
+  const code = '0123456789abcdef'.repeat(4)
+  const formatted = code.toUpperCase().match(/.{1,8}/g).join('-\n')
+  assert.equal(normalizePairingCode(formatted), code)
+  assert.equal(normalizePairingCode(`${code}x`), '')
+  assert.equal(normalizePairingCode('not a pairing code'), '')
+  assert.equal(normalizePairingCode(`${code}${' '.repeat(65)}`), '')
 })
 

@@ -9,6 +9,8 @@ import {
   formatTimerDigits,
   describeFocusPlan,
   durationPresets,
+  isFocusCompletionPending,
+  shouldShowFocusPauseOrCancel,
 } from '../utils/focusTimer'
 import { formatSafeTimeString } from '../api/eventNormalizer'
 import { StudyResourcesPanel } from '../components/focus'
@@ -225,6 +227,10 @@ export const FocusView: React.FC<FocusViewProps> = ({
   const isPaused = activeSession?.status === 'PAUSED'
   const isSequenceComplete = currentPhase === 'COMPLETE'
   const isTimerExpired = timerSeconds === 0 && (!activeSession?.pomodoroEnabled || isSequenceComplete)
+  // The native session remains ACTIVE until its reflection is saved. Once its
+  // final focus timer expires, only that save/debrief action is still valid.
+  const isCompletionPending = isFocusCompletionPending(activeSession?.status, isBreak, isTimerExpired, isSequenceComplete)
+  const canPauseOrCancel = shouldShowFocusPauseOrCancel(activeSession?.status, isCompletionPending)
   const phaseDurationMinutes = currentPhase === 'GRACE'
     ? activeSession?.pomodoroGraceMinutes ?? pomodoroGraceMinutes
     : currentPhase === 'SHORT_BREAK'
@@ -370,6 +376,8 @@ export const FocusView: React.FC<FocusViewProps> = ({
                       ? 'Your break and grace period have ended'
                       : isSequenceComplete
                         ? 'Your cycle is complete'
+                        : isCompletionPending
+                          ? 'Focus time complete'
                         : isPaused
                           ? 'Paused · resume when ready'
                           : isBreak
@@ -427,14 +435,14 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
               {activeSession && activeSession.status === 'ACTIVE' && (
                 <>
-                  <button
+                  {canPauseOrCancel && <button
                     className="btn-timer secondary microkit-invert-press"
                     onClick={() => handlePause(activeSession.id)}
                     disabled={isSequenceComplete || isReturnRequired}
                   >
                     <Icon name="pause" size={16} />
                     <span>Pause Session</span>
-                  </button>
+                  </button>}
                   {(isBreak || isReturnRequired) && (
                     <button className="btn-timer primary microkit-finish-glow" onClick={() => handleReturnToFocus(activeSession.id)}>
                       <Icon name="play" size={16} />
@@ -449,7 +457,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
                     <Icon name="check" size={16} />
                     <span>Finish and reflect</span>
                   </button>}
-                  {handleCancelSession && (
+                  {canPauseOrCancel && handleCancelSession && (
                     <button
                       className="btn-timer warning"
                       onClick={() => handleCancelSession(activeSession.id)}
@@ -496,7 +504,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
 
         {/* Right Column: Configuration or Live Context */}
         <div className="focus-right-column">
-          <div className="bento-card card-session-creator">
+          <div className={`bento-card card-session-creator${activeSession ? ' has-active-session' : ''}`}>
             <div className="card-header-row">
               <div className="card-title-group">
                 <span className="card-title">{activeSession ? 'Current Session' : 'Session Configuration'}</span>
@@ -509,7 +517,7 @@ export const FocusView: React.FC<FocusViewProps> = ({
               <div className="focus-session-live-context">
                 <span className="focus-context-label">{isReturnRequired ? 'RETURN REQUIRED' : isBreak ? 'RECOVERY IS PART OF THE WORK' : 'ONE THING AT A TIME'}</span>
                 <strong>{activeSession.name}</strong>
-                <p>{isReturnRequired ? 'Your break and grace period have ended. Return to Focus to resume this session.' : isBreak ? 'Leave the screen, stretch, and return when the break ends.' : activeSession.intention || 'Keep your attention on this session. You can pause whenever you need to.'}</p>
+                <p>{isReturnRequired ? 'Your break and grace period have ended. Return to Focus to resume this session.' : isBreak ? 'Leave the screen, stretch, and return when the break ends.' : isCompletionPending ? 'Your planned focus time is complete. Record your outcome to save the session.' : activeSession.intention || 'Keep your attention on this session. You can pause whenever you need to.'}</p>
                 <div className="focus-context-stat">
                   <span>{isReturnRequired ? 'Return required' : isBreak ? currentPhase === 'GRACE' ? 'Grace time remaining' : 'Break time remaining' : 'Active focus time'}</span>
                   <b>{isReturnRequired ? 'Now' : `${formatTimerDigits(isBreak ? timerSeconds : getLiveFocusElapsedSeconds(activeSession, timerSeconds))}${isBreak ? ' remaining' : ' focused'}`}</b>

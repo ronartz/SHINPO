@@ -976,7 +976,7 @@ html[data-theme='light'] .modal-field,
 .theme-light .modal-field {
   background-color: #f3f3f3;
   border-color: #a8a8a8;
-  color: var(--brand-baltic-blue);
+  color: var(--text-primary);
 }
 
 html[data-theme='light'] .modal-field:focus,

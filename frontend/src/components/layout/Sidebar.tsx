@@ -12,6 +12,7 @@ import { guardianCanRequestClose, guardianInterventionDescription, guardianModeL
 import { formatEnforcementMode } from '../../utils/focusProtectionStatus'
 import { invokeTauriCommand, isTauriEnvironment } from '../../api/tauri'
 import { isLocalVaultSession } from '../../api/auth'
+import { browserCompanionStatusLabel, isBrowserCompanionConnected, isBrowserCompanionPairingSaved } from '../../utils/browserCompanionStatus'
 
 export interface SidebarProps {
   sidebarExpanded: boolean
@@ -28,7 +29,7 @@ export interface SidebarProps {
   sentinelStatus?: SentinelStatus | null
   userProgress: ProgressResponse | null
   onOpenCompanionSettings?: () => void
-  companionStatus?: { paired: boolean; state: string } | null
+  companionStatus?: { paired: boolean; connected?: boolean; state: string } | null
 }
 
 import { trackRender } from '../../utils/renderTracker'
@@ -60,16 +61,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   const wasExpandedRef = useRef(sidebarExpanded)
   const rewardsItem = NAVIGATION_ITEMS.find((item) => item.id === 'Rewards')
 
-  const [localCompanionStatus, setLocalCompanionStatus] = useState<{ paired: boolean; state: string } | null>(null)
+  const [localCompanionStatus, setLocalCompanionStatus] = useState<{ paired: boolean; connected?: boolean; state: string } | null>(null)
 
   useEffect(() => {
     let active = true
     const checkCompanion = async () => {
       if (isTauriEnvironment() || isLocalVaultSession()) {
         try {
-          const res = await invokeTauriCommand<{ paired: boolean; state: string; detail: string }>('browser_companion_local_status')
+          const res = await invokeTauriCommand<{ paired: boolean; connected?: boolean; state: string; detail: string }>('browser_companion_local_status')
           if (active && res && typeof res.paired === 'boolean') {
-            setLocalCompanionStatus({ paired: res.paired, state: res.state })
+            setLocalCompanionStatus({ paired: res.paired, connected: res.connected, state: res.state })
           }
         } catch {
           // ignore
@@ -85,7 +86,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   }, [])
 
   const effectiveCompanionStatus = companionStatus ?? localCompanionStatus
-  const isCompanionPaired = Boolean(effectiveCompanionStatus?.paired)
+  const isCompanionConnected = isBrowserCompanionConnected(effectiveCompanionStatus)
+  const isCompanionPairingSaved = isBrowserCompanionPairingSaved(effectiveCompanionStatus)
 
   useEffect(() => () => {
     if (hoverDelayRef.current) clearTimeout(hoverDelayRef.current)
@@ -193,9 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     }
   }
 
-  const companionSummary = isCompanionPaired
-    ? 'Browser Companion is paired and protecting web tabs.'
-    : 'Browser Companion is not linked.'
+  const companionSummary = browserCompanionStatusLabel(effectiveCompanionStatus)
   statusTooltip = `${statusTooltip} · ${companionSummary}`
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -338,7 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
             {/* Browser Companion Live Status Indicator Row */}
             <div
-              className={`protection-companion-row ${isCompanionPaired ? 'is-connected' : 'is-unpaired'}`}
+              className={`protection-companion-row ${isCompanionConnected ? 'is-connected' : 'is-unpaired'}`}
               onClick={(e) => {
                 e.stopPropagation()
                 if (onOpenCompanionSettings) onOpenCompanionSettings()
@@ -346,8 +346,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               }}
               role="button"
               tabIndex={0}
-              title={isCompanionPaired ? 'Browser Companion is paired and protecting web tabs. Click to manage in Settings.' : 'Browser Companion is not linked. Click to pair in Settings.'}
-              aria-label={isCompanionPaired ? 'Browser Companion is paired. Click to manage.' : 'Browser Companion is not linked. Click to pair.'}
+              title={`${companionSummary}. Click to manage Browser Companion in Settings.`}
+              aria-label={`${companionSummary}. Click to manage Browser Companion in Settings.`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
@@ -359,13 +359,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             >
               <div className="protection-companion-left">
                 <Icon name="globe" size={13} className="protection-companion-icon" />
-                <span className={`protection-companion-dot ${isCompanionPaired ? 'is-paired' : 'is-unpaired'}`} />
+                <span className={`protection-companion-dot ${isCompanionConnected ? 'is-paired' : 'is-unpaired'}`} />
                 <span className="protection-companion-text">
-                  {isCompanionPaired ? 'Companion Paired' : 'Companion Unlinked'}
+                  {isCompanionConnected ? 'Companion Connected' : isCompanionPairingSaved ? 'Pairing Saved' : 'Companion Unlinked'}
                 </span>
               </div>
               <span className="protection-companion-action">
-                {isCompanionPaired ? 'Manage' : 'Link →'}
+                {isCompanionPairingSaved ? 'Manage' : 'Link →'}
               </span>
             </div>
 
@@ -403,8 +403,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <Icon name={shieldStateClass === 'shield-ready' || shieldStateClass === 'shield-active' ? 'shield-check' : 'shield'} size={18} />
               <span className={`protection-status-dot ${dotClass}`} />
               <span
-                className={`protection-companion-mini-dot ${isCompanionPaired ? 'is-paired' : 'is-unpaired'}`}
-                title={isCompanionPaired ? 'Browser Companion: Paired' : 'Browser Companion: Unlinked'}
+                className={`protection-companion-mini-dot ${isCompanionConnected ? 'is-paired' : 'is-unpaired'}`}
+                title={companionSummary}
               />
             </div>
           </div>

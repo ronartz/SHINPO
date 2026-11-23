@@ -369,7 +369,7 @@ pub fn determine_enforcement_capability(
             "UNSUPPORTED".to_string(),
             Some("Executable target unresolved".to_string()),
         )
-    } else if platform == "linux" {
+    } else if matches!(platform, "linux" | "windows") {
         ("TERMINATE".to_string(), None)
     } else {
         (
@@ -569,10 +569,10 @@ URL=https://example.com
         assert_eq!(cap, "TERMINATE");
         assert!(reason.is_none());
 
-        // 4. Windows process identity and safe close are not implemented yet.
+        // 4. Windows supports identity-verified single-process close.
         let (cap, reason) = determine_enforcement_capability(Some("discord.exe"), false, "windows");
-        assert_eq!(cap, "MONITOR_ONLY");
-        assert!(reason.as_ref().unwrap().contains("windows"));
+        assert_eq!(cap, "TERMINATE");
+        assert!(reason.is_none());
 
         // 5. Valid non-protected executable on macOS lacks verified close -> MONITOR_ONLY
         let (cap, reason) = determine_enforcement_capability(Some("discord"), false, "macos");

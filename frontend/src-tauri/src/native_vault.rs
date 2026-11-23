@@ -2962,7 +2962,9 @@ fn apply_guardian_app_policy(
         let already_attempted_close = prior_outcome.as_deref().is_some_and(|outcome| {
             matches!(
                 outcome,
-                "CLOSED_GRACEFULLY_VERIFIED" | "CLOSE_REQUESTED_UNCONFIRMED"
+                "CLOSED_GRACEFULLY_VERIFIED"
+                    | "CLOSED_AFTER_FORCED_TERMINATION_VERIFIED"
+                    | "CLOSE_REQUESTED_UNCONFIRMED"
             )
         });
 
@@ -3055,9 +3057,12 @@ fn request_strict_close_if_authorized(
             return Ok("LIMITED_NO_CLOSURE_CONSENT".to_string());
         }
         Ok(
-            match shinpo_shield::process_identity::request_graceful_close(identity, consent) {
-                Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+            match shinpo_shield::process_identity::request_process_close(identity, consent) {
+                Ok(shinpo_shield::process_identity::CloseResult::ExitedAfterCloseRequest) => {
                     "CLOSED_GRACEFULLY_VERIFIED"
+                }
+                Ok(shinpo_shield::process_identity::CloseResult::ExitedAfterForcedTermination) => {
+                    "CLOSED_AFTER_FORCED_TERMINATION_VERIFIED"
                 }
                 Ok(shinpo_shield::process_identity::CloseResult::RequestedButNotConfirmed) => {
                     "CLOSE_REQUESTED_UNCONFIRMED"
@@ -3119,9 +3124,12 @@ fn request_strict_close_if_authorized(
             return Ok("LIMITED_NO_CLOSURE_CONSENT".to_string());
         }
         Ok(
-            match shinpo_shield::process_identity::request_graceful_close(identity, consent) {
-                Ok(shinpo_shield::process_identity::CloseResult::RequestedAndExited) => {
+            match shinpo_shield::process_identity::request_process_close(identity, consent) {
+                Ok(shinpo_shield::process_identity::CloseResult::ExitedAfterCloseRequest) => {
                     "CLOSED_GRACEFULLY_VERIFIED"
+                }
+                Ok(shinpo_shield::process_identity::CloseResult::ExitedAfterForcedTermination) => {
+                    "CLOSED_AFTER_FORCED_TERMINATION_VERIFIED"
                 }
                 Ok(shinpo_shield::process_identity::CloseResult::RequestedButNotConfirmed) => {
                     "CLOSE_REQUESTED_UNCONFIRMED"
@@ -8573,7 +8581,7 @@ mod tests {
             shinpo_shield::observer::APP_CATALOG_VERSION
         );
         assert_eq!(found.category, "GAMING");
-        assert_eq!(found.outcome, "LIMITED_IDENTITY_UNVERIFIED");
+        assert_eq!(found.outcome, "LIMITED_NO_RUNTIME_CONSENT");
         let ipc_status = invoke("local_get_guardian_status", serde_json::json!({})).unwrap();
         assert_eq!(ipc_status["observerStatus"], "MONITORING");
         assert_eq!(

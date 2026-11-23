@@ -65,7 +65,30 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await browser.setWindowSize(1400, 900)
     const getCanvasState = async () => browser.execute(() => {
       const canvas = document.querySelector('.shinpo-mesh-drift')
+      const particles = document.querySelectorAll('.shinpo-particles, .particle-canvas')
       const shell = document.querySelector('.app-shell')
+      if (!canvas) {
+        return {
+          canvasCount: 0,
+          particleCanvasCount: particles.length,
+          shellBrand: shell?.dataset.brand ?? null,
+          particleDisplay: particles.length ? getComputedStyle(particles[0]).display : null,
+          active: 'false',
+          ready: 'false',
+          visibility: null,
+          opacity: null,
+          pointerEvents: null,
+          canvasSize: [0, 0],
+          cssSize: [0, 0],
+          dpr: devicePixelRatio,
+          shellSize: [0, 0],
+          canvasZ: null,
+          mainZ: null,
+          sidebarZ: null,
+          webgl: null,
+          contextStable: false,
+        }
+      }
       const main = document.querySelector('.app-main')
       const sidebar = document.querySelector('.icon-sidebar')
       const rect = canvas.getBoundingClientRect()
@@ -73,6 +96,9 @@ describe('Classic Mesh Drift native WebKit integration', function () {
         window.__shinpoMeshTestContext ??= gl
       return {
         canvasCount: document.querySelectorAll('.shinpo-mesh-drift').length,
+        particleCanvasCount: particles.length,
+        shellBrand: shell?.dataset.brand ?? null,
+        particleDisplay: particles.length ? getComputedStyle(particles[0]).display : null,
         active: canvas.dataset.active,
         ready: canvas.dataset.ready,
         error: canvas.dataset.error,
@@ -95,6 +121,8 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await browser.waitUntil(async () => (await getCanvasState()).ready === 'true', { timeout: 15000, timeoutMsg: 'Classic Dark WebGL frame did not render' })
     const classicDark = await getCanvasState()
     assert.equal(classicDark.canvasCount, 1)
+    assert.equal(classicDark.shellBrand, 'classic')
+    assert.equal(classicDark.particleCanvasCount, 0, 'Classic must use Mesh Drift without the particle canvas')
     assert.equal(classicDark.active, 'true')
     assert.equal(classicDark.visibility, 'visible')
     assert.equal(classicDark.opacity, '0.12')
@@ -110,6 +138,8 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await selectAppearance('light', 'classic')
     const classicLight = await getCanvasState()
     assert.equal(classicLight.ready, 'true')
+    assert.equal(classicLight.shellBrand, 'classic')
+    assert.equal(classicLight.particleCanvasCount, 0, 'Classic Light must not mount the particle canvas')
     assert.equal(classicLight.opacity, '0.07')
     assert.equal(classicLight.contextStable, true, 'theme switch should retain the WebGL context')
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-classic-light-1400x900.png'))
@@ -117,13 +147,18 @@ describe('Classic Mesh Drift native WebKit integration', function () {
     await selectAppearance('dark', 'aurora')
     const aurora = await getCanvasState()
     assert.equal(aurora.active, 'false')
-    assert.equal(aurora.visibility, 'hidden', 'Aurora must not show the Classic shader')
+    assert.equal(aurora.canvasCount, 0)
+    assert.equal(aurora.shellBrand, 'aurora')
+    assert.equal(aurora.particleCanvasCount, 1, 'Aurora retains its single particle canvas')
+    assert.equal(aurora.visibility, null, 'Aurora must not mount the Classic shader')
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-aurora-dark-1400x900.png'))
 
     await selectAppearance('light', 'aurora')
     const auroraLight = await getCanvasState()
     assert.equal(auroraLight.active, 'false')
-    assert.equal(auroraLight.visibility, 'hidden', 'Aurora Light must not show the Classic shader')
+    assert.equal(auroraLight.canvasCount, 0)
+    assert.equal(auroraLight.particleCanvasCount, 1)
+    assert.equal(auroraLight.visibility, null, 'Aurora Light must not mount the Classic shader')
     await browser.saveScreenshot(path.join(evidence, 'mesh-drift-aurora-light-1400x900.png'))
     await selectAppearance('dark', 'classic')
     await browser.setWindowSize(1280, 720)
