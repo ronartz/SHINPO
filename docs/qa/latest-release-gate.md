@@ -1,9 +1,9 @@
 # SHINPO Automated Release Gate Report
 
-**Execution Timestamp:** 2026-11-22T12:17:49Z
-**Evaluated Commit:** `5b7a0ea` (`main`; application source content matched tested worktree)
-**Worktree Status:** Application source committed as `5b7a0ea`; report was reconciled after the tested source was committed
-**Release Decision:** **Published Linux supervised private-beta prerelease; known security findings remain open**
+**Execution Timestamp:** 2026-11-23T18:45:50Z
+**Evaluated Commit:** `a90eb4c0562390c40cd298a0989ff5b0abf50f97` (`main`)
+**Worktree Status:** CLEAN
+**Release Decision:** **PARTIAL_RUN (Executed mode 'quick')**
 
 ---
 
@@ -11,9 +11,9 @@
 
 | Artifact | Local Filepath | SHA-256 Digest |
 |---|---|---|
-| **Git Head** | `.git` | `dcf291d3984a703a1ec76399e2404a321c994bde` |
-| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `b1c32ad8df79552cf1fdd20b90addda3fa46c879d27c6f2c2acef846f1d1d00c` |
-| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.4-1.x86_64.rpm` | `f57e1c42e29bdfd404b087525ab0c574fde00c9e31c2cf77406b7e73dab3c7f8` |
+| **Git Head** | `.git` | `a90eb4c0562390c40cd298a0989ff5b0abf50f97` |
+| **Linux Tauri Binary** | `frontend/src-tauri/target/release/shinpo-desktop` | `ef766ad9c2503bafbd9ad8dc0ac4db18272274873d61eb8c593e4f084d33efef` |
+| **Linux Release Package** | `frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.5-1.x86_64.rpm` | `UNKNOWN` |
 
 ---
 
@@ -31,8 +31,8 @@
 | **1. Quick** | Node.js unit tests + TypeScript compile + Vite production bundle | **PASS** | Pass criteria: 0 test failures, 0 TS build errors |
 | **2. Security & Supply-Chain** | Secret scanning + cargo-audit (Tauri & Shield) + SQLCipher HMAC tamper tests + npm audit | **NOT_RUN** | Pass criteria: 0 leaked keys, 0 CVEs, cryptographic tamper rejection confirmed |
 | **3. Visual, Themes & A11y** | Layout/Typography contracts + 4-theme coverage (sparse & populated) + 3D particles + Axe-core WCAG AA | **NOT_RUN** | Pass criteria: strictly monotonic calendar, no sub-11px text, contrast >= 4.5:1 |
-| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **PASS** | RPM payload, ldd, desktop entry, icon and Browser Companion resources verified; extracted payload launched in native smoke. System package-manager installation remains untested. |
-| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **PASS (scope-limited)** | One native Fedora WebKitGTK smoke spec passed from extracted RPM payload with disposable profile; not full authenticated user acceptance. |
+| **4. Linux Package (RPM)** | RPM archive verification, dynamic library linkage (ldd), desktop entry syntax, isolated archive extraction | **NOT_RUN** | Package extraction checks do not substitute for a clean-VM install/upgrade test |
+| **5. Native Desktop (Linux)** | Real Tauri 2.0 WebKitGTK binary execution in isolated profile: auth warp, particles, guardian app discovery | **NOT_RUN** | Pass criteria: clean native startup, 0 DOM crashes, honest app discovery |
 | **6. Windows Desktop** | Windows NSIS installer and WebView2 execution | **NOT_TESTED** | Linux host cannot execute Windows native tests; must remain blocked |
 
 ---
@@ -51,22 +51,5 @@
 
 ## Final Recommendation
 
-- **Verdict:** **Published Linux supervised private-beta prerelease; known security findings remain open**
+- **Verdict:** **PARTIAL_RUN (Executed mode 'quick')**
 - Machine-readable results saved to `docs/qa/latest-release-gate.json`.
-
-
-## Additional Beta 4 evidence
-
-- RPM payload gate: PASS; SHA-256 `f57e1c42e29bdfd404b087525ab0c574fde00c9e31c2cf77406b7e73dab3c7f8`.
-- Native smoke: 1 passed, 0 failed against the extracted RPM payload in Fedora WebKitGTK, using disposable profile `/tmp/shinpo-native-wdio-mkTS2c`; this is not a package-manager installation test.
-- Browser Companion live pairing/site intervention: NOT TESTED.
-- Windows native installation/runtime: NOT TESTED.
-- GLib `RUSTSEC-2024-0429` and listed unmaintained dependencies remain unresolved.
-
-
-## Hosted Beta 4 release
-
-- Release: <https://github.com/ronartz/SHINPO/releases/tag/v0.1.0-beta.4> (published as prerelease; Linux assets only).
-- Tagged workflow run `45020356630`: QA PASS, Linux installers/checksums PASS, publication PASS, Windows installer SKIPPED.
-- Main CI run `45020356320`: security aggregation FAILED on unresolved RustSec findings; Linux and Windows build jobs remained in progress at 2026-11-22 12:17 UTC. See run: <https://github.com/ronartz/SHINPO/actions/runs/45020356320>.
-- Verify downloads with the attached `SHA256SUMS`; hosted artifact hashes differ from local candidates because CI rebuilt them.

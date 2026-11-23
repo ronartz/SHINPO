@@ -1,31 +1,29 @@
 {
-  "timestamp": "2026-11-22T12:17:49Z",
-  "commit": "5b7a0ea",
+  "timestamp": "2026-11-23T18:45:50Z",
+  "commit": "a90eb4c0562390c40cd298a0989ff5b0abf50f97",
   "branch": "main",
-  "worktree": "Tracked source at 5b7a0ea; QA execution used identical application sources before the release-documentation follow-up commit",
+  "worktree": "CLEAN",
   "mode": "quick",
   "binary": {
     "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/shinpo-desktop",
-    "sha256": "b1c32ad8df79552cf1fdd20b90addda3fa46c879d27c6f2c2acef846f1d1d00c"
+    "sha256": "ef766ad9c2503bafbd9ad8dc0ac4db18272274873d61eb8c593e4f084d33efef"
   },
   "packageRpm": {
-    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.4-1.x86_64.rpm",
-    "sha256": "f57e1c42e29bdfd404b087525ab0c574fde00c9e31c2cf77406b7e73dab3c7f8"
+    "path": "/home/eonx/Projects/SHINPO/frontend/src-tauri/target/release/bundle/rpm/SHINPO-0.1.0-beta.5-1.x86_64.rpm",
+    "sha256": "UNKNOWN"
   },
   "verdicts": {
-    "overall": "PUBLISHED PRERELEASE (supervised Linux private beta; unresolved security findings disclosed)",
-    "linux": "PASS (tagged GitHub Linux build and prerelease publication succeeded; Fedora package-manager installation remains untested)",
-    "windows": "NO-GO (NOT TESTED \u2014 Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
+    "overall": "PARTIAL_RUN (Executed mode 'quick')",
+    "linux": "PARTIAL_RUN (Executed mode 'quick')",
+    "windows": "NO-GO (NOT TESTED — Linux Host Cannot Run Windows NSIS/WebView2 Native Drivers)"
   },
-  "failedGatesCount": 1,
+  "failedGatesCount": 0,
   "gates": {
     "quick": "PASS",
     "security": "NOT_RUN",
     "visualAndThemes": "NOT_RUN",
-    "linuxPackageRpm": "PASS (RPM payload, dependencies, desktop entry, icon, browser-host resources; extraction did not modify mock user data)",
-    "nativeDesktop": "PASS (one Fedora WebKitGTK smoke spec against extracted RPM payload; disposable profile; Java/PostgreSQL stopped)",
-    "windowsDesktop": "NOT_TESTED",
-    "hostedTaggedRelease": "PASS (run 45020356630; Linux installers/checksums and prerelease publication succeeded; Windows installer skipped)",
-    "hostedSecurityCI": "FAIL (run 45020356320 security aggregation; known RustSec advisories remain open)"
+    "linuxPackageRpm": "NOT_RUN",
+    "nativeDesktop": "NOT_RUN",
+    "windowsDesktop": "NOT_TESTED"
   }
 }
